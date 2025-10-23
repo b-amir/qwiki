@@ -45,7 +45,11 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "pnpm run compile && pnpm run lint",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:webview": "cd webview-ui && pnpm run lint",
+    "format": "prettier --cache --write .",
+    "format:check": "prettier --cache --check ."
   },
   "devDependencies": {
     "@types/vscode": "^1.105.0",
@@ -54,6 +58,9 @@
     "@typescript-eslint/eslint-plugin": "^8.45.0",
     "@typescript-eslint/parser": "^8.45.0",
     "eslint": "^9.36.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.9",
     "typescript": "^5.9.3",
     "ts-loader": "^9.5.4",
     "webpack": "^5.102.0",

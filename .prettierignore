@@ -1,0 +1,7 @@
+node_modules
+dist
+out
+webview-ui/build
+coverage
+*.log
+

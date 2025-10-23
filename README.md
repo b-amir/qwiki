@@ -44,22 +44,26 @@ qwiki/
 ### From Source
 
 1. Clone this repository:
+
 ```bash
 git clone <repository-url>
 cd qwiki
 ```
 
 2. Install dependencies:
+
 ```bash
 pnpm run install:all
 ```
 
 3. Build the webview UI:
+
 ```bash
 pnpm run build:webview
 ```
 
 4. Compile the extension:
+
 ```bash
 pnpm run compile
 ```
@@ -83,16 +87,19 @@ The Qwiki webview provides a simple interface with interactive elements. Click t
 ### Running in Development Mode
 
 1. Install dependencies:
+
 ```bash
 pnpm run install:all
 ```
 
 2. Start the webview development server:
+
 ```bash
 pnpm run start:webview
 ```
 
 3. In another terminal, compile the extension in watch mode:
+
 ```bash
 pnpm run watch
 ```
@@ -102,11 +109,13 @@ pnpm run watch
 ### Building for Production
 
 1. Build the webview:
+
 ```bash
 pnpm run build:webview
 ```
 
 2. Compile the extension:
+
 ```bash
 pnpm run vscode:prepublish
 ```

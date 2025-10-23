@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { cn } from '@/lib/utils'
-defineProps<{ class?: string }>()
+import { cn } from "@/lib/utils";
+defineProps<{ class?: string }>();
 </script>
 
 <template>
@@ -8,4 +8,3 @@ defineProps<{ class?: string }>()
     <slot />
   </div>
 </template>
-

@@ -4,10 +4,8 @@ import { HelloWorldPanel } from "./panels/HelloWorldPanel";
 export function activate(context: ExtensionContext) {
   // Register the webview view provider
   const provider = new HelloWorldPanel(context.extensionUri);
-  
-  context.subscriptions.push(
-    window.registerWebviewViewProvider("qwiki.helloWorldView", provider)
-  );
+
+  context.subscriptions.push(window.registerWebviewViewProvider("qwiki.helloWorldView", provider));
 
   // Create the show hello world command (optional, can be removed if not needed)
   const showHelloWorldCommand = commands.registerCommand("qwiki.helloWorld", () => {

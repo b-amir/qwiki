@@ -77,9 +77,19 @@ export class HelloWorldPanel {
    */
   private _getWebviewContent(webview: Webview) {
     // The CSS file from the Vue build output
-    const stylesUri = getUri(webview, this._extensionUri, ["webview-ui", "build", "assets", "index.css"]);
+    const stylesUri = getUri(webview, this._extensionUri, [
+      "webview-ui",
+      "build",
+      "assets",
+      "index.css",
+    ]);
     // The JS file from the Vue build output
-    const scriptUri = getUri(webview, this._extensionUri, ["webview-ui", "build", "assets", "index.js"]);
+    const scriptUri = getUri(webview, this._extensionUri, [
+      "webview-ui",
+      "build",
+      "assets",
+      "index.js",
+    ]);
 
     const nonce = getNonce();
 
@@ -124,7 +134,7 @@ export class HelloWorldPanel {
         }
       },
       undefined,
-      this._disposables
+      this._disposables,
     );
   }
 }
