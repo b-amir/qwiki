@@ -1,47 +1,36 @@
 <script setup lang="ts">
 import { provideVSCodeDesignSystem, vsCodeButton } from "@vscode/webview-ui-toolkit";
-import { vscode } from "./utilities/vscode";
+import { useCounterStore } from './stores/counter'
+import Button from '@/components/ui/button.vue'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 
-// In order to use the Webview UI Toolkit web components they
-// must be registered with the browser (i.e. webview) using the
-// syntax below.
+// Register VS Code web components (optional; keeps toolkit available if needed)
 provideVSCodeDesignSystem().register(vsCodeButton());
 
-// To register more toolkit components, simply import the component
-// registration function and call it from within the register
-// function, like so:
-//
-// provideVSCodeDesignSystem().register(
-//   vsCodeButton(),
-//   vsCodeCheckbox()
-// );
-//
-// Finally, if you would like to register all of the toolkit
-// components at once, there's a handy convenience function:
-//
-// provideVSCodeDesignSystem().register(allComponents);
-
-function handleHowdyClick() {
-  vscode.postMessage({
-    command: "hello",
-    text: "Hey there partner! 🤠",
-  });
-}
+const counter = useCounterStore()
 </script>
 
 <template>
-  <main>
-    <h1>Hello world!</h1>
-    <vscode-button @click="handleHowdyClick">Howdy!</vscode-button>
+  <main class="h-full w-full flex items-center justify-center p-6">
+    <Card class="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle>Counter</CardTitle>
+        <CardDescription>A minimal Vue + Pinia example</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="flex items-center justify-center">
+          <span class="min-w-[4rem] text-center text-3xl font-mono">{{ counter.count }}</span>
+        </div>
+      </CardContent>
+      <CardFooter class="justify-end gap-2">
+        <Button variant="outline" @click="counter.decrement" aria-label="decrement">−</Button>
+        <Button @click="counter.increment" aria-label="increment">+</Button>
+        <Button variant="ghost" @click="counter.reset">Reset</Button>
+      </CardFooter>
+    </Card>
   </main>
 </template>
 
 <style>
-main {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  height: 100%;
-}
+/* Minimal by design; shadcn + Tailwind handle styling. */
 </style>
