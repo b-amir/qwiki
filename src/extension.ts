@@ -1,10 +1,18 @@
-import { commands, ExtensionContext } from "vscode";
+import { ExtensionContext, window, commands } from "vscode";
 import { HelloWorldPanel } from "./panels/HelloWorldPanel";
 
 export function activate(context: ExtensionContext) {
-  // Create the show hello world command
+  // Register the webview view provider
+  const provider = new HelloWorldPanel(context.extensionUri);
+  
+  context.subscriptions.push(
+    window.registerWebviewViewProvider("qwiki.helloWorldView", provider)
+  );
+
+  // Create the show hello world command (optional, can be removed if not needed)
   const showHelloWorldCommand = commands.registerCommand("qwiki.helloWorld", () => {
-    HelloWorldPanel.render(context.extensionUri);
+    // This command will focus on the qwiki activity bar view
+    commands.executeCommand("workbench.view.extension.qwiki");
   });
 
   // Add command to the extension context

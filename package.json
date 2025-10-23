@@ -17,7 +17,25 @@
         "command": "qwiki.helloWorld",
         "title": "Hello World (Vue): Show"
       }
-    ]
+    ],
+    "views": {
+      "qwiki": [
+        {
+          "id": "qwiki.helloWorldView",
+          "name": "Hello World",
+          "type": "webview"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "qwiki",
+          "title": "Qwiki",
+          "icon": "resources/qwiki-icon.svg"
+        }
+      ]
+    }
   },
   "scripts": {
     "install:all": "pnpm install && cd webview-ui && pnpm install",

@@ -1,84 +1,62 @@
-import { Disposable, Webview, WebviewPanel, window, Uri, ViewColumn } from "vscode";
+import { Disposable, Webview, WebviewView, Uri, window } from "vscode";
 import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
 
 /**
- * This class manages the state and behavior of HelloWorld webview panels.
+ * This class manages the state and behavior of HelloWorld webview view.
  *
  * It contains all the data and methods for:
  *
- * - Creating and rendering HelloWorld webview panels
- * - Properly cleaning up and disposing of webview resources when the panel is closed
- * - Setting the HTML (and by proxy CSS/JavaScript) content of the webview panel
+ * - Creating and rendering HelloWorld webview view in the sidebar
+ * - Setting the HTML (and by proxy CSS/JavaScript) content of the webview view
  * - Setting message listeners so data can be passed between the webview and extension
  */
 export class HelloWorldPanel {
-  public static currentPanel: HelloWorldPanel | undefined;
-  private readonly _panel: WebviewPanel;
+  private readonly _extensionUri: Uri;
   private _disposables: Disposable[] = [];
 
   /**
-   * The HelloWorldPanel class private constructor (called only from the render method).
+   * The HelloWorldPanel constructor.
    *
-   * @param panel A reference to the webview panel
    * @param extensionUri The URI of the directory containing the extension
    */
-  private constructor(panel: WebviewPanel, extensionUri: Uri) {
-    this._panel = panel;
+  constructor(extensionUri: Uri) {
+    this._extensionUri = extensionUri;
+  }
 
-    // Set an event listener to listen for when the panel is disposed (i.e. when the user closes
-    // the panel or when the panel is closed programmatically)
-    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+  /**
+   * Called when the view is first created.
+   * This is where we set up the webview content.
+   *
+   * @param webviewView The webview view to resolve
+   */
+  public resolveWebviewView(webviewView: WebviewView) {
+    // Set options for the webview
+    webviewView.webview.options = {
+      // Enable JavaScript in the webview
+      enableScripts: true,
+      // Restrict the webview to only load resources from the `out` and `webview-ui/build` directories
+      localResourceRoots: [
+        Uri.joinPath(this._extensionUri, "out"),
+        Uri.joinPath(this._extensionUri, "webview-ui/build"),
+      ],
+    };
 
-    // Set the HTML content for the webview panel
-    this._panel.webview.html = this._getWebviewContent(this._panel.webview, extensionUri);
+    // Set the HTML content for the webview
+    webviewView.webview.html = this._getWebviewContent(webviewView.webview);
 
     // Set an event listener to listen for messages passed from the webview context
-    this._setWebviewMessageListener(this._panel.webview);
+    this._setWebviewMessageListener(webviewView.webview);
+
+    // Clean up when the view is disposed
+    webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
   }
 
   /**
-   * Renders the current webview panel if it exists otherwise a new webview panel
-   * will be created and displayed.
-   *
-   * @param extensionUri The URI of the directory containing the extension.
-   */
-  public static render(extensionUri: Uri) {
-    if (HelloWorldPanel.currentPanel) {
-      // If the webview panel already exists reveal it
-      HelloWorldPanel.currentPanel._panel.reveal(ViewColumn.One);
-    } else {
-      // If a webview panel does not already exist create and show a new one
-      const panel = window.createWebviewPanel(
-        // Panel view type
-        "showHelloWorld",
-        // Panel title
-        "Hello World",
-        // The editor column the panel should be displayed in
-        ViewColumn.One,
-        // Extra panel configurations
-        {
-          // Enable JavaScript in the webview
-          enableScripts: true,
-          // Restrict the webview to only load resources from the `out` and `webview-ui/build` directories
-          localResourceRoots: [Uri.joinPath(extensionUri, "out"), Uri.joinPath(extensionUri, "webview-ui/build")],
-        }
-      );
-
-      HelloWorldPanel.currentPanel = new HelloWorldPanel(panel, extensionUri);
-    }
-  }
-
-  /**
-   * Cleans up and disposes of webview resources when the webview panel is closed.
+   * Cleans up and disposes of webview resources when the webview view is closed.
    */
   public dispose() {
-    HelloWorldPanel.currentPanel = undefined;
-
-    // Dispose of the current webview panel
-    this._panel.dispose();
-
-    // Dispose of all disposables (i.e. commands) for the current webview panel
+    // Dispose of all disposables
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
       if (disposable) {
@@ -88,21 +66,20 @@ export class HelloWorldPanel {
   }
 
   /**
-   * Defines and returns the HTML that should be rendered within the webview panel.
+   * Defines and returns the HTML that should be rendered within the webview view.
    *
    * @remarks This is also the place where references to the Vue webview build files
    * are created and inserted into the webview HTML.
    *
    * @param webview A reference to the extension webview
-   * @param extensionUri The URI of the directory containing the extension
    * @returns A template string literal containing the HTML that should be
-   * rendered within the webview panel
+   * rendered within the webview view
    */
-  private _getWebviewContent(webview: Webview, extensionUri: Uri) {
+  private _getWebviewContent(webview: Webview) {
     // The CSS file from the Vue build output
-    const stylesUri = getUri(webview, extensionUri, ["webview-ui", "build", "assets", "index.css"]);
+    const stylesUri = getUri(webview, this._extensionUri, ["webview-ui", "build", "assets", "index.css"]);
     // The JS file from the Vue build output
-    const scriptUri = getUri(webview, extensionUri, ["webview-ui", "build", "assets", "index.js"]);
+    const scriptUri = getUri(webview, this._extensionUri, ["webview-ui", "build", "assets", "index.js"]);
 
     const nonce = getNonce();
 
@@ -127,10 +104,9 @@ export class HelloWorldPanel {
 
   /**
    * Sets up an event listener to listen for messages passed from the webview context and
-   * executes code based on the message that is recieved.
+   * executes code based on the message that is received.
    *
    * @param webview A reference to the extension webview
-   * @param context A reference to the extension context
    */
   private _setWebviewMessageListener(webview: Webview) {
     webview.onDidReceiveMessage(
@@ -144,7 +120,7 @@ export class HelloWorldPanel {
             window.showInformationMessage(text);
             return;
           // Add more switch case statements here as more webview message commands
-          // are created within the webview context (i.e. inside media/main.js)
+          // are created within the webview context
         }
       },
       undefined,
