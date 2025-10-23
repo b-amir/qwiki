@@ -4,3 +4,5 @@ node_modules
 .local
 .vscode-test/
 *.vsix
+webview-ui/build
+webview-ui/node_modules
