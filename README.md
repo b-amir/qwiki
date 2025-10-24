@@ -18,7 +18,7 @@ qwiki/
 ├── src/                      # Extension source code
 │   ├── extension.ts          # Main extension entry point
 │   ├── panels/               # WebView panel implementations
-│   │   └── HelloWorldPanel.ts
+│   │   └── QwikiPanel.ts
 │   ├── utilities/            # Helper functions
 │   │   ├── getNonce.ts
 │   │   └── getUri.ts

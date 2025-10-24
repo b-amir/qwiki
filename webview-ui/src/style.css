@@ -95,3 +95,12 @@ body {
     Apple Color Emoji,
     Segoe UI Emoji;
 }
+
+/* Basic prose styles for markdown */
+.prose h1, .prose h2, .prose h3 { @apply font-semibold; }
+.prose h1 { @apply text-xl mt-2 mb-2; }
+.prose h2 { @apply text-lg mt-2 mb-2; }
+.prose h3 { @apply text-base mt-2 mb-1; }
+.prose p, .prose ul, .prose ol { @apply my-2; }
+.prose code { @apply rounded bg-muted px-1 py-0.5; }
+.prose pre { @apply rounded border border-border p-3 overflow-auto; }
