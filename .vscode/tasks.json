@@ -12,10 +12,31 @@
         "reveal": "never",
         "group": "watchers"
       },
+      "group": "build"
+    },
+    {
+      "label": "build-extension",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "compile"],
+      "problemMatcher": "$tsc",
       "group": {
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "build-webview",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "build:webview"],
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "build-all",
+      "dependsOn": ["build-webview", "build-extension"],
+      "problemMatcher": []
     },
     {
       "type": "npm",
