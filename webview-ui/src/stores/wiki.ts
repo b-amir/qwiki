@@ -11,6 +11,10 @@ export const useWikiStore = defineStore("wiki", {
     snippet: "" as string,
     languageId: "" as string,
     filePath: "" as string,
+    rootName: "" as string,
+    overview: "" as string,
+    filesSample: [] as string[],
+    related: [] as Array<{ path: string; preview?: string; line?: number; reason?: string }>,
     providers: [] as ProviderStatus[],
     providerId: "gemini" as string,
     model: "" as string,
@@ -25,6 +29,8 @@ export const useWikiStore = defineStore("wiki", {
             this.snippet = text || "";
             this.languageId = languageId || "";
             this.filePath = filePath || "";
+            // Keep related list in sync with current selection
+            vscode.postMessage({ command: "getRelated" });
             return;
           }
           case "providers": {
@@ -40,6 +46,14 @@ export const useWikiStore = defineStore("wiki", {
             this.content = message.payload?.content || "";
             return;
           }
+          case "related": {
+            const { rootName, overview, filesSample, related } = message.payload || {};
+            this.rootName = rootName || "";
+            this.overview = overview || "";
+            this.filesSample = Array.isArray(filesSample) ? filesSample : [];
+            this.related = Array.isArray(related) ? related : [];
+            return;
+          }
           case "error": {
             this.loading = false;
             this.error = message.payload?.message || "Unknown error";
@@ -49,6 +63,7 @@ export const useWikiStore = defineStore("wiki", {
       });
       vscode.postMessage({ command: "getSelection" });
       vscode.postMessage({ command: "getProviders" });
+      vscode.postMessage({ command: "getRelated" });
     },
     refreshSelection() {
       vscode.postMessage({ command: "getSelection" });
@@ -71,6 +86,11 @@ export const useWikiStore = defineStore("wiki", {
           filePath: this.filePath || undefined,
         },
       });
+      // Update related files alongside wiki generation
+      vscode.postMessage({ command: "getRelated" });
+    },
+    openFile(path: string, line?: number) {
+      vscode.postMessage({ command: "openFile", payload: { path, line } });
     },
   },
 });

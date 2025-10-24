@@ -2,6 +2,7 @@
 import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
 import { LLMRegistry, type ProviderId } from "../llm";
+import { commands } from "vscode";
 
 /**
  * This class manages the state and behavior of Qwiki webview view.
@@ -136,6 +137,58 @@ export class QwikiPanel {
               const languageId = editor?.document.languageId;
               const filePath = editor?.document.uri.fsPath;
               webview.postMessage({ command: "selection", payload: { text, languageId, filePath } });
+              return;
+            }
+            case "getRelated": {
+              const editor = window.activeTextEditor;
+              const selection = editor?.selection;
+              const text = selection && !selection.isEmpty ? editor?.document.getText(selection) : editor?.document.getText() || "";
+              const languageId = editor?.document.languageId;
+              const filePath = editor?.document.uri.fsPath;
+              const project = await this._buildProjectContext(text, filePath, languageId);
+              webview.postMessage({ command: "related", payload: project });
+              return;
+            }
+            case "openFile": {
+              const { path, line } = message.payload as { path: string; line?: number };
+              try {
+                const folders = workspace.workspaceFolders;
+                let targetUri: Uri | undefined;
+                const cleaned = path.replace(/^\.(?:[\\\/]|$)/, "");
+                const isAbs = /^\w:\\|^\\\\|^\//.test(path);
+                if (isAbs) {
+                  targetUri = Uri.file(path);
+                } else if (folders && folders.length) {
+                  // Try workspace-relative exact path first
+                  targetUri = Uri.joinPath(folders[0].uri, cleaned.replace(/^[\\/]+/, ""));
+                }
+                // If the target likely does not exist or is just a basename, try a workspace search
+                const needsSearch = !/[\\/]/.test(cleaned) || !(targetUri);
+                if ((!isAbs && needsSearch) && folders && folders.length) {
+                  const glob = /[\\/]/.test(cleaned) ? cleaned : `**/${cleaned}`;
+                  const matches = await workspace.findFiles(glob, "**/{node_modules,dist,out,build,.git,.vscode}/**", 5);
+                  if (matches.length) targetUri = matches[0];
+                }
+
+                if (targetUri) {
+                  await commands.executeCommand(
+                    "vscode.open",
+                    targetUri,
+                    line
+                      ? {
+                          selection: {
+                            start: { line: Math.max(0, line - 1), character: 0 },
+                            end: { line: Math.max(0, line - 1), character: 0 },
+                          },
+                        }
+                      : undefined,
+                  );
+                } else {
+                  window.showWarningMessage(`Cannot resolve path to open: ${path}`);
+                }
+              } catch (e: any) {
+                window.showErrorMessage(`Failed to open file: ${e?.message || String(e)}`);
+              }
               return;
             }
             case "saveApiKey": {

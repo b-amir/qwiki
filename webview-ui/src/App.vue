@@ -79,6 +79,44 @@ watch(
         <div v-else-if="wiki.content">
           <MarkdownRenderer :content="wiki.content" />
         </div>
+
+        <div
+          v-if="wiki.related.length || wiki.filesSample.length"
+          class="grid gap-4 md:grid-cols-2"
+        >
+          <section class="space-y-2">
+            <h3 class="text-sm font-medium">Related files</h3>
+            <ul class="divide-border divide-y rounded border">
+              <li
+                v-for="item in wiki.related"
+                :key="item.path + ':' + (item.line || 0)"
+                class="hover:bg-accent/50 cursor-pointer px-3 py-2 text-sm"
+                @click="wiki.openFile(item.path, item.line)"
+              >
+                <div class="truncate font-medium">{{ item.path }}</div>
+                <div v-if="item.preview" class="text-muted-foreground truncate text-xs">
+                  {{ item.preview }}
+                </div>
+              </li>
+            </ul>
+          </section>
+          <section class="space-y-2">
+            <h3 class="text-sm font-medium">Project</h3>
+            <div v-if="wiki.overview" class="text-muted-foreground text-xs">
+              {{ wiki.overview }}
+            </div>
+            <ul class="divide-border max-h-64 divide-y overflow-auto rounded border">
+              <li
+                v-for="p in wiki.filesSample"
+                :key="p"
+                class="hover:bg-accent/50 cursor-pointer truncate px-3 py-2 text-sm"
+                @click="wiki.openFile(p)"
+              >
+                {{ p }}
+              </li>
+            </ul>
+          </section>
+        </div>
         <div v-else class="text-muted-foreground text-sm">
           Select code in the editor, then click Generate Wiki.
         </div>
