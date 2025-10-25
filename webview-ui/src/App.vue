@@ -183,7 +183,7 @@ watch(
               <div class="flex flex-col items-center space-y-2">
                 <div class="flex flex-col items-center gap-1">
                   <p class="text-muted-foreground text-center text-xs">
-                    Select code and press
+                    Select code, then press:
                     <kbd
                       class="bg-background border-border/80 text-foreground inline-flex h-5 items-center justify-center rounded border px-1.5 text-xs font-medium shadow-sm"
                       >Ctrl+Shift+Q</kbd
@@ -191,10 +191,9 @@ watch(
                   </p>
 
                   <span class="text-muted-foreground text-xs"
-                    >Right-click →
-                    <span
-                      class="bg-background text-foreground inline-flex h-5 items-center justify-center rounded px-1.5 text-xs font-medium shadow-sm"
-                      >Qwiki: Create a quick wiki!</span
+                    >or right-click:<span
+                      class="bg-background text-foreground shadow-xs inline-flex h-5 items-center justify-center rounded px-1.5 text-xs font-medium"
+                      >Qwiki: Create a quick wiki</span
                     ></span
                   >
                 </div>
