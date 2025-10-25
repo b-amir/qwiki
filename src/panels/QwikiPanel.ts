@@ -16,6 +16,9 @@ import { commands } from "vscode";
 export class QwikiPanel {
   private readonly _extensionUri: Uri;
   private webview?: Webview;
+  private view?: WebviewView;
+  private _webviewReady = false;
+  private _pendingTab: "wiki" | "settings" | undefined;
   private llms: LLMRegistry;
   private _disposables: Disposable[] = [];
 
@@ -47,9 +50,11 @@ export class QwikiPanel {
       ],
     };
 
+    this.view = webviewView;
     // Set the HTML content for the webview
     webviewView.webview.html = this._getWebviewContent(webviewView.webview);
     this.webview = webviewView.webview;
+    this._webviewReady = false;
 
     // Set an event listener to listen for messages passed from the webview context
     this._setWebviewMessageListener(webviewView.webview);
@@ -58,10 +63,19 @@ export class QwikiPanel {
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
   }
 
+  public showTab(tab: "wiki" | "settings") {
+    this._queueNavigation(tab);
+    commands.executeCommand("workbench.view.extension.qwiki");
+    this.view?.show?.(true);
+  }
+
   /**
    * Cleans up and disposes of webview resources when the webview view is closed.
    */
   public dispose() {
+    this.webview = undefined;
+    this.view = undefined;
+    this._webviewReady = false;
     // Dispose of all disposables
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
@@ -118,6 +132,19 @@ export class QwikiPanel {
     `;
   }
 
+  private _queueNavigation(tab: "wiki" | "settings") {
+    this._pendingTab = tab;
+    this._flushPendingNavigation();
+  }
+
+  private _flushPendingNavigation() {
+    if (!this._pendingTab || !this._webviewReady || !this.webview) {
+      return;
+    }
+    this.webview.postMessage({ command: "navigate", payload: { tab: this._pendingTab } });
+    this._pendingTab = undefined;
+  }
+
   /**
    * Sets up an event listener to listen for messages passed from the webview context and
    * executes code based on the message that is received.
@@ -130,6 +157,11 @@ export class QwikiPanel {
         try {
           const command = message.command as string;
           switch (command) {
+            case "webviewReady": {
+              this._webviewReady = true;
+              this._flushPendingNavigation();
+              return;
+            }
             case "getSelection": {
               const editor = window.activeTextEditor;
               const selection = editor?.selection;

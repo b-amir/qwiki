@@ -1,28 +1,31 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from "vue";
-import { provideVSCodeDesignSystem, vsCodeButton } from "@vscode/webview-ui-toolkit";
+import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
 import Button from "@/components/ui/button.vue";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 import Skeleton from "@/components/Skeleton.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 
-provideVSCodeDesignSystem().register(vsCodeButton());
-
 const tab = ref<"wiki" | "settings">("wiki");
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 
+const handleMessage = (event: MessageEvent<{ command?: string; payload?: any }>) => {
+  const command = event.data?.command;
+  if (command !== "navigate") return;
+  const nextTab = event.data?.payload?.tab;
+  if (nextTab === "wiki" || nextTab === "settings") {
+    tab.value = nextTab;
+  }
+};
+
 onMounted(() => {
+  window.addEventListener("message", handleMessage);
   wiki.init();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("message", handleMessage);
 });
 
 const currentModels = computed(
@@ -41,23 +44,47 @@ watch(
 </script>
 
 <template>
-  <main class="flex h-full w-full flex-col gap-3 p-3">
-    <div class="flex items-center gap-2">
-      <Button :variant="tab === 'wiki' ? 'default' : 'outline'" @click="tab = 'wiki'">Wiki</Button>
-      <Button :variant="tab === 'settings' ? 'default' : 'outline'" @click="tab = 'settings'"
-        >Settings</Button
-      >
+  <main class="flex h-full w-full flex-col">
+    <!-- Top bar -->
+    <div class="flex items-center justify-between border-b p-3">
+      <!-- Back button on settings page -->
+      <div class="flex items-center gap-2">
+        <a
+          v-if="tab === 'settings'"
+          class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
+          title="Back"
+          @click="tab = 'wiki'"
+        >
+          <svg
+            class="h-5 w-5"
+            viewBox="0 0 1024 1024"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"
+              fill="currentColor"
+            />
+            <path
+              d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"
+              fill="currentColor"
+            />
+          </svg>
+        </a>
+        <span class="text-sm font-medium">{{ tab === "wiki" ? "Qwiki" : "Settings" }}</span>
+      </div>
+      <!-- Gear on wiki page -->
     </div>
 
-    <Card v-if="tab === 'wiki'" class="w-full">
-      <CardHeader>
-        <CardTitle>Qwiki</CardTitle>
-        <CardDescription class="space-y-1">
+    <!-- Content area -->
+    <div class="flex-1 overflow-auto p-3">
+      <!-- Wiki Page -->
+      <div v-if="tab === 'wiki'" class="space-y-3">
+        <div class="space-y-1">
           <div class="text-muted-foreground truncate text-xs">{{ wiki.filePath }}</div>
           <div class="text-muted-foreground text-xs">{{ wiki.languageId || "plain" }}</div>
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="space-y-3">
+        </div>
+
         <div class="flex flex-wrap items-center gap-2">
           <select v-model="wiki.providerId" class="bg-background rounded border px-2 py-1 text-sm">
             <option v-for="p in wiki.providers" :key="p.id" :value="p.id">
@@ -82,7 +109,7 @@ watch(
 
         <div
           v-if="wiki.related.length || wiki.filesSample.length"
-          class="grid gap-4 md:grid-cols-2 border-t border-border pt-4"
+          class="border-border grid gap-4 border-t pt-4 md:grid-cols-2"
         >
           <section class="space-y-2">
             <h3 class="text-sm font-semibold tracking-wide">Related files</h3>
@@ -120,15 +147,10 @@ watch(
         <div v-else class="text-muted-foreground text-sm">
           Select code in the editor, then click Generate Wiki.
         </div>
-      </CardContent>
-    </Card>
+      </div>
 
-    <Card v-else class="w-full">
-      <CardHeader>
-        <CardTitle>Settings</CardTitle>
-        <CardDescription>Bring your API keys</CardDescription>
-      </CardHeader>
-      <CardContent class="space-y-4">
+      <!-- Settings Page -->
+      <div v-else class="space-y-4">
         <section class="space-y-2">
           <h3 class="text-sm font-medium">Gemini</h3>
           <input
@@ -156,13 +178,11 @@ watch(
             Optional: configure base URL in VS Code settings at qwiki.zaiBaseUrl
           </p>
         </section>
-      </CardContent>
-      <CardFooter>
-        <span class="text-muted-foreground text-xs"
-          >Keys are stored securely in VS Code Secret Storage.</span
-        >
-      </CardFooter>
-    </Card>
+        <p class="text-muted-foreground text-xs">
+          Keys are stored securely in VS Code Secret Storage.
+        </p>
+      </div>
+    </div>
   </main>
 </template>
 

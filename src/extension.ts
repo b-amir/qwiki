@@ -13,8 +13,12 @@ export function activate(context: ExtensionContext) {
     commands.executeCommand("workbench.view.extension.qwiki");
   });
 
+  const showSettingsCommand = commands.registerCommand("qwiki.viewSettings", () => {
+    provider.showTab("settings");
+  });
+
   // Add command to the extension context
-  context.subscriptions.push(showQwikiCommand);
+  context.subscriptions.push(showQwikiCommand, showSettingsCommand);
 }
 
 // This method is called when your extension is deactivated

@@ -25,8 +25,22 @@
       {
         "command": "qwiki.show",
         "title": "Qwiki: Show"
+      },
+      {
+        "command": "qwiki.viewSettings",
+        "title": "Qwiki: Settings",
+        "icon": "$(gear)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "qwiki.viewSettings",
+          "when": "view == qwiki.wikiView",
+          "group": "navigation@1"
+        }
+      ]
+    },
     "views": {
       "qwiki": [
         {
