@@ -30,6 +30,10 @@
         "command": "qwiki.viewSettings",
         "title": "Qwiki: Settings",
         "icon": "$(gear)"
+      },
+      {
+        "command": "qwiki.createQuickWiki",
+        "title": "Qwiki: Create a quick wiki!"
       }
     ],
     "menus": {
@@ -38,6 +42,13 @@
           "command": "qwiki.viewSettings",
           "when": "view == qwiki.wikiView",
           "group": "navigation@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "qwiki.createQuickWiki",
+          "when": "editorTextFocus",
+          "group": "navigation@9"
         }
       ]
     },

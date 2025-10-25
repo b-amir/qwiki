@@ -17,8 +17,12 @@ export function activate(context: ExtensionContext) {
     provider.showTab("settings");
   });
 
+  const createQuickWikiCommand = commands.registerCommand("qwiki.createQuickWiki", () => {
+    provider.createWikiFromEditorSelection();
+  });
+
   // Add command to the extension context
-  context.subscriptions.push(showQwikiCommand, showSettingsCommand);
+  context.subscriptions.push(showQwikiCommand, showSettingsCommand, createQuickWikiCommand);
 }
 
 // This method is called when your extension is deactivated

@@ -40,6 +40,10 @@ export const useWikiStore = defineStore("wiki", {
             if (withKey) this.providerId = withKey;
             return;
           }
+          case "triggerGenerate": {
+            this.generate();
+            return;
+          }
           case "wikiResult": {
             this.loading = false;
             this.error = "";
@@ -65,9 +69,6 @@ export const useWikiStore = defineStore("wiki", {
       vscode.postMessage({ command: "getSelection" });
       vscode.postMessage({ command: "getProviders" });
       vscode.postMessage({ command: "getRelated" });
-    },
-    refreshSelection() {
-      vscode.postMessage({ command: "getSelection" });
     },
     async generate() {
       if (!this.snippet?.trim()) {

@@ -81,7 +81,6 @@ watch(
           <select v-model="wiki.model" class="bg-background rounded border px-2 py-1 text-sm">
             <option v-for="m in currentModels" :key="m" :value="m">{{ m }}</option>
           </select>
-          <Button size="sm" variant="outline" @click="wiki.refreshSelection">Use Selection</Button>
           <Button size="sm" @click="wiki.generate">Generate Wiki</Button>
         </div>
 
@@ -131,7 +130,7 @@ watch(
           </section>
         </div>
         <div v-else class="text-muted-foreground text-sm">
-          Select code in the editor, then click Generate Wiki.
+          Right-click selected code in the editor and choose "Qwiki: Create a quick wiki!" to generate a page.
         </div>
       </div>
 

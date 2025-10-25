@@ -4,6 +4,12 @@ import { getNonce } from "../utilities/getNonce";
 import { LLMRegistry, type ProviderId } from "../llm";
 import { commands } from "vscode";
 
+type SelectionPayload = {
+  text: string;
+  languageId?: string;
+  filePath?: string;
+};
+
 /**
  * This class manages the state and behavior of Qwiki webview view.
  *
@@ -21,6 +27,8 @@ export class QwikiPanel {
   private _pendingTab: "wiki" | "settings" | undefined;
   private llms: LLMRegistry;
   private _disposables: Disposable[] = [];
+  private _pendingSelection: { payload: SelectionPayload; autoGenerate: boolean } | undefined;
+  private _lastSelection: SelectionPayload | undefined;
 
   /**
    * The QwikiPanel constructor.
@@ -67,6 +75,21 @@ export class QwikiPanel {
     this._queueNavigation(tab);
     commands.executeCommand("workbench.view.extension.qwiki");
     this.view?.show?.(true);
+  }
+
+  public createWikiFromEditorSelection() {
+    const payload = this._readSelectionFromEditor(false);
+    if (!payload) {
+      window.showInformationMessage("Open a file to create a Qwiki entry.");
+      return;
+    }
+    if (!payload.text.trim()) {
+      window.showInformationMessage("Select some code or add content to the current file to build a wiki.");
+      return;
+    }
+    this._queueSelection(payload, { autoGenerate: true });
+    this.showTab("wiki");
+    this._flushPendingSelection();
   }
 
   /**
@@ -145,6 +168,39 @@ export class QwikiPanel {
     this._pendingTab = undefined;
   }
 
+  private _queueSelection(payload: SelectionPayload, options?: { autoGenerate?: boolean }) {
+    this._lastSelection = payload;
+    this._pendingSelection = { payload, autoGenerate: !!options?.autoGenerate };
+    this._flushPendingSelection();
+  }
+
+  private _flushPendingSelection() {
+    if (!this._pendingSelection || !this._webviewReady || !this.webview) {
+      return;
+    }
+    const { payload, autoGenerate } = this._pendingSelection;
+    this.webview.postMessage({ command: "selection", payload });
+    if (autoGenerate) {
+      this.webview.postMessage({ command: "triggerGenerate" });
+    }
+    this._pendingSelection = undefined;
+  }
+
+  private _readSelectionFromEditor(allowFallback = true): SelectionPayload | undefined {
+    const editor = window.activeTextEditor;
+    if (!editor) {
+      return allowFallback ? this._lastSelection : undefined;
+    }
+    const { document, selection } = editor;
+    const hasSelection = selection && !selection.isEmpty;
+    const text = hasSelection ? document.getText(selection) : document.getText();
+    return {
+      text: text ?? "",
+      languageId: document.languageId,
+      filePath: document.uri.fsPath,
+    };
+  }
+
   /**
    * Sets up an event listener to listen for messages passed from the webview context and
    * executes code based on the message that is received.
@@ -160,23 +216,23 @@ export class QwikiPanel {
             case "webviewReady": {
               this._webviewReady = true;
               this._flushPendingNavigation();
+              this._flushPendingSelection();
               return;
             }
             case "getSelection": {
-              const editor = window.activeTextEditor;
-              const selection = editor?.selection;
-              const text = selection && !selection.isEmpty ? editor?.document.getText(selection) : editor?.document.getText();
-              const languageId = editor?.document.languageId;
-              const filePath = editor?.document.uri.fsPath;
-              webview.postMessage({ command: "selection", payload: { text, languageId, filePath } });
+              const payload = this._readSelectionFromEditor() ?? this._lastSelection ?? { text: "" };
+              this._lastSelection = payload;
+              webview.postMessage({ command: "selection", payload });
               return;
             }
             case "getRelated": {
-              const editor = window.activeTextEditor;
-              const selection = editor?.selection;
-              const text = selection && !selection.isEmpty ? editor?.document.getText(selection) : editor?.document.getText() || "";
-              const languageId = editor?.document.languageId;
-              const filePath = editor?.document.uri.fsPath;
+              const payload = this._readSelectionFromEditor() ?? this._lastSelection;
+              if (payload) {
+                this._lastSelection = payload;
+              }
+              const text = payload?.text ?? "";
+              const languageId = payload?.languageId;
+              const filePath = payload?.filePath;
               const project = await this._buildProjectContext(text, filePath, languageId);
               webview.postMessage({ command: "related", payload: project });
               return;
