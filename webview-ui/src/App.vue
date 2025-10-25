@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
 import Button from "@/components/ui/button.vue";
 import Skeleton from "@/components/Skeleton.vue";
+import SettingsSkeleton from "@/components/SettingsSkeleton.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
@@ -9,6 +10,7 @@ import { useSettingsStore } from "@/stores/settings";
 const tab = ref<"wiki" | "settings">("wiki");
 const wiki = useWikiStore();
 const settings = useSettingsStore();
+const settingsLoading = ref(false);
 
 const handleMessage = (event: MessageEvent<{ command?: string; payload?: any }>) => {
   const command = event.data?.command;
@@ -41,12 +43,26 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  () => tab.value,
+  async (newTab) => {
+    if (newTab === "settings" && !settings.initialized) {
+      settingsLoading.value = true;
+      await settings.init();
+      settingsLoading.value = false;
+    }
+  },
+);
 </script>
 
 <template>
   <main class="bg-background flex h-full w-full flex-col">
     <!-- Top bar -->
-    <div v-if="tab === 'settings'" class="bg-background flex items-center justify-between border-b p-3">
+    <div
+      v-if="tab === 'settings'"
+      class="bg-background flex items-center justify-between border-b p-3"
+    >
       <!-- Back button on settings page -->
       <div class="flex items-center gap-2">
         <a
@@ -62,7 +78,7 @@ watch(
             />
           </svg>
         </a>
-        <span class="text-sm font-medium">{{ tab === "wiki" ? "Qwiki" : "Settings" }}</span>
+        <span class="text-sm font-medium">Settings</span>
       </div>
       <!-- Gear on wiki page -->
     </div>
@@ -130,42 +146,58 @@ watch(
           </section>
         </div>
         <div v-else class="text-muted-foreground text-sm">
-          Right-click selected code in the editor and choose "Qwiki: Create a quick wiki!" to generate a page.
+          Right-click selected code in the editor and choose "Qwiki: Create a quick wiki!" to
+          generate a page.
         </div>
       </div>
 
       <!-- Settings Page -->
-      <div v-else class="space-y-4">
-        <section class="space-y-2">
-          <h3 class="text-sm font-medium">Gemini</h3>
-          <input
-            v-model="settings.geminiKeyInput"
-            type="password"
-            placeholder="API Key"
-            class="bg-background w-full rounded border px-2 py-1 text-sm"
-          />
-          <div class="flex gap-2">
-            <Button size="sm" @click="settings.saveGemini">Save</Button>
-          </div>
-        </section>
-        <section class="space-y-2">
-          <h3 class="text-sm font-medium">Z.ai</h3>
-          <input
-            v-model="settings.zaiKeyInput"
-            type="password"
-            placeholder="API Key"
-            class="bg-background w-full rounded border px-2 py-1 text-sm"
-          />
-          <div class="flex gap-2">
-            <Button size="sm" @click="settings.saveZai">Save</Button>
-          </div>
+      <div v-else-if="tab === 'settings'" class="space-y-4">
+        <div v-if="settingsLoading || settings.loading">
+          <SettingsSkeleton />
+        </div>
+        <div v-else class="space-y-4">
+          <section class="space-y-2">
+            <h3 class="text-sm font-medium">Gemini</h3>
+            <input
+              v-model="settings.geminiKeyInput"
+              type="password"
+              placeholder="API Key"
+              class="bg-background w-full rounded border px-2 py-1 text-sm"
+            />
+            <div class="flex gap-2">
+              <Button size="sm" :disabled="settings.saving" @click="settings.saveGemini">
+                {{ settings.saving ? "Saving..." : "Save" }}
+              </Button>
+            </div>
+            <div v-if="settings.savedMessage" class="text-xs text-green-600">
+              {{ settings.savedMessage }}
+            </div>
+          </section>
+          <section class="space-y-2">
+            <h3 class="text-sm font-medium">Z.ai</h3>
+            <input
+              v-model="settings.zaiKeyInput"
+              type="password"
+              placeholder="API Key"
+              class="bg-background w-full rounded border px-2 py-1 text-sm"
+            />
+            <div class="flex gap-2">
+              <Button size="sm" :disabled="settings.saving" @click="settings.saveZai">
+                {{ settings.saving ? "Saving..." : "Save" }}
+              </Button>
+            </div>
+            <div v-if="settings.savedMessage" class="text-xs text-green-600">
+              {{ settings.savedMessage }}
+            </div>
+            <p class="text-muted-foreground text-xs">
+              Optional: configure base URL in VS Code settings at qwiki.zaiBaseUrl
+            </p>
+          </section>
           <p class="text-muted-foreground text-xs">
-            Optional: configure base URL in VS Code settings at qwiki.zaiBaseUrl
+            Keys are stored securely in VS Code Secret Storage.
           </p>
-        </section>
-        <p class="text-muted-foreground text-xs">
-          Keys are stored securely in VS Code Secret Storage.
-        </p>
+        </div>
       </div>
     </div>
   </main>

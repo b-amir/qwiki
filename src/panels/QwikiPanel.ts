@@ -35,9 +35,14 @@ export class QwikiPanel {
    *
    * @param extensionUri The URI of the directory containing the extension
    */
-  constructor(extensionUri: Uri, private ctx: ExtensionContext) {
+  constructor(
+    extensionUri: Uri,
+    private ctx: ExtensionContext,
+  ) {
     this._extensionUri = extensionUri;
-    this.llms = new LLMRegistry(ctx.secrets, { zaiBaseUrl: workspace.getConfiguration("qwiki").get<string>("zaiBaseUrl") });
+    this.llms = new LLMRegistry(ctx.secrets, {
+      zaiBaseUrl: workspace.getConfiguration("qwiki").get<string>("zaiBaseUrl"),
+    });
   }
 
   /**
@@ -84,7 +89,9 @@ export class QwikiPanel {
       return;
     }
     if (!payload.text.trim()) {
-      window.showInformationMessage("Select some code or add content to the current file to build a wiki.");
+      window.showInformationMessage(
+        "Select some code or add content to the current file to build a wiki.",
+      );
       return;
     }
     this._queueSelection(payload, { autoGenerate: true });
@@ -220,7 +227,8 @@ export class QwikiPanel {
               return;
             }
             case "getSelection": {
-              const payload = this._readSelectionFromEditor() ?? this._lastSelection ?? { text: "" };
+              const payload = this._readSelectionFromEditor() ??
+                this._lastSelection ?? { text: "" };
               this._lastSelection = payload;
               webview.postMessage({ command: "selection", payload });
               return;
@@ -253,7 +261,7 @@ export class QwikiPanel {
                   targetUri = Uri.joinPath(folders[0].uri, cleaned.replace(/^[\\/]+/, ""));
                 }
                 // If unresolved or alias-like, search workspace with a few strategies
-                if ((!isAbs && (!targetUri || isAlias)) && folders && folders.length) {
+                if (!isAbs && (!targetUri || isAlias) && folders && folders.length) {
                   const globs = new Set<string>();
                   const base = cleaned.replace(/^.*[\\/]/, "");
                   if (isAlias) {
@@ -269,8 +277,15 @@ export class QwikiPanel {
                   }
                   let matches: readonly Uri[] = [];
                   for (const g of globs) {
-                    matches = await workspace.findFiles(g, "**/{node_modules,dist,out,build,.git,.vscode}/**", 5);
-                    if (matches.length) { targetUri = matches[0]; break; }
+                    matches = await workspace.findFiles(
+                      g,
+                      "**/{node_modules,dist,out,build,.git,.vscode}/**",
+                      5,
+                    );
+                    if (matches.length) {
+                      targetUri = matches[0];
+                      break;
+                    }
                   }
                 }
 
@@ -296,7 +311,10 @@ export class QwikiPanel {
               return;
             }
             case "saveApiKey": {
-              const { providerId, apiKey } = message.payload as { providerId: ProviderId; apiKey: string };
+              const { providerId, apiKey } = message.payload as {
+                providerId: ProviderId;
+                apiKey: string;
+              };
               await this.llms.setApiKey(providerId, apiKey);
               webview.postMessage({ command: "apiKeySaved", payload: { providerId } });
               return;
@@ -310,9 +328,20 @@ export class QwikiPanel {
             case "getProviders": {
               const list = this.llms.list();
               const statuses = await Promise.all(
-                list.map(async (p) => ({ id: p.id, name: p.name, models: (p as any).models || [], hasKey: await this.llms.hasApiKey(p.id as ProviderId) })),
+                list.map(async (p) => ({
+                  id: p.id,
+                  name: p.name,
+                  models: (p as any).models || [],
+                  hasKey: await this.llms.hasApiKey(p.id as ProviderId),
+                })),
               );
               webview.postMessage({ command: "providers", payload: statuses });
+              return;
+            }
+            case "getApiKeys": {
+              const geminiKey = await this.llms.getApiKey("gemini");
+              const zaiKey = await this.llms.getApiKey("zai");
+              webview.postMessage({ command: "apiKeys", payload: { geminiKey, zaiKey } });
               return;
             }
             case "generateWiki": {
@@ -324,13 +353,22 @@ export class QwikiPanel {
                 filePath?: string;
               };
               const project = await this._buildProjectContext(snippet, filePath, languageId);
-              const result = await this.llms.generate(providerId, { model, snippet, languageId, filePath, project });
+              const result = await this.llms.generate(providerId, {
+                model,
+                snippet,
+                languageId,
+                filePath,
+                project,
+              });
               webview.postMessage({ command: "wikiResult", payload: { content: result.content } });
               return;
             }
           }
         } catch (err: any) {
-          webview.postMessage({ command: "error", payload: { message: err?.message || String(err) } });
+          webview.postMessage({
+            command: "error",
+            payload: { message: err?.message || String(err) },
+          });
         }
       },
       undefined,
@@ -342,13 +380,21 @@ export class QwikiPanel {
     const folders = workspace.workspaceFolders;
     const rootName = folders && folders.length ? folders[0].name : undefined;
     // Files sample: gather up to 50 files excluding common build folders
-    const files = await workspace.findFiles("**/*", "**/{node_modules,dist,out,build,.git,.vscode}/**", 200);
+    const files = await workspace.findFiles(
+      "**/*",
+      "**/{node_modules,dist,out,build,.git,.vscode}/**",
+      200,
+    );
     const filesSample = files.slice(0, 50).map((u) => this._relative(u));
 
     // Overview: package.json basic info if present
     let overview = "";
     try {
-      const pkgUris = await workspace.findFiles("package.json", "**/{node_modules,dist,out,build}/**", 1);
+      const pkgUris = await workspace.findFiles(
+        "package.json",
+        "**/{node_modules,dist,out,build}/**",
+        1,
+      );
       if (pkgUris.length) {
         const doc = await workspace.openTextDocument(pkgUris[0]);
         const json = JSON.parse(doc.getText());
@@ -357,8 +403,12 @@ export class QwikiPanel {
         const devDeps = json.devDependencies ? Object.keys(json.devDependencies).slice(0, 5) : [];
         overview = [
           name ? `package: ${name}` : undefined,
-          deps.length ? `deps: ${deps.join(", ")}${json.dependencies && Object.keys(json.dependencies).length > deps.length ? "â€¦" : ""}` : undefined,
-          devDeps.length ? `devDeps: ${devDeps.join(", ")}${json.devDependencies && Object.keys(json.devDependencies).length > devDeps.length ? "â€¦" : ""}` : undefined,
+          deps.length
+            ? `deps: ${deps.join(", ")}${json.dependencies && Object.keys(json.dependencies).length > deps.length ? "â€¦" : ""}`
+            : undefined,
+          devDeps.length
+            ? `devDeps: ${devDeps.join(", ")}${json.devDependencies && Object.keys(json.devDependencies).length > devDeps.length ? "â€¦" : ""}`
+            : undefined,
         ]
           .filter(Boolean)
           .join("; ");
@@ -402,7 +452,11 @@ export class QwikiPanel {
 
   private async _findTextUsages(token: string) {
     const related: Array<{ path: string; preview?: string; line?: number; reason?: string }> = [];
-    const files = await workspace.findFiles("**/*", "**/{node_modules,dist,out,build,.git,.vscode}/**", 400);
+    const files = await workspace.findFiles(
+      "**/*",
+      "**/{node_modules,dist,out,build,.git,.vscode}/**",
+      400,
+    );
     const re = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`);
     for (const uri of files) {
       try {
@@ -413,7 +467,12 @@ export class QwikiPanel {
         const pos = doc.positionAt(m.index);
         const line = pos.line + 1;
         const previewLine = doc.lineAt(pos.line).text.trim();
-        related.push({ path: this._relative(uri), line, preview: previewLine, reason: "text match" });
+        related.push({
+          path: this._relative(uri),
+          line,
+          preview: previewLine,
+          reason: "text match",
+        });
         if (related.length >= 50) break;
       } catch {
         // ignore unreadable files
@@ -422,5 +481,3 @@ export class QwikiPanel {
     return related;
   }
 }
-
-

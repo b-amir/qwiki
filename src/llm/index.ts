@@ -8,13 +8,20 @@ export type ProviderId = "gemini" | "zai";
 export class LLMRegistry {
   private providers = new Map<string, LLMProvider>();
 
-  constructor(private secrets: SecretStorage, private settings: { zaiBaseUrl?: string }) {
+  constructor(
+    private secrets: SecretStorage,
+    private settings: { zaiBaseUrl?: string },
+  ) {
     this.providers.set("gemini", new GeminiProvider());
     this.providers.set("zai", new ZAiProvider(settings.zaiBaseUrl));
   }
 
   list() {
-    return Array.from(this.providers.values()).map((p) => ({ id: p.id, name: p.name, models: p.listModels?.() || [] }));
+    return Array.from(this.providers.values()).map((p) => ({
+      id: p.id,
+      name: p.name,
+      models: p.listModels?.() || [],
+    }));
   }
 
   async generate(providerId: ProviderId, params: GenerateParams): Promise<GenerateResult> {
@@ -35,6 +42,10 @@ export class LLMRegistry {
   async hasApiKey(providerId: ProviderId) {
     const key = await this.secrets.get(this.keyName(providerId));
     return Boolean(key);
+  }
+
+  async getApiKey(providerId: ProviderId) {
+    return await this.secrets.get(this.keyName(providerId));
   }
 
   private keyName(id: ProviderId) {
