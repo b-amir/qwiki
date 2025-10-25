@@ -61,7 +61,9 @@ function linkifyFiles(input: string): string {
 
 function render() {
   if (container.value) {
-    const content = props.content || "";
+    let content = props.content || "";
+    // Remove the first heading (h1) since it's displayed in the top bar
+    content = content.replace(/^#\s+.+$/m, "");
     const linked = linkifyFiles(content);
     container.value.innerHTML = md.render(linked);
   }

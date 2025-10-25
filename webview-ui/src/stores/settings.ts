@@ -10,6 +10,7 @@ export const useSettingsStore = defineStore("settings", {
     loading: false,
     initialized: false,
     listenerAttached: false,
+    selectedProvider: "zai", // Track selected provider
   }),
   actions: {
     async init() {
@@ -35,11 +36,20 @@ export const useSettingsStore = defineStore("settings", {
             }, 3000);
             return;
           }
+          case "providers": {
+            // Set selectedProvider to the first provider with a key, or default to gemini
+            const providers = message.payload || [];
+            const withKey = providers.find((p: any) => p.hasKey);
+            this.selectedProvider = withKey?.id || "gemini";
+            return;
+          }
         }
       });
 
       // Request API keys from the extension
       vscode.postMessage({ command: "getApiKeys" });
+      // Also request providers to set the selected provider
+      vscode.postMessage({ command: "getProviders" });
     },
     async saveGemini() {
       if (!this.geminiKeyInput) return;

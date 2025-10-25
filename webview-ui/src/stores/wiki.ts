@@ -94,5 +94,12 @@ export const useWikiStore = defineStore("wiki", {
     openFile(path: string, line?: number) {
       vscode.postMessage({ command: "openFile", payload: { path, line } });
     },
+    clearContent() {
+      this.content = "";
+      this.error = "";
+      this.related = [];
+      this.filesSample = [];
+      this.overview = "";
+    },
   },
 });
