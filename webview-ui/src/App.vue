@@ -44,27 +44,18 @@ watch(
 </script>
 
 <template>
-  <main class="flex h-full w-full flex-col">
+  <main class="bg-background flex h-full w-full flex-col">
     <!-- Top bar -->
-    <div class="flex items-center justify-between border-b p-3">
+    <div v-if="tab === 'settings'" class="bg-background flex items-center justify-between border-b p-3">
       <!-- Back button on settings page -->
       <div class="flex items-center gap-2">
         <a
-          v-if="tab === 'settings'"
           class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
           title="Back"
           @click="tab = 'wiki'"
         >
-          <svg
-            class="h-5 w-5"
-            viewBox="0 0 1024 1024"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path
-              d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z"
-              fill="currentColor"
-            />
+          <svg class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+            <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" fill="currentColor" />
             <path
               d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"
               fill="currentColor"
@@ -80,11 +71,6 @@ watch(
     <div class="flex-1 overflow-auto p-3">
       <!-- Wiki Page -->
       <div v-if="tab === 'wiki'" class="space-y-3">
-        <div class="space-y-1">
-          <div class="text-muted-foreground truncate text-xs">{{ wiki.filePath }}</div>
-          <div class="text-muted-foreground text-xs">{{ wiki.languageId || "plain" }}</div>
-        </div>
-
         <div class="flex flex-wrap items-center gap-2">
           <select v-model="wiki.providerId" class="bg-background rounded border px-2 py-1 text-sm">
             <option v-for="p in wiki.providers" :key="p.id" :value="p.id">

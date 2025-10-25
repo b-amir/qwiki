@@ -6,7 +6,7 @@
 @layer base {
   :root {
     /* Bind shadcn tokens directly to VS Code theme variables */
-    --background: var(--vscode-editor-background);
+    --background: var(--vscode-sideBar-background, var(--vscode-panel-background, var(--vscode-editor-background)));
     --foreground: var(--vscode-foreground);
 
     --muted: var(--vscode-input-background);
@@ -50,7 +50,7 @@
 
   /* Mirror the same bindings when Tailwind's `.dark` class is present */
   .dark {
-    --background: var(--vscode-editor-background);
+    --background: var(--vscode-sideBar-background, var(--vscode-panel-background, var(--vscode-editor-background)));
     --foreground: var(--vscode-foreground);
 
     --muted: var(--vscode-input-background);
