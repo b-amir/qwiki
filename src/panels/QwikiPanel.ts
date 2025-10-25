@@ -156,18 +156,34 @@ export class QwikiPanel {
                 let targetUri: Uri | undefined;
                 const cleaned = path.replace(/^\.(?:[\\\/]|$)/, "");
                 const isAbs = /^\w:\\|^\\\\|^\//.test(path);
+                const isAlias = /^@\//.test(cleaned);
+                const aliasRemainder = cleaned.replace(/^@\//, "");
                 if (isAbs) {
                   targetUri = Uri.file(path);
-                } else if (folders && folders.length) {
+                } else if (folders && folders.length && !isAlias) {
                   // Try workspace-relative exact path first
                   targetUri = Uri.joinPath(folders[0].uri, cleaned.replace(/^[\\/]+/, ""));
                 }
-                // If the target likely does not exist or is just a basename, try a workspace search
-                const needsSearch = !/[\\/]/.test(cleaned) || !(targetUri);
-                if ((!isAbs && needsSearch) && folders && folders.length) {
-                  const glob = /[\\/]/.test(cleaned) ? cleaned : `**/${cleaned}`;
-                  const matches = await workspace.findFiles(glob, "**/{node_modules,dist,out,build,.git,.vscode}/**", 5);
-                  if (matches.length) targetUri = matches[0];
+                // If unresolved or alias-like, search workspace with a few strategies
+                if ((!isAbs && (!targetUri || isAlias)) && folders && folders.length) {
+                  const globs = new Set<string>();
+                  const base = cleaned.replace(/^.*[\\/]/, "");
+                  if (isAlias) {
+                    globs.add(`**/${aliasRemainder}`);
+                    globs.add(`**/src/${aliasRemainder}`);
+                  }
+                  if (/[\\/]/.test(cleaned)) {
+                    globs.add(cleaned);
+                    // Try tail segments anywhere
+                    globs.add(`**/${cleaned.replace(/^.*?(?=[\\/])/, "")}`);
+                  } else {
+                    globs.add(`**/${base}`);
+                  }
+                  let matches: readonly Uri[] = [];
+                  for (const g of globs) {
+                    matches = await workspace.findFiles(g, "**/{node_modules,dist,out,build,.git,.vscode}/**", 5);
+                    if (matches.length) { targetUri = matches[0]; break; }
+                  }
                 }
 
                 if (targetUri) {

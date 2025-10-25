@@ -29,7 +29,12 @@ function linkifyFiles(input: string): string {
   const lines = input.split(/\r?\n/);
   let inFence = false;
   const fenceRe = /^\s*```/;
-  const fileRe = /(^|[\s(\[])((?:\.{1,2}[\\\/]|[A-Za-z]:[\\\/]|\/)?[A-Za-z0-9._\-\/\\]+?\.(?:tsx?|jsx?|vue|css|scss|less|json|md|mjs|cjs|ya?ml|py|go|java|kt|rs|cs|php|rb))(?:\:(\d+))?(?=$|[\s)\],;])/g;
+  // 1) Bracketed form like: [File.tsx]: description  -> make it a proper link
+  const bracketFileLine =
+    /^\s*\[([^\]]+?\.(?:tsx?|jsx?|vue|css|scss|less|json|md|mjs|cjs|ya?ml|py|go|java|kt|rs|cs|php|rb))\](\:(?!\/\/))?/i;
+  // 2) Plain token form -> wrap with [text](openfile:text)
+  const fileRe =
+    /(^|[\s(])((?:\.{1,2}[\\\/]|@\/|[A-Za-z]:[\\\/]|\/)?[A-Za-z0-9._\-\/\\]+?\.(?:tsx?|jsx?|vue|css|scss|less|json|md|mjs|cjs|ya?ml|py|go|java|kt|rs|cs|php|rb))(?:\:(\d+))?(?=$|[\s)\],;:\.'"])/g;
   const encode = (s: string) => s.replace(/\)/g, "%29");
   return lines
     .map((line) => {
@@ -38,6 +43,14 @@ function linkifyFiles(input: string): string {
         return line;
       }
       if (inFence) return line;
+      // Bracketed reference-like lines: [File.tsx]: Desc -> [File.tsx](openfile:File.tsx): Desc
+      const m = line.match(bracketFileLine);
+      if (m) {
+        const label = m[1];
+        const after = line.slice(m[0].length);
+        const href = `openfile:${encode(label)}`;
+        return line.replace(bracketFileLine, `[${label}](${href})`);
+      }
       return line.replace(fileRe, (_m, pre, path, ln) => {
         const href = `openfile:${encode(path)}${ln ? ":" + ln : ""}`;
         return `${pre}[${path}](${href})`;
@@ -75,11 +88,12 @@ function handleLinkClicks(e: MouseEvent) {
   const mOpen = /^openfile:(.+)$/i.exec(href);
   if (mOpen) {
     const rest = decodeURIComponent(mOpen[1]);
-    const parts = rest.split(":");
-    path = parts[0];
-    if (parts[1]) {
-      const n = Number(parts[1]);
-      if (!Number.isNaN(n)) line = n;
+    const lineMatch = rest.match(/:(\d+)$/);
+    if (lineMatch) {
+      line = Number(lineMatch[1]);
+      path = rest.slice(0, -lineMatch[0].length);
+    } else {
+      path = rest;
     }
   } else if (/^file:\/\//i.test(href)) {
     // Strip file:// scheme
@@ -106,7 +120,6 @@ watch(() => props.content, render);
 
 <template>
   <div ref="container" class="prose prose-invert max-w-none text-sm"></div>
-  
 </template>
 
 <style scoped>
@@ -114,4 +127,3 @@ watch(() => props.content, render);
   background: transparent;
 }
 </style>
-

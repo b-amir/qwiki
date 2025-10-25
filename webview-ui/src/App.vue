@@ -82,10 +82,10 @@ watch(
 
         <div
           v-if="wiki.related.length || wiki.filesSample.length"
-          class="grid gap-4 md:grid-cols-2"
+          class="grid gap-4 md:grid-cols-2 border-t border-border pt-4"
         >
           <section class="space-y-2">
-            <h3 class="text-sm font-medium">Related files</h3>
+            <h3 class="text-sm font-semibold tracking-wide">Related files</h3>
             <ul class="divide-border divide-y rounded border">
               <li
                 v-for="item in wiki.related"
@@ -101,7 +101,7 @@ watch(
             </ul>
           </section>
           <section class="space-y-2">
-            <h3 class="text-sm font-medium">Project</h3>
+            <h3 class="text-sm font-semibold tracking-wide">Project</h3>
             <div v-if="wiki.overview" class="text-muted-foreground text-xs">
               {{ wiki.overview }}
             </div>
