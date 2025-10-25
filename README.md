@@ -78,6 +78,13 @@ pnpm run compile
 2. Look for the Qwiki icon in the activity bar (usually on the left side)
 3. Click on the Qwiki icon to open the webview panel
 
+### Creating a Wiki Entry
+
+You can create wiki entries in two ways:
+
+1. **Keyboard Shortcut**: Select any code in the editor and press `Ctrl+Shift+Q` (Windows/Linux) or `Cmd+Shift+Q` (macOS)
+2. **Context Menu**: Right-click on selected code and choose "Qwiki: Create a quick wiki!" from the context menu
+
 ### Using the Interface
 
 The Qwiki webview provides a simple interface with interactive elements. Click the "Howdy!" button to see an example of communication between the webview and the extension.

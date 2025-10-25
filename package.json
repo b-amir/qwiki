@@ -52,6 +52,14 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "qwiki.createQuickWiki",
+        "key": "ctrl+shift+q",
+        "mac": "cmd+shift+q",
+        "when": "editorTextFocus"
+      }
+    ],
     "views": {
       "qwiki": [
         {
