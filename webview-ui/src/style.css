@@ -6,7 +6,10 @@
 @layer base {
   :root {
     /* Bind shadcn tokens directly to VS Code theme variables */
-    --background: var(--vscode-sideBar-background, var(--vscode-panel-background, var(--vscode-editor-background)));
+    --background: var(
+      --vscode-sideBar-background,
+      var(--vscode-panel-background, var(--vscode-editor-background))
+    );
     --foreground: var(--vscode-foreground);
 
     --muted: var(--vscode-input-background);
@@ -27,7 +30,10 @@
     --button-default-hover: var(--vscode-button-hoverBackground, var(--vscode-button-background));
 
     --secondary: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
-    --secondary-foreground: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+    --secondary-foreground: var(
+      --vscode-button-secondaryForeground,
+      var(--vscode-button-foreground)
+    );
 
     --accent: var(--vscode-toolbar-hoverBackground);
     --accent-foreground: var(--vscode-foreground);
@@ -50,7 +56,10 @@
 
   /* Mirror the same bindings when Tailwind's `.dark` class is present */
   .dark {
-    --background: var(--vscode-sideBar-background, var(--vscode-panel-background, var(--vscode-editor-background)));
+    --background: var(
+      --vscode-sideBar-background,
+      var(--vscode-panel-background, var(--vscode-editor-background))
+    );
     --foreground: var(--vscode-foreground);
 
     --muted: var(--vscode-input-background);
@@ -71,7 +80,10 @@
     --button-default-hover: var(--vscode-button-hoverBackground, var(--vscode-button-background));
 
     --secondary: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
-    --secondary-foreground: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+    --secondary-foreground: var(
+      --vscode-button-secondaryForeground,
+      var(--vscode-button-foreground)
+    );
 
     --accent: var(--vscode-toolbar-hoverBackground);
     --accent-foreground: var(--vscode-foreground);
@@ -80,34 +92,59 @@
     --destructive-foreground: var(--vscode-editor-background);
   }
 
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground; }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground p-0;
+  }
 }
 
 /* Respect the host theme for form controls */
-:root { accent-color: var(--primary, var(--focus-ring)); }
+:root {
+  accent-color: var(--primary, var(--focus-ring));
+}
 
 /* Links follow VS Code theme */
-a { color: var(--link); }
-a:hover { color: var(--link-hover); }
+a {
+  color: var(--link);
+}
+a:hover {
+  color: var(--link-hover);
+}
 
 /* Match editor selection colors */
-::selection { background: var(--selection-bg); color: var(--selection-fg); }
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+}
 
 /* Accessible focus outlines aligned with focusBorder */
-*:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+*:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 
 /* Scrollbars that blend with the workbench */
-* { scrollbar-color: var(--scrollbar-bg) transparent; }
-::-webkit-scrollbar { width: 12px; height: 12px; }
+* {
+  scrollbar-color: var(--scrollbar-bg) transparent;
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
 ::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-bg);
   border-radius: 8px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-bg-hover); }
-::-webkit-scrollbar-thumb:active { background-color: var(--scrollbar-bg-active); }
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-bg-hover);
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--scrollbar-bg-active);
+}
 
 /* Keep VS Code webview defaults readable */
 :root,
@@ -132,10 +169,20 @@ body {
 }
 
 /* Basic prose styles for markdown */
-.prose h1, .prose h2, .prose h3 { @apply font-semibold; }
-.prose h1 { @apply text-xl mt-2 mb-2; }
-.prose h2 { @apply text-lg tracking-wide mt-4 mb-2; }
-.prose h3 { @apply text-base tracking-wide text-muted-foreground mt-3 mb-2; }
+.prose h1,
+.prose h2,
+.prose h3 {
+  @apply font-semibold;
+}
+.prose h1 {
+  @apply mb-2 mt-2 text-xl;
+}
+.prose h2 {
+  @apply mb-2 mt-4 text-lg tracking-wide;
+}
+.prose h3 {
+  @apply text-muted-foreground mb-2 mt-3 text-base tracking-wide;
+}
 
 /* Visual separator before sections to improve scanning */
 .prose h2:not(:first-child)::before,
@@ -147,6 +194,14 @@ body {
   margin-bottom: 0.5rem;
   opacity: 0.9;
 }
-.prose p, .prose ul, .prose ol { @apply my-2; }
-.prose code { @apply rounded bg-muted px-1 py-0.5; }
-.prose pre { @apply rounded border border-border p-3 overflow-auto; }
+.prose p,
+.prose ul,
+.prose ol {
+  @apply my-2;
+}
+.prose code {
+  @apply bg-muted rounded px-1 py-0.5;
+}
+.prose pre {
+  @apply border-border overflow-auto rounded border p-3;
+}

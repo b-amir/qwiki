@@ -97,7 +97,7 @@ watch(
     <!-- Top bar for settings page -->
     <div
       v-if="tab === 'settings'"
-      class="bg-background flex items-center justify-between border-b py-3"
+      class="bg-background flex items-center justify-between border-b px-2 py-3 pl-3"
     >
       <!-- Back button on settings page -->
       <div class="flex items-center gap-2">
@@ -121,7 +121,7 @@ watch(
     <!-- Top bar for wiki page when content is displayed -->
     <div
       v-if="tab === 'wiki' && (wiki.content || wiki.loading || wiki.error)"
-      class="bg-background flex items-center border-b py-3"
+      class="bg-background flex items-center border-b px-2 py-3 pl-3"
     >
       <!-- Back button on wiki page -->
       <div class="flex items-center gap-2">
@@ -206,12 +206,21 @@ watch(
         </div>
 
         <!-- Wiki content when generated -->
-        <div v-else class="flex-1 overflow-auto py-3">
+        <div v-else class="flex-1 overflow-auto pb-3">
           <div v-if="wiki.loading">
             <Skeleton />
           </div>
-          <div v-else-if="wiki.error" class="text-sm text-red-400">{{ wiki.error }}</div>
-          <div v-else-if="wiki.content">
+          <div v-else-if="wiki.error" class="flex flex-col gap-5 px-2 pl-3 text-sm text-red-400">
+            {{ wiki.error }}
+            <!-- Change Model Link -->
+            <button
+              class="text-primary hover:text-primary/80 text-sm underline"
+              @click="tab = 'settings'"
+            >
+              Change model
+            </button>
+          </div>
+          <div v-else-if="wiki.content" class="px-2 pl-3">
             <MarkdownRenderer :content="wikiContentWithoutTitle" />
           </div>
 
@@ -260,7 +269,7 @@ watch(
         <div v-if="settingsLoading || settings.loading">
           <SettingsSkeleton />
         </div>
-        <div v-else class="space-y-4">
+        <div v-else class="space-y-4 px-3">
           <!-- Provider Selection with Radio Buttons -->
           <div class="space-y-4">
             <h3 class="text-sm font-medium">LLM Provider</h3>
