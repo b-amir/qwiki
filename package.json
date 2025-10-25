@@ -50,6 +50,7 @@
     "install:all": "pnpm install && cd webview-ui && pnpm install",
     "start:webview": "cd webview-ui && pnpm run start",
     "build:webview": "cd webview-ui && pnpm run build",
+    "dev:webview": "cd webview-ui && pnpm run dev",
     "vscode:prepublish": "pnpm run package",
     "compile": "webpack --mode development",
     "watch": "webpack --mode development --watch",
