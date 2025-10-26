@@ -352,15 +352,58 @@ export class QwikiPanel {
                 languageId?: string;
                 filePath?: string;
               };
-              const project = await this._buildProjectContext(snippet, filePath, languageId);
-              const result = await this.llms.generate(providerId, {
-                model,
-                snippet,
-                languageId,
-                filePath,
-                project,
-              });
-              webview.postMessage({ command: "wikiResult", payload: { content: result.content } });
+
+              try {
+                // Step 1: Validate selection
+                webview.postMessage({ command: "loadingStep", payload: { step: "validating" } });
+
+                if (!snippet?.trim()) {
+                  throw new Error(
+                    "No code selected. Please select some code to generate documentation.",
+                  );
+                }
+
+                // Step 2: Analyze code structure and build project context
+                webview.postMessage({ command: "loadingStep", payload: { step: "analyzing" } });
+                const project = await this._buildProjectContext(
+                  snippet,
+                  filePath,
+                  languageId,
+                  webview,
+                );
+
+                // Step 3: Find related files (part of context building)
+                webview.postMessage({ command: "loadingStep", payload: { step: "finding" } });
+
+                // Step 4: Prepare LLM request
+                webview.postMessage({ command: "loadingStep", payload: { step: "preparing" } });
+
+                // Step 5: Generate documentation (this is the main LLM work)
+                webview.postMessage({ command: "loadingStep", payload: { step: "generating" } });
+                const result = await this.llms.generate(providerId, {
+                  model,
+                  snippet,
+                  languageId,
+                  filePath,
+                  project,
+                });
+
+                // Step 6: Process and format response (minimal processing needed)
+                webview.postMessage({ command: "loadingStep", payload: { step: "processing" } });
+
+                // The content is already formatted from the LLM, so we can finalize immediately
+                webview.postMessage({ command: "loadingStep", payload: { step: "finalizing" } });
+
+                webview.postMessage({
+                  command: "wikiResult",
+                  payload: { content: result.content },
+                });
+              } catch (error: any) {
+                webview.postMessage({
+                  command: "error",
+                  payload: { message: error?.message || "Failed to generate documentation" },
+                });
+              }
               return;
             }
           }
@@ -376,7 +419,12 @@ export class QwikiPanel {
     );
   }
 
-  private async _buildProjectContext(snippet: string, filePath?: string, languageId?: string) {
+  private async _buildProjectContext(
+    snippet: string,
+    filePath?: string,
+    languageId?: string,
+    webview?: Webview,
+  ) {
     const folders = workspace.workspaceFolders;
     const rootName = folders && folders.length ? folders[0].name : undefined;
     // Files sample: gather up to 50 files excluding common build folders
@@ -404,10 +452,10 @@ export class QwikiPanel {
         overview = [
           name ? `package: ${name}` : undefined,
           deps.length
-            ? `deps: ${deps.join(", ")}${json.dependencies && Object.keys(json.dependencies).length > deps.length ? "â€¦" : ""}`
+            ? `deps: ${deps.join(", ")}${json.dependencies && Object.keys(json.dependencies).length > deps.length ? "…" : ""}`
             : undefined,
           devDeps.length
-            ? `devDeps: ${devDeps.join(", ")}${json.devDependencies && Object.keys(json.devDependencies).length > devDeps.length ? "â€¦" : ""}`
+            ? `devDeps: ${devDeps.join(", ")}${json.devDependencies && Object.keys(json.devDependencies).length > devDeps.length ? "…" : ""}`
             : undefined,
         ]
           .filter(Boolean)
@@ -416,6 +464,9 @@ export class QwikiPanel {
     } catch {}
 
     // Related usages via text search on the most likely identifier
+    if (webview) {
+      webview.postMessage({ command: "loadingStep", payload: { step: "finding" } });
+    }
     const token = this._extractIdentifier(snippet) || this._basename(filePath);
     const related = token ? await this._findTextUsages(token) : [];
 

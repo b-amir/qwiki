@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed, watch } from "vue";
 import Button from "@/components/ui/button.vue";
-import Skeleton from "@/components/Skeleton.vue";
-import SettingsSkeleton from "@/components/SettingsSkeleton.vue";
+import DynamicSkeleton from "@/components/DynamicSkeleton.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
@@ -225,8 +224,20 @@ watch(
 
         <!-- Wiki content when generated -->
         <div v-else class="flex-1 overflow-auto pb-3">
-          <div v-if="wiki.loading">
-            <Skeleton />
+          <div v-if="wiki.loading" class="h-full">
+            <DynamicSkeleton
+              :steps="[
+                { text: 'Validating selection...', key: 'validating' },
+                { text: 'Analyzing code structure...', key: 'analyzing' },
+                { text: 'Finding related files...', key: 'finding' },
+                { text: 'Preparing LLM request...', key: 'preparing' },
+                { text: 'Generating documentation...', key: 'generating' },
+                { text: 'Processing response...', key: 'processing' },
+                { text: 'Finalizing documentation...', key: 'finalizing' },
+              ]"
+              :current-step="wiki.loadingStep"
+              density="medium"
+            />
           </div>
           <div v-else-if="wiki.error" class="flex flex-col gap-5 px-2 pl-3 text-sm text-red-400">
             {{ wiki.error }}
@@ -281,8 +292,16 @@ watch(
 
       <!-- Settings Page -->
       <div v-else-if="tab === 'settings'" class="space-y-4">
-        <div v-if="settingsLoading || settings.loading">
-          <SettingsSkeleton />
+        <div v-if="settingsLoading || settings.loading" class="h-full">
+          <DynamicSkeleton
+            :steps="[
+              { text: 'Loading settings...', key: 'loading' },
+              { text: 'Fetching providers...', key: 'fetching' },
+              { text: 'Preparing configuration...', key: 'preparing' },
+            ]"
+            :current-step="'loading'"
+            density="low"
+          />
         </div>
         <div v-else class="space-y-4 px-3">
           <!-- Provider Selection with Radio Buttons -->

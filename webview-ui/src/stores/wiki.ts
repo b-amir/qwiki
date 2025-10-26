@@ -6,6 +6,7 @@ export type ProviderStatus = { id: string; name: string; hasKey: boolean; models
 export const useWikiStore = defineStore("wiki", {
   state: () => ({
     loading: false as boolean,
+    loadingStep: "" as string,
     error: "" as string,
     content: "" as string,
     snippet: "" as string,
@@ -46,6 +47,7 @@ export const useWikiStore = defineStore("wiki", {
           }
           case "wikiResult": {
             this.loading = false;
+            this.loadingStep = "";
             this.error = "";
             this.content = message.payload?.content || "";
             return;
@@ -60,7 +62,12 @@ export const useWikiStore = defineStore("wiki", {
           }
           case "error": {
             this.loading = false;
+            this.loadingStep = "";
             this.error = message.payload?.message || "Unknown error";
+            return;
+          }
+          case "loadingStep": {
+            this.loadingStep = message.payload?.step || "";
             return;
           }
         }
@@ -76,6 +83,7 @@ export const useWikiStore = defineStore("wiki", {
         return;
       }
       this.loading = true;
+      this.loadingStep = "validating";
       this.error = "";
       this.content = "";
       vscode.postMessage({
@@ -97,6 +105,7 @@ export const useWikiStore = defineStore("wiki", {
     clearContent() {
       this.content = "";
       this.error = "";
+      this.loadingStep = "";
       this.related = [];
       this.filesSample = [];
       this.overview = "";
