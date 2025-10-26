@@ -16,6 +16,19 @@ export const useSettingsStore = defineStore("settings", {
     initialized: false,
     listenerAttached: false,
     selectedProvider: "zai", // Track selected provider
+    // Track original values to detect changes
+    originalValues: {
+      geminiKey: "",
+      zaiKey: "",
+      openrouterKey: "",
+      googleAIStudioKey: "",
+      cohereKey: "",
+      huggingfaceKey: "",
+    },
+    // Track which providers have unsaved changes
+    unsavedProviders: new Set<string>(),
+    // Debounce timers for auto-save
+    autoSaveTimers: {} as Record<string, number>,
   }),
   actions: {
     async init() {
@@ -43,6 +56,18 @@ export const useSettingsStore = defineStore("settings", {
             this.cohereKeyInput = cohereKey || "";
             this.huggingfaceKeyInput = huggingfaceKey || "";
             this.googleAIEndpoint = googleAIEndpoint || "openai-compatible";
+
+            // Store original values to track changes
+            this.originalValues.geminiKey = geminiKey || "";
+            this.originalValues.zaiKey = zaiKey || "";
+            this.originalValues.openrouterKey = openrouterKey || "";
+            this.originalValues.googleAIStudioKey = googleAIStudioKey || "";
+            this.originalValues.cohereKey = cohereKey || "";
+            this.originalValues.huggingfaceKey = huggingfaceKey || "";
+
+            // Clear unsaved changes since we just loaded from storage
+            this.unsavedProviders.clear();
+
             this.initialized = true;
             this.loading = false;
             return;
@@ -133,6 +158,131 @@ export const useSettingsStore = defineStore("settings", {
         payload: { providerId: "huggingface", apiKey: this.huggingfaceKeyInput },
       });
       this.saving = false;
+    },
+    // Track changes to API keys
+    trackApiKeyChange(providerId: string, newValue: string) {
+      const originalKey =
+        this.originalValues[`${providerId}Key` as keyof typeof this.originalValues];
+
+      if (originalKey !== newValue) {
+        this.unsavedProviders.add(providerId);
+      } else {
+        this.unsavedProviders.delete(providerId);
+      }
+    },
+    // Auto-save with debounce for API keys
+    autoSaveApiKey(providerId: string, apiKey: string) {
+      // Clear any existing timer for this provider
+      if (this.autoSaveTimers[providerId]) {
+        clearTimeout(this.autoSaveTimers[providerId]);
+      }
+
+      // Set a new timer for auto-save (2 seconds delay)
+      this.autoSaveTimers[providerId] = window.setTimeout(() => {
+        this.saveApiKey(providerId, apiKey);
+        delete this.autoSaveTimers[providerId];
+      }, 2000);
+    },
+    // Save a specific API key
+    async saveApiKey(providerId: string, apiKey: string) {
+      if (!apiKey) return;
+
+      this.saving = true;
+
+      // Special case for gemini/google-ai-studio
+      if (providerId === "gemini") {
+        // Save as both gemini (for backward compatibility) and google-ai-studio
+        vscode.postMessage({
+          command: "saveApiKey",
+          payload: { providerId: "gemini", apiKey },
+        });
+        vscode.postMessage({
+          command: "saveApiKey",
+          payload: { providerId: "google-ai-studio", apiKey },
+        });
+      } else {
+        vscode.postMessage({
+          command: "saveApiKey",
+          payload: { providerId, apiKey },
+        });
+      }
+
+      // Update original value after successful save
+      this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
+      this.unsavedProviders.delete(providerId);
+
+      this.saving = false;
+    },
+    // Global save method that saves all providers with unsaved changes
+    async saveAll() {
+      if (this.unsavedProviders.size === 0) return;
+
+      this.saving = true;
+
+      // Save each provider with unsaved changes
+      const savePromises = Array.from(this.unsavedProviders).map((providerId) => {
+        let apiKey = "";
+
+        // Get the current API key for this provider
+        switch (providerId) {
+          case "gemini":
+            apiKey = this.geminiKeyInput;
+            break;
+          case "zai":
+            apiKey = this.zaiKeyInput;
+            break;
+          case "openrouter":
+            apiKey = this.openrouterKeyInput;
+            break;
+          case "google-ai-studio":
+            apiKey = this.googleAIStudioKeyInput;
+            break;
+          case "cohere":
+            apiKey = this.cohereKeyInput;
+            break;
+          case "huggingface":
+            apiKey = this.huggingfaceKeyInput;
+            break;
+        }
+
+        if (!apiKey) return Promise.resolve();
+
+        // Special case for gemini/google-ai-studio
+        if (providerId === "gemini") {
+          // Save as both gemini (for backward compatibility) and google-ai-studio
+          vscode.postMessage({
+            command: "saveApiKey",
+            payload: { providerId: "gemini", apiKey },
+          });
+          vscode.postMessage({
+            command: "saveApiKey",
+            payload: { providerId: "google-ai-studio", apiKey },
+          });
+        } else {
+          vscode.postMessage({
+            command: "saveApiKey",
+            payload: { providerId, apiKey },
+          });
+        }
+
+        // Update original value
+        this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
+
+        return Promise.resolve();
+      });
+
+      await Promise.all(savePromises);
+
+      // Clear all unsaved changes
+      this.unsavedProviders.clear();
+
+      this.saving = false;
+    },
+    // Auto-save provider selection
+    autoSaveProviderSelection(providerId: string) {
+      // Provider selection changes are saved immediately
+      this.selectedProvider = providerId;
+      // No need to save provider selection to extension as it's handled in App.vue
     },
   },
 });

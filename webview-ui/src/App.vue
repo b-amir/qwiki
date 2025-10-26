@@ -101,6 +101,18 @@ watch(
   },
   { immediate: true },
 );
+
+// Handle provider selection change
+const handleProviderChange = (providerId: string) => {
+  wiki.providerId = providerId;
+  settings.autoSaveProviderSelection(providerId);
+};
+
+// Handle API key change with auto-save
+const handleApiKeyChange = (providerId: string, newValue: string) => {
+  settings.trackApiKeyChange(providerId, newValue);
+  settings.autoSaveApiKey(providerId, newValue);
+};
 </script>
 
 <template>
@@ -125,7 +137,17 @@ watch(
             />
           </svg>
         </a>
-        <span class="text-sm font-medium">Settings</span>
+      </div>
+
+      <!-- Settings title in the center -->
+      <span class="text-sm font-medium">Settings</span>
+
+      <!-- Auto-save indicator on the right -->
+      <div class="flex items-center">
+        <div v-if="settings.saving" class="text-muted-foreground text-xs">Saving...</div>
+        <div v-else-if="settings.savedMessage" class="text-xs text-green-600">
+          {{ settings.savedMessage }}
+        </div>
       </div>
     </div>
 
@@ -409,7 +431,7 @@ watch(
                   type="radio"
                   value="zai"
                   class="h-4 w-4"
-                  @change="wiki.providerId = 'zai'"
+                  @change="handleProviderChange('zai')"
                 />
                 <label for="zai-provider" class="text-sm font-medium">Z.ai</label>
               </div>
@@ -432,6 +454,7 @@ watch(
                   type="password"
                   placeholder="API Key"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  @input="handleApiKeyChange('zai', ($event.target as HTMLInputElement).value)"
                 />
                 <a
                   href="https://z.ai"
@@ -441,11 +464,6 @@ watch(
                 >
                   Get API key from Z.ai
                 </a>
-                <div class="flex gap-2">
-                  <Button size="sm" :disabled="settings.saving" @click="settings.saveZai">
-                    {{ settings.saving ? "Saving..." : "Save" }}
-                  </Button>
-                </div>
                 <p class="text-muted-foreground text-xs">
                   Optional: configure base URL in VS Code settings at qwiki.zaiBaseUrl
                 </p>
@@ -461,7 +479,7 @@ watch(
                   type="radio"
                   value="openrouter"
                   class="h-4 w-4"
-                  @change="wiki.providerId = 'openrouter'"
+                  @change="handleProviderChange('openrouter')"
                 />
                 <label for="openrouter-provider" class="text-sm font-medium">OpenRouter</label>
               </div>
@@ -484,6 +502,9 @@ watch(
                   type="password"
                   placeholder="API Key"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  @input="
+                    handleApiKeyChange('openrouter', ($event.target as HTMLInputElement).value)
+                  "
                 />
                 <a
                   href="https://openrouter.ai/keys"
@@ -493,11 +514,6 @@ watch(
                 >
                   Get API key from OpenRouter
                 </a>
-                <div class="flex gap-2">
-                  <Button size="sm" :disabled="settings.saving" @click="settings.saveOpenrouter">
-                    {{ settings.saving ? "Saving..." : "Save" }}
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -510,7 +526,7 @@ watch(
                   type="radio"
                   value="google-ai-studio"
                   class="h-4 w-4"
-                  @change="wiki.providerId = 'google-ai-studio'"
+                  @change="handleProviderChange('google-ai-studio')"
                 />
                 <label for="google-ai-studio-provider" class="text-sm font-medium"
                   >Google AI Studio (Gemini)</label
@@ -537,6 +553,12 @@ watch(
                   type="password"
                   placeholder="API Key"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  @input="
+                    handleApiKeyChange(
+                      'google-ai-studio',
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
                 />
                 <div class="space-y-1">
                   <label class="text-muted-foreground text-xs">Endpoint Type:</label>
@@ -556,15 +578,6 @@ watch(
                 >
                   Get API key from Google AI Studio
                 </a>
-                <div class="flex gap-2">
-                  <Button
-                    size="sm"
-                    :disabled="settings.saving"
-                    @click="settings.saveGoogleAIStudio"
-                  >
-                    {{ settings.saving ? "Saving..." : "Save" }}
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -577,7 +590,7 @@ watch(
                   type="radio"
                   value="cohere"
                   class="h-4 w-4"
-                  @change="wiki.providerId = 'cohere'"
+                  @change="handleProviderChange('cohere')"
                 />
                 <label for="cohere-provider" class="text-sm font-medium">Cohere</label>
               </div>
@@ -600,6 +613,7 @@ watch(
                   type="password"
                   placeholder="API Key"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  @input="handleApiKeyChange('cohere', ($event.target as HTMLInputElement).value)"
                 />
                 <a
                   href="https://dashboard.cohere.com/api-keys"
@@ -609,11 +623,6 @@ watch(
                 >
                   Get API key from Cohere
                 </a>
-                <div class="flex gap-2">
-                  <Button size="sm" :disabled="settings.saving" @click="settings.saveCohere">
-                    {{ settings.saving ? "Saving..." : "Save" }}
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -626,7 +635,7 @@ watch(
                   type="radio"
                   value="huggingface"
                   class="h-4 w-4"
-                  @change="wiki.providerId = 'huggingface'"
+                  @change="handleProviderChange('huggingface')"
                 />
                 <label for="huggingface-provider" class="text-sm font-medium">Hugging Face</label>
               </div>
@@ -649,6 +658,9 @@ watch(
                   type="password"
                   placeholder="API Key"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  @input="
+                    handleApiKeyChange('huggingface', ($event.target as HTMLInputElement).value)
+                  "
                 />
                 <a
                   href="https://huggingface.co/settings/tokens"
@@ -658,20 +670,11 @@ watch(
                 >
                   Get API key from Hugging Face
                 </a>
-                <div class="flex gap-2">
-                  <Button size="sm" :disabled="settings.saving" @click="settings.saveHuggingFace">
-                    {{ settings.saving ? "Saving..." : "Save" }}
-                  </Button>
-                </div>
               </div>
             </div>
 
             <!-- Gemini Option (Hidden - Migrated to Google AI Studio) -->
             <!-- This section is commented out as Gemini is now consolidated into Google AI Studio -->
-          </div>
-
-          <div v-if="settings.savedMessage" class="text-xs text-green-600">
-            {{ settings.savedMessage }}
           </div>
 
           <p class="text-muted-foreground text-xs">
