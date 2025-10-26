@@ -24,7 +24,7 @@ export class QwikiPanel {
   private webview?: Webview;
   private view?: WebviewView;
   private _webviewReady = false;
-  private _pendingTab: "wiki" | "settings" | undefined;
+  private _pendingPage: "wiki" | "settings" | undefined;
   private llms: LLMRegistry;
   private _disposables: Disposable[] = [];
   private _pendingSelection: { payload: SelectionPayload; autoGenerate: boolean } | undefined;
@@ -77,8 +77,8 @@ export class QwikiPanel {
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
   }
 
-  public showTab(tab: "wiki" | "settings") {
-    this._queueNavigation(tab);
+  public showPage(page: "wiki" | "settings") {
+    this._queueNavigation(page);
     commands.executeCommand("workbench.view.extension.qwiki");
     this.view?.show?.(true);
   }
@@ -96,7 +96,7 @@ export class QwikiPanel {
       return;
     }
     this._queueSelection(payload, { autoGenerate: true });
-    this.showTab("wiki");
+    this.showPage("wiki");
     this._flushPendingSelection();
   }
 
@@ -163,17 +163,17 @@ export class QwikiPanel {
     `;
   }
 
-  private _queueNavigation(tab: "wiki" | "settings") {
-    this._pendingTab = tab;
+  private _queueNavigation(page: "wiki" | "settings") {
+    this._pendingPage = page;
     this._flushPendingNavigation();
   }
 
   private _flushPendingNavigation() {
-    if (!this._pendingTab || !this._webviewReady || !this.webview) {
+    if (!this._pendingPage || !this._webviewReady || !this.webview) {
       return;
     }
-    this.webview.postMessage({ command: "navigate", payload: { tab: this._pendingTab } });
-    this._pendingTab = undefined;
+    this.webview.postMessage({ command: "navigate", payload: { page: this._pendingPage } });
+    this._pendingPage = undefined;
   }
 
   private _queueSelection(payload: SelectionPayload, options?: { autoGenerate?: boolean }) {

@@ -14,7 +14,7 @@ export function activate(context: ExtensionContext) {
   });
 
   const showSettingsCommand = commands.registerCommand("qwiki.viewSettings", () => {
-    provider.showTab("settings");
+    provider.showPage("settings");
   });
 
   const createQuickWikiCommand = commands.registerCommand("qwiki.createQuickWiki", () => {
