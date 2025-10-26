@@ -125,7 +125,24 @@ watch(() => props.content, render);
 </template>
 
 <style scoped>
-.prose :where(pre) {
-  background: transparent;
+.prose :where(pre.hljs) {
+  margin: 1rem 0;
+  background-color: var(--vscode-editor-background, var(--background)) !important;
+  border: 1px solid var(--vscode-panel-border, var(--border));
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+.prose :where(pre code) {
+  background-color: transparent !important;
+  padding: 0;
+}
+
+.prose :where(code:not(pre code)) {
+  @apply bg-muted rounded px-1 py-0.5;
+}
+
+.prose :where(pre code, .hljs code) {
+  background-image: none !important;
 }
 </style>

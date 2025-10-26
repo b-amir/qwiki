@@ -7,8 +7,11 @@ import "highlight.js/styles/github-dark.css";
 // Bridge VS Code theme classes to Tailwind's `.dark` class
 function applyVscodeThemeClass() {
   const body = document.body;
-  const isLight = body.classList.contains("vscode-light") || body.classList.contains("vscode-high-contrast-light");
-  const isDark = body.classList.contains("vscode-dark") || body.classList.contains("vscode-high-contrast");
+  const isLight =
+    body.classList.contains("vscode-light") ||
+    body.classList.contains("vscode-high-contrast-light");
+  const isDark =
+    body.classList.contains("vscode-dark") || body.classList.contains("vscode-high-contrast");
   document.documentElement.classList.toggle("dark", isDark && !isLight);
   // Inform the UA of the current scheme to improve native control rendering
   (document.documentElement.style as any).colorScheme = isLight ? "light" : "dark";
