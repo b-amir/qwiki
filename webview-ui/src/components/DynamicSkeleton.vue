@@ -3,16 +3,82 @@
     <!-- Minimal status indicator -->
     <div class="flex-shrink-0 px-4 py-3">
       <div class="flex items-center justify-start gap-3">
-        <div class="flex items-center gap-1">
-          <div
-            v-for="(dot, index) in 3"
-            :key="index"
-            class="bg-primary h-1.5 w-1.5 rounded-full transition-all duration-300 ease-in-out"
-            :class="{
-              'scale-75 opacity-20': currentDot !== index,
-              'scale-100 opacity-80': currentDot === index,
-            }"
-          ></div>
+        <div class="flex items-center">
+          <svg
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            class="text-primary h-4 w-4"
+          >
+            <rect x="1" y="1" rx="1" width="10" height="10">
+              <animate
+                id="spinner_FFyM"
+                begin="0;spinner_HDCY.end"
+                attributeName="x"
+                dur="0.2s"
+                values="1;13"
+                fill="freeze"
+              />
+              <animate
+                id="spinner_AIvE"
+                begin="spinner_1FwE.end"
+                attributeName="y"
+                dur="0.2s"
+                values="1;13"
+                fill="freeze"
+              />
+              <animate
+                id="spinner_wWCL"
+                begin="spinner_gH4o.end"
+                attributeName="x"
+                dur="0.2s"
+                values="13;1"
+                fill="freeze"
+              />
+              <animate
+                id="spinner_S3Gg"
+                begin="spinner_Q0bx.end"
+                attributeName="y"
+                dur="0.2s"
+                values="13;1"
+                fill="freeze"
+              />
+            </rect>
+            <rect x="1" y="13" rx="1" width="10" height="10">
+              <animate
+                id="spinner_1FwE"
+                begin="spinner_FFyM.end"
+                attributeName="y"
+                dur="0.2s"
+                values="13;1"
+                fill="freeze"
+              />
+              <animate
+                id="spinner_gH4o"
+                begin="spinner_AIvE.end"
+                attributeName="x"
+                dur="0.2s"
+                values="1;13"
+                fill="freeze"
+              />
+              <animate
+                id="spinner_Q0bx"
+                begin="spinner_wWCL.end"
+                attributeName="y"
+                dur="0.2s"
+                values="1;13"
+                fill="freeze"
+              />
+              <animate
+                id="spinner_HDCY"
+                begin="spinner_S3Gg.end"
+                attributeName="x"
+                dur="0.2s"
+                values="13;1"
+                fill="freeze"
+              />
+            </rect>
+          </svg>
         </div>
         <span class="text-muted-foreground text-sm font-medium">{{ displayDescription }}</span>
       </div>
@@ -24,7 +90,7 @@
         <div
           v-for="(skeleton, index) in skeletonElements"
           :key="index"
-          class="skeleton-item"
+          class="animate-pulse"
           :style="{ animationDelay: `${index * 0.05}s` }"
         >
           <!-- Line skeleton -->
@@ -80,8 +146,6 @@ const defaultSteps: LoadingStep[] = [
 ];
 
 const steps = computed(() => props.steps || defaultSteps);
-const currentDot = ref(0);
-const dotInterval = ref<number | null>(null);
 
 const displayDescription = computed(() => {
   if (props.currentStep) {
@@ -120,43 +184,12 @@ const generateSkeletonElements = (): SkeletonElement[] => {
 
 const skeletonElements = ref<SkeletonElement[]>([]);
 
-// Animate dots with smoother transitions
-const animateDots = () => {
-  dotInterval.value = setInterval(() => {
-    currentDot.value = (currentDot.value + 1) % 3;
-  }, 800); // Slower for more elegant feel
-};
-
 onMounted(() => {
   skeletonElements.value = generateSkeletonElements();
-  animateDots();
-});
-
-onBeforeUnmount(() => {
-  if (dotInterval.value) {
-    clearInterval(dotInterval.value);
-  }
 });
 </script>
 
 <style scoped>
-/* Snappy skeleton animation */
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-    transform: scaleY(1);
-  }
-  50% {
-    opacity: 0.15;
-    transform: scaleY(0.95);
-  }
-}
-
-.skeleton-item {
-  animation: pulse 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
-}
-
 .skeleton-line {
   height: 12px;
   background-color: var(
