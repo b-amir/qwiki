@@ -239,7 +239,10 @@ watch(
 
             <!-- Change Model Link -->
             <div class="flex justify-center">
-              <button class="text-primary hover:text-primary/80 text-sm" @click="tab = 'settings'">
+              <button
+                class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
+                @click="tab = 'settings'"
+              >
                 Change model
               </button>
             </div>
@@ -263,12 +266,45 @@ watch(
               density="medium"
             />
           </div>
-          <div v-else-if="wiki.error" class="flex flex-col gap-5 px-2 pl-3 text-sm text-red-400">
-            {{ wiki.error }}
+          <div v-else-if="wiki.error" class="flex h-full flex-col px-2 pl-3">
+            <div class="flex flex-1 items-center justify-center">
+              <div class="w-full max-w-md space-y-4">
+                <!-- Error message -->
+                <div class="text-center">
+                  <!-- Error icon -->
+                  <div class="flex justify-center">
+                    <div
+                      class="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full"
+                    >
+                      <svg
+                        class="text-destructive h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <p class="text-muted-foreground text-sm">{{ wiki.error }}</p>
+                </div>
+              </div>
+            </div>
             <!-- Change Model Link -->
-            <button class="text-primary hover:text-primary/80 text-sm" @click="tab = 'settings'">
-              Change model
-            </button>
+            <div class="mt-auto flex justify-center pt-6">
+              <button
+                class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
+                @click="tab = 'settings'"
+              >
+                Change model
+              </button>
+            </div>
           </div>
           <div v-else-if="wiki.content" class="px-2 pl-3">
             <MarkdownRenderer :content="wikiContentWithoutTitle" />
