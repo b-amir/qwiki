@@ -5,14 +5,9 @@ import { GoogleAIStudioProvider } from "./providers/google-ai-studio";
 import { CohereProvider } from "./providers/cohere";
 import { HuggingFaceProvider } from "./providers/huggingface";
 import type { SecretStorage } from "vscode";
+import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
 
-export type ProviderId =
-  | "gemini"
-  | "zai"
-  | "openrouter"
-  | "google-ai-studio"
-  | "cohere"
-  | "huggingface";
+export type ProviderId = "zai" | "openrouter" | "google-ai-studio" | "cohere" | "huggingface";
 
 export class LLMRegistry {
   private providers = new Map<string, LLMProvider>();
@@ -21,14 +16,11 @@ export class LLMRegistry {
     private secrets: SecretStorage,
     private settings: { zaiBaseUrl?: string; googleAIEndpoint?: string },
   ) {
-    // Register GoogleAIStudioProvider for both "google-ai-studio" and "gemini" IDs
+    // Register GoogleAIStudioProvider for "google-ai-studio" ID
     const googleAIStudioProvider = new GoogleAIStudioProvider(
       settings.googleAIEndpoint === "native",
     );
     this.providers.set("google-ai-studio", googleAIStudioProvider);
-
-    // Register the same provider instance with "gemini" ID for backward compatibility
-    this.providers.set("gemini", new GoogleAIStudioProvider(true, "gemini")); // Use native endpoint for gemini
 
     this.providers.set("zai", new ZAiProvider(settings.zaiBaseUrl));
     this.providers.set("openrouter", new OpenRouterProvider());
@@ -44,64 +36,46 @@ export class LLMRegistry {
     }));
   }
 
+  /**
+   * Get all provider configurations
+   * @returns Array of all provider configurations
+   */
+  getProviderConfigs(): ProviderConfig[] {
+    return getAllProviderConfigs(this.settings);
+  }
+
+  /**
+   * Get configuration for a specific provider
+   * @param providerId The ID of the provider
+   * @returns Configuration for the specified provider or undefined if not found
+   */
+  getProviderConfig(providerId: string): ProviderConfig | undefined {
+    return getAllProviderConfigs(this.settings).find((config) => config.id === providerId);
+  }
+
   async generate(providerId: ProviderId, params: GenerateParams): Promise<GenerateResult> {
     const provider = this.providers.get(providerId);
     if (!provider) throw new Error(`Unknown provider: ${providerId}`);
 
-    // Handle API key migration from "gemini" to "google-ai-studio"
     let apiKey = await this.secrets.get(this.keyName(providerId));
-
-    // If using "google-ai-studio" but no key found, check for legacy "gemini" key
-    if (providerId === "google-ai-studio" && !apiKey) {
-      const legacyKey = await this.secrets.get(this.keyName("gemini"));
-      if (legacyKey) {
-        // Migrate the key to the new location
-        await this.secrets.store(this.keyName("google-ai-studio"), legacyKey);
-        apiKey = legacyKey;
-      }
-    }
-
     return provider.generate(params, apiKey || undefined);
   }
 
   async setApiKey(providerId: ProviderId, key: string) {
-    // When setting a "gemini" key, also store it as "google-ai-studio" for migration
     await this.secrets.store(this.keyName(providerId), key);
-
-    if (providerId === "gemini") {
-      await this.secrets.store(this.keyName("google-ai-studio"), key);
-    }
   }
 
   async deleteApiKey(providerId: ProviderId) {
-    // When deleting a "gemini" key, also delete the migrated "google-ai-studio" key
     await this.secrets.delete(this.keyName(providerId));
-
-    if (providerId === "gemini") {
-      await this.secrets.delete(this.keyName("google-ai-studio"));
-    }
   }
 
   async hasApiKey(providerId: ProviderId) {
-    let key = await this.secrets.get(this.keyName(providerId));
-
-    // For "google-ai-studio", also check for migrated "gemini" key
-    if (providerId === "google-ai-studio" && !key) {
-      key = await this.secrets.get(this.keyName("gemini"));
-    }
-
+    const key = await this.secrets.get(this.keyName(providerId));
     return Boolean(key);
   }
 
   async getApiKey(providerId: ProviderId) {
-    let key = await this.secrets.get(this.keyName(providerId));
-
-    // For "google-ai-studio", also check for migrated "gemini" key
-    if (providerId === "google-ai-studio" && !key) {
-      key = await this.secrets.get(this.keyName("gemini"));
-    }
-
-    return key;
+    return await this.secrets.get(this.keyName(providerId));
   }
 
   private keyName(id: ProviderId) {

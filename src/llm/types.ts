@@ -26,12 +26,16 @@ export interface LLMProvider {
   requiresApiKey: boolean;
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   listModels(): string[];
+  // UI configuration for settings page
+  getUiConfig?(): ProviderUiConfig;
 }
 
-export type ProviderId =
-  | "gemini" // Kept for backward compatibility - now handled by GoogleAIStudioProvider
-  | "zai"
-  | "openrouter"
-  | "google-ai-studio"
-  | "cohere"
-  | "huggingface";
+export interface ProviderUiConfig {
+  apiKeyUrl: string;
+  apiKeyInput: string; // Property name in settings store
+  additionalInfo?: string;
+  hasEndpointType?: boolean;
+  modelFallbackIds?: string[];
+}
+
+export type ProviderId = "zai" | "openrouter" | "google-ai-studio" | "cohere" | "huggingface";

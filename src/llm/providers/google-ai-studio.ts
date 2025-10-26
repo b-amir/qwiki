@@ -1,4 +1,4 @@
-import type { LLMProvider, GenerateParams, GenerateResult } from "../types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
 
 const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro"];
@@ -8,21 +8,14 @@ export class GoogleAIStudioProvider implements LLMProvider {
   name = "Google AI Studio";
   requiresApiKey = true;
 
-  // Support for backward compatibility with "gemini" provider ID
-  static readonly LEGACY_IDS = ["gemini"] as const;
-
-  constructor(
-    private useNativeEndpoint: boolean = false,
-    private providerId: "google-ai-studio" | "gemini" = "google-ai-studio",
-  ) {}
+  constructor(private useNativeEndpoint: boolean = false) {}
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
-      const providerName = this.providerId === "gemini" ? "Gemini" : "Google AI Studio";
-      throw new Error(`${providerName} API key is not set`);
+      throw new Error(`Google AI Studio API key is not set`);
     }
 
-    console.log(`[GoogleAIStudio] Provider ID: ${this.providerId}`);
+    console.log(`[GoogleAIStudio] Provider ID: ${this.id}`);
     console.log(`[GoogleAIStudio] API key present: ${!!apiKey}`);
     console.log(`[GoogleAIStudio] Using native endpoint: ${this.useNativeEndpoint}`);
 
@@ -108,8 +101,12 @@ export class GoogleAIStudioProvider implements LLMProvider {
     return GOOGLE_AI_STUDIO_MODELS;
   }
 
-  // Static method to check if a provider ID is supported (for backward compatibility)
-  static isSupportedId(id: string): id is "google-ai-studio" | "gemini" {
-    return id === "google-ai-studio" || this.LEGACY_IDS.includes(id as "gemini");
+  getUiConfig(): ProviderUiConfig {
+    return {
+      apiKeyUrl: "https://aistudio.google.com/app/apikey",
+      apiKeyInput: "googleAIStudioKeyInput",
+      hasEndpointType: true,
+      modelFallbackIds: [],
+    };
   }
 }

@@ -1,4 +1,4 @@
-import type { LLMProvider, GenerateParams, GenerateResult } from "../types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
 
 const HUGGINGFACE_MODELS = [
@@ -61,5 +61,12 @@ export class HuggingFaceProvider implements LLMProvider {
 
   listModels(): string[] {
     return HUGGINGFACE_MODELS;
+  }
+
+  getUiConfig(): ProviderUiConfig {
+    return {
+      apiKeyUrl: "https://huggingface.co/settings/tokens",
+      apiKeyInput: "huggingfaceKeyInput",
+    };
   }
 }

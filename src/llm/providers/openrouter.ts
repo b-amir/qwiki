@@ -1,4 +1,4 @@
-import type { LLMProvider, GenerateParams, GenerateResult } from "../types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
 
 const OPENROUTER_MODELS = [
@@ -59,5 +59,12 @@ export class OpenRouterProvider implements LLMProvider {
 
   listModels(): string[] {
     return OPENROUTER_MODELS;
+  }
+
+  getUiConfig(): ProviderUiConfig {
+    return {
+      apiKeyUrl: "https://openrouter.ai/keys",
+      apiKeyInput: "openrouterKeyInput",
+    };
   }
 }

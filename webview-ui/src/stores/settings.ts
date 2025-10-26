@@ -3,7 +3,6 @@ import { vscode } from "@/utilities/vscode";
 
 export const useSettingsStore = defineStore("settings", {
   state: () => ({
-    geminiKeyInput: "",
     zaiKeyInput: "",
     openrouterKeyInput: "",
     googleAIStudioKeyInput: "",
@@ -18,7 +17,6 @@ export const useSettingsStore = defineStore("settings", {
     selectedProvider: "zai", // Track selected provider
     // Track original values to detect changes
     originalValues: {
-      geminiKey: "",
       zaiKey: "",
       openrouterKey: "",
       googleAIStudioKey: "",
@@ -41,7 +39,6 @@ export const useSettingsStore = defineStore("settings", {
         switch (message.command) {
           case "apiKeys": {
             const {
-              geminiKey,
               zaiKey,
               openrouterKey,
               googleAIStudioKey,
@@ -49,7 +46,6 @@ export const useSettingsStore = defineStore("settings", {
               huggingfaceKey,
               googleAIEndpoint,
             } = message.payload || {};
-            this.geminiKeyInput = geminiKey || "";
             this.zaiKeyInput = zaiKey || "";
             this.openrouterKeyInput = openrouterKey || "";
             this.googleAIStudioKeyInput = googleAIStudioKey || "";
@@ -58,7 +54,6 @@ export const useSettingsStore = defineStore("settings", {
             this.googleAIEndpoint = googleAIEndpoint || "openai-compatible";
 
             // Store original values to track changes
-            this.originalValues.geminiKey = geminiKey || "";
             this.originalValues.zaiKey = zaiKey || "";
             this.originalValues.openrouterKey = openrouterKey || "";
             this.originalValues.googleAIStudioKey = googleAIStudioKey || "";
@@ -84,12 +79,7 @@ export const useSettingsStore = defineStore("settings", {
             const providers = message.payload || [];
             const withKey = providers.find((p: any) => p.hasKey);
 
-            // If user had gemini selected, migrate to google-ai-studio
-            if (this.selectedProvider === "gemini") {
-              this.selectedProvider = "google-ai-studio";
-            } else {
-              this.selectedProvider = withKey?.id || "google-ai-studio";
-            }
+            this.selectedProvider = withKey?.id || "google-ai-studio";
             return;
           }
         }
@@ -99,20 +89,6 @@ export const useSettingsStore = defineStore("settings", {
       vscode.postMessage({ command: "getApiKeys" });
       // Also request providers to set the selected provider
       vscode.postMessage({ command: "getProviders" });
-    },
-    async saveGemini() {
-      if (!this.geminiKeyInput) return;
-      this.saving = true;
-      // Save as both gemini (for backward compatibility) and google-ai-studio
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "gemini", apiKey: this.geminiKeyInput },
-      });
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "google-ai-studio", apiKey: this.geminiKeyInput },
-      });
-      this.saving = false;
     },
     async saveZai() {
       if (!this.zaiKeyInput) return;
@@ -189,23 +165,10 @@ export const useSettingsStore = defineStore("settings", {
 
       this.saving = true;
 
-      // Special case for gemini/google-ai-studio
-      if (providerId === "gemini") {
-        // Save as both gemini (for backward compatibility) and google-ai-studio
-        vscode.postMessage({
-          command: "saveApiKey",
-          payload: { providerId: "gemini", apiKey },
-        });
-        vscode.postMessage({
-          command: "saveApiKey",
-          payload: { providerId: "google-ai-studio", apiKey },
-        });
-      } else {
-        vscode.postMessage({
-          command: "saveApiKey",
-          payload: { providerId, apiKey },
-        });
-      }
+      vscode.postMessage({
+        command: "saveApiKey",
+        payload: { providerId, apiKey },
+      });
 
       // Update original value after successful save
       this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
@@ -225,9 +188,6 @@ export const useSettingsStore = defineStore("settings", {
 
         // Get the current API key for this provider
         switch (providerId) {
-          case "gemini":
-            apiKey = this.geminiKeyInput;
-            break;
           case "zai":
             apiKey = this.zaiKeyInput;
             break;
@@ -247,23 +207,10 @@ export const useSettingsStore = defineStore("settings", {
 
         if (!apiKey) return Promise.resolve();
 
-        // Special case for gemini/google-ai-studio
-        if (providerId === "gemini") {
-          // Save as both gemini (for backward compatibility) and google-ai-studio
-          vscode.postMessage({
-            command: "saveApiKey",
-            payload: { providerId: "gemini", apiKey },
-          });
-          vscode.postMessage({
-            command: "saveApiKey",
-            payload: { providerId: "google-ai-studio", apiKey },
-          });
-        } else {
-          vscode.postMessage({
-            command: "saveApiKey",
-            payload: { providerId, apiKey },
-          });
-        }
+        vscode.postMessage({
+          command: "saveApiKey",
+          payload: { providerId, apiKey },
+        });
 
         // Update original value
         this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;

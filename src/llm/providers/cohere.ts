@@ -1,4 +1,4 @@
-import type { LLMProvider, GenerateParams, GenerateResult } from "../types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
 
 const COHERE_MODELS = ["command-a-03-2025", "command-r-plus-08-2024", "command-r-08-2024"];
@@ -44,5 +44,12 @@ export class CohereProvider implements LLMProvider {
 
   listModels(): string[] {
     return COHERE_MODELS;
+  }
+
+  getUiConfig(): ProviderUiConfig {
+    return {
+      apiKeyUrl: "https://dashboard.cohere.com/api-keys",
+      apiKeyInput: "cohereKeyInput",
+    };
   }
 }

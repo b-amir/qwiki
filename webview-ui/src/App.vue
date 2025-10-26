@@ -37,9 +37,7 @@ watch(
   () => {
     if (wiki.providers.length > 0 && !settings.selectedProvider) {
       const withKey = wiki.providers.find((p) => p.hasKey);
-      // Migrate from gemini to google-ai-studio
-      settings.selectedProvider =
-        withKey?.id === "gemini" ? "google-ai-studio" : withKey?.id || "google-ai-studio";
+      settings.selectedProvider = withKey?.id || "google-ai-studio";
     }
   },
   { immediate: true },

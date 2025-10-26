@@ -17,7 +17,7 @@ export const useWikiStore = defineStore("wiki", {
     filesSample: [] as string[],
     related: [] as Array<{ path: string; preview?: string; line?: number; reason?: string }>,
     providers: [] as ProviderStatus[],
-    providerId: "gemini" as string,
+    providerId: "google-ai-studio" as string,
     model: "" as string,
   }),
   actions: {

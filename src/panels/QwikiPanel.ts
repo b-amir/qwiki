@@ -339,8 +339,12 @@ export class QwikiPanel {
               webview.postMessage({ command: "providers", payload: statuses });
               return;
             }
+            case "getProviderConfigs": {
+              const configs = this.llms.getProviderConfigs();
+              webview.postMessage({ command: "providerConfigs", payload: configs });
+              return;
+            }
             case "getApiKeys": {
-              const geminiKey = await this.llms.getApiKey("gemini");
               const zaiKey = await this.llms.getApiKey("zai");
               const openrouterKey = await this.llms.getApiKey("openrouter");
               const googleAIStudioKey = await this.llms.getApiKey("google-ai-studio");
@@ -352,7 +356,6 @@ export class QwikiPanel {
               webview.postMessage({
                 command: "apiKeys",
                 payload: {
-                  geminiKey,
                   zaiKey,
                   openrouterKey,
                   googleAIStudioKey,

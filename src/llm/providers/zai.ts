@@ -1,4 +1,4 @@
-import type { LLMProvider, GenerateParams, GenerateResult } from "../types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
 import { getNonce } from "../../utilities/getNonce";
 
@@ -99,5 +99,13 @@ export class ZAiProvider implements LLMProvider {
 
   listModels(): string[] {
     return ZAI_MODELS;
+  }
+
+  getUiConfig(): ProviderUiConfig {
+    return {
+      apiKeyUrl: "https://z.ai",
+      apiKeyInput: "zaiKeyInput",
+      additionalInfo: "Optional: configure base URL in VS Code settings at qwiki.zaiBaseUrl",
+    };
   }
 }
