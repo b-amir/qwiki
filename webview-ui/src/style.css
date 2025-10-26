@@ -25,9 +25,9 @@
     --input: var(--vscode-input-border);
     --ring: var(--vscode-focusBorder);
 
-    --primary: var(--vscode-button-background);
-    --primary-foreground: var(--vscode-button-foreground);
-    --button-default-hover: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+    --primary: var(--vscode-foreground);
+    --primary-foreground: var(--vscode-sideBar-background);
+    --button-default-hover: var(--vscode-foreground);
 
     --secondary: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
     --secondary-foreground: var(
@@ -75,9 +75,9 @@
     --input: var(--vscode-input-border);
     --ring: var(--vscode-focusBorder);
 
-    --primary: var(--vscode-button-background);
-    --primary-foreground: var(--vscode-button-foreground);
-    --button-default-hover: var(--vscode-button-hoverBackground, var(--vscode-button-background));
+    --primary: var(--vscode-foreground);
+    --primary-foreground: var(--vscode-sideBar-background);
+    --button-default-hover: var(--vscode-foreground);
 
     --secondary: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
     --secondary-foreground: var(

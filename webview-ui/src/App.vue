@@ -6,6 +6,16 @@ import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 
+// Function to copy error message to clipboard
+const copyErrorToClipboard = async (errorText: string) => {
+  try {
+    await navigator.clipboard.writeText(errorText);
+    // Could add a toast notification here if available
+  } catch (err) {
+    console.error("Failed to copy error text:", err);
+  }
+};
+
 const tab = ref<"wiki" | "settings">("wiki");
 const wiki = useWikiStore();
 const settings = useSettingsStore();
@@ -103,7 +113,7 @@ watch(
       <!-- Back button on settings page -->
       <div class="flex items-center gap-2">
         <a
-          class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
+          class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
           title="Back"
           @click="tab = 'wiki'"
         >
@@ -127,7 +137,7 @@ watch(
       <!-- Back button on wiki page -->
       <div class="flex items-center gap-2">
         <a
-          class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
+          class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
           title="Back to homepage"
           @click="wiki.clearContent()"
         >
@@ -271,28 +281,50 @@ watch(
               <div class="w-full max-w-md space-y-4">
                 <!-- Error message -->
                 <div class="text-center">
-                  <!-- Error icon -->
-                  <div class="flex justify-center">
-                    <div
-                      class="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full"
-                    >
-                      <svg
-                        class="text-destructive h-6 w-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        aria-hidden="true"
+                  <div class="bg-muted/30 rounded-md border p-3">
+                    <div class="mb-2 flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <div
+                          class="bg-destructive/10 flex h-6 w-6 items-center justify-center rounded-full"
+                        >
+                          <svg
+                            class="text-destructive h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                        </div>
+                        <span class="text-muted-foreground text-xs font-medium">Error</span>
+                      </div>
+                      <a
+                        class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
+                        title="Copy error message"
+                        @click="copyErrorToClipboard(wiki.error)"
                       >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                        />
-                      </svg>
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                          />
+                        </svg>
+                      </a>
+                    </div>
+                    <div class="max-h-40 overflow-y-auto text-left">
+                      <p class="text-muted-foreground whitespace-pre-wrap break-words text-sm">
+                        {{ wiki.error }}
+                      </p>
                     </div>
                   </div>
-                  <p class="text-muted-foreground text-sm">{{ wiki.error }}</p>
                 </div>
               </div>
             </div>
@@ -385,7 +417,7 @@ watch(
               <div v-if="settings.selectedProvider === 'zai'" class="space-y-2 pl-6">
                 <select
                   v-model="wiki.model"
-                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm hover:[filter:brightness(1.1)]"
                 >
                   <option
                     v-for="m in wiki.providers.find((p) => p.id === 'zai')?.models || []"
@@ -437,7 +469,7 @@ watch(
               <div v-if="settings.selectedProvider === 'openrouter'" class="space-y-2 pl-6">
                 <select
                   v-model="wiki.model"
-                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm hover:[filter:brightness(1.1)]"
                 >
                   <option
                     v-for="m in wiki.providers.find((p) => p.id === 'openrouter')?.models || []"
@@ -488,7 +520,7 @@ watch(
               <div v-if="settings.selectedProvider === 'google-ai-studio'" class="space-y-2 pl-6">
                 <select
                   v-model="wiki.model"
-                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm hover:[filter:brightness(1.1)]"
                 >
                   <option
                     v-for="m in wiki.providers.find((p) => p.id === 'google-ai-studio')?.models ||
@@ -553,7 +585,7 @@ watch(
               <div v-if="settings.selectedProvider === 'cohere'" class="space-y-2 pl-6">
                 <select
                   v-model="wiki.model"
-                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm hover:[filter:brightness(1.1)]"
                 >
                   <option
                     v-for="m in wiki.providers.find((p) => p.id === 'cohere')?.models || []"
@@ -602,7 +634,7 @@ watch(
               <div v-if="settings.selectedProvider === 'huggingface'" class="space-y-2 pl-6">
                 <select
                   v-model="wiki.model"
-                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm hover:[filter:brightness(1.1)]"
                 >
                   <option
                     v-for="m in wiki.providers.find((p) => p.id === 'huggingface')?.models || []"

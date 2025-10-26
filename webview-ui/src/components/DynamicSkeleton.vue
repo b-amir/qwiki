@@ -5,11 +5,31 @@
       <div class="flex items-center justify-start gap-3">
         <div class="flex items-center">
           <svg
-            fill="currentColor"
+            fill="url(#starGradient)"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
             class="text-primary h-4 w-4"
           >
+            <defs>
+              <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color: #8b5cf6">
+                  <animate
+                    attributeName="stop-color"
+                    values="#8B5CF6;#3B82F6;#8B5CF6"
+                    dur="6s"
+                    repeatCount="indefinite"
+                  />
+                </stop>
+                <stop offset="100%" style="stop-color: #3b82f6">
+                  <animate
+                    attributeName="stop-color"
+                    values="#3B82F6;#8B5CF6;#3B82F6"
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                </stop>
+              </linearGradient>
+            </defs>
             <rect x="1" y="1" rx="1" width="10" height="10">
               <animate
                 id="spinner_FFyM"
@@ -80,7 +100,9 @@
             </rect>
           </svg>
         </div>
-        <span class="text-muted-foreground text-sm font-medium">{{ displayDescription }}</span>
+        <span class="text-muted-foreground animate-pulse text-sm font-medium">{{
+          displayDescription
+        }}</span>
       </div>
     </div>
 
@@ -163,7 +185,7 @@ const generateSkeletonElements = (): SkeletonElement[] => {
 
     // Introduction paragraph
     { type: "line", width: "100%" },
-    { type: "line", width: "98%" },
+    { type: "line", width: "100%" },
     { type: "line", width: "95%" },
 
     // First section heading
@@ -171,8 +193,8 @@ const generateSkeletonElements = (): SkeletonElement[] => {
 
     // Section content
     { type: "line", width: "100%" },
-    { type: "line", width: "97%" },
-    { type: "line", width: "92%" },
+    { type: "line", width: "100%" },
+    { type: "line", width: "95%" },
 
     // Second section heading
     { type: "line", width: "40%" },
@@ -191,13 +213,13 @@ onMounted(() => {
 
 <style scoped>
 .skeleton-line {
-  height: 12px;
+  height: 14px;
   background-color: var(
     --vscode-textSeparator-foreground,
     var(--vscode-widget-border, var(--border))
   );
   opacity: 0.3;
-  border-radius: 6px;
+  border-radius: 5px;
   margin-bottom: 10px;
 }
 
