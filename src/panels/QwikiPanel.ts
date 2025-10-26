@@ -42,6 +42,7 @@ export class QwikiPanel {
     this._extensionUri = extensionUri;
     this.llms = new LLMRegistry(ctx.secrets, {
       zaiBaseUrl: workspace.getConfiguration("qwiki").get<string>("zaiBaseUrl"),
+      googleAIEndpoint: workspace.getConfiguration("qwiki").get<string>("googleAIEndpoint"),
     });
   }
 
@@ -341,7 +342,25 @@ export class QwikiPanel {
             case "getApiKeys": {
               const geminiKey = await this.llms.getApiKey("gemini");
               const zaiKey = await this.llms.getApiKey("zai");
-              webview.postMessage({ command: "apiKeys", payload: { geminiKey, zaiKey } });
+              const openrouterKey = await this.llms.getApiKey("openrouter");
+              const googleAIStudioKey = await this.llms.getApiKey("google-ai-studio");
+              const cohereKey = await this.llms.getApiKey("cohere");
+              const huggingfaceKey = await this.llms.getApiKey("huggingface");
+              const googleAIEndpoint =
+                workspace.getConfiguration("qwiki").get<string>("googleAIEndpoint") ||
+                "openai-compatible";
+              webview.postMessage({
+                command: "apiKeys",
+                payload: {
+                  geminiKey,
+                  zaiKey,
+                  openrouterKey,
+                  googleAIStudioKey,
+                  cohereKey,
+                  huggingfaceKey,
+                  googleAIEndpoint,
+                },
+              });
               return;
             }
             case "generateWiki": {

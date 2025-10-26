@@ -18,6 +18,15 @@
           "type": "string",
           "default": "",
           "description": "Z.ai API base URL (OpenAI-compatible). Leave blank for default."
+        },
+        "qwiki.googleAIEndpoint": {
+          "type": "string",
+          "enum": [
+            "openai-compatible",
+            "native"
+          ],
+          "default": "openai-compatible",
+          "description": "Google AI Studio endpoint type. Use 'openai-compatible' for OpenAI-compatible endpoint or 'native' for Google's native endpoint."
         }
       }
     },

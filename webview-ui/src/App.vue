@@ -84,7 +84,9 @@ watch(
   () => {
     if (wiki.providers.length > 0 && !settings.selectedProvider) {
       const withKey = wiki.providers.find((p) => p.hasKey);
-      settings.selectedProvider = withKey?.id || "gemini";
+      // Migrate from gemini to google-ai-studio
+      settings.selectedProvider =
+        withKey?.id === "gemini" ? "google-ai-studio" : withKey?.id || "google-ai-studio";
     }
   },
   { immediate: true },
@@ -175,7 +177,7 @@ watch(
             </div>
 
             <!-- Welcome Message -->
-            <h1 class="text-foreground text-2xl font-bold">Welcome to Qwiki!</h1>
+            <h1 class="text-foreground text-xl font-semibold">One Qwiki and you’ll know.</h1>
 
             <!-- Tip -->
             <div class="bg-muted/20 border-border/50 rounded-lg border px-3 py-2">
@@ -360,27 +362,27 @@ watch(
               </div>
             </div>
 
-            <!-- Gemini Option -->
+            <!-- OpenRouter Option -->
             <div class="space-y-3 rounded-md border p-3">
               <div class="flex items-center space-x-2">
                 <input
-                  id="gemini-provider"
+                  id="openrouter-provider"
                   v-model="settings.selectedProvider"
                   type="radio"
-                  value="gemini"
+                  value="openrouter"
                   class="h-4 w-4"
-                  @change="wiki.providerId = 'gemini'"
+                  @change="wiki.providerId = 'openrouter'"
                 />
-                <label for="gemini-provider" class="text-sm font-medium">Gemini</label>
+                <label for="openrouter-provider" class="text-sm font-medium">OpenRouter</label>
               </div>
 
-              <div v-if="settings.selectedProvider === 'gemini'" class="space-y-2 pl-6">
+              <div v-if="settings.selectedProvider === 'openrouter'" class="space-y-2 pl-6">
                 <select
                   v-model="wiki.model"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
                 >
                   <option
-                    v-for="m in wiki.providers.find((p) => p.id === 'gemini')?.models || []"
+                    v-for="m in wiki.providers.find((p) => p.id === 'openrouter')?.models || []"
                     :key="m"
                     :value="m"
                   >
@@ -388,11 +390,74 @@ watch(
                   </option>
                 </select>
                 <input
-                  v-model="settings.geminiKeyInput"
+                  v-model="settings.openrouterKeyInput"
                   type="password"
                   placeholder="API Key"
                   class="bg-background w-full rounded border px-2 py-1 text-sm"
                 />
+                <a
+                  href="https://openrouter.ai/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary text-xs underline"
+                >
+                  Get API key from OpenRouter
+                </a>
+                <div class="flex gap-2">
+                  <Button size="sm" :disabled="settings.saving" @click="settings.saveOpenrouter">
+                    {{ settings.saving ? "Saving..." : "Save" }}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Google AI Studio Option (Consolidated Gemini + Google AI Studio) -->
+            <div class="space-y-3 rounded-md border p-3">
+              <div class="flex items-center space-x-2">
+                <input
+                  id="google-ai-studio-provider"
+                  v-model="settings.selectedProvider"
+                  type="radio"
+                  value="google-ai-studio"
+                  class="h-4 w-4"
+                  @change="wiki.providerId = 'google-ai-studio'"
+                />
+                <label for="google-ai-studio-provider" class="text-sm font-medium"
+                  >Google AI Studio (Gemini)</label
+                >
+              </div>
+
+              <div v-if="settings.selectedProvider === 'google-ai-studio'" class="space-y-2 pl-6">
+                <select
+                  v-model="wiki.model"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                >
+                  <option
+                    v-for="m in wiki.providers.find((p) => p.id === 'google-ai-studio')?.models ||
+                    wiki.providers.find((p) => p.id === 'gemini')?.models ||
+                    []"
+                    :key="m"
+                    :value="m"
+                  >
+                    {{ m }}
+                  </option>
+                </select>
+                <input
+                  v-model="settings.googleAIStudioKeyInput"
+                  type="password"
+                  placeholder="API Key"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                />
+                <div class="space-y-1">
+                  <label class="text-muted-foreground text-xs">Endpoint Type:</label>
+                  <select
+                    v-model="settings.googleAIEndpoint"
+                    class="bg-background w-full rounded border px-2 py-1 text-sm"
+                  >
+                    <option value="openai-compatible">OpenAI Compatible</option>
+                    <option value="native">Native</option>
+                  </select>
+                </div>
                 <a
                   href="https://aistudio.google.com/app/apikey"
                   target="_blank"
@@ -402,12 +467,117 @@ watch(
                   Get API key from Google AI Studio
                 </a>
                 <div class="flex gap-2">
-                  <Button size="sm" :disabled="settings.saving" @click="settings.saveGemini">
+                  <Button
+                    size="sm"
+                    :disabled="settings.saving"
+                    @click="settings.saveGoogleAIStudio"
+                  >
                     {{ settings.saving ? "Saving..." : "Save" }}
                   </Button>
                 </div>
               </div>
             </div>
+
+            <!-- Cohere Option -->
+            <div class="space-y-3 rounded-md border p-3">
+              <div class="flex items-center space-x-2">
+                <input
+                  id="cohere-provider"
+                  v-model="settings.selectedProvider"
+                  type="radio"
+                  value="cohere"
+                  class="h-4 w-4"
+                  @change="wiki.providerId = 'cohere'"
+                />
+                <label for="cohere-provider" class="text-sm font-medium">Cohere</label>
+              </div>
+
+              <div v-if="settings.selectedProvider === 'cohere'" class="space-y-2 pl-6">
+                <select
+                  v-model="wiki.model"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                >
+                  <option
+                    v-for="m in wiki.providers.find((p) => p.id === 'cohere')?.models || []"
+                    :key="m"
+                    :value="m"
+                  >
+                    {{ m }}
+                  </option>
+                </select>
+                <input
+                  v-model="settings.cohereKeyInput"
+                  type="password"
+                  placeholder="API Key"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                />
+                <a
+                  href="https://dashboard.cohere.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary text-xs underline"
+                >
+                  Get API key from Cohere
+                </a>
+                <div class="flex gap-2">
+                  <Button size="sm" :disabled="settings.saving" @click="settings.saveCohere">
+                    {{ settings.saving ? "Saving..." : "Save" }}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hugging Face Option -->
+            <div class="space-y-3 rounded-md border p-3">
+              <div class="flex items-center space-x-2">
+                <input
+                  id="huggingface-provider"
+                  v-model="settings.selectedProvider"
+                  type="radio"
+                  value="huggingface"
+                  class="h-4 w-4"
+                  @change="wiki.providerId = 'huggingface'"
+                />
+                <label for="huggingface-provider" class="text-sm font-medium">Hugging Face</label>
+              </div>
+
+              <div v-if="settings.selectedProvider === 'huggingface'" class="space-y-2 pl-6">
+                <select
+                  v-model="wiki.model"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                >
+                  <option
+                    v-for="m in wiki.providers.find((p) => p.id === 'huggingface')?.models || []"
+                    :key="m"
+                    :value="m"
+                  >
+                    {{ m }}
+                  </option>
+                </select>
+                <input
+                  v-model="settings.huggingfaceKeyInput"
+                  type="password"
+                  placeholder="API Key"
+                  class="bg-background w-full rounded border px-2 py-1 text-sm"
+                />
+                <a
+                  href="https://huggingface.co/settings/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary text-xs underline"
+                >
+                  Get API key from Hugging Face
+                </a>
+                <div class="flex gap-2">
+                  <Button size="sm" :disabled="settings.saving" @click="settings.saveHuggingFace">
+                    {{ settings.saving ? "Saving..." : "Save" }}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Gemini Option (Hidden - Migrated to Google AI Studio) -->
+            <!-- This section is commented out as Gemini is now consolidated into Google AI Studio -->
           </div>
 
           <div v-if="settings.savedMessage" class="text-xs text-green-600">

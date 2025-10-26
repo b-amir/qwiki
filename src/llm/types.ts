@@ -27,3 +27,11 @@ export interface LLMProvider {
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   listModels(): string[];
 }
+
+export type ProviderId =
+  | "gemini" // Kept for backward compatibility - now handled by GoogleAIStudioProvider
+  | "zai"
+  | "openrouter"
+  | "google-ai-studio"
+  | "cohere"
+  | "huggingface";
