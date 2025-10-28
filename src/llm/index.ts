@@ -1,11 +1,7 @@
 import type { LLMProvider, GenerateParams, GenerateResult } from "./types";
-import { ZAiProvider } from "./providers/zai";
-import { OpenRouterProvider } from "./providers/openrouter";
-import { GoogleAIStudioProvider } from "./providers/google-ai-studio";
-import { CohereProvider } from "./providers/cohere";
-import { HuggingFaceProvider } from "./providers/huggingface";
 import type { SecretStorage } from "vscode";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
+import { LLMProviderFactory, type LLMProviderSettings } from "../factories";
 
 export type ProviderId = "zai" | "openrouter" | "google-ai-studio" | "cohere" | "huggingface";
 
@@ -14,17 +10,13 @@ export class LLMRegistry {
 
   constructor(
     private secrets: SecretStorage,
-    private settings: { zaiBaseUrl?: string; googleAIEndpoint?: string },
+    private settings: LLMProviderSettings,
   ) {
-    const googleAIStudioProvider = new GoogleAIStudioProvider(
-      settings.googleAIEndpoint === "native",
-    );
-    this.providers.set("google-ai-studio", googleAIStudioProvider);
-
-    this.providers.set("zai", new ZAiProvider(settings.zaiBaseUrl));
-    this.providers.set("openrouter", new OpenRouterProvider());
-    this.providers.set("cohere", new CohereProvider());
-    this.providers.set("huggingface", new HuggingFaceProvider());
+    const allProviders = LLMProviderFactory.createAllProviders(settings);
+    
+    for (const [id, provider] of Object.entries(allProviders)) {
+      this.providers.set(id, provider);
+    }
   }
 
   list() {

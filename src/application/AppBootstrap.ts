@@ -5,19 +5,10 @@ import {
   ProjectContextService,
   WikiService,
   MessageBus,
-  GenerateWikiCommand,
-  GetSelectionCommand,
-  GetRelatedCommand,
-  SaveApiKeyCommand,
-  GetProvidersCommand,
-  OpenFileCommand,
-  SaveSettingCommand,
-  DeleteApiKeyCommand,
-  GetApiKeysCommand,
-  GetProviderConfigsCommand,
 } from "./";
 import { VSCodeApiKeyRepository, VSCodeConfigurationRepository } from "../infrastructure";
 import { LLMRegistry } from "../llm";
+import { CommandFactory, LLMProviderFactory } from "../factories";
 import { CommandIds, ConfigurationKeys, Extension } from "../constants";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
 import { OutboundEvents } from "../constants";
@@ -86,54 +77,21 @@ export class AppBootstrap {
 
   createCommandRegistry(webview: Webview): CommandRegistry {
     const commandRegistry = new CommandRegistry();
-    const messageBus = new MessageBus(webview);
     const eventBus = this.container.resolve<EventBus>("eventBus");
+    
+    const commandFactory = new CommandFactory({
+      container: this.container,
+      webview,
+      eventBus,
+    });
 
-    commandRegistry.register(CommandIds.generateWiki, new GenerateWikiCommand(eventBus));
+    const commands = commandFactory.createAllCommands();
+    
+    for (const [commandId, command] of Object.entries(commands)) {
+      commandRegistry.register(commandId, command);
+    }
 
-    commandRegistry.register(CommandIds.getSelection, new GetSelectionCommand(eventBus));
-
-    commandRegistry.register(CommandIds.getRelated, new GetRelatedCommand(eventBus));
-
-    commandRegistry.register(
-      CommandIds.saveApiKey,
-      new SaveApiKeyCommand(this.container.resolve("apiKeyRepository"), messageBus),
-    );
-
-    commandRegistry.register(
-      CommandIds.getProviders,
-      new GetProvidersCommand(
-        this.container.resolve("llmRegistry"),
-        this.container.resolve("apiKeyRepository"),
-        messageBus,
-      ),
-    );
-
-    commandRegistry.register(CommandIds.openFile, new OpenFileCommand());
-
-    commandRegistry.register(
-      CommandIds.saveSetting,
-      new SaveSettingCommand(this.container.resolve("configurationRepository"), messageBus),
-    );
-
-    commandRegistry.register(
-      CommandIds.deleteApiKey,
-      new DeleteApiKeyCommand(this.container.resolve("apiKeyRepository"), messageBus),
-    );
-
-    commandRegistry.register(
-      CommandIds.getApiKeys,
-      new GetApiKeysCommand(
-        this.container.resolve("apiKeyRepository"),
-        this.container.resolve("configurationRepository"),
-        messageBus,
-      ),
-    );
-
-    commandRegistry.register(
-      CommandIds.getProviderConfigs,
-      new GetProviderConfigsCommand(this.container.resolve("llmRegistry"), messageBus),
-    );
+    const messageBus = new MessageBus(webview);
 
     eventBus.subscribe("selection", (payload) => {
       messageBus.postSuccess("selection", payload);
