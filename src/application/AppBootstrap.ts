@@ -51,7 +51,8 @@ export class AppBootstrap {
     this.container.register("projectContextService", () => new ProjectContextService());
     this.container.register("cachedProjectContextService", () => new CachedProjectContextService(
       this.container.resolve("cacheService"),
-      this.container.resolve("performanceMonitor")
+      this.container.resolve("performanceMonitor"),
+      this.container.resolve("projectContextService")
     ));
 
     this.container.registerLazy("llmRegistry", async () => {

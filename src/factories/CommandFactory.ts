@@ -88,12 +88,12 @@ export class CommandFactory {
           this.messageBus
         ) as Command<T>;
 
-      case "getConfiguration":
+      case CommandIds.getConfiguration:
         return new GetConfigurationCommand(
           container.resolve("configurationManager")
         ) as Command<T>;
 
-      case "updateConfiguration":
+      case CommandIds.updateConfiguration:
         return new UpdateConfigurationCommand(
           container.resolve("configurationManager")
         ) as Command<T>;
@@ -117,6 +117,8 @@ export class CommandFactory {
       CommandIds.deleteApiKey,
       CommandIds.getApiKeys,
       CommandIds.getProviderConfigs,
+      CommandIds.getConfiguration,
+      CommandIds.updateConfiguration,
     ];
 
     for (const commandId of commandIds) {

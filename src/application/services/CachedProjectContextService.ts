@@ -1,15 +1,16 @@
 import { CacheService } from "../../infrastructure/services/CacheService";
 import { PerformanceMonitor } from "../../infrastructure/services/PerformanceMonitor";
+import { ProjectContextService } from "./ProjectContextService";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import type { Webview } from "vscode";
-import { buildProjectContext } from "../../panels/contextBuilder";
 
 export class CachedProjectContextService {
   private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
   constructor(
     private cacheService: CacheService,
-    private performanceMonitor: PerformanceMonitor
+    private performanceMonitor: PerformanceMonitor,
+    private projectContextService: ProjectContextService
   ) {}
 
   async buildContext(
@@ -32,7 +33,7 @@ export class CachedProjectContextService {
       return cached;
     }
 
-    const context = await buildProjectContext(snippet, filePath, languageId, webview);
+    const context = await this.projectContextService.buildContext(snippet, filePath, languageId, webview);
     this.cacheService.set(cacheKey, context, this.CACHE_TTL);
     
     endTimer();

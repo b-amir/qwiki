@@ -1,7 +1,6 @@
 import { ExtensionContext, window, commands } from "vscode";
 import { QwikiPanel } from "./panels/QwikiPanel";
-import { VSCodeCommandIds } from "./constants/Commands";
-import { Pages } from "./constants/Events";
+import { VSCodeCommandIds, Pages } from "./constants";
 
 export function activate(context: ExtensionContext) {
   const provider = new QwikiPanel(context.extensionUri, context);

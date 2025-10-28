@@ -9,6 +9,8 @@ export const CommandIds = {
   deleteApiKey: "deleteApiKey",
   getApiKeys: "getApiKeys",
   getProviderConfigs: "getProviderConfigs",
+  getConfiguration: "getConfiguration",
+  updateConfiguration: "updateConfiguration",
 } as const;
 
 export const VSCodeCommandIds = {

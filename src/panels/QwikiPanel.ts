@@ -1,11 +1,11 @@
-import { Disposable, WebviewView, Uri, window, ExtensionContext, commands } from "vscode";
-import { AppBootstrap } from "../application";
+import { Disposable, WebviewView, Uri, window, ExtensionContext, commands, Webview } from "vscode";
+import { AppBootstrap, CommandRegistry } from "../application";
 import { getWebviewHtml } from "./webviewContent";
 import { tryOpenFile } from "./fileOps";
 import { Inbound, Outbound, Page, Pages } from "./constants";
-import { WebviewPaths } from "../constants";
-import { VSCodeCommandIds } from "../constants";
+import { WebviewPaths, VSCodeCommandIds, MessageStrings } from "../constants";
 import { BaseError } from "../errors";
+import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
 
 type SelectionPayload = {
   text: string;
@@ -22,8 +22,8 @@ export class QwikiPanel {
   private _pendingSelection: { payload: SelectionPayload; autoGenerate: boolean } | undefined;
   private _lastSelection: SelectionPayload | undefined;
   private bootstrap: AppBootstrap;
-  private commandRegistry: any;
-  private errorHandler: any;
+  private commandRegistry: CommandRegistry | undefined;
+  private errorHandler: ErrorHandler | undefined;
 
   constructor(
     extensionUri: Uri,
@@ -37,7 +37,7 @@ export class QwikiPanel {
   private async initializeAsync() {
     await this.bootstrap.initialize();
     await this.bootstrap.initializeEventHandlers();
-    this.errorHandler = this.bootstrap.getErrorHandler();
+    this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
   }
 
   public async resolveWebviewView(webviewView: WebviewView) {
@@ -66,11 +66,11 @@ export class QwikiPanel {
   public createWikiFromEditorSelection() {
     const payload = this._readSelectionFromEditor(false);
     if (!payload) {
-      window.showInformationMessage("Please open a file to create wiki documentation");
+      window.showInformationMessage(MessageStrings.openFileToCreate);
       return;
     }
     if (!payload.text.trim()) {
-      window.showInformationMessage("Please select some code to build documentation for");
+      window.showInformationMessage(MessageStrings.selectCodeToBuild);
       return;
     }
     this._queueSelection(payload, { autoGenerate: true });
@@ -146,7 +146,7 @@ export class QwikiPanel {
     };
   }
 
-  private _setWebviewMessageListener(webview: any) {
+  private _setWebviewMessageListener(webview: Webview) {
     webview.onDidReceiveMessage(
       async (message: any) => {
         const command = message.command as string;
@@ -166,14 +166,14 @@ export class QwikiPanel {
               return;
             }
             default: {
-              if (this.commandRegistry.has(command)) {
+              if (this.commandRegistry?.has(command)) {
                 await this.commandRegistry.execute(command, payload);
               }
               return;
             }
           }
         } catch (err: any) {
-          this.errorHandler.handle(err, { source: "webviewMessage", command });
+          this.errorHandler?.handle(err, { source: "webviewMessage", command });
         }
       },
       undefined,

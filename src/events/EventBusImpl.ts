@@ -25,7 +25,7 @@ export class EventBusImpl implements EventBus {
       try {
         await handler(payload);
       } catch (error) {
-        console.error(`Error in event handler for ${event}:`, error);
+        // Error in event handler
       }
     });
 
