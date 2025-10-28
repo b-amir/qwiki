@@ -5,6 +5,7 @@ import { tryOpenFile } from "./fileOps";
 import { Inbound, Outbound, Page, Pages } from "./constants";
 import { WebviewPaths } from "../constants";
 import { VSCodeCommandIds } from "../constants";
+import { BaseError } from "../errors";
 
 type SelectionPayload = {
   text: string;
@@ -22,6 +23,7 @@ export class QwikiPanel {
   private _lastSelection: SelectionPayload | undefined;
   private bootstrap: AppBootstrap;
   private commandRegistry: any;
+  private errorHandler: any;
 
   constructor(
     extensionUri: Uri,
@@ -30,6 +32,7 @@ export class QwikiPanel {
     this._extensionUri = extensionUri;
     this.bootstrap = new AppBootstrap(ctx);
     this.bootstrap.initializeEventHandlers();
+    this.errorHandler = this.bootstrap.getErrorHandler();
   }
 
   public resolveWebviewView(webviewView: WebviewView) {
@@ -133,10 +136,10 @@ export class QwikiPanel {
   private _setWebviewMessageListener(webview: any) {
     webview.onDidReceiveMessage(
       async (message: any) => {
+        const command = message.command as string;
+        const payload = message.payload;
+        
         try {
-          const command = message.command as string;
-          const payload = message.payload;
-
           switch (command) {
             case Inbound.webviewReady: {
               this._webviewReady = true;
@@ -157,10 +160,7 @@ export class QwikiPanel {
             }
           }
         } catch (err: any) {
-          webview.postMessage({
-            command: Outbound.error,
-            payload: { message: err?.message || String(err) },
-          });
+          this.errorHandler.handle(err, { source: "webviewMessage", command });
         }
       },
       undefined,

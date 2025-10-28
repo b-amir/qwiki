@@ -5,6 +5,7 @@ import { LoadingSteps } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
 import { ErrorCodes, ErrorMessages } from "../../constants";
 import type { ProviderId } from "../../llm/types";
+import { WikiError } from "../../errors";
 
 export class WikiService {
   constructor(private llmRegistry: LLMRegistry) {}
@@ -18,7 +19,7 @@ export class WikiService {
       onProgress?.(LoadingSteps.validating);
 
       if (!request.snippet?.trim()) {
-        throw new Error(ErrorMessages[ErrorCodes.missingSnippet]);
+        throw new WikiError("missingSnippet", ErrorMessages[ErrorCodes.missingSnippet]);
       }
 
       onProgress?.(LoadingSteps.analyzing);

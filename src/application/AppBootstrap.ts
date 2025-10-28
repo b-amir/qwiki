@@ -6,7 +6,7 @@ import {
   WikiService,
   MessageBus,
 } from "./";
-import { VSCodeApiKeyRepository, VSCodeConfigurationRepository } from "../infrastructure";
+import { VSCodeApiKeyRepository, VSCodeConfigurationRepository, ErrorHandlerImpl, ErrorLoggingServiceImpl, ErrorRecoveryServiceImpl } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory, LLMProviderFactory } from "../factories";
 import { CommandIds, ConfigurationKeys, Extension } from "../constants";
@@ -55,6 +55,21 @@ export class AppBootstrap {
     this.container.register("eventBus", () => new EventBusImpl());
 
     this.container.register(
+      "errorHandler",
+      () => new ErrorHandlerImpl(this.container.resolve("eventBus")),
+    );
+
+    this.container.register(
+      "errorLoggingService",
+      () => new ErrorLoggingServiceImpl(this.container.resolve("eventBus")),
+    );
+
+    this.container.register(
+      "errorRecoveryService",
+      () => new ErrorRecoveryServiceImpl(this.container.resolve("eventBus")),
+    );
+
+    this.container.register(
       "selectionEventHandler",
       () => new SelectionEventHandler(this.container.resolve("eventBus")),
     );
@@ -73,6 +88,9 @@ export class AppBootstrap {
   initializeEventHandlers(): void {
     this.container.resolve<SelectionEventHandler>("selectionEventHandler").register();
     this.container.resolve<WikiEventHandler>("wikiEventHandler").register();
+    
+    const errorHandler = this.container.resolve("errorHandler") as ErrorHandlerImpl;
+    errorHandler.registerGlobalHandlers();
   }
 
   createCommandRegistry(webview: Webview): CommandRegistry {
@@ -118,5 +136,9 @@ export class AppBootstrap {
 
   getContainer(): Container {
     return this.container;
+  }
+
+  getErrorHandler() {
+    return this.container.resolve("errorHandler");
   }
 }

@@ -40,6 +40,13 @@ export const LoadingSteps = {
 
 export type LoadingStep = (typeof LoadingSteps)[keyof typeof LoadingSteps];
 
+export const ErrorEvents = {
+  occurred: "error.occurred",
+  recoveryAttempt: "error.recoveryAttempt",
+  recoverySuccess: "error.recoverySuccess",
+  recoveryFailed: "error.recoveryFailed",
+} as const;
+
 export const Pages = {
   wiki: "wiki",
   settings: "settings",
