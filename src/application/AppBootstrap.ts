@@ -3,11 +3,13 @@ import {
   CommandRegistry,
   SelectionService,
   ProjectContextService,
+  CachedProjectContextService,
   WikiService,
+  CachedWikiService,
   MessageBus,
   ConfigurationManager,
 } from "./";
-import { VSCodeApiKeyRepository, VSCodeConfigurationRepository, ErrorHandlerImpl, ErrorLoggingServiceImpl, ErrorRecoveryServiceImpl } from "../infrastructure";
+import { VSCodeApiKeyRepository, VSCodeConfigurationRepository, ErrorHandlerImpl, ErrorLoggingServiceImpl, ErrorRecoveryServiceImpl, CacheService, PerformanceMonitor } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory, LLMProviderFactory } from "../factories";
 import { CommandIds, ConfigurationKeys, Extension } from "../constants";
@@ -31,6 +33,8 @@ export class AppBootstrap {
   private registerServices(): void {
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
+    this.container.registerInstance("cacheService", new CacheService());
+    this.container.registerInstance("performanceMonitor", new PerformanceMonitor());
 
     this.container.register(
       "apiKeyRepository",
@@ -45,8 +49,12 @@ export class AppBootstrap {
     this.container.register("selectionService", () => new SelectionService());
 
     this.container.register("projectContextService", () => new ProjectContextService());
+    this.container.register("cachedProjectContextService", () => new CachedProjectContextService(
+      this.container.resolve("cacheService"),
+      this.container.resolve("performanceMonitor")
+    ));
 
-    this.container.register("llmRegistry", () => {
+    this.container.registerLazy("llmRegistry", async () => {
       const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
       return new LLMRegistry(this.container.resolve("secrets"), {
         zaiBaseUrl: configManager.getZaiBaseUrl(),
@@ -54,9 +62,18 @@ export class AppBootstrap {
       });
     });
 
-    this.container.register(
+    this.container.registerLazy(
       "wikiService",
-      () => new WikiService(this.container.resolve("llmRegistry")),
+      async () => new WikiService(await this.container.resolveLazy("llmRegistry")),
+    );
+
+    this.container.registerLazy(
+      "cachedWikiService",
+      async () => new CachedWikiService(
+        await this.container.resolveLazy("llmRegistry"),
+        this.container.resolve("cacheService"),
+        this.container.resolve("performanceMonitor")
+      ),
     );
 
     this.container.register("commandRegistry", () => new CommandRegistry());
@@ -83,20 +100,21 @@ export class AppBootstrap {
       () => new SelectionEventHandler(this.container.resolve("eventBus")),
     );
 
-    this.container.register(
+    this.container.registerLazy(
       "wikiEventHandler",
-      () =>
+      async () =>
         new WikiEventHandler(
           this.container.resolve("eventBus"),
-          this.container.resolve("wikiService"),
+          await this.container.resolveLazy("wikiService"),
           this.container.resolve("projectContextService"),
         ),
     );
   }
 
-  initializeEventHandlers(): void {
+  async initializeEventHandlers(): Promise<void> {
     this.container.resolve<SelectionEventHandler>("selectionEventHandler").register();
-    this.container.resolve<WikiEventHandler>("wikiEventHandler").register();
+    const wikiEventHandler = await this.container.resolveLazy<WikiEventHandler>("wikiEventHandler");
+    wikiEventHandler.register();
     
     const errorHandler = this.container.resolve("errorHandler") as ErrorHandlerImpl;
     errorHandler.registerGlobalHandlers();

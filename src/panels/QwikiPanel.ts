@@ -36,11 +36,11 @@ export class QwikiPanel {
 
   private async initializeAsync() {
     await this.bootstrap.initialize();
-    this.bootstrap.initializeEventHandlers();
+    await this.bootstrap.initializeEventHandlers();
     this.errorHandler = this.bootstrap.getErrorHandler();
   }
 
-  public resolveWebviewView(webviewView: WebviewView) {
+  public async resolveWebviewView(webviewView: WebviewView) {
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -52,7 +52,7 @@ export class QwikiPanel {
     this.view = webviewView;
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this._webviewReady = false;
-    this.commandRegistry = this.bootstrap.createCommandRegistry(webviewView.webview);
+    this.commandRegistry = await this.bootstrap.createCommandRegistry(webviewView.webview);
     this._setWebviewMessageListener(webviewView.webview);
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
   }
@@ -81,6 +81,14 @@ export class QwikiPanel {
   public dispose() {
     this.view = undefined;
     this._webviewReady = false;
+    
+    if (this.commandRegistry) {
+      const messageBus = (this.commandRegistry as any).messageBus;
+      if (messageBus && messageBus.dispose) {
+        messageBus.dispose();
+      }
+    }
+    
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
       if (disposable) {

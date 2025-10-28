@@ -34,7 +34,7 @@ export class CommandFactory {
     this.messageBus = new MessageBus(dependencies.webview);
   }
 
-  createCommand<T>(commandId: string): Command<T> | undefined {
+  async createCommand<T>(commandId: string): Promise<Command<T> | undefined> {
     const { container, eventBus } = this.dependencies;
 
     switch (commandId) {
@@ -55,7 +55,7 @@ export class CommandFactory {
 
       case CommandIds.getProviders:
         return new GetProvidersCommand(
-          container.resolve("llmRegistry"),
+          await container.resolveLazy("llmRegistry"),
           container.resolve("apiKeyRepository"),
           this.messageBus
         ) as Command<T>;
@@ -84,7 +84,7 @@ export class CommandFactory {
 
       case CommandIds.getProviderConfigs:
         return new GetProviderConfigsCommand(
-          container.resolve("llmRegistry"),
+          await container.resolveLazy("llmRegistry"),
           this.messageBus
         ) as Command<T>;
 
@@ -103,7 +103,7 @@ export class CommandFactory {
     }
   }
 
-  createAllCommands(): Record<string, Command> {
+  async createAllCommands(): Promise<Record<string, Command>> {
     const commands: Record<string, Command> = {};
     
     const commandIds = [
@@ -120,7 +120,7 @@ export class CommandFactory {
     ];
 
     for (const commandId of commandIds) {
-      const command = this.createCommand(commandId);
+      const command = await this.createCommand(commandId);
       if (command) {
         commands[commandId] = command;
       }

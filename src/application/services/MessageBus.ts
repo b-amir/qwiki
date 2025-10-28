@@ -2,16 +2,25 @@ import type { Webview } from "vscode";
 import { OutboundEvents } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
 import { ErrorCodes } from "../../constants/ErrorCodes";
+import { WebviewOptimizer } from "../../infrastructure/services/WebviewOptimizer";
 
 export class MessageBus {
-  constructor(private webview: Webview) {}
+  private optimizer: WebviewOptimizer;
+
+  constructor(webview: Webview) {
+    this.optimizer = new WebviewOptimizer(webview);
+  }
 
   postMessage(command: string, payload?: any): void {
-    this.webview.postMessage({ command, payload });
+    this.optimizer.postMessage(command, payload);
+  }
+
+  postImmediate(command: string, payload?: any): void {
+    this.optimizer.postImmediate(command, payload);
   }
 
   postError(message: string, code: string = ErrorCodes.unknown): void {
-    this.postMessage(OutboundEvents.error, { code, message });
+    this.postImmediate(OutboundEvents.error, { code, message });
   }
 
   postSuccess(command: string, payload?: any): void {
@@ -20,5 +29,9 @@ export class MessageBus {
 
   postLoadingStep(step: LoadingStep): void {
     this.postMessage(OutboundEvents.loadingStep, { step });
+  }
+
+  dispose(): void {
+    this.optimizer.dispose();
   }
 }

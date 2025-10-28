@@ -1,0 +1,62 @@
+import { CacheService } from "../../infrastructure/services/CacheService";
+import { PerformanceMonitor } from "../../infrastructure/services/PerformanceMonitor";
+import type { ProjectContext } from "../../domain/entities/Selection";
+import type { Webview } from "vscode";
+import { buildProjectContext } from "../../panels/contextBuilder";
+
+export class CachedProjectContextService {
+  private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+  constructor(
+    private cacheService: CacheService,
+    private performanceMonitor: PerformanceMonitor
+  ) {}
+
+  async buildContext(
+    snippet: string,
+    filePath?: string,
+    languageId?: string,
+    webview?: Webview,
+  ): Promise<ProjectContext> {
+    const endTimer = this.performanceMonitor.startTimer("buildProjectContext", {
+      snippetLength: snippet.length,
+      filePath,
+      languageId,
+    });
+
+    const cacheKey = this.generateCacheKey(snippet, filePath, languageId);
+    
+    const cached = this.cacheService.get<ProjectContext>(cacheKey);
+    if (cached) {
+      endTimer();
+      return cached;
+    }
+
+    const context = await buildProjectContext(snippet, filePath, languageId, webview);
+    this.cacheService.set(cacheKey, context, this.CACHE_TTL);
+    
+    endTimer();
+    return context;
+  }
+
+  private generateCacheKey(snippet: string, filePath?: string, languageId?: string): string {
+    const snippetHash = this.simpleHash(snippet);
+    const pathHash = filePath ? this.simpleHash(filePath) : "";
+    const langHash = languageId || "";
+    return `project-context:${snippetHash}:${pathHash}:${langHash}`;
+  }
+
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  clearCache(): void {
+    this.cacheService.clear();
+  }
+}
