@@ -5,6 +5,7 @@ import { GoogleAIStudioProvider } from "./providers/google-ai-studio";
 import { CohereProvider } from "./providers/cohere";
 import { HuggingFaceProvider } from "./providers/huggingface";
 import type { SecretStorage } from "vscode";
+import { ProviderIds, MessageStrings } from "../constants";
 
 export interface ProviderConfig {
   id: string;
@@ -19,14 +20,16 @@ export interface ProviderConfig {
 }
 
 const createProviderInstances = (settings: { zaiBaseUrl?: string; googleAIEndpoint?: string }) => {
-  const googleAIStudioProvider = new GoogleAIStudioProvider(settings.googleAIEndpoint === "native");
+  const googleAIStudioProvider = new GoogleAIStudioProvider(
+    settings.googleAIEndpoint === MessageStrings.native,
+  );
 
   return {
-    "google-ai-studio": googleAIStudioProvider,
-    zai: new ZAiProvider(settings.zaiBaseUrl),
-    openrouter: new OpenRouterProvider(),
-    cohere: new CohereProvider(),
-    huggingface: new HuggingFaceProvider(),
+    [ProviderIds.googleAIStudio]: googleAIStudioProvider,
+    [ProviderIds.zai]: new ZAiProvider(settings.zaiBaseUrl),
+    [ProviderIds.openrouter]: new OpenRouterProvider(),
+    [ProviderIds.cohere]: new CohereProvider(),
+    [ProviderIds.huggingface]: new HuggingFaceProvider(),
   };
 };
 

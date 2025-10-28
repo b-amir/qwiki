@@ -1,10 +1,19 @@
 import { Webview, Uri } from "vscode";
 import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
+import { WebviewPaths } from "../constants";
 
 export function getWebviewHtml(webview: Webview, extensionUri: Uri) {
-  const stylesUri = getUri(webview, extensionUri, ["webview-ui", "build", "assets", "index.css"]);
-  const scriptUri = getUri(webview, extensionUri, ["webview-ui", "build", "assets", "index.js"]);
+  const stylesUri = getUri(webview, extensionUri, [
+    WebviewPaths.webviewBuild,
+    WebviewPaths.assets,
+    WebviewPaths.indexCss,
+  ]);
+  const scriptUri = getUri(webview, extensionUri, [
+    WebviewPaths.webviewBuild,
+    WebviewPaths.assets,
+    WebviewPaths.indexJs,
+  ]);
   const nonce = getNonce();
   return `
       <!DOCTYPE html>

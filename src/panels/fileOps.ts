@@ -1,14 +1,15 @@
 import { Uri, commands, window, workspace } from "vscode";
 import { Messages } from "./messages";
+import { MessageTemplates, PathPatterns, PathStrings, VSCodeCommands } from "../constants";
 
 export async function tryOpenFile(path: string, line?: number) {
   try {
     const folders = workspace.workspaceFolders;
     let targetUri: Uri | undefined;
-    const cleaned = path.replace(/^\.(?:[\\\/]|$)/, "");
-    const isAbs = /^\w:\\|^\\\\|^\//.test(path);
-    const isAlias = /^@\//.test(cleaned);
-    const aliasRemainder = cleaned.replace(/^@\//, "");
+    const cleaned = path.replace(PathPatterns.currentDirRegex, "");
+    const isAbs = PathPatterns.absolutePathRegex.test(path);
+    const isAlias = PathPatterns.aliasRegex.test(cleaned);
+    const aliasRemainder = cleaned.replace(PathPatterns.aliasRegex, "");
     if (isAbs) {
       targetUri = Uri.file(path);
     } else if (folders && folders.length && !isAlias) {
@@ -19,9 +20,9 @@ export async function tryOpenFile(path: string, line?: number) {
       const base = cleaned.replace(/^.*[\\/]/, "");
       if (isAlias) {
         globs.add(`**/${aliasRemainder}`);
-        globs.add(`**/src/${aliasRemainder}`);
+        globs.add(`**/${PathStrings.srcPrefix}${aliasRemainder}`);
       }
-      if (/[\\/]/.test(cleaned)) {
+      if (PathPatterns.pathSeparatorRegex.test(cleaned)) {
         globs.add(cleaned);
         globs.add(`**/${cleaned.replace(/^.*?(?=[\\/])/, "")}`);
       } else {
@@ -41,11 +42,11 @@ export async function tryOpenFile(path: string, line?: number) {
       }
     }
     if (!targetUri) {
-      window.showWarningMessage(Messages.cannotResolvePath(path));
+      window.showWarningMessage(MessageTemplates.cannotResolvePath(path));
       return false;
     }
     await commands.executeCommand(
-      "vscode.open",
+      VSCodeCommands.open,
       targetUri,
       line
         ? {
@@ -58,7 +59,7 @@ export async function tryOpenFile(path: string, line?: number) {
     );
     return true;
   } catch (e: any) {
-    window.showErrorMessage(Messages.failedToOpenFile(e?.message || String(e)));
+    window.showErrorMessage(MessageTemplates.failedToOpenFile(e?.message || String(e)));
     return false;
   }
 }

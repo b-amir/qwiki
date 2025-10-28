@@ -1,8 +1,15 @@
 import { Uri, Webview, workspace } from "vscode";
 import { Outbound, LoadingStep } from "./constants";
+import {
+  FilePatterns,
+  FileLimits,
+  PathPatterns,
+  MessageStrings,
+  MessageFormats,
+} from "../constants";
 
 type ProjectContext = {
-  rootName?: string;
+  rootName: string;
   overview: string;
   filesSample: string[];
   related: Array<{ path: string; preview?: string; line?: number; reason?: string }>;
@@ -15,13 +22,13 @@ export async function buildProjectContext(
   webview?: Webview,
 ): Promise<ProjectContext> {
   const folders = workspace.workspaceFolders;
-  const rootName = folders && folders.length ? folders[0].name : undefined;
+  const rootName = folders && folders.length ? folders[0].name : "";
   const files = await workspace.findFiles(
-    "**/*",
-    "**/{node_modules,dist,out,build,.git,.vscode}/**",
-    200,
+    FilePatterns.allFiles,
+    FilePatterns.exclude,
+    FileLimits.projectFiles,
   );
-  const filesSample = files.slice(0, 50).map(relativePath);
+  const filesSample = files.slice(0, FileLimits.maxFileSample).map(relativePath);
   const overview = await readOverview();
   if (webview)
     webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.finding } });
@@ -32,19 +39,19 @@ export async function buildProjectContext(
 
 function baseName(p?: string) {
   if (!p) return undefined;
-  const m = /[^\\\/]+$/.exec(p);
+  const m = PathPatterns.baseNameRegex.exec(p);
   return m ? m[0] : p;
 }
 
 function relativePath(u: Uri) {
   const folders = workspace.workspaceFolders;
   if (!folders || !folders.length) return u.fsPath;
-  const root = folders[0].uri.fsPath.replace(/\\+$/, "");
+  const root = folders[0].uri.fsPath.replace(PathPatterns.escapeCharRegex, "");
   return u.fsPath.startsWith(root) ? u.fsPath.slice(root.length + 1) : u.fsPath;
 }
 
 function extractIdentifier(text: string) {
-  const matches = text.match(/[A-Za-z_][A-Za-z0-9_\-]*/g);
+  const matches = text.match(PathPatterns.identifierRegex);
   if (!matches || !matches.length) return undefined;
   const scored = matches.map((t) => ({ t, score: (/[A-Z]/.test(t) ? 1 : 0) + t.length / 10 }));
   scored.sort((a, b) => b.score - a.score);
@@ -54,11 +61,13 @@ function extractIdentifier(text: string) {
 async function findTextUsages(token: string) {
   const related: Array<{ path: string; preview?: string; line?: number; reason?: string }> = [];
   const files = await workspace.findFiles(
-    "**/*",
-    "**/{node_modules,dist,out,build,.git,.vscode}/**",
-    400,
+    FilePatterns.allFiles,
+    FilePatterns.exclude,
+    FileLimits.relatedFiles,
   );
-  const re = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`);
+  const re = new RegExp(
+    `${PathPatterns.wordBoundaryRegex}${token.replace(PathPatterns.specialCharsRegex, "\\$&")}${PathPatterns.wordBoundaryRegex}`,
+  );
   for (const uri of files) {
     try {
       const doc = await workspace.openTextDocument(uri);
@@ -68,8 +77,13 @@ async function findTextUsages(token: string) {
       const pos = doc.positionAt(m.index);
       const line = pos.line + 1;
       const previewLine = doc.lineAt(pos.line).text.trim();
-      related.push({ path: relativePath(uri), line, preview: previewLine, reason: "text match" });
-      if (related.length >= 50) break;
+      related.push({
+        path: relativePath(uri),
+        line,
+        preview: previewLine,
+        reason: MessageStrings.textMatch,
+      });
+      if (related.length >= FileLimits.maxRelatedResults) break;
     } catch {}
   }
   return related;
@@ -78,27 +92,31 @@ async function findTextUsages(token: string) {
 async function readOverview() {
   try {
     const pkgUris = await workspace.findFiles(
-      "package.json",
-      "**/{node_modules,dist,out,build}/**",
+      FilePatterns.packageJson,
+      FilePatterns.excludeWithoutVscode,
       1,
     );
     if (!pkgUris.length) return "";
     const doc = await workspace.openTextDocument(pkgUris[0]);
     const json = JSON.parse(doc.getText());
     const name = json.name as string | undefined;
-    const deps = json.dependencies ? Object.keys(json.dependencies).slice(0, 10) : [];
-    const devDeps = json.devDependencies ? Object.keys(json.devDependencies).slice(0, 5) : [];
+    const deps = json.dependencies
+      ? Object.keys(json.dependencies).slice(0, FileLimits.maxDependencies)
+      : [];
+    const devDeps = json.devDependencies
+      ? Object.keys(json.devDependencies).slice(0, FileLimits.maxDevDependencies)
+      : [];
     const parts = [] as string[];
-    if (name) parts.push(`package: ${name}`);
+    if (name) parts.push(`${MessageStrings.package}: ${name}`);
     if (deps.length)
       parts.push(
-        `deps: ${deps.join(", ")}${json.dependencies && Object.keys(json.dependencies).length > deps.length ? "." : ""}`,
+        `${MessageStrings.deps}: ${MessageFormats.dependencies(deps, json.dependencies && Object.keys(json.dependencies).length > deps.length)}`,
       );
     if (devDeps.length)
       parts.push(
-        `devDeps: ${devDeps.join(", ")}${json.devDependencies && Object.keys(json.devDependencies).length > devDeps.length ? "." : ""}`,
+        `${MessageStrings.devDeps}: ${MessageFormats.dependencies(devDeps, json.devDependencies && Object.keys(json.devDependencies).length > devDeps.length)}`,
       );
-    return parts.join("; ");
+    return MessageFormats.overview(parts);
   } catch {
     return "";
   }
