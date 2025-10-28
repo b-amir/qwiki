@@ -19,6 +19,7 @@ const centralizedProviderConfigs = ref<
     additionalInfo?: string;
     hasEndpointType?: boolean;
     modelFallbackIds?: string[];
+    defaultModel?: string;
   }>
 >([]);
 
@@ -36,6 +37,7 @@ const providerConfigs = computed(() => {
       additionalInfo: config.additionalInfo,
       hasEndpointType: config.hasEndpointType,
       modelFallbackIds: config.modelFallbackIds,
+      defaultModel: config.defaultModel,
       // Include wiki provider data if available
       hasKey: wikiProvider?.hasKey || false,
       models: wikiProvider?.models || [],
@@ -124,6 +126,20 @@ watch(
       nextTick(() => {
         calculateContentHeight(newProviderId);
       });
+
+      // Set default model for the selected provider if no model is selected
+      if (!wiki.model) {
+        const provider = providerConfigs.value.find((p) => p.id === newProviderId);
+        if (provider?.defaultModel) {
+          wiki.model = provider.defaultModel;
+        } else {
+          // Fallback to first available model
+          const models = getModelsForProvider(newProviderId, provider?.modelFallbackIds);
+          if (models.length > 0) {
+            wiki.model = models[0];
+          }
+        }
+      }
     }
   },
 );

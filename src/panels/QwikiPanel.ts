@@ -1,4 +1,13 @@
-import { Disposable, Webview, WebviewView, Uri, window, workspace, ExtensionContext, commands } from "vscode";
+import {
+  Disposable,
+  Webview,
+  WebviewView,
+  Uri,
+  window,
+  workspace,
+  ExtensionContext,
+  commands,
+} from "vscode";
 import { LLMRegistry, type ProviderId } from "../llm";
 import { getWebviewHtml } from "./webviewContent";
 import { buildProjectContext } from "./contextBuilder";
@@ -184,12 +193,15 @@ export class QwikiPanel {
             case Inbound.getProviders: {
               const list = this.llms.list();
               const statuses = await Promise.all(
-                list.map(async (p) => ({
-                  id: p.id,
-                  name: p.name,
-                  models: (p as any).models || [],
-                  hasKey: await this.llms.hasApiKey(p.id as ProviderId),
-                })),
+                list.map(async (p) => {
+                  const provider = this.llms.getProvider(p.id as ProviderId);
+                  return {
+                    id: p.id,
+                    name: p.name,
+                    models: provider?.listModels?.() || [],
+                    hasKey: await this.llms.hasApiKey(p.id as ProviderId),
+                  };
+                }),
               );
               webview.postMessage({ command: Outbound.providers, payload: statuses });
               return;
@@ -231,20 +243,30 @@ export class QwikiPanel {
               };
 
               try {
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.validating } });
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.validating },
+                });
                 if (!snippet?.trim()) {
                   throw new Error(Messages.noCodeSelected);
                 }
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.analyzing } });
-                const project = await buildProjectContext(
-                  snippet,
-                  filePath,
-                  languageId,
-                  webview,
-                );
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.finding } });
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.preparing } });
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.generating } });
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.analyzing },
+                });
+                const project = await buildProjectContext(snippet, filePath, languageId, webview);
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.finding },
+                });
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.preparing },
+                });
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.generating },
+                });
                 const result = await this.llms.generate(providerId, {
                   model,
                   snippet,
@@ -252,17 +274,32 @@ export class QwikiPanel {
                   filePath,
                   project,
                 });
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.processing } });
-                webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.finalizing } });
-                webview.postMessage({ command: Outbound.wikiResult, payload: { content: result.content } });
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.processing },
+                });
+                webview.postMessage({
+                  command: Outbound.loadingStep,
+                  payload: { step: LoadingStep.finalizing },
+                });
+                webview.postMessage({
+                  command: Outbound.wikiResult,
+                  payload: { content: result.content },
+                });
               } catch (error: any) {
-                webview.postMessage({ command: Outbound.error, payload: { message: error?.message || Messages.generateFailedDefault } });
+                webview.postMessage({
+                  command: Outbound.error,
+                  payload: { message: error?.message || Messages.generateFailedDefault },
+                });
               }
               return;
             }
           }
         } catch (err: any) {
-          webview.postMessage({ command: Outbound.error, payload: { message: err?.message || String(err) } });
+          webview.postMessage({
+            command: Outbound.error,
+            payload: { message: err?.message || String(err) },
+          });
         }
       },
       undefined,

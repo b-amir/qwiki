@@ -53,6 +53,10 @@ export class LLMRegistry {
     return getAllProviderConfigs(this.settings).find((config) => config.id === providerId);
   }
 
+  getProvider(providerId: ProviderId) {
+    return this.providers.get(providerId);
+  }
+
   async generate(providerId: ProviderId, params: GenerateParams): Promise<GenerateResult> {
     const provider = this.providers.get(providerId);
     if (!provider) throw new Error(`Unknown provider: ${providerId}`);

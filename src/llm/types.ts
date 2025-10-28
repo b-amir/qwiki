@@ -36,6 +36,7 @@ export interface ProviderUiConfig {
   additionalInfo?: string;
   hasEndpointType?: boolean;
   modelFallbackIds?: string[];
+  defaultModel?: string;
 }
 
 export type ProviderId = "zai" | "openrouter" | "google-ai-studio" | "cohere" | "huggingface";

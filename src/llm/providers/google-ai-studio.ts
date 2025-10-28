@@ -1,7 +1,7 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
 
-const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro"];
+const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
 
 export class GoogleAIStudioProvider implements LLMProvider {
   id = "google-ai-studio" as const;
@@ -19,7 +19,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
     console.log(`[GoogleAIStudio] API key present: ${!!apiKey}`);
     console.log(`[GoogleAIStudio] Using native endpoint: ${this.useNativeEndpoint}`);
 
-    const model = params.model || GOOGLE_AI_STUDIO_MODELS[0];
+    const model = params.model || "gemini-2.5-pro";
     const prompt = buildWikiPrompt(params);
 
     if (this.useNativeEndpoint) {
@@ -107,6 +107,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       apiKeyInput: "googleAIStudioKeyInput",
       hasEndpointType: true,
       modelFallbackIds: [],
+      defaultModel: "gemini-2.5-pro",
     };
   }
 }

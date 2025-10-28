@@ -12,6 +12,7 @@ export const useSettingsStore = defineStore("settings", {
     saving: false,
     savedMessage: "",
     loading: false,
+    loadingProviders: false,
     initialized: false,
     listenerAttached: false,
     selectedProvider: "zai", // Track selected provider

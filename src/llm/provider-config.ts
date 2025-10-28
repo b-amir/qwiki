@@ -14,6 +14,7 @@ export interface ProviderConfig {
   additionalInfo?: string;
   hasEndpointType?: boolean;
   modelFallbackIds?: string[];
+  defaultModel?: string;
 }
 
 // Create provider instances with default settings
@@ -21,9 +22,9 @@ const createProviderInstances = (settings: { zaiBaseUrl?: string; googleAIEndpoi
   const googleAIStudioProvider = new GoogleAIStudioProvider(settings.googleAIEndpoint === "native");
 
   return {
+    "google-ai-studio": googleAIStudioProvider,
     zai: new ZAiProvider(settings.zaiBaseUrl),
     openrouter: new OpenRouterProvider(),
-    "google-ai-studio": googleAIStudioProvider,
     cohere: new CohereProvider(),
     huggingface: new HuggingFaceProvider(),
   };
@@ -50,6 +51,7 @@ export function getAllProviderConfigs(
       additionalInfo: uiConfig.additionalInfo,
       hasEndpointType: uiConfig.hasEndpointType,
       modelFallbackIds: uiConfig.modelFallbackIds || [],
+      defaultModel: uiConfig.defaultModel,
     };
   });
 }
@@ -81,5 +83,6 @@ export function getProviderConfig(
     additionalInfo: uiConfig.additionalInfo,
     hasEndpointType: uiConfig.hasEndpointType,
     modelFallbackIds: uiConfig.modelFallbackIds || [],
+    defaultModel: uiConfig.defaultModel,
   };
 }

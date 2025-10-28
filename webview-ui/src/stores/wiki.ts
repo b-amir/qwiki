@@ -38,7 +38,16 @@ export const useWikiStore = defineStore("wiki", {
             this.providers = message.payload || [];
             // Default to first available provider with a key
             const withKey = this.providers.find((p) => p.hasKey)?.id;
-            if (withKey) this.providerId = withKey;
+            if (withKey) {
+              this.providerId = withKey;
+              // Set default model for the selected provider if no model is selected
+              if (!this.model) {
+                const selectedProvider = this.providers.find((p) => p.id === withKey);
+                if (selectedProvider?.models?.length) {
+                  this.model = selectedProvider.models[0];
+                }
+              }
+            }
             return;
           }
           case "triggerGenerate": {
