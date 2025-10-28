@@ -211,13 +211,12 @@ onMounted(() => {
               :key="provider.id"
               class="hover:border-primary hover:bg-muted/90 focus-within:border-primary group overflow-clip rounded-xl border border-transparent"
               :class="{
-                'bg-foreground border-transparent focus-within:border-transparent':
+                'bg-foreground border-transparent shadow-sm focus-within:border-transparent':
                   settings.selectedProvider === provider.id,
                 'bg-muted': settings.selectedProvider !== provider.id,
               }"
               :style="{
-                transition:
-                  'background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: 'background-color 0.08s ease-out, border-color 0.08s ease-out',
                 willChange: 'background-color, border-color',
               }"
             >
