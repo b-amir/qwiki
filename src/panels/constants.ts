@@ -9,6 +9,7 @@ export const Inbound = {
   getProviderConfigs: "getProviderConfigs",
   getApiKeys: "getApiKeys",
   generateWiki: "generateWiki",
+  saveSetting: "saveSetting",
 } as const;
 
 export const Outbound = {
@@ -24,6 +25,7 @@ export const Outbound = {
   providers: "providers",
   providerConfigs: "providerConfigs",
   apiKeys: "apiKeys",
+  settingSaved: "settingSaved",
 } as const;
 
 export const LoadingStep = {

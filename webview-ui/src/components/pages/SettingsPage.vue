@@ -20,6 +20,14 @@ const centralizedProviderConfigs = ref<
     hasEndpointType?: boolean;
     modelFallbackIds?: string[];
     defaultModel?: string;
+    customFields?: Array<{
+      id: string;
+      label: string;
+      type: "text" | "select";
+      placeholder?: string;
+      options?: string[];
+      defaultValue?: string;
+    }>;
   }>
 >([]);
 
@@ -38,6 +46,7 @@ const providerConfigs = computed(() => {
       hasEndpointType: config.hasEndpointType,
       modelFallbackIds: config.modelFallbackIds,
       defaultModel: config.defaultModel,
+      customFields: config.customFields,
       // Include wiki provider data if available
       hasKey: wikiProvider?.hasKey || false,
       models: wikiProvider?.models || [],
@@ -67,6 +76,11 @@ const getApiKeyInput = (providerId: string) => {
   return config ? (settings as any)[config.apiKeyInput] : "";
 };
 
+// Get custom field value
+const getCustomFieldValue = (fieldId: string) => {
+  return (settings as any)[fieldId] || "";
+};
+
 // Handle provider selection change
 const handleProviderChange = (providerId: string) => {
   wiki.providerId = providerId;
@@ -80,6 +94,11 @@ const handleApiKeyChange = (providerId: string, newValue: string) => {
     settings.trackApiKeyChange(providerId, newValue);
     settings.autoSaveApiKey(providerId, newValue);
   }
+};
+
+// Handle custom field change
+const handleCustomFieldChange = (fieldId: string, newValue: string) => {
+  settings.saveSetting(fieldId, newValue);
 };
 
 // Initialize settings when component is mounted
@@ -364,6 +383,40 @@ onMounted(() => {
                       >
                         <option value="openai-compatible">OpenAI Compatible</option>
                         <option value="native">Native</option>
+                      </select>
+                    </div>
+
+                    <div v-for="field in provider.customFields" :key="field.id" class="space-y-2">
+                      <label class="text-muted-foreground text-xs font-medium tracking-wide">
+                        {{ field.label }}
+                      </label>
+                      <input
+                        v-if="field.type === 'text'"
+                        :value="getCustomFieldValue(field.id)"
+                        type="text"
+                        :placeholder="field.placeholder"
+                        class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        @input="
+                          handleCustomFieldChange(
+                            field.id,
+                            ($event.target as HTMLInputElement).value,
+                          )
+                        "
+                      />
+                      <select
+                        v-else-if="field.type === 'select'"
+                        :value="getCustomFieldValue(field.id)"
+                        class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        @change="
+                          handleCustomFieldChange(
+                            field.id,
+                            ($event.target as HTMLSelectElement).value,
+                          )
+                        "
+                      >
+                        <option v-for="option in field.options" :key="option" :value="option">
+                          {{ option }}
+                        </option>
                       </select>
                     </div>
 

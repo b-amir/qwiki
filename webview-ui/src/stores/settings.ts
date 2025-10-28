@@ -8,6 +8,7 @@ export const useSettingsStore = defineStore("settings", {
     googleAIStudioKeyInput: "",
     cohereKeyInput: "",
     huggingfaceKeyInput: "",
+    zaiBaseUrl: "",
     googleAIEndpoint: "openai-compatible", // "openai-compatible" or "native"
     saving: false,
     savedMessage: "",
@@ -23,6 +24,7 @@ export const useSettingsStore = defineStore("settings", {
       googleAIStudioKey: "",
       cohereKey: "",
       huggingfaceKey: "",
+      zaiBaseUrl: "",
     },
     // Track which providers have unsaved changes
     unsavedProviders: new Set<string>(),
@@ -46,12 +48,14 @@ export const useSettingsStore = defineStore("settings", {
               cohereKey,
               huggingfaceKey,
               googleAIEndpoint,
+              zaiBaseUrl,
             } = message.payload || {};
             this.zaiKeyInput = zaiKey || "";
             this.openrouterKeyInput = openrouterKey || "";
             this.googleAIStudioKeyInput = googleAIStudioKey || "";
             this.cohereKeyInput = cohereKey || "";
             this.huggingfaceKeyInput = huggingfaceKey || "";
+            this.zaiBaseUrl = zaiBaseUrl || "";
             this.googleAIEndpoint = googleAIEndpoint || "openai-compatible";
 
             // Store original values to track changes
@@ -60,6 +64,7 @@ export const useSettingsStore = defineStore("settings", {
             this.originalValues.googleAIStudioKey = googleAIStudioKey || "";
             this.originalValues.cohereKey = cohereKey || "";
             this.originalValues.huggingfaceKey = huggingfaceKey || "";
+            this.originalValues.zaiBaseUrl = zaiBaseUrl || "";
 
             // Clear unsaved changes since we just loaded from storage
             this.unsavedProviders.clear();
@@ -70,6 +75,13 @@ export const useSettingsStore = defineStore("settings", {
           }
           case "apiKeySaved": {
             this.savedMessage = "API key saved successfully";
+            setTimeout(() => {
+              this.savedMessage = "";
+            }, 3000);
+            return;
+          }
+          case "settingSaved": {
+            this.savedMessage = "Setting saved successfully";
             setTimeout(() => {
               this.savedMessage = "";
             }, 3000);
@@ -146,6 +158,15 @@ export const useSettingsStore = defineStore("settings", {
       } else {
         this.unsavedProviders.delete(providerId);
       }
+    },
+    // Save a setting value
+    async saveSetting(setting: string, value: string) {
+      this.saving = true;
+      vscode.postMessage({
+        command: "saveSetting",
+        payload: { setting, value },
+      });
+      this.saving = false;
     },
     // Auto-save with debounce for API keys
     autoSaveApiKey(providerId: string, apiKey: string) {

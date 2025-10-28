@@ -184,6 +184,16 @@ export class QwikiPanel {
               webview.postMessage({ command: Outbound.apiKeySaved, payload: { providerId } });
               return;
             }
+            case Inbound.saveSetting: {
+              const { setting, value } = message.payload as {
+                setting: string;
+                value: string;
+              };
+              const config = workspace.getConfiguration("qwiki");
+              await config.update(setting, value, true);
+              webview.postMessage({ command: Outbound.settingSaved, payload: { setting } });
+              return;
+            }
             case Inbound.deleteApiKey: {
               const { providerId } = message.payload as { providerId: ProviderId };
               await this.llms.deleteApiKey(providerId);
@@ -217,6 +227,8 @@ export class QwikiPanel {
               const googleAIStudioKey = await this.llms.getApiKey("google-ai-studio");
               const cohereKey = await this.llms.getApiKey("cohere");
               const huggingfaceKey = await this.llms.getApiKey("huggingface");
+              const zaiBaseUrl =
+                workspace.getConfiguration("qwiki").get<string>("zaiBaseUrl") || "";
               const googleAIEndpoint =
                 workspace.getConfiguration("qwiki").get<string>("googleAIEndpoint") ||
                 "openai-compatible";
@@ -228,6 +240,7 @@ export class QwikiPanel {
                   googleAIStudioKey,
                   cohereKey,
                   huggingfaceKey,
+                  zaiBaseUrl,
                   googleAIEndpoint,
                 },
               });

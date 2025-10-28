@@ -15,6 +15,7 @@ export interface ProviderConfig {
   hasEndpointType?: boolean;
   modelFallbackIds?: string[];
   defaultModel?: string;
+  customFields?: import("./types").ProviderCustomField[];
 }
 
 // Create provider instances with default settings
@@ -52,6 +53,7 @@ export function getAllProviderConfigs(
       hasEndpointType: uiConfig.hasEndpointType,
       modelFallbackIds: uiConfig.modelFallbackIds || [],
       defaultModel: uiConfig.defaultModel,
+      customFields: uiConfig.customFields,
     };
   });
 }
@@ -84,5 +86,6 @@ export function getProviderConfig(
     hasEndpointType: uiConfig.hasEndpointType,
     modelFallbackIds: uiConfig.modelFallbackIds || [],
     defaultModel: uiConfig.defaultModel,
+    customFields: uiConfig.customFields,
   };
 }

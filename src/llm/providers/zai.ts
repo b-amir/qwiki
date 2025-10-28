@@ -105,7 +105,16 @@ export class ZAiProvider implements LLMProvider {
     return {
       apiKeyUrl: "https://z.ai",
       apiKeyInput: "zaiKeyInput",
-      additionalInfo: "Optional: configure base URL in VS Code settings at qwiki.zaiBaseUrl",
+      additionalInfo: "Optional: configure base URL for your Z.ai tenant",
+      customFields: [
+        {
+          id: "zaiBaseUrl",
+          label: "Base URL",
+          type: "text",
+          placeholder: "https://api.z.ai/api (default)",
+          defaultValue: "",
+        },
+      ],
     };
   }
 }
