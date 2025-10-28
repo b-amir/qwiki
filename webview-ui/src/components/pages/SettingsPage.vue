@@ -24,39 +24,23 @@ const centralizedProviderConfigs = ref<
 
 // Get provider configurations from centralized system
 const providerConfigs = computed(() => {
-  // If we have centralized configs, use them
-  if (centralizedProviderConfigs.value.length > 0) {
-    return centralizedProviderConfigs.value.map((config) => {
-      // Check if this provider exists in wiki providers
-      const wikiProvider = wiki.providers.find((p) => p.id === config.id);
+  return centralizedProviderConfigs.value.map((config) => {
+    // Check if this provider exists in wiki providers
+    const wikiProvider = wiki.providers.find((p) => p.id === config.id);
 
-      return {
-        id: config.id,
-        name: config.name,
-        apiKeyUrl: config.apiKeyUrl,
-        apiKeyInput: config.apiKeyInput,
-        additionalInfo: config.additionalInfo,
-        hasEndpointType: config.hasEndpointType,
-        modelFallbackIds: config.modelFallbackIds,
-        // Include wiki provider data if available
-        hasKey: wikiProvider?.hasKey || false,
-        models: wikiProvider?.models || [],
-      };
-    });
-  }
-
-  // Fallback to wiki providers if centralized configs are not available yet
-  return wiki.providers.map((provider) => ({
-    id: provider.id,
-    name: provider.name,
-    apiKeyUrl: "",
-    apiKeyInput: `${provider.id}KeyInput`,
-    additionalInfo: undefined,
-    hasEndpointType: false,
-    modelFallbackIds: undefined,
-    hasKey: provider.hasKey,
-    models: provider.models,
-  }));
+    return {
+      id: config.id,
+      name: config.name,
+      apiKeyUrl: config.apiKeyUrl,
+      apiKeyInput: config.apiKeyInput,
+      additionalInfo: config.additionalInfo,
+      hasEndpointType: config.hasEndpointType,
+      modelFallbackIds: config.modelFallbackIds,
+      // Include wiki provider data if available
+      hasKey: wikiProvider?.hasKey || false,
+      models: wikiProvider?.models || [],
+    };
+  });
 });
 
 // Get models for a specific provider with fallback support
@@ -104,18 +88,11 @@ const initSettings = async () => {
     settingsLoading.value = false;
   }
 
-  // Ensure wiki store is initialized before requesting provider configs
-  if (!wiki.providers.length) {
-    // Request providers first
-    vscode.postMessage({ command: "getProviders" });
-    // Wait a bit for providers to load, then request configs
-    setTimeout(() => {
-      vscode.postMessage({ command: "getProviderConfigs" });
-    }, 500);
-  } else {
-    // Request provider configurations from the extension
-    vscode.postMessage({ command: "getProviderConfigs" });
-  }
+  // Request providers for wiki store (needed for hasKey and models data)
+  vscode.postMessage({ command: "getProviders" });
+
+  // Request provider configurations from the extension
+  vscode.postMessage({ command: "getProviderConfigs" });
 };
 
 // Set up message listener for provider configurations
@@ -152,8 +129,21 @@ onMounted(() => {
       />
     </div>
     <div v-else class="space-y-4 px-3">
+      <!-- Show loading state if provider configs are not loaded yet -->
+      <div v-if="!centralizedProviderConfigs.length" class="h-full">
+        <LoadingState
+          :steps="[
+            { text: 'Loading settings...', key: 'loading' },
+            { text: 'Fetching providers...', key: 'fetching' },
+            { text: 'Preparing configuration...', key: 'preparing' },
+          ]"
+          :current-step="'fetching'"
+          density="low"
+        />
+      </div>
+
       <!-- Provider Selection with Radio Buttons -->
-      <div class="space-y-4">
+      <div v-else class="space-y-4">
         <h3 class="text-sm font-medium">LLM Provider</h3>
 
         <!-- Dynamic Provider Options -->
