@@ -38,7 +38,7 @@ export async function buildProjectContext(
 }
 
 function baseName(p?: string) {
-  if (!p) return undefined;
+  if (!p || typeof p !== "string") return undefined;
   const m = PathPatterns.baseNameRegex.exec(p);
   return m ? m[0] : p;
 }
@@ -47,10 +47,12 @@ function relativePath(u: Uri) {
   const folders = workspace.workspaceFolders;
   if (!folders || !folders.length) return u.fsPath;
   const root = folders[0].uri.fsPath.replace(PathPatterns.escapeCharRegex, "");
-  return u.fsPath.startsWith(root) ? u.fsPath.slice(root.length + 1) : u.fsPath;
+  const fsPath = u.fsPath || "";
+  return fsPath.startsWith(root) ? fsPath.slice(root.length + 1) : fsPath;
 }
 
 function extractIdentifier(text: string) {
+  if (!text || typeof text !== "string") return undefined;
   const matches = text.match(PathPatterns.identifierRegex);
   if (!matches || !matches.length) return undefined;
   const scored = matches.map((t) => ({ t, score: (/[A-Z]/.test(t) ? 1 : 0) + t.length / 10 }));
@@ -66,7 +68,7 @@ async function findTextUsages(token: string) {
     FileLimits.relatedFiles,
   );
   const re = new RegExp(
-    `${PathPatterns.wordBoundaryRegex}${token.replace(PathPatterns.specialCharsRegex, "\\$&")}${PathPatterns.wordBoundaryRegex}`,
+    `${PathPatterns.wordBoundaryRegex}${(token || "").replace(PathPatterns.specialCharsRegex, "\\$&")}${PathPatterns.wordBoundaryRegex}`,
   );
   for (const uri of files) {
     try {

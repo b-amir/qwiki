@@ -11,25 +11,11 @@ import { useNavigation } from "@/composables/useNavigation";
 const wiki = useWikiStore();
 const { setPage } = useNavigation();
 
-const wikiTitle = computed(() => {
-  if (wiki.content) {
-    const headingMatch = wiki.content.match(/^#\s+(.+)$/m);
-    if (headingMatch) {
-      return headingMatch[1].trim();
-    }
-    const firstLine = wiki.content.split("\n")[0].trim();
-    if (firstLine && !firstLine.startsWith("#")) {
-      return firstLine;
-    }
-  }
-  return "Wiki";
-});
-
 const wikiContentWithoutTitle = computed(() => {
-  if (wiki.content) {
+  if (wiki.content && typeof wiki.content === "string") {
     return wiki.content.replace(/^#\s+.+$/m, "");
   }
-  return wiki.content;
+  return wiki.content || "";
 });
 </script>
 

@@ -9,7 +9,7 @@ const wiki = useWikiStore();
 const settings = useSettingsStore();
 
 const wikiTitle = computed(() => {
-  if (wiki.content) {
+  if (wiki.content && typeof wiki.content === "string") {
     const headingMatch = wiki.content.match(/^#\s+(.+)$/m);
     if (headingMatch) {
       return headingMatch[1].trim();

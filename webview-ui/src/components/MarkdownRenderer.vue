@@ -24,6 +24,7 @@ const md = new MarkdownIt({
 });
 
 function linkifyFiles(input: string): string {
+  if (!input || typeof input !== "string") return "";
   const lines = input.split(/\r?\n/);
   let inFence = false;
   const fenceRe = /^\s*```/;
@@ -60,6 +61,9 @@ function linkifyFiles(input: string): string {
 function render() {
   if (container.value) {
     let content = props.content || "";
+    if (typeof content !== "string") {
+      content = String(content || "");
+    }
     content = content.replace(/^#\s+.+$/m, "");
     const linked = linkifyFiles(content);
     container.value.innerHTML = md.render(linked);
@@ -82,12 +86,16 @@ function handleLinkClicks(e: MouseEvent) {
   const mOpen = /^openfile:(.+)$/i.exec(href);
   if (mOpen) {
     const rest = decodeURIComponent(mOpen[1]);
-    const lineMatch = rest.match(/:(\d+)$/);
-    if (lineMatch) {
-      line = Number(lineMatch[1]);
-      path = rest.slice(0, -lineMatch[0].length);
+    if (rest && typeof rest === "string") {
+      const lineMatch = rest.match(/:(\d+)$/);
+      if (lineMatch) {
+        line = Number(lineMatch[1]);
+        path = rest.slice(0, -lineMatch[0].length);
+      } else {
+        path = rest;
+      }
     } else {
-      path = rest;
+      path = href;
     }
   } else if (/^file:\/\//i.test(href)) {
     path = href.replace(/^file:\/\//i, "");
