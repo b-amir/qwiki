@@ -8,13 +8,10 @@ const currentPage: Ref<PageType> = ref<PageType>("wiki");
 export function useNavigation() {
   // Navigate to a specific page
   const setPage = (newPage: PageType): void => {
-    console.log("[DEBUG] setPage called with:", newPage);
-    console.log("[DEBUG] setPage - currentPage before:", currentPage.value);
     if (newPage === "wiki" || newPage === "settings") {
       currentPage.value = newPage;
-      console.log("[DEBUG] setPage - currentPage after:", currentPage.value);
     } else {
-      console.log("[DEBUG] setPage - invalid page:", newPage);
+      console.error("[DEBUG] setPage - invalid page:", newPage);
     }
   };
 
