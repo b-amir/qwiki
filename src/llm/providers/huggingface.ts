@@ -50,7 +50,7 @@ export class HuggingFaceProvider implements LLMProvider {
       content = data?.generated_text || "";
     }
 
-    if (content && content.includes(prompt)) {
+    if (content && typeof content === "string" && content.includes(prompt)) {
       content = content.replace(prompt, "").trim();
     }
 

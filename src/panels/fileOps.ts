@@ -4,6 +4,10 @@ import { MessageTemplates, PathPatterns, PathStrings, VSCodeCommands } from "../
 
 export async function tryOpenFile(path: string, line?: number) {
   try {
+    if (!path || typeof path !== "string") {
+      window.showWarningMessage(MessageTemplates.cannotResolvePath(String(path || "")));
+      return false;
+    }
     const folders = workspace.workspaceFolders;
     let targetUri: Uri | undefined;
     const cleaned = path.replace(PathPatterns.currentDirRegex, "");

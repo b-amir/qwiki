@@ -19,6 +19,8 @@ import {
 import { VSCodeApiKeyRepository, VSCodeConfigurationRepository } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandIds, ConfigurationKeys, Extension } from "../constants";
+import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
+import { OutboundEvents } from "../constants";
 import type { ExtensionContext, Webview } from "vscode";
 import { workspace } from "vscode";
 
@@ -58,34 +60,40 @@ export class AppBootstrap {
     );
 
     this.container.register("commandRegistry", () => new CommandRegistry());
+
+    this.container.register("eventBus", () => new EventBusImpl());
+
+    this.container.register(
+      "selectionEventHandler",
+      () => new SelectionEventHandler(this.container.resolve("eventBus")),
+    );
+
+    this.container.register(
+      "wikiEventHandler",
+      () =>
+        new WikiEventHandler(
+          this.container.resolve("eventBus"),
+          this.container.resolve("wikiService"),
+          this.container.resolve("projectContextService"),
+        ),
+    );
+  }
+
+  initializeEventHandlers(): void {
+    this.container.resolve<SelectionEventHandler>("selectionEventHandler").register();
+    this.container.resolve<WikiEventHandler>("wikiEventHandler").register();
   }
 
   createCommandRegistry(webview: Webview): CommandRegistry {
     const commandRegistry = new CommandRegistry();
     const messageBus = new MessageBus(webview);
+    const eventBus = this.container.resolve<EventBus>("eventBus");
 
-    commandRegistry.register(
-      CommandIds.generateWiki,
-      new GenerateWikiCommand(
-        this.container.resolve("wikiService"),
-        this.container.resolve("projectContextService"),
-        messageBus,
-      ),
-    );
+    commandRegistry.register(CommandIds.generateWiki, new GenerateWikiCommand(eventBus));
 
-    commandRegistry.register(
-      CommandIds.getSelection,
-      new GetSelectionCommand(this.container.resolve("selectionService"), messageBus),
-    );
+    commandRegistry.register(CommandIds.getSelection, new GetSelectionCommand(eventBus));
 
-    commandRegistry.register(
-      CommandIds.getRelated,
-      new GetRelatedCommand(
-        this.container.resolve("selectionService"),
-        this.container.resolve("projectContextService"),
-        messageBus,
-      ),
-    );
+    commandRegistry.register(CommandIds.getRelated, new GetRelatedCommand(eventBus));
 
     commandRegistry.register(
       CommandIds.saveApiKey,
@@ -126,6 +134,26 @@ export class AppBootstrap {
       CommandIds.getProviderConfigs,
       new GetProviderConfigsCommand(this.container.resolve("llmRegistry"), messageBus),
     );
+
+    eventBus.subscribe("selection", (payload) => {
+      messageBus.postSuccess("selection", payload);
+    });
+
+    eventBus.subscribe("wikiResult", (payload) => {
+      messageBus.postSuccess("wikiResult", payload);
+    });
+
+    eventBus.subscribe("related", (payload) => {
+      messageBus.postSuccess("related", payload);
+    });
+
+    eventBus.subscribe("loadingStep", (payload) => {
+      messageBus.postSuccess("loadingStep", payload);
+    });
+
+    eventBus.subscribe("error", (payload: any) => {
+      messageBus.postError(payload.message, payload.code);
+    });
 
     return commandRegistry;
   }
