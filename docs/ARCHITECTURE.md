@@ -13,6 +13,7 @@ The domain layer contains the core business entities and repository interfaces t
 **Location:** `src/domain/`
 
 **Components:**
+
 - **Entities** (`src/domain/entities/`)
   - `Wiki.ts`: Represents a wiki document with its properties
   - `Selection.ts`: Represents text selection in the editor
@@ -21,6 +22,7 @@ The domain layer contains the core business entities and repository interfaces t
   - `ConfigurationRepository.ts`: Interface for configuration management
 
 **Purpose:**
+
 - Define core business entities
 - Establish contracts for data access
 - Contain business logic that is independent of external frameworks
@@ -32,6 +34,7 @@ The application layer contains services, commands, and application-specific busi
 **Location:** `src/application/`
 
 **Components:**
+
 - **Services** (`src/application/services/`)
   - `WikiService.ts`: Core wiki generation logic
   - `SelectionService.ts`: Editor selection handling
@@ -55,9 +58,10 @@ The application layer contains services, commands, and application-specific busi
   - `GetConfigurationCommand.ts`: Get configuration command
   - `UpdateConfigurationCommand.ts`: Update configuration command
 - **CommandRegistry.ts**: Registry for managing commands
-- **AppBootstrap.ts`: Application bootstrap and dependency injection setup
+- \*\*AppBootstrap.ts`: Application bootstrap and dependency injection setup
 
 **Purpose:**
+
 - Implement application-specific business logic
 - Coordinate between domain and infrastructure layers
 - Handle user interactions through commands
@@ -69,6 +73,7 @@ The infrastructure layer contains implementations of domain interfaces and exter
 **Location:** `src/infrastructure/`
 
 **Components:**
+
 - **Repositories** (`src/infrastructure/repositories/`)
   - `VSCodeApiKeyRepository.ts`: VS Code secret storage implementation
   - `VSCodeConfigurationRepository.ts`: VS Code settings implementation
@@ -81,6 +86,7 @@ The infrastructure layer contains implementations of domain interfaces and exter
   - `PerformanceMonitor.ts`: Performance monitoring and metrics collection
 
 **Purpose:**
+
 - Implement domain interfaces
 - Handle external system integrations
 - Provide technical capabilities like caching and error handling
@@ -92,6 +98,7 @@ The presentation layer handles user interface and user interactions.
 **Location:** `src/panels/` and `webview-ui/`
 
 **Components:**
+
 - `QwikiPanel.ts`: Main webview panel
 - `webviewContent.ts`: Webview HTML content
 - `constants.ts`: Panel-specific constants
@@ -101,6 +108,7 @@ The presentation layer handles user interface and user interactions.
 - Vue.js components in `webview-ui/`
 
 **Purpose:**
+
 - Display user interface
 - Handle user interactions
 - Communicate with application layer
@@ -118,6 +126,7 @@ interface Command {
 ```
 
 Commands are registered in the `CommandRegistry` and executed by name, providing:
+
 - Consistent execution model
 - Easy testing of individual actions
 - Extensibility for new commands
@@ -136,6 +145,7 @@ interface ApiKeyRepository {
 ```
 
 Benefits:
+
 - Testable through mocking
 - Swappable implementations
 - Clear separation of data access logic
@@ -148,6 +158,7 @@ Object creation is centralized in factories:
 - `CommandFactory`: Creates command instances with lazy loading
 
 Benefits:
+
 - Centralized creation logic
 - Consistent object initialization
 - Easier maintenance of creation logic
@@ -164,6 +175,7 @@ class Container {
 ```
 
 Benefits:
+
 - Loose coupling between components
 - Easier testing through dependency mocking
 - Centralized dependency management
@@ -181,6 +193,7 @@ interface EventBus {
 ```
 
 Benefits:
+
 - Reduced coupling between services
 - Better scalability
 - Easier to add new event handlers
@@ -211,6 +224,7 @@ Benefits:
 ### 1. Layered Architecture
 
 Clear separation between layers with dependency direction:
+
 - Presentation → Application → Domain ← Infrastructure
 
 ### 2. SOLID Principles

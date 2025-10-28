@@ -5,6 +5,7 @@ This document explains how to use the configuration management system implemente
 ## Purpose
 
 The configuration management system provides:
+
 - Centralized configuration access through `ConfigurationManager`
 - Automatic validation of configuration values
 - Migration of configuration between versions
@@ -49,6 +50,7 @@ await configManager.set("googleAIEndpoint", "invalid-value");
 ### 4. Migration
 
 Configuration is automatically migrated when the extension starts. The migration system:
+
 - Tracks current configuration version
 - Applies migration steps in order
 - Handles migration errors gracefully
@@ -88,6 +90,7 @@ Example of adding a new configuration in the future:
 4. **Error Prevention**: Ensures configuration is always valid
 
 However, if you feel the migration system is over-engineered for current needs, we could simplify it to just:
+
 - Remove version tracking
 - Keep only validation
 - Keep the centralized ConfigurationManager

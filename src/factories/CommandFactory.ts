@@ -50,14 +50,14 @@ export class CommandFactory {
       case CommandIds.saveApiKey:
         return new SaveApiKeyCommand(
           container.resolve("apiKeyRepository"),
-          this.messageBus
+          this.messageBus,
         ) as Command<T>;
 
       case CommandIds.getProviders:
         return new GetProvidersCommand(
           await container.resolveLazy("llmRegistry"),
           container.resolve("apiKeyRepository"),
-          this.messageBus
+          this.messageBus,
         ) as Command<T>;
 
       case CommandIds.openFile:
@@ -66,36 +66,34 @@ export class CommandFactory {
       case CommandIds.saveSetting:
         return new SaveSettingCommand(
           container.resolve("configurationRepository"),
-          this.messageBus
+          this.messageBus,
         ) as Command<T>;
 
       case CommandIds.deleteApiKey:
         return new DeleteApiKeyCommand(
           container.resolve("apiKeyRepository"),
-          this.messageBus
+          this.messageBus,
         ) as Command<T>;
 
       case CommandIds.getApiKeys:
         return new GetApiKeysCommand(
           container.resolve("apiKeyRepository"),
           container.resolve("configurationRepository"),
-          this.messageBus
+          this.messageBus,
         ) as Command<T>;
 
       case CommandIds.getProviderConfigs:
         return new GetProviderConfigsCommand(
           await container.resolveLazy("llmRegistry"),
-          this.messageBus
+          this.messageBus,
         ) as Command<T>;
 
       case CommandIds.getConfiguration:
-        return new GetConfigurationCommand(
-          container.resolve("configurationManager")
-        ) as Command<T>;
+        return new GetConfigurationCommand(container.resolve("configurationManager")) as Command<T>;
 
       case CommandIds.updateConfiguration:
         return new UpdateConfigurationCommand(
-          container.resolve("configurationManager")
+          container.resolve("configurationManager"),
         ) as Command<T>;
 
       default:
@@ -105,7 +103,7 @@ export class CommandFactory {
 
   async createAllCommands(): Promise<Record<string, Command>> {
     const commands: Record<string, Command> = {};
-    
+
     const commandIds = [
       CommandIds.generateWiki,
       CommandIds.getSelection,

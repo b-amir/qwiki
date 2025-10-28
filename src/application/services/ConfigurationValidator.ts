@@ -16,7 +16,7 @@ export class ConfigurationValidator {
     for (const [key, rule] of Object.entries(ConfigurationValidationRules)) {
       const value = config[key];
       const validationError = this.validateValue(key, value, rule);
-      
+
       if (validationError) {
         errors.push(validationError);
       }
@@ -123,7 +123,7 @@ export class ConfigurationValidator {
 
   async validateAndFix(): Promise<void> {
     const result = await this.validateConfiguration();
-    
+
     if (!result.isValid) {
       for (const error of result.errors) {
         await this.fixConfigurationError(error);
@@ -138,7 +138,7 @@ export class ConfigurationValidator {
     } else {
       throw new ConfigurationError(
         "invalidConfiguration",
-        `Invalid configuration for '${error.key}': ${error.message}`
+        `Invalid configuration for '${error.key}': ${error.message}`,
       );
     }
   }

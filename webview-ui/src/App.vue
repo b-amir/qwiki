@@ -5,14 +5,15 @@ import { HomePage, WikiPage, SettingsPage } from "@/components/pages";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useNavigation } from "@/composables/useNavigation";
+import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 
 const { currentPage } = useNavigation();
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 
 wiki.init();
-
 settings.init();
+useBatchMessageBridge();
 
 const currentModels = computed(
   () => wiki.providers.find((p) => p.id === wiki.providerId)?.models || [],

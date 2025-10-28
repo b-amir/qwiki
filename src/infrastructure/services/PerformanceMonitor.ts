@@ -22,11 +22,11 @@ export class PerformanceMonitor {
 
   startTimer(name: string, metadata?: Record<string, any>): () => void {
     const startTime = performance.now();
-    
+
     return () => {
       const endTime = performance.now();
       const duration = endTime - startTime;
-      
+
       this.recordMetric(name, duration, metadata);
     };
   }
@@ -87,8 +87,8 @@ export class PerformanceMonitor {
     }
 
     const recentMetrics = metrics.slice(-this.STATS_UPDATE_THRESHOLD);
-    const durations = recentMetrics.map(m => m.duration);
-    
+    const durations = recentMetrics.map((m) => m.duration);
+
     const totalDuration = durations.reduce((sum, duration) => sum + duration, 0);
     const averageDuration = totalDuration / durations.length;
     const minDuration = Math.min(...durations);
@@ -106,7 +106,7 @@ export class PerformanceMonitor {
 
   getSlowOperations(threshold: number = 1000): PerformanceMetric[] {
     const slowOps: PerformanceMetric[] = [];
-    
+
     for (const metrics of this.metrics.values()) {
       for (const metric of metrics) {
         if (metric.duration > threshold) {
@@ -121,7 +121,7 @@ export class PerformanceMonitor {
   getPerformanceReport(): string {
     const report: string[] = [];
     report.push("=== Performance Report ===");
-    
+
     for (const [name, stats] of this.stats.entries()) {
       report.push(`\n${name}:`);
       report.push(`  Count: ${stats.count}`);
@@ -134,8 +134,10 @@ export class PerformanceMonitor {
     const slowOps = this.getSlowOperations();
     if (slowOps.length > 0) {
       report.push("\n=== Slow Operations (>1000ms) ===");
-      slowOps.slice(0, 10).forEach(op => {
-        report.push(`${op.name}: ${op.duration.toFixed(2)}ms at ${new Date(op.timestamp).toISOString()}`);
+      slowOps.slice(0, 10).forEach((op) => {
+        report.push(
+          `${op.name}: ${op.duration.toFixed(2)}ms at ${new Date(op.timestamp).toISOString()}`,
+        );
       });
     }
 

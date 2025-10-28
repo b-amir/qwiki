@@ -117,24 +117,24 @@ New commands can be added without modifying existing code:
 // src/application/CommandRegistry.ts
 export class CommandRegistry {
   private commands = new Map<string, string>();
-  
+
   register(name: string, serviceKey: string): void {
     this.commands.set(name, serviceKey);
   }
-  
+
   async execute(name: string, ...args: any[]): Promise<any> {
     const serviceKey = this.commands.get(name);
     if (!serviceKey) {
       throw new Error(`Command ${name} not found`);
     }
-    
+
     const command = this.container.get<Command>(serviceKey);
     return command.execute(...args);
   }
 }
 
 // Adding new command doesn't require modifying CommandRegistry
-commandRegistry.register('newFeature', 'newFeatureCommand');
+commandRegistry.register("newFeature", "newFeatureCommand");
 ```
 
 #### 2. LLM Provider Factory
@@ -146,12 +146,12 @@ New LLM providers can be added without modifying existing providers:
 export class LLMProviderFactory {
   createProvider(providerType: string): LLMProvider {
     switch (providerType) {
-      case 'openai':
+      case "openai":
         return new OpenAIProvider();
-      case 'cohere':
+      case "cohere":
         return new CohereProvider();
       // New providers can be added here
-      case 'newProvider':
+      case "newProvider":
         return new NewProvider();
       default:
         throw new Error(`Unknown provider: ${providerType}`);
@@ -168,22 +168,22 @@ New event handlers can be added without modifying existing ones:
 // src/events/EventBusImpl.ts
 export class EventBusImpl implements EventBus {
   private handlers = new Map<string, Function[]>();
-  
+
   on(event: string, handler: Function): void {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, []);
     }
     this.handlers.get(event)!.push(handler);
   }
-  
+
   emit(event: string, data: any): void {
     const eventHandlers = this.handlers.get(event) || [];
-    eventHandlers.forEach(handler => handler(data));
+    eventHandlers.forEach((handler) => handler(data));
   }
 }
 
 // New handlers can be registered without modifying EventBus
-eventBus.on('newEvent', newEventHandler);
+eventBus.on("newEvent", newEventHandler);
 ```
 
 ### Benefits
@@ -231,7 +231,7 @@ export interface ApiKeyRepository {
 
 // Any implementation can be used interchangeably
 const repository: ApiKeyRepository = new VSCodeApiKeyRepository();
-await repository.save('openai', 'api-key');
+await repository.save("openai", "api-key");
 ```
 
 #### 3. LLM Provider Interface
@@ -318,14 +318,20 @@ Error classes are specialized for specific error types:
 ```typescript
 // src/errors/WikiError.ts
 export class WikiError extends BaseError {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(message);
   }
 }
 
 // src/errors/ConfigurationError.ts
 export class ConfigurationError extends BaseError {
-  constructor(message: string, public readonly key: string) {
+  constructor(
+    message: string,
+    public readonly key: string,
+  ) {
     super(message);
   }
 }
@@ -357,12 +363,12 @@ Services depend on repository interfaces, not implementations:
 export class WikiService {
   constructor(
     private apiKeyRepository: ApiKeyRepository, // Depends on interface
-    private configurationRepository: ConfigurationRepository // Depends on interface
+    private configurationRepository: ConfigurationRepository, // Depends on interface
   ) {}
-  
+
   async generateWiki(selection: Selection): Promise<Wiki> {
-    const apiKey = await this.apiKeyRepository.get('openai');
-    const config = await this.configurationRepository.get('wiki');
+    const apiKey = await this.apiKeyRepository.get("openai");
+    const config = await this.configurationRepository.get("wiki");
     // Implementation
   }
 }
@@ -377,12 +383,12 @@ Commands depend on service interfaces, not implementations:
 export class GenerateWikiCommand implements Command {
   constructor(
     private wikiService: WikiService, // Depends on service
-    private messageBus: MessageBus // Depends on interface
+    private messageBus: MessageBus, // Depends on interface
   ) {}
-  
+
   async execute(): Promise<any> {
     const wiki = await this.wikiService.generateWiki(selection);
-    await this.messageBus.sendMessage({ type: 'wiki', data: wiki });
+    await this.messageBus.sendMessage({ type: "wiki", data: wiki });
   }
 }
 ```
@@ -395,11 +401,11 @@ The DI container manages dependencies and provides abstractions:
 // src/container/Container.ts
 export class Container {
   private services = new Map<string, () => any>();
-  
+
   register<T>(key: string, factory: () => T): void {
     this.services.set(key, factory);
   }
-  
+
   get<T>(key: string): T {
     const factory = this.services.get(key);
     if (!factory) {
@@ -413,14 +419,18 @@ export class Container {
 export class AppBootstrap {
   static bootstrap(container: Container): void {
     // Register interfaces with implementations
-    container.register('apiKeyRepository', () => new VSCodeApiKeyRepository());
-    container.register('configurationRepository', () => new VSCodeConfigurationRepository());
-    
+    container.register("apiKeyRepository", () => new VSCodeApiKeyRepository());
+    container.register("configurationRepository", () => new VSCodeConfigurationRepository());
+
     // Register services with their dependencies
-    container.register('wikiService', () => new WikiService(
-      container.get('apiKeyRepository'),
-      container.get('configurationRepository')
-    ));
+    container.register(
+      "wikiService",
+      () =>
+        new WikiService(
+          container.get("apiKeyRepository"),
+          container.get("configurationRepository"),
+        ),
+    );
   }
 }
 ```
@@ -464,7 +474,7 @@ Here's how SOLID principles work together in a typical flow:
 
 ```typescript
 // 1. User action triggers a command (SRP - command has single responsibility)
-const command = container.get<Command>('generateWikiCommand');
+const command = container.get<Command>("generateWikiCommand");
 
 // 2. Command executes using services (DIP - depends on abstractions)
 const result = await command.execute(selection);
@@ -476,7 +486,7 @@ const apiKey = await this.apiKeyRepository.get(provider);
 const repository: ApiKeyRepository = new VSCodeApiKeyRepository();
 
 // 5. New commands can be added without changes (OCP - open for extension)
-commandRegistry.register('newFeature', 'newFeatureCommand');
+commandRegistry.register("newFeature", "newFeatureCommand");
 
 // 6. Focused interfaces prevent unnecessary dependencies (ISP)
 interface ApiKeyRepository {

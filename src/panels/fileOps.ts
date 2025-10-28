@@ -1,5 +1,11 @@
 import { Uri, commands, window, workspace } from "vscode";
-import { MessageTemplates, MessageStrings, PathPatterns, PathStrings, VSCodeCommands } from "../constants";
+import {
+  MessageTemplates,
+  MessageStrings,
+  PathPatterns,
+  PathStrings,
+  VSCodeCommands,
+} from "../constants";
 
 export async function tryOpenFile(path: string, line?: number) {
   try {

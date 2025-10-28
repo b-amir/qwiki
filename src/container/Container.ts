@@ -40,7 +40,7 @@ export class Container {
       throw new Error(`Lazy service ${key} not registered`);
     }
 
-    const instance = await factory() as T;
+    const instance = (await factory()) as T;
     this.services.set(key, instance);
     return instance;
   }

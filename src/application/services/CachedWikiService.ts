@@ -13,7 +13,7 @@ export class CachedWikiService {
   constructor(
     private llmRegistry: LLMRegistry,
     private cacheService: CacheService,
-    private performanceMonitor: PerformanceMonitor
+    private performanceMonitor: PerformanceMonitor,
   ) {
     this.wikiService = new WikiService(llmRegistry);
   }
@@ -31,7 +31,7 @@ export class CachedWikiService {
     });
 
     const cacheKey = this.generateCacheKey(request, projectContext);
-    
+
     const cached = this.cacheService.get<WikiGenerationResult>(cacheKey);
     if (cached) {
       endTimer();
@@ -39,11 +39,11 @@ export class CachedWikiService {
     }
 
     const result = await this.wikiService.generateWiki(request, projectContext, onProgress);
-    
+
     if (result.success) {
       this.cacheService.set(cacheKey, result, this.CACHE_TTL);
     }
-    
+
     endTimer();
     return result;
   }
@@ -55,7 +55,7 @@ export class CachedWikiService {
     const languageHash = request.languageId || "";
     const filePathHash = request.filePath ? this.simpleHash(request.filePath) : "";
     const contextHash = this.simpleHash(JSON.stringify(projectContext));
-    
+
     return `wiki-generation:${snippetHash}:${providerHash}:${modelHash}:${languageHash}:${filePathHash}:${contextHash}`;
   }
 
@@ -63,7 +63,7 @@ export class CachedWikiService {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);

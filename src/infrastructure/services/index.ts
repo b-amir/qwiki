@@ -3,4 +3,8 @@ export { ErrorRecoveryService, ErrorRecoveryServiceImpl } from "./ErrorRecoveryS
 export { ErrorLoggingService, ErrorLoggingServiceImpl } from "./ErrorLoggingService";
 export { CacheService } from "./CacheService";
 export { WebviewOptimizer, Debouncer } from "./WebviewOptimizer";
-export { PerformanceMonitor, type PerformanceMetric, type PerformanceStats } from "./PerformanceMonitor";
+export {
+  PerformanceMonitor,
+  type PerformanceMetric,
+  type PerformanceStats,
+} from "./PerformanceMonitor";

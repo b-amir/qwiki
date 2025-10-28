@@ -12,9 +12,8 @@ export class SelectionEventHandler {
   private async handleGetSelection(payload: { allowFallback?: boolean }): Promise<void> {
     const { allowFallback = true } = payload;
 
-    this.eventBus.publish(OutboundEvents.selection, {
-      selection: await this.getSelection(allowFallback),
-    });
+    const selection = await this.getSelection(allowFallback);
+    this.eventBus.publish(OutboundEvents.selection, selection);
   }
 
   private async getSelection(allowFallback: boolean): Promise<Selection | undefined> {

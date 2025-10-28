@@ -9,7 +9,15 @@ import {
   MessageBus,
   ConfigurationManager,
 } from "./";
-import { VSCodeApiKeyRepository, VSCodeConfigurationRepository, ErrorHandlerImpl, ErrorLoggingServiceImpl, ErrorRecoveryServiceImpl, CacheService, PerformanceMonitor } from "../infrastructure";
+import {
+  VSCodeApiKeyRepository,
+  VSCodeConfigurationRepository,
+  ErrorHandlerImpl,
+  ErrorLoggingServiceImpl,
+  ErrorRecoveryServiceImpl,
+  CacheService,
+  PerformanceMonitor,
+} from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory, LLMProviderFactory } from "../factories";
 import { CommandIds, ConfigurationKeys, Extension } from "../constants";
@@ -43,17 +51,23 @@ export class AppBootstrap {
 
     this.container.register("configurationRepository", () => new VSCodeConfigurationRepository());
 
-    const configManager = new ConfigurationManager(this.container.resolve("configurationRepository"));
+    const configManager = new ConfigurationManager(
+      this.container.resolve("configurationRepository"),
+    );
     this.container.registerInstance("configurationManager", configManager);
 
     this.container.register("selectionService", () => new SelectionService());
 
     this.container.register("projectContextService", () => new ProjectContextService());
-    this.container.register("cachedProjectContextService", () => new CachedProjectContextService(
-      this.container.resolve("cacheService"),
-      this.container.resolve("performanceMonitor"),
-      this.container.resolve("projectContextService")
-    ));
+    this.container.register(
+      "cachedProjectContextService",
+      () =>
+        new CachedProjectContextService(
+          this.container.resolve("cacheService"),
+          this.container.resolve("performanceMonitor"),
+          this.container.resolve("projectContextService"),
+        ),
+    );
 
     this.container.registerLazy("llmRegistry", async () => {
       const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
@@ -70,11 +84,12 @@ export class AppBootstrap {
 
     this.container.registerLazy(
       "cachedWikiService",
-      async () => new CachedWikiService(
-        await this.container.resolveLazy("llmRegistry"),
-        this.container.resolve("cacheService"),
-        this.container.resolve("performanceMonitor")
-      ),
+      async () =>
+        new CachedWikiService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("cacheService"),
+          this.container.resolve("performanceMonitor"),
+        ),
     );
 
     this.container.register("commandRegistry", () => new CommandRegistry());
@@ -116,7 +131,7 @@ export class AppBootstrap {
     this.container.resolve<SelectionEventHandler>("selectionEventHandler").register();
     const wikiEventHandler = await this.container.resolveLazy<WikiEventHandler>("wikiEventHandler");
     wikiEventHandler.register();
-    
+
     const errorHandler = this.container.resolve("errorHandler") as ErrorHandlerImpl;
     errorHandler.registerGlobalHandlers();
   }
@@ -124,7 +139,7 @@ export class AppBootstrap {
   createCommandRegistry(webview: Webview): CommandRegistry {
     const commandRegistry = new CommandRegistry();
     const eventBus = this.container.resolve<EventBus>("eventBus");
-    
+
     const commandFactory = new CommandFactory({
       container: this.container,
       webview,
@@ -132,7 +147,7 @@ export class AppBootstrap {
     });
 
     const commands = commandFactory.createAllCommands();
-    
+
     for (const [commandId, command] of Object.entries(commands)) {
       commandRegistry.register(commandId, command);
     }

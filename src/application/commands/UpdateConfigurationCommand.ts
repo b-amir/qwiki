@@ -7,11 +7,11 @@ export class UpdateConfigurationCommand implements Command {
 
   async execute(payload: { key: string; value: any }): Promise<any> {
     const { key, value } = payload;
-    
+
     if (!this.configManager.isKeyValid(key)) {
       throw new ConfigurationError(
         "invalidConfiguration",
-        `Unknown configuration key: ${key}. Valid keys: ${this.configManager.getConfigurationKeys().join(", ")}`
+        `Unknown configuration key: ${key}. Valid keys: ${this.configManager.getConfigurationKeys().join(", ")}`,
       );
     }
 
@@ -24,7 +24,7 @@ export class UpdateConfigurationCommand implements Command {
       }
       throw new ConfigurationError(
         "invalidConfiguration",
-        `Failed to update configuration: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to update configuration: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

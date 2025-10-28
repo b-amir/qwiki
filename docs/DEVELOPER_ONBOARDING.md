@@ -78,10 +78,10 @@ The extension uses a dependency injection container to manage services:
 
 ```typescript
 // Register a service
-container.register('serviceName', () => new Service());
+container.register("serviceName", () => new Service());
 
 // Get a service
-const service = container.get<Service>('serviceName');
+const service = container.get<Service>("serviceName");
 ```
 
 ### 3. Command Pattern
@@ -179,8 +179,8 @@ export class NewFeatureCommand implements Command {
 }
 
 // Register in CommandRegistry
-container.register('newFeatureCommand', () => new NewFeatureCommand());
-commandRegistry.register('newFeature', 'newFeatureCommand');
+container.register("newFeatureCommand", () => new NewFeatureCommand());
+commandRegistry.register("newFeature", "newFeatureCommand");
 ```
 
 ### 2. Adding a New Service
@@ -196,14 +196,14 @@ Example:
 // src/application/services/NewService.ts
 export class NewService {
   constructor(private dependency: Dependency) {}
-  
+
   async performAction(): Promise<Result> {
     // Implementation
   }
 }
 
 // Register in AppBootstrap
-container.register('newService', () => new NewService(container.get('dependency')));
+container.register("newService", () => new NewService(container.get("dependency")));
 ```
 
 ### 3. Adding a New Repository Implementation
@@ -223,7 +223,7 @@ export class NewRepositoryImpl implements NewRepository {
 }
 
 // Register in AppBootstrap
-container.register('newRepository', () => new NewRepositoryImpl());
+container.register("newRepository", () => new NewRepositoryImpl());
 ```
 
 ## Testing

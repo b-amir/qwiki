@@ -12,9 +12,9 @@ export class ErrorHandlerImpl implements ErrorHandler {
 
   async handle(error: Error | BaseError, context?: Record<string, any>): Promise<void> {
     const errorInfo = this.normalizeError(error, context);
-    
+
     await this.eventBus.publish(ErrorEvents.occurred, errorInfo);
-    
+
     if (errorInfo.isRecoverable) {
       await this.eventBus.publish(ErrorEvents.recoveryAttempt, errorInfo);
     }
@@ -33,7 +33,7 @@ export class ErrorHandlerImpl implements ErrorHandler {
 
   private normalizeError(error: Error | BaseError, context?: Record<string, any>) {
     const isBaseError = error && typeof error === "object" && "code" in error;
-    
+
     return {
       name: error.name,
       message: error.message,
@@ -50,14 +50,14 @@ export class ErrorHandlerImpl implements ErrorHandler {
 
   private isRecoverableError(error: Error | BaseError): boolean {
     if (!error || typeof error !== "object") return false;
-    
+
     const errorCode = (error as BaseError).code;
     const recoverableErrors = [
       "error.invalidSelection",
       "error.missingSnippet",
       "error.missingProvider",
     ];
-    
+
     return recoverableErrors.includes(errorCode);
   }
 }

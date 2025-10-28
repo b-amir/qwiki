@@ -13,7 +13,7 @@ export class LLMRegistry {
     private settings: LLMProviderSettings,
   ) {
     const allProviders = LLMProviderFactory.createAllProviders(settings);
-    
+
     for (const [id, provider] of Object.entries(allProviders)) {
       this.providers.set(id, provider);
     }

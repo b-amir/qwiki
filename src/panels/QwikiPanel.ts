@@ -81,14 +81,14 @@ export class QwikiPanel {
   public dispose() {
     this.view = undefined;
     this._webviewReady = false;
-    
+
     if (this.commandRegistry) {
       const messageBus = (this.commandRegistry as any).messageBus;
       if (messageBus && messageBus.dispose) {
         messageBus.dispose();
       }
     }
-    
+
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
       if (disposable) {
@@ -151,7 +151,7 @@ export class QwikiPanel {
       async (message: any) => {
         const command = message.command as string;
         const payload = message.payload;
-        
+
         try {
           switch (command) {
             case Inbound.webviewReady: {

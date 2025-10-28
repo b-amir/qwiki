@@ -54,7 +54,7 @@ export class WebviewOptimizer {
     }
 
     const batch = this.messageQueue.splice(0, this.MAX_BATCH_SIZE);
-    
+
     if (batch.length === 1) {
       const message = batch[0];
       this.webview.postMessage({ command: message.command, payload: message.payload });

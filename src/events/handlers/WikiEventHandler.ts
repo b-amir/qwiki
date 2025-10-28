@@ -19,7 +19,11 @@ export class WikiEventHandler {
 
   private async handleGenerateWiki(payload: WikiGenerationRequest): Promise<void> {
     try {
-      const projectContext = await this.projectContextService.buildContext();
+      const projectContext = await this.projectContextService.buildContext(
+        payload?.snippet || "",
+        payload?.filePath,
+        payload?.languageId,
+      );
 
       await this.wikiService
         .generateWiki(payload, projectContext, (step: LoadingStep) => {
@@ -46,12 +50,15 @@ export class WikiEventHandler {
     }
   }
 
-  private async handleGetRelated(payload: { filePath: string }): Promise<void> {
+  private async handleGetRelated(_payload: { filePath: string }): Promise<void> {
     try {
-      const projectContext = await this.projectContextService.buildContext();
+      const projectContext = await this.projectContextService.buildContext("");
 
       this.eventBus.publish(OutboundEvents.related, {
-        files: projectContext.relatedFiles || [],
+        rootName: projectContext.rootName,
+        overview: projectContext.overview,
+        filesSample: projectContext.filesSample,
+        related: projectContext.related,
       });
     } catch (error: any) {
       this.eventBus.publish(OutboundEvents.error, {

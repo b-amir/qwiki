@@ -33,11 +33,11 @@ export class ConfigurationManager {
 
   async set<T>(key: string, value: T): Promise<void> {
     const validationResult = await this.validator.validateKey(key);
-    
+
     if (!validationResult.isValid) {
       throw new ConfigurationError(
         "invalidConfiguration",
-        `Invalid configuration value for '${key}': ${validationResult.errors.map(e => e.message).join(", ")}`
+        `Invalid configuration value for '${key}': ${validationResult.errors.map((e) => e.message).join(", ")}`,
       );
     }
 
@@ -90,11 +90,17 @@ export class ConfigurationManager {
   }
 
   getZaiBaseUrl(): string {
-    return this.configCache[ConfigurationKeys.zaiBaseUrl] ?? ConfigurationDefaults[ConfigurationKeys.zaiBaseUrl];
+    return (
+      this.configCache[ConfigurationKeys.zaiBaseUrl] ??
+      ConfigurationDefaults[ConfigurationKeys.zaiBaseUrl]
+    );
   }
 
   getGoogleAIEndpoint(): "openai-compatible" | "native" {
-    return this.configCache[ConfigurationKeys.googleAIEndpoint] ?? ConfigurationDefaults[ConfigurationKeys.googleAIEndpoint];
+    return (
+      this.configCache[ConfigurationKeys.googleAIEndpoint] ??
+      ConfigurationDefaults[ConfigurationKeys.googleAIEndpoint]
+    );
   }
 
   async setZaiBaseUrl(url: string): Promise<void> {

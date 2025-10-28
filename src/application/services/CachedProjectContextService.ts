@@ -10,7 +10,7 @@ export class CachedProjectContextService {
   constructor(
     private cacheService: CacheService,
     private performanceMonitor: PerformanceMonitor,
-    private projectContextService: ProjectContextService
+    private projectContextService: ProjectContextService,
   ) {}
 
   async buildContext(
@@ -26,16 +26,21 @@ export class CachedProjectContextService {
     });
 
     const cacheKey = this.generateCacheKey(snippet, filePath, languageId);
-    
+
     const cached = this.cacheService.get<ProjectContext>(cacheKey);
     if (cached) {
       endTimer();
       return cached;
     }
 
-    const context = await this.projectContextService.buildContext(snippet, filePath, languageId, webview);
+    const context = await this.projectContextService.buildContext(
+      snippet,
+      filePath,
+      languageId,
+      webview,
+    );
     this.cacheService.set(cacheKey, context, this.CACHE_TTL);
-    
+
     endTimer();
     return context;
   }
@@ -51,7 +56,7 @@ export class CachedProjectContextService {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);

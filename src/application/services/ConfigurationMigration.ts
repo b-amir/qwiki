@@ -15,15 +15,17 @@ export class ConfigurationMigration {
       description: "Initial configuration setup",
       migrate: async (config) => {
         const newConfig = { ...config };
-        
+
         if (newConfig[ConfigurationKeys.zaiBaseUrl] === undefined) {
-          newConfig[ConfigurationKeys.zaiBaseUrl] = ConfigurationDefaults[ConfigurationKeys.zaiBaseUrl];
+          newConfig[ConfigurationKeys.zaiBaseUrl] =
+            ConfigurationDefaults[ConfigurationKeys.zaiBaseUrl];
         }
-        
+
         if (newConfig[ConfigurationKeys.googleAIEndpoint] === undefined) {
-          newConfig[ConfigurationKeys.googleAIEndpoint] = ConfigurationDefaults[ConfigurationKeys.googleAIEndpoint];
+          newConfig[ConfigurationKeys.googleAIEndpoint] =
+            ConfigurationDefaults[ConfigurationKeys.googleAIEndpoint];
         }
-        
+
         return newConfig;
       },
     },
@@ -32,13 +34,16 @@ export class ConfigurationMigration {
       description: "Migrate legacy endpoint configuration",
       migrate: async (config) => {
         const newConfig = { ...config };
-        
-        if (config.googleAIEndpoint === "openai" || config.googleAIEndpoint === "openai-compatible") {
+
+        if (
+          config.googleAIEndpoint === "openai" ||
+          config.googleAIEndpoint === "openai-compatible"
+        ) {
           newConfig[ConfigurationKeys.googleAIEndpoint] = "openai-compatible";
         } else if (config.googleAIEndpoint === "native") {
           newConfig[ConfigurationKeys.googleAIEndpoint] = "native";
         }
-        
+
         return newConfig;
       },
     },
@@ -49,7 +54,7 @@ export class ConfigurationMigration {
   async migrate(): Promise<void> {
     const currentVersion = await this.getCurrentVersion();
     const config = await this.configurationRepository.getAll();
-    
+
     let migratedConfig = { ...config };
     let appliedMigrations = false;
 
@@ -61,7 +66,7 @@ export class ConfigurationMigration {
         } catch (error) {
           throw new ConfigurationError(
             "invalidConfiguration",
-            `Failed to apply migration ${migration.version}: ${error instanceof Error ? error.message : String(error)}`
+            `Failed to apply migration ${migration.version}: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       }
@@ -88,15 +93,15 @@ export class ConfigurationMigration {
   private compareVersions(version1: string, version2: string): number {
     const v1Parts = version1.split(".").map(Number);
     const v2Parts = version2.split(".").map(Number);
-    
+
     for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
       const v1Part = v1Parts[i] || 0;
       const v2Part = v2Parts[i] || 0;
-      
+
       if (v1Part < v2Part) return -1;
       if (v1Part > v2Part) return 1;
     }
-    
+
     return 0;
   }
 

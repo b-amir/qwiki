@@ -16,7 +16,7 @@ export class ErrorLoggingServiceImpl implements ErrorLoggingService {
 
   async logError(errorInfo: any): Promise<void> {
     const logMessage = `[${errorInfo.timestamp.toISOString()}] ${errorInfo.name}: ${errorInfo.message}`;
-    
+
     if (errorInfo.context) {
       console.error(`${logMessage}\nContext:`, errorInfo.context);
     } else {
@@ -74,7 +74,7 @@ export class ErrorLoggingServiceImpl implements ErrorLoggingService {
     };
 
     const message = userMessages[errorInfo.code] || "An unexpected error occurred";
-    
+
     window.showErrorMessage(message, "Show Details").then((selection) => {
       if (selection === "Show Details") {
         this.showErrorDetails(errorInfo);
