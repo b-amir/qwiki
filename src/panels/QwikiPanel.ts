@@ -12,8 +12,16 @@ import { LLMRegistry, type ProviderId } from "../llm";
 import { getWebviewHtml } from "./webviewContent";
 import { buildProjectContext } from "./contextBuilder";
 import { tryOpenFile } from "./fileOps";
-import { Inbound, Outbound, Page, LoadingStep } from "./constants";
+import { Inbound, Outbound, Page, LoadingStep, Pages } from "./constants";
+import { WebviewPaths } from "../constants";
 import { Messages } from "./messages";
+import {
+  VSCodeCommandIds,
+  ConfigurationKeys,
+  ConfigurationDefaults,
+  Extension,
+  ProviderIds,
+} from "../constants";
 
 type SelectionPayload = {
   text: string;
@@ -38,8 +46,12 @@ export class QwikiPanel {
   ) {
     this._extensionUri = extensionUri;
     this.llms = new LLMRegistry(ctx.secrets, {
-      zaiBaseUrl: workspace.getConfiguration("qwiki").get<string>("zaiBaseUrl"),
-      googleAIEndpoint: workspace.getConfiguration("qwiki").get<string>("googleAIEndpoint"),
+      zaiBaseUrl: workspace
+        .getConfiguration(Extension.configurationSection)
+        .get<string>(ConfigurationKeys.zaiBaseUrl),
+      googleAIEndpoint: workspace
+        .getConfiguration(Extension.configurationSection)
+        .get<string>(ConfigurationKeys.googleAIEndpoint),
     });
   }
 
@@ -47,8 +59,8 @@ export class QwikiPanel {
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
-        Uri.joinPath(this._extensionUri, "out"),
-        Uri.joinPath(this._extensionUri, "webview-ui/build"),
+        Uri.joinPath(this._extensionUri, WebviewPaths.out),
+        Uri.joinPath(this._extensionUri, WebviewPaths.webviewBuild),
       ],
     };
 
@@ -62,7 +74,7 @@ export class QwikiPanel {
 
   public showPage(page: Page) {
     this._queueNavigation(page);
-    commands.executeCommand("workbench.view.extension.qwiki");
+    commands.executeCommand(VSCodeCommandIds.openPanelView);
     this.view?.show?.(true);
   }
 
@@ -77,7 +89,7 @@ export class QwikiPanel {
       return;
     }
     this._queueSelection(payload, { autoGenerate: true });
-    this.showPage("wiki");
+    this.showPage(Pages.wiki);
     this._flushPendingSelection();
   }
 
@@ -189,7 +201,7 @@ export class QwikiPanel {
                 setting: string;
                 value: string;
               };
-              const config = workspace.getConfiguration("qwiki");
+              const config = workspace.getConfiguration(Extension.configurationSection);
               await config.update(setting, value, true);
               webview.postMessage({ command: Outbound.settingSaved, payload: { setting } });
               return;
@@ -222,16 +234,21 @@ export class QwikiPanel {
               return;
             }
             case Inbound.getApiKeys: {
-              const zaiKey = await this.llms.getApiKey("zai");
-              const openrouterKey = await this.llms.getApiKey("openrouter");
-              const googleAIStudioKey = await this.llms.getApiKey("google-ai-studio");
-              const cohereKey = await this.llms.getApiKey("cohere");
-              const huggingfaceKey = await this.llms.getApiKey("huggingface");
+              const zaiKey = await this.llms.getApiKey(ProviderIds.zai);
+              const openrouterKey = await this.llms.getApiKey(ProviderIds.openrouter);
+              const googleAIStudioKey = await this.llms.getApiKey(ProviderIds.googleAIStudio);
+              const cohereKey = await this.llms.getApiKey(ProviderIds.cohere);
+              const huggingfaceKey = await this.llms.getApiKey(ProviderIds.huggingface);
               const zaiBaseUrl =
-                workspace.getConfiguration("qwiki").get<string>("zaiBaseUrl") || "";
+                workspace
+                  .getConfiguration(Extension.configurationSection)
+                  .get<string>(ConfigurationKeys.zaiBaseUrl) ||
+                ConfigurationDefaults[ConfigurationKeys.zaiBaseUrl];
               const googleAIEndpoint =
-                workspace.getConfiguration("qwiki").get<string>("googleAIEndpoint") ||
-                "openai-compatible";
+                workspace
+                  .getConfiguration(Extension.configurationSection)
+                  .get<string>(ConfigurationKeys.googleAIEndpoint) ||
+                ConfigurationDefaults[ConfigurationKeys.googleAIEndpoint];
               webview.postMessage({
                 command: Outbound.apiKeys,
                 payload: {
