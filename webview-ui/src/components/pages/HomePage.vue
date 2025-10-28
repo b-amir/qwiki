@@ -86,7 +86,7 @@ const { setPage } = useNavigation();
       <div class="w-full">
         <Button
           :disabled="wiki.loading || !wiki.snippet?.trim()"
-          class="w-full"
+          class="bg-foreground w-full"
           @click="wiki.generate"
         >
           Generate Wiki
