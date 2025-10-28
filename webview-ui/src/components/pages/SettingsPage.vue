@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
@@ -116,8 +116,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div v-if="settingsLoading || settings.loading" class="h-full">
+  <div class="settings-shell mx-auto max-w-3xl space-y-8 px-6 py-10">
+    <div
+      v-if="settingsLoading || settings.loading"
+      class="border-border bg-muted/20 rounded-2xl border p-8 shadow-sm"
+    >
       <LoadingState
         :steps="[
           { text: 'Loading settings...', key: 'loading' },
@@ -128,97 +131,166 @@ onMounted(() => {
         density="low"
       />
     </div>
-    <div v-else class="space-y-4 px-3">
-      <!-- Show loading state if provider configs are not loaded yet -->
-      <div v-if="!centralizedProviderConfigs.length" class="h-full">
-        <LoadingState
-          :steps="[
-            { text: 'Loading settings...', key: 'loading' },
-            { text: 'Fetching providers...', key: 'fetching' },
-            { text: 'Preparing configuration...', key: 'preparing' },
-          ]"
-          :current-step="'fetching'"
-          density="low"
-        />
-      </div>
 
-      <!-- Provider Selection with Radio Buttons -->
-      <div v-else class="space-y-4">
-        <h3 class="text-sm font-medium">LLM Provider</h3>
-
-        <!-- Dynamic Provider Options -->
-        <div
-          v-for="provider in providerConfigs"
-          :key="provider.id"
-          class="space-y-3 rounded-md border p-3"
-        >
-          <div class="flex items-center space-x-2">
-            <input
-              :id="`${provider.id}-provider`"
-              v-model="settings.selectedProvider"
-              type="radio"
-              :value="provider.id"
-              class="h-4 w-4"
-              @change="handleProviderChange(provider.id)"
-            />
-            <label :for="`${provider.id}-provider`" class="text-sm font-medium">{{
-              provider.name
-            }}</label>
-          </div>
-
-          <div v-if="settings.selectedProvider === provider.id" class="space-y-2 pl-6">
-            <select
-              v-model="wiki.model"
-              class="bg-background w-full rounded border px-2 py-1 text-sm hover:[filter:brightness(1.1)]"
-            >
-              <option
-                v-for="m in getModelsForProvider(provider.id, provider.modelFallbackIds)"
-                :key="m"
-                :value="m"
-              >
-                {{ m }}
-              </option>
-            </select>
-            <input
-              :value="getApiKeyInput(provider.id)"
-              type="password"
-              placeholder="API Key"
-              class="bg-background w-full rounded border px-2 py-1 text-sm"
-              @input="handleApiKeyChange(provider.id, ($event.target as HTMLInputElement).value)"
-            />
-
-            <!-- Google AI Studio Endpoint Type Selection -->
-            <div v-if="provider.hasEndpointType" class="space-y-1">
-              <label class="text-muted-foreground text-xs">Endpoint Type:</label>
-              <select
-                v-model="settings.googleAIEndpoint"
-                class="bg-background w-full rounded border px-2 py-1 text-sm"
-              >
-                <option value="openai-compatible">OpenAI Compatible</option>
-                <option value="native">Native</option>
-              </select>
-            </div>
-
-            <a
-              :href="provider.apiKeyUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-primary text-xs underline"
-            >
-              Get API key from {{ provider.name }}
-            </a>
-
-            <!-- Additional Information -->
-            <p v-if="provider.additionalInfo" class="text-muted-foreground text-xs">
-              {{ provider.additionalInfo }}
+    <section v-else class="border-border bg-background rounded-2xl border shadow-sm">
+      <div class="space-y-6 px-6 py-6 sm:px-8">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div class="space-y-1">
+            <h2 class="text-foreground text-lg font-semibold">Providers</h2>
+            <p class="text-muted-foreground text-sm">
+              Choose the models and credentials that power your wiki.
             </p>
+          </div>
+          <span
+            v-if="settings.loadingProviders"
+            class="text-muted-foreground text-xs font-medium uppercase tracking-wide"
+          >
+            Refreshing providers
+          </span>
+        </div>
+
+        <div v-if="settings.loadingProviders || !providerConfigs.length">
+          <LoadingState
+            :steps="[
+              { text: 'Loading settings...', key: 'loading' },
+              { text: 'Fetching providers...', key: 'fetching' },
+              { text: 'Preparing configuration...', key: 'preparing' },
+            ]"
+            :current-step="'fetching'"
+            density="low"
+          />
+        </div>
+
+        <div v-else class="space-y-4">
+          <h3 class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+            LLM Provider
+          </h3>
+
+          <div class="space-y-3">
+            <div
+              v-for="provider in providerConfigs"
+              :key="provider.id"
+              class="hover:border-primary hover:bg-muted/90 focus-within:border-primary group overflow-clip rounded-xl border border-transparent"
+              :class="{
+                'bg-foreground border-transparent focus-within:border-transparent':
+                  settings.selectedProvider === provider.id,
+                'bg-muted': settings.selectedProvider !== provider.id,
+              }"
+            >
+              <div
+                class="flex cursor-pointer select-none items-center gap-3 px-4 py-3"
+                @click="handleProviderChange(provider.id)"
+              >
+                <div class="relative flex items-center">
+                  <input
+                    :id="`${provider.id}-provider`"
+                    v-model="settings.selectedProvider"
+                    type="radio"
+                    :value="provider.id"
+                    class="sr-only"
+                    @change="handleProviderChange(provider.id)"
+                  />
+                  <div
+                    class="flex h-4 w-4 items-center justify-center rounded-full border-2"
+                    :class="
+                      settings.selectedProvider === provider.id
+                        ? 'border-primary bg-primary ring-primary/20 ring-2'
+                        : 'border-muted-foreground group-hover:border-primary'
+                    "
+                  >
+                    <div
+                      v-if="settings.selectedProvider === provider.id"
+                      class="bg-background h-2 w-2 rounded-full"
+                    />
+                  </div>
+                </div>
+                <label
+                  :for="`${provider.id}-provider`"
+                  class="cursor-pointer text-sm font-medium"
+                  :class="
+                    settings.selectedProvider === provider.id
+                      ? 'text-background'
+                      : 'text-foreground'
+                  "
+                >
+                  {{ provider.name }}
+                </label>
+              </div>
+              <div
+                v-if="settings.selectedProvider === provider.id"
+                class="border-border bg-background border-t px-4 pb-5 pt-3 text-sm"
+              >
+                <div class="space-y-4">
+                  <div class="space-y-2">
+                    <label class="text-muted-foreground text-xs font-medium tracking-wide">
+                      Model
+                    </label>
+                    <select
+                      v-model="wiki.model"
+                      class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option
+                        v-for="m in getModelsForProvider(provider.id, provider.modelFallbackIds)"
+                        :key="m"
+                        :value="m"
+                      >
+                        {{ m }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="space-y-2">
+                    <label class="text-muted-foreground text-xs font-medium tracking-wide">
+                      API Key
+                    </label>
+                    <input
+                      :value="getApiKeyInput(provider.id)"
+                      type="password"
+                      placeholder="Enter your API key"
+                      class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      @input="
+                        handleApiKeyChange(provider.id, ($event.target as HTMLInputElement).value)
+                      "
+                    />
+                  </div>
+
+                  <div v-if="provider.hasEndpointType" class="space-y-2">
+                    <label class="text-muted-foreground text-xs font-medium tracking-wide">
+                      Endpoint Type
+                    </label>
+                    <select
+                      v-model="settings.googleAIEndpoint"
+                      class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="openai-compatible">OpenAI Compatible</option>
+                      <option value="native">Native</option>
+                    </select>
+                  </div>
+
+                  <div class="pt-1">
+                    <a
+                      :href="provider.apiKeyUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-primary hover:text-primary/80 text-xs font-medium underline underline-offset-4"
+                    >
+                      Get API key ->
+                    </a>
+                  </div>
+
+                  <p v-if="provider.additionalInfo" class="text-muted-foreground text-xs">
+                    {{ provider.additionalInfo }}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <p class="text-muted-foreground text-xs">
+      <footer class="border-border bg-muted/10 text-muted-foreground border-t px-6 py-4 text-xs">
         Keys are stored securely in VS Code Secret Storage.
-      </p>
-    </div>
+      </footer>
+    </section>
   </div>
 </template>
