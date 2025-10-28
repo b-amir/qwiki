@@ -13,7 +13,7 @@ class VSCodeAPIWrapper {
     if (this.vsCodeApi) {
       this.vsCodeApi.postMessage(message);
     } else {
-      console.error(message);
+      console.error("[QWIKI]", message);
     }
   }
 

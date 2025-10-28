@@ -48,7 +48,7 @@ export class ZAiProvider implements LLMProvider {
           temperature: 0.2,
           top_p: 0.95,
           stream: false,
-          max_tokens: 2048,
+          max_tokens: 4096,
           request_id: `qwiki-${getNonce()}`,
           user_id: "qwiki-user",
         }),

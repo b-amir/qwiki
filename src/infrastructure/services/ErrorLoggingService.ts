@@ -18,13 +18,13 @@ export class ErrorLoggingServiceImpl implements ErrorLoggingService {
     const logMessage = `[${errorInfo.timestamp.toISOString()}] ${errorInfo.name}: ${errorInfo.message}`;
 
     if (errorInfo.context) {
-      console.error(`${logMessage}\nContext:`, errorInfo.context);
+      console.error("[QWIKI]", `${logMessage}\nContext:`, errorInfo.context);
     } else {
-      console.error(logMessage);
+      console.error("[QWIKI]", logMessage);
     }
 
     if (errorInfo.stack) {
-      console.error("Stack trace:", errorInfo.stack);
+      console.error("[QWIKI]", "Stack trace:", errorInfo.stack);
     }
 
     this.showUserNotification(errorInfo);
@@ -32,17 +32,15 @@ export class ErrorLoggingServiceImpl implements ErrorLoggingService {
 
   async logRecoveryAttempt(errorInfo: any): Promise<void> {
     const logMessage = `[${new Date().toISOString()}] Attempting recovery for ${errorInfo.code}`;
-    console.log(logMessage);
   }
 
   async logRecoverySuccess(errorInfo: any): Promise<void> {
     const logMessage = `[${new Date().toISOString()}] Recovery successful for ${errorInfo.code}`;
-    console.log(logMessage);
   }
 
   async logRecoveryFailed(errorInfo: any): Promise<void> {
     const logMessage = `[${new Date().toISOString()}] Recovery failed for ${errorInfo.code}`;
-    console.error(logMessage);
+    console.error("[QWIKI]", logMessage);
   }
 
   private setupEventHandlers(): void {

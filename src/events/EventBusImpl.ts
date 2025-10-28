@@ -25,7 +25,7 @@ export class EventBusImpl implements EventBus {
       try {
         await handler(payload);
       } catch (error) {
-        // Error in event handler
+        console.error("[QWIKI] EventBusImpl: Exception in promises:", error);
       }
     });
 

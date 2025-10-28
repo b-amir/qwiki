@@ -14,6 +14,6 @@ export class GenerateWikiCommand implements Command<GenerateWikiPayload> {
   constructor(private eventBus: EventBus) {}
 
   async execute(payload: GenerateWikiPayload): Promise<void> {
-    this.eventBus.publish(InboundEvents.generateWiki, payload);
+    await this.eventBus.publish(InboundEvents.generateWiki, payload);
   }
 }

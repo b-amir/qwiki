@@ -94,7 +94,7 @@ export class AppBootstrap {
 
     this.container.register("commandRegistry", () => new CommandRegistry());
 
-    this.container.register("eventBus", () => new EventBusImpl());
+    this.container.registerInstance("eventBus", new EventBusImpl());
 
     this.container.register(
       "errorHandler",
@@ -136,7 +136,7 @@ export class AppBootstrap {
     errorHandler.registerGlobalHandlers();
   }
 
-  createCommandRegistry(webview: Webview): CommandRegistry {
+  async createCommandRegistry(webview: Webview): Promise<CommandRegistry> {
     const commandRegistry = new CommandRegistry();
     const eventBus = this.container.resolve<EventBus>("eventBus");
 
@@ -146,7 +146,7 @@ export class AppBootstrap {
       eventBus,
     });
 
-    const commands = commandFactory.createAllCommands();
+    const commands = await commandFactory.createAllCommands();
 
     for (const [commandId, command] of Object.entries(commands)) {
       commandRegistry.register(commandId, command);
@@ -154,23 +154,23 @@ export class AppBootstrap {
 
     const messageBus = new MessageBus(webview);
 
-    eventBus.subscribe("selection", (payload) => {
-      messageBus.postSuccess("selection", payload);
+    eventBus.subscribe(OutboundEvents.selection, (payload) => {
+      messageBus.postSuccess(OutboundEvents.selection, payload);
     });
 
-    eventBus.subscribe("wikiResult", (payload) => {
-      messageBus.postSuccess("wikiResult", payload);
+    eventBus.subscribe(OutboundEvents.wikiResult, (payload) => {
+      messageBus.postSuccess(OutboundEvents.wikiResult, payload);
     });
 
-    eventBus.subscribe("related", (payload) => {
-      messageBus.postSuccess("related", payload);
+    eventBus.subscribe(OutboundEvents.related, (payload) => {
+      messageBus.postSuccess(OutboundEvents.related, payload);
     });
 
-    eventBus.subscribe("loadingStep", (payload) => {
-      messageBus.postSuccess("loadingStep", payload);
+    eventBus.subscribe(OutboundEvents.loadingStep, (payload) => {
+      messageBus.postSuccess(OutboundEvents.loadingStep, payload);
     });
 
-    eventBus.subscribe("error", (payload: any) => {
+    eventBus.subscribe(OutboundEvents.error, (payload: any) => {
       messageBus.postError(payload.message, payload.code);
     });
 

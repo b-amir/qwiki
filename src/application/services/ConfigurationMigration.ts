@@ -111,8 +111,11 @@ export class ConfigurationMigration {
   }
 
   private async saveMigratedConfiguration(config: Record<string, any>): Promise<void> {
+    const allowedKeys = new Set<string>(Object.values(ConfigurationKeys));
     for (const [key, value] of Object.entries(config)) {
-      await this.configurationRepository.set(key, value);
+      if (allowedKeys.has(key)) {
+        await this.configurationRepository.set(key as string, value as any);
+      }
     }
   }
 

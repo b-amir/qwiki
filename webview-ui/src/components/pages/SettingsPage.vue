@@ -93,8 +93,13 @@ const handleCustomFieldChange = (fieldId: string, newValue: string) => {
 const initSettings = async () => {
   if (!settings.initialized) {
     settingsLoading.value = true;
-    await settings.init();
-    settingsLoading.value = false;
+    try {
+      await settings.init();
+    } catch (error) {
+      console.error("[QWIKI]", "Failed to initialize settings:", error);
+    } finally {
+      settingsLoading.value = false;
+    }
   }
 
   vscode.postMessage({ command: "getProviders" });
@@ -102,7 +107,7 @@ const initSettings = async () => {
 };
 
 const setupMessageListener = () => {
-  window.addEventListener("message", (event) => {
+  const handleMessage = (event: MessageEvent) => {
     const message = event.data;
     switch (message.command) {
       case "providerConfigs": {
@@ -117,7 +122,15 @@ const setupMessageListener = () => {
         break;
       }
     }
-  });
+  };
+
+  window.addEventListener("message", handleMessage);
+
+  setTimeout(() => {
+    if (centralizedProviderConfigs.value.length === 0) {
+      console.error("[QWIKI]", "Provider configs not received within timeout");
+    }
+  }, 5000);
 };
 
 watch(
@@ -162,6 +175,12 @@ onMounted(() => {
       calculateContentHeight(provider.id);
     });
   }, 100);
+
+  setTimeout(() => {
+    if (centralizedProviderConfigs.value.length === 0) {
+      centralizedProviderConfigs.value = [];
+    }
+  }, 5000);
 });
 </script>
 

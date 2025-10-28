@@ -9,7 +9,7 @@ export function useNavigation() {
     if (newPage === "wiki" || newPage === "settings") {
       currentPage.value = newPage;
     } else {
-      console.error("setPage - invalid page:", newPage);
+      console.error("[QWIKI]", "setPage - invalid page:", newPage);
     }
   };
 

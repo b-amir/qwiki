@@ -24,6 +24,7 @@ export class QwikiPanel {
   private bootstrap: AppBootstrap;
   private commandRegistry: CommandRegistry | undefined;
   private errorHandler: ErrorHandler | undefined;
+  private _initPromise: Promise<void>;
 
   constructor(
     extensionUri: Uri,
@@ -31,12 +32,20 @@ export class QwikiPanel {
   ) {
     this._extensionUri = extensionUri;
     this.bootstrap = new AppBootstrap(ctx);
-    this.initializeAsync();
+    this._initPromise = this.initializeAsync();
   }
 
-  private async initializeAsync() {
-    await this.bootstrap.initialize();
-    await this.bootstrap.initializeEventHandlers();
+  private async initializeAsync(): Promise<void> {
+    try {
+      await this.bootstrap.initialize();
+    } catch (e) {
+      console.error("[QWIKI] QwikiPanel: bootstrap.initialize failed:", e);
+    }
+    try {
+      await this.bootstrap.initializeEventHandlers();
+    } catch (e) {
+      console.error("[QWIKI] QwikiPanel: initializeEventHandlers failed:", e);
+    }
     this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
   }
 
@@ -55,6 +64,12 @@ export class QwikiPanel {
     this.commandRegistry = await this.bootstrap.createCommandRegistry(webviewView.webview);
     this._setWebviewMessageListener(webviewView.webview);
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
+
+    try {
+      webviewView.webview.postMessage({ command: Outbound.webviewReady, payload: { ready: true } });
+    } catch (error) {
+      console.error("[QWIKI] QwikiPanel: Exception in initializeAsync:", error);
+    }
   }
 
   public showPage(page: Page) {
@@ -158,6 +173,17 @@ export class QwikiPanel {
               this._webviewReady = true;
               this._flushPendingNavigation();
               this._flushPendingSelection();
+              try {
+                this.view?.webview.postMessage({
+                  command: Outbound.webviewReady,
+                  payload: { ready: true },
+                });
+              } catch (error) {
+                console.error(
+                  "[QWIKI] QwikiPanel: Exception in _setWebviewMessageListener:",
+                  error,
+                );
+              }
               return;
             }
             case Inbound.openFile: {
@@ -167,6 +193,9 @@ export class QwikiPanel {
             }
             default: {
               if (this.commandRegistry?.has(command)) {
+                await this._initPromise.catch((e) => {
+                  console.error("[QWIKI] Initialization failed before command execution:", e);
+                });
                 await this.commandRegistry.execute(command, payload);
               }
               return;

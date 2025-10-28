@@ -14,6 +14,7 @@ export const InboundEvents = {
 
 export const OutboundEvents = {
   navigate: "navigate",
+  webviewReady: "webviewReady",
   selection: "selection",
   triggerGenerate: "triggerGenerate",
   loadingStep: "loadingStep",

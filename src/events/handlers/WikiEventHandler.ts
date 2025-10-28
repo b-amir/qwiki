@@ -43,6 +43,10 @@ export class WikiEventHandler {
           }
         });
     } catch (error: any) {
+      console.error(
+        "[QWIKI] WikiEventHandler: Exception in handleGenerateWiki:",
+        error?.message || error,
+      );
       this.eventBus.publish(OutboundEvents.error, {
         code: ErrorCodes.generationFailed,
         message: error?.message || ErrorMessages[ErrorCodes.generationFailed],

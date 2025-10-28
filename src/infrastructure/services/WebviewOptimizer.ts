@@ -25,6 +25,10 @@ export class WebviewOptimizer {
     };
 
     this.messageQueue.push(message);
+    try {
+    } catch (error) {
+      console.error("[QWIKI] WebviewOptimizer: Exception in postMessage:", error);
+    }
     this.scheduleBatch();
   }
 

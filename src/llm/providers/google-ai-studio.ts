@@ -30,6 +30,8 @@ export class GoogleAIStudioProvider implements LLMProvider {
         ],
         generationConfig: {
           temperature: 0.2,
+          maxOutputTokens: 4096,
+          responseMimeType: "text/markdown",
         },
       };
 
@@ -71,7 +73,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
           model,
           messages,
           temperature: 0.2,
-          max_tokens: 2048,
+          max_tokens: 4096,
         }),
       });
 

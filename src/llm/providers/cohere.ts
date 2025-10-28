@@ -27,7 +27,7 @@ export class CohereProvider implements LLMProvider {
         model,
         message: prompt,
         temperature: 0.2,
-        max_tokens: 2048,
+        max_tokens: 4096,
       }),
     });
 

@@ -84,7 +84,9 @@ export class ProjectContextService {
           reason: MessageStrings.textMatch,
         });
         if (related.length >= FileLimits.maxRelatedResults) break;
-      } catch {}
+      } catch (error) {
+        console.error("[QWIKI] ProjectContextService: Exception in findTextUsages:", error);
+      }
     }
     return related;
   }

@@ -18,7 +18,7 @@ const copyErrorToClipboard = async () => {
       copySuccess.value = false;
     }, 2000);
   } catch (err) {
-    console.error("Failed to copy error text:", err);
+    console.error("[QWIKI]", "Failed to copy error text:", err);
   }
 };
 </script>

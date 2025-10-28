@@ -33,7 +33,7 @@ export const useSettingsStore = defineStore("settings", {
       if (this.initialized) return;
       this.loading = true;
 
-      window.addEventListener("message", (event) => {
+      const handleMessage = (event: MessageEvent) => {
         const message = event.data;
         switch (message.command) {
           case "apiKeys": {
@@ -65,6 +65,7 @@ export const useSettingsStore = defineStore("settings", {
 
             this.initialized = true;
             this.loading = false;
+            window.removeEventListener("message", handleMessage);
             return;
           }
           case "apiKeySaved": {
@@ -89,10 +90,20 @@ export const useSettingsStore = defineStore("settings", {
             return;
           }
         }
-      });
+      };
 
+      window.addEventListener("message", handleMessage);
+
+      vscode.postMessage({ command: "webviewReady" });
       vscode.postMessage({ command: "getApiKeys" });
       vscode.postMessage({ command: "getProviders" });
+
+      setTimeout(() => {
+        if (this.loading && !this.initialized) {
+          this.loading = false;
+          window.removeEventListener("message", handleMessage);
+        }
+      }, 5000);
     },
     async saveZai() {
       if (!this.zaiKeyInput) return;

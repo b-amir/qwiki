@@ -19,10 +19,11 @@ export const useWikiStore = defineStore("wiki", {
     providers: [] as ProviderStatus[],
     providerId: "google-ai-studio" as string,
     model: "" as string,
+    pendingAutoGenerate: false as boolean,
   }),
   actions: {
     init() {
-      window.addEventListener("message", (event) => {
+      const handleMessage = (event: MessageEvent) => {
         const message = event.data;
         switch (message.command) {
           case "selection": {
@@ -31,6 +32,10 @@ export const useWikiStore = defineStore("wiki", {
             this.languageId = languageId || "";
             this.filePath = filePath || "";
             vscode.postMessage({ command: "getRelated" });
+            if (this.pendingAutoGenerate && this.snippet?.trim()) {
+              this.pendingAutoGenerate = false;
+              this.generate();
+            }
             return;
           }
           case "providers": {
@@ -48,7 +53,11 @@ export const useWikiStore = defineStore("wiki", {
             return;
           }
           case "triggerGenerate": {
-            this.generate();
+            if (this.snippet?.trim()) {
+              this.generate();
+            } else {
+              this.pendingAutoGenerate = true;
+            }
             return;
           }
           case "wikiResult": {
@@ -77,11 +86,22 @@ export const useWikiStore = defineStore("wiki", {
             return;
           }
         }
-      });
+      };
+
+      window.addEventListener("message", handleMessage);
+
       vscode.postMessage({ command: "webviewReady" });
       vscode.postMessage({ command: "getSelection" });
       vscode.postMessage({ command: "getProviders" });
       vscode.postMessage({ command: "getRelated" });
+
+      setTimeout(() => {
+        if (this.loading) {
+          this.loading = false;
+          this.loadingStep = "";
+          this.error = "Initialization timeout. Please try again.";
+        }
+      }, 10000);
     },
     async generate() {
       if (!this.snippet?.trim()) {

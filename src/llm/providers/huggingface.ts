@@ -32,7 +32,7 @@ export class HuggingFaceProvider implements LLMProvider {
         inputs: prompt,
         parameters: {
           temperature: 0.2,
-          max_new_tokens: 2048,
+          max_new_tokens: 3072,
         },
       }),
     });

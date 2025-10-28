@@ -22,9 +22,16 @@ export class WikiService {
         throw new WikiError("missingSnippet", ErrorMessages[ErrorCodes.missingSnippet]);
       }
 
+      await new Promise((resolve) => setTimeout(resolve, 100));
       onProgress?.(LoadingSteps.analyzing);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
       onProgress?.(LoadingSteps.finding);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
       onProgress?.(LoadingSteps.preparing);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
       onProgress?.(LoadingSteps.generating);
 
       const result = await this.llmRegistry.generate(request.providerId as ProviderId, {
