@@ -5,6 +5,7 @@ import {
   ProjectContextService,
   WikiService,
   MessageBus,
+  ConfigurationManager,
 } from "./";
 import { VSCodeApiKeyRepository, VSCodeConfigurationRepository, ErrorHandlerImpl, ErrorLoggingServiceImpl, ErrorRecoveryServiceImpl } from "../infrastructure";
 import { LLMRegistry } from "../llm";
@@ -22,6 +23,11 @@ export class AppBootstrap {
     this.registerServices();
   }
 
+  async initialize(): Promise<void> {
+    const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
+    await configManager.initialize();
+  }
+
   private registerServices(): void {
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
@@ -33,15 +39,18 @@ export class AppBootstrap {
 
     this.container.register("configurationRepository", () => new VSCodeConfigurationRepository());
 
+    const configManager = new ConfigurationManager(this.container.resolve("configurationRepository"));
+    this.container.registerInstance("configurationManager", configManager);
+
     this.container.register("selectionService", () => new SelectionService());
 
     this.container.register("projectContextService", () => new ProjectContextService());
 
     this.container.register("llmRegistry", () => {
-      const configuration = workspace.getConfiguration(Extension.configurationSection);
+      const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
       return new LLMRegistry(this.container.resolve("secrets"), {
-        zaiBaseUrl: configuration.get<string>(ConfigurationKeys.zaiBaseUrl),
-        googleAIEndpoint: configuration.get<string>(ConfigurationKeys.googleAIEndpoint),
+        zaiBaseUrl: configManager.getZaiBaseUrl(),
+        googleAIEndpoint: configManager.getGoogleAIEndpoint(),
       });
     });
 

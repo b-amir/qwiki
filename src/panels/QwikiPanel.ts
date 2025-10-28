@@ -31,6 +31,11 @@ export class QwikiPanel {
   ) {
     this._extensionUri = extensionUri;
     this.bootstrap = new AppBootstrap(ctx);
+    this.initializeAsync();
+  }
+
+  private async initializeAsync() {
+    await this.bootstrap.initialize();
     this.bootstrap.initializeEventHandlers();
     this.errorHandler = this.bootstrap.getErrorHandler();
   }

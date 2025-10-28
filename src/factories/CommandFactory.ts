@@ -13,6 +13,8 @@ import {
   DeleteApiKeyCommand,
   GetApiKeysCommand,
   GetProviderConfigsCommand,
+  GetConfigurationCommand,
+  UpdateConfigurationCommand,
 } from "../application/commands";
 import { MessageBus } from "../application/services/MessageBus";
 import { CommandIds } from "../constants";
@@ -84,6 +86,16 @@ export class CommandFactory {
         return new GetProviderConfigsCommand(
           container.resolve("llmRegistry"),
           this.messageBus
+        ) as Command<T>;
+
+      case "getConfiguration":
+        return new GetConfigurationCommand(
+          container.resolve("configurationManager")
+        ) as Command<T>;
+
+      case "updateConfiguration":
+        return new UpdateConfigurationCommand(
+          container.resolve("configurationManager")
         ) as Command<T>;
 
       default:
