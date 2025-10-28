@@ -43,7 +43,6 @@ export class HuggingFaceProvider implements LLMProvider {
     }
 
     const data: any = await res.json();
-    // Hugging Face response format: output[0]?.generated_text || output
     let content = "";
     if (Array.isArray(data)) {
       content = data[0]?.generated_text || "";
@@ -51,7 +50,6 @@ export class HuggingFaceProvider implements LLMProvider {
       content = data?.generated_text || "";
     }
 
-    // Remove the original prompt from the response if it's included
     if (content && content.includes(prompt)) {
       content = content.replace(prompt, "").trim();
     }

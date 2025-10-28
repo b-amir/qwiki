@@ -1,4 +1,3 @@
-/** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{vue,ts,js}", "./src/components/**/*.{vue,ts,js}"],
@@ -10,8 +9,6 @@ module.exports = {
     },
     extend: {
       colors: {
-        // Bind shadcn-style tokens directly to CSS variables so we can
-        // source them from VS Code's `--vscode-*` theme variables.
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",

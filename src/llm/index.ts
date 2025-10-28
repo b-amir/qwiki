@@ -16,7 +16,6 @@ export class LLMRegistry {
     private secrets: SecretStorage,
     private settings: { zaiBaseUrl?: string; googleAIEndpoint?: string },
   ) {
-    // Register GoogleAIStudioProvider for "google-ai-studio" ID
     const googleAIStudioProvider = new GoogleAIStudioProvider(
       settings.googleAIEndpoint === "native",
     );
@@ -36,19 +35,10 @@ export class LLMRegistry {
     }));
   }
 
-  /**
-   * Get all provider configurations
-   * @returns Array of all provider configurations
-   */
   getProviderConfigs(): ProviderConfig[] {
     return getAllProviderConfigs(this.settings);
   }
 
-  /**
-   * Get configuration for a specific provider
-   * @param providerId The ID of the provider
-   * @returns Configuration for the specified provider or undefined if not found
-   */
   getProviderConfig(providerId: string): ProviderConfig | undefined {
     return getAllProviderConfigs(this.settings).find((config) => config.id === providerId);
   }

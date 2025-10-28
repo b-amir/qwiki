@@ -31,6 +31,5 @@ export default [
       semi: "warn",
     },
   },
-  // Disable stylistic rules in favor of Prettier
   prettier,
 ];

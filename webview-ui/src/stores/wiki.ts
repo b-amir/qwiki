@@ -30,17 +30,14 @@ export const useWikiStore = defineStore("wiki", {
             this.snippet = text || "";
             this.languageId = languageId || "";
             this.filePath = filePath || "";
-            // Keep related list in sync with current selection
             vscode.postMessage({ command: "getRelated" });
             return;
           }
           case "providers": {
             this.providers = message.payload || [];
-            // Default to first available provider with a key
             const withKey = this.providers.find((p) => p.hasKey)?.id;
             if (withKey) {
               this.providerId = withKey;
-              // Set default model for the selected provider if no model is selected
               if (!this.model) {
                 const selectedProvider = this.providers.find((p) => p.id === withKey);
                 if (selectedProvider?.models?.length) {
@@ -105,7 +102,6 @@ export const useWikiStore = defineStore("wiki", {
           filePath: this.filePath || undefined,
         },
       });
-      // Update related files alongside wiki generation
       vscode.postMessage({ command: "getRelated" });
     },
     openFile(path: string, line?: number) {

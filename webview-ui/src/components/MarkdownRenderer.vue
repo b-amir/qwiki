@@ -23,16 +23,14 @@ const md = new MarkdownIt({
   },
 });
 
-// Replace plain file-like references with markdown links that our click handler can open
 function linkifyFiles(input: string): string {
-  // Skip fenced code blocks while still allowing inline code to be linkified
   const lines = input.split(/\r?\n/);
   let inFence = false;
   const fenceRe = /^\s*```/;
-  // 1) Bracketed form like: [File.tsx]: description  -> make it a proper link
+
   const bracketFileLine =
     /^\s*\[([^\]]+?\.(?:tsx?|jsx?|vue|css|scss|less|json|md|mjs|cjs|ya?ml|py|go|java|kt|rs|cs|php|rb))\](\:(?!\/\/))?/i;
-  // 2) Plain token form -> wrap with [text](openfile:text)
+
   const fileRe =
     /(^|[\s(])((?:\.{1,2}[\\\/]|@\/|[A-Za-z]:[\\\/]|\/)?[A-Za-z0-9._\-\/\\]+?\.(?:tsx?|jsx?|vue|css|scss|less|json|md|mjs|cjs|ya?ml|py|go|java|kt|rs|cs|php|rb))(?:\:(\d+))?(?=$|[\s)\],;:\.'"])/g;
   const encode = (s: string) => s.replace(/\)/g, "%29");
@@ -43,7 +41,7 @@ function linkifyFiles(input: string): string {
         return line;
       }
       if (inFence) return line;
-      // Bracketed reference-like lines: [File.tsx]: Desc -> [File.tsx](openfile:File.tsx): Desc
+
       const m = line.match(bracketFileLine);
       if (m) {
         const label = m[1];
@@ -62,7 +60,6 @@ function linkifyFiles(input: string): string {
 function render() {
   if (container.value) {
     let content = props.content || "";
-    // Remove the first heading (h1) since it's displayed in the top bar
     content = content.replace(/^#\s+.+$/m, "");
     const linked = linkifyFiles(content);
     container.value.innerHTML = md.render(linked);
@@ -76,14 +73,9 @@ function handleLinkClicks(e: MouseEvent) {
   if (!anchor) return;
   const href = anchor.getAttribute("href") || "";
   if (!href) return;
-  // Ignore external links (http/https/mailto)
   if (/^(https?:|mailto:)/i.test(href)) return;
 
   e.preventDefault();
-  // Supported formats:
-  // - openfile:relative/path[:line]
-  // - file:///abs/path or file://C:/path
-  // - workspace-relative plain paths like src/foo.ts or ./bar/baz.ts
   let path = href;
   let line: number | undefined;
 
@@ -98,12 +90,9 @@ function handleLinkClicks(e: MouseEvent) {
       path = rest;
     }
   } else if (/^file:\/\//i.test(href)) {
-    // Strip file:// scheme
     path = href.replace(/^file:\/\//i, "");
-    // On Windows, keep drive like C:/
     path = decodeURIComponent(path);
   } else {
-    // Treat as workspace-relative or ./ relative
     path = href.replace(/^\.\//, "");
   }
 

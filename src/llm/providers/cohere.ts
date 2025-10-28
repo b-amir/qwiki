@@ -37,7 +37,6 @@ export class CohereProvider implements LLMProvider {
     }
 
     const data: any = await res.json();
-    // Cohere response format: result.text || result.message?.content
     const content = data?.text || data?.message?.content || "";
     return { content };
   }

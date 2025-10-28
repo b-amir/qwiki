@@ -11,9 +11,7 @@ const { setPage } = useNavigation();
 
 <template>
   <div class="flex flex-1 flex-col p-6">
-    <!-- Main content area -->
     <div class="flex flex-1 flex-col items-center justify-center space-y-6">
-      <!-- Qwiki Icon -->
       <div class="flex items-center justify-center">
         <svg
           width="120"
@@ -58,12 +56,10 @@ const { setPage } = useNavigation();
         </svg>
       </div>
 
-      <!-- Welcome Message -->
       <h1 class="text-xl font-semibold">
         One <span class="qwiki-gradient-text">Qwiki</span> and you'll know.
       </h1>
 
-      <!-- Tip -->
       <div class="bg-muted/20 border-border/50 rounded-lg border px-3 py-2">
         <div class="flex flex-col items-center space-y-2">
           <div class="flex flex-col items-center gap-1">
@@ -86,9 +82,7 @@ const { setPage } = useNavigation();
       </div>
     </div>
 
-    <!-- Bottom buttons area -->
     <div class="mt-auto flex flex-col gap-3 pt-6">
-      <!-- Generate Wiki Button -->
       <div class="w-full">
         <Button
           :disabled="wiki.loading || !wiki.snippet?.trim()"
@@ -99,7 +93,6 @@ const { setPage } = useNavigation();
         </Button>
       </div>
 
-      <!-- Change Model Link -->
       <div class="flex justify-center">
         <button
           class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
@@ -113,7 +106,6 @@ const { setPage } = useNavigation();
 </template>
 
 <style scoped>
-/* Minimal by design; shadcn + Tailwind handle styling. */
 .qwiki-gradient-text {
   background: linear-gradient(90deg, #8b5cf6, #3b82f6);
   background-size: 200% 200%;

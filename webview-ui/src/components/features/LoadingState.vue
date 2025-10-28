@@ -23,7 +23,6 @@ const props = withDefaults(defineProps<Props>(), {
   density: "medium",
 });
 
-// Default steps for wiki loading
 const wikiSteps: LoadingStep[] = [
   { text: "Validating selection...", key: "validating" },
   { text: "Analyzing code structure...", key: "analyzing" },
@@ -34,20 +33,17 @@ const wikiSteps: LoadingStep[] = [
   { text: "Finalizing documentation...", key: "finalizing" },
 ];
 
-// Default steps for settings loading
 const settingsSteps: LoadingStep[] = [
   { text: "Loading settings...", key: "loading" },
   { text: "Fetching providers...", key: "fetching" },
   { text: "Preparing configuration...", key: "preparing" },
 ];
 
-// Use provided steps or default based on density
 const steps = computed(() => {
   if (props.steps && props.steps.length > 0) {
     return props.steps;
   }
 
-  // Return appropriate default steps based on density
   if (props.density === "low") {
     return settingsSteps;
   }

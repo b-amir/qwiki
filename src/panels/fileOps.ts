@@ -29,7 +29,11 @@ export async function tryOpenFile(path: string, line?: number) {
       }
       let matches: readonly Uri[] = [];
       for (const g of globs) {
-        matches = await workspace.findFiles(g, "**/{node_modules,dist,out,build,.git,.vscode}/**", 5);
+        matches = await workspace.findFiles(
+          g,
+          "**/{node_modules,dist,out,build,.git,.vscode}/**",
+          5,
+        );
         if (matches.length) {
           targetUri = matches[0];
           break;

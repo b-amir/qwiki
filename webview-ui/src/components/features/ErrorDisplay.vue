@@ -9,12 +9,11 @@ const props = defineProps<Props>();
 
 const copySuccess = ref(false);
 
-// Function to copy error message to clipboard
 const copyErrorToClipboard = async () => {
   try {
     await navigator.clipboard.writeText(props.error);
     copySuccess.value = true;
-    // Reset the success indicator after 2 seconds
+
     setTimeout(() => {
       copySuccess.value = false;
     }, 2000);
@@ -28,7 +27,6 @@ const copyErrorToClipboard = async () => {
   <div class="flex h-full flex-col px-2 pl-3">
     <div class="flex flex-1 items-center justify-center">
       <div class="w-full max-w-md space-y-4">
-        <!-- Error message -->
         <div class="text-center">
           <div class="bg-muted/30 rounded-md border p-3">
             <div class="mb-2 flex items-center justify-between">
@@ -97,7 +95,6 @@ const copyErrorToClipboard = async () => {
         </div>
       </div>
     </div>
-    <!-- Slot for additional content like action buttons -->
     <div class="mt-auto">
       <slot name="actions" />
     </div>

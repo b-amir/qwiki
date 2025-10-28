@@ -19,7 +19,6 @@ export class GoogleAIStudioProvider implements LLMProvider {
     const prompt = buildWikiPrompt(params);
 
     if (this.useNativeEndpoint) {
-      // Native Google AI Studio endpoint (for future extension)
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
       const body = {
@@ -51,7 +50,6 @@ export class GoogleAIStudioProvider implements LLMProvider {
       const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("\n") || "";
       return { content: text };
     } else {
-      // OpenAI-compatible endpoint
       const url = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
 
       const messages = [

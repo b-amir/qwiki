@@ -26,13 +26,12 @@ export interface LLMProvider {
   requiresApiKey: boolean;
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   listModels(): string[];
-  // UI configuration for settings page
   getUiConfig?(): ProviderUiConfig;
 }
 
 export interface ProviderUiConfig {
   apiKeyUrl: string;
-  apiKeyInput: string; // Property name in settings store
+  apiKeyInput: string;
   additionalInfo?: string;
   hasEndpointType?: boolean;
   modelFallbackIds?: string[];
@@ -45,7 +44,7 @@ export interface ProviderCustomField {
   label: string;
   type: "text" | "select";
   placeholder?: string;
-  options?: string[]; // For select type
+  options?: string[];
   defaultValue?: string;
 }
 

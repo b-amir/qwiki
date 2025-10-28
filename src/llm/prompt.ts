@@ -21,9 +21,12 @@ export function buildWikiPrompt(params: GenerateParams) {
           : undefined,
         proj.related && proj.related.length
           ? `- Related Files & Usages:\n${proj.related
-              .map((r) => `  - ${r.path}${r.line ? `:${r.line}` : ""}${r.reason ? ` (${r.reason})` : ""}${
-                r.preview ? `\n      ${r.preview}` : ""
-              }`)
+              .map(
+                (r) =>
+                  `  - ${r.path}${r.line ? `:${r.line}` : ""}${r.reason ? ` (${r.reason})` : ""}${
+                    r.preview ? `\n      ${r.preview}` : ""
+                  }`,
+              )
               .join("\n")}`
           : undefined,
       ]
@@ -62,8 +65,5 @@ Formatting rules:
     "```" + (languageId || "") + "\n" + snippet + "\n```",
   ].join("\n");
 
-  return [header, context, projectSection, instructions, codeBlock]
-    .filter(Boolean)
-    .join("\n\n");
+  return [header, context, projectSection, instructions, codeBlock].filter(Boolean).join("\n\n");
 }
-

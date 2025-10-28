@@ -2,10 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme tokens (shadcn), sourced from VS Code theme vars when available */
 @layer base {
   :root {
-    /* Bind shadcn tokens directly to VS Code theme variables */
     --background: var(
       --vscode-sideBar-background,
       var(--vscode-panel-background, var(--vscode-editor-background))
@@ -43,7 +41,6 @@
 
     --radius: 0.5rem;
 
-    /* Extra semantic tokens mapped to VS Code for better blending */
     --link: var(--vscode-textLink-foreground);
     --link-hover: var(--vscode-textLink-activeForeground);
     --selection-bg: var(--vscode-editor-selectionBackground);
@@ -54,7 +51,6 @@
     --scrollbar-bg-active: var(--vscode-scrollbarSlider-activeBackground);
   }
 
-  /* Mirror the same bindings when Tailwind's `.dark` class is present */
   .dark {
     --background: var(
       --vscode-sideBar-background,
@@ -100,12 +96,10 @@
   }
 }
 
-/* Respect the host theme for form controls */
 :root {
   accent-color: var(--primary, var(--focus-ring));
 }
 
-/* Links follow VS Code theme */
 a {
   color: var(--link);
 }
@@ -113,19 +107,16 @@ a:hover {
   color: var(--link-hover);
 }
 
-/* Match editor selection colors */
 ::selection {
   background: var(--selection-bg);
   color: var(--selection-fg);
 }
 
-/* Accessible focus outlines aligned with focusBorder */
 *:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-/* Scrollbars that blend with the workbench */
 * {
   scrollbar-color: var(--scrollbar-bg) transparent;
 }
@@ -146,7 +137,6 @@ a:hover {
   background-color: var(--scrollbar-bg-active);
 }
 
-/* Keep VS Code webview defaults readable */
 :root,
 body,
 #app {
@@ -168,7 +158,6 @@ body {
     Segoe UI Emoji;
 }
 
-/* Basic prose styles for markdown */
 .prose h1,
 .prose h2,
 .prose h3 {
@@ -184,7 +173,6 @@ body {
   @apply text-muted-foreground mb-2 mt-3 text-base tracking-wide;
 }
 
-/* Visual separator before sections to improve scanning */
 .prose h2:not(:first-child)::before,
 .prose h3:not(:first-child)::before {
   content: "";

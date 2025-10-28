@@ -18,7 +18,6 @@ export interface ProviderConfig {
   customFields?: import("./types").ProviderCustomField[];
 }
 
-// Create provider instances with default settings
 const createProviderInstances = (settings: { zaiBaseUrl?: string; googleAIEndpoint?: string }) => {
   const googleAIStudioProvider = new GoogleAIStudioProvider(settings.googleAIEndpoint === "native");
 
@@ -31,11 +30,6 @@ const createProviderInstances = (settings: { zaiBaseUrl?: string; googleAIEndpoi
   };
 };
 
-/**
- * Get all provider configurations
- * @param settings Optional settings object for provider initialization
- * @returns Array of all provider configurations
- */
 export function getAllProviderConfigs(
   settings: { zaiBaseUrl?: string; googleAIEndpoint?: string } = {},
 ): ProviderConfig[] {
@@ -58,12 +52,6 @@ export function getAllProviderConfigs(
   });
 }
 
-/**
- * Get configuration for a specific provider
- * @param providerId The ID of the provider
- * @param settings Optional settings object for provider initialization
- * @returns Configuration for the specified provider or undefined if not found
- */
 export function getProviderConfig(
   providerId: string,
   settings: { zaiBaseUrl?: string; googleAIEndpoint?: string } = {},

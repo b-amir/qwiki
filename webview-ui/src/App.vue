@@ -10,17 +10,14 @@ const { currentPage } = useNavigation();
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 
-// Initialize wiki store
 wiki.init();
 
-// Initialize settings store
 settings.init();
 
 const currentModels = computed(
   () => wiki.providers.find((p) => p.id === wiki.providerId)?.models || [],
 );
 
-// Watch for provider changes to update model selection
 watch(
   () => wiki.providerId,
   () => {
@@ -31,7 +28,6 @@ watch(
   { immediate: true },
 );
 
-// Sync selected provider when providers are loaded
 watch(
   () => wiki.providers,
   () => {
@@ -46,24 +42,14 @@ watch(
 
 <template>
   <main class="bg-background flex h-full w-full flex-col">
-    <!-- TopBar component -->
     <TopBar />
 
-    <!-- Content area -->
     <div class="flex-1 overflow-auto py-3">
-      <!-- Debug: Show current page -->
-      <div v-if="false" class="mb-2 text-xs text-red-500">Current page: {{ currentPage }}</div>
-
-      <!-- Wiki Page -->
       <div v-if="currentPage === 'wiki'" class="flex h-full flex-col">
-        <!-- Homepage content when no wiki is generated -->
         <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
-
-        <!-- Wiki content when generated -->
         <WikiPage v-else />
       </div>
 
-      <!-- Settings Page -->
       <div v-else-if="currentPage === 'settings'">
         <SettingsPage />
       </div>

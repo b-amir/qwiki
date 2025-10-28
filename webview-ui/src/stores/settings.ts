@@ -9,15 +9,14 @@ export const useSettingsStore = defineStore("settings", {
     cohereKeyInput: "",
     huggingfaceKeyInput: "",
     zaiBaseUrl: "",
-    googleAIEndpoint: "openai-compatible", // "openai-compatible" or "native"
+    googleAIEndpoint: "openai-compatible",
     saving: false,
     savedMessage: "",
     loading: false,
     loadingProviders: false,
     initialized: false,
     listenerAttached: false,
-    selectedProvider: "zai", // Track selected provider
-    // Track original values to detect changes
+    selectedProvider: "zai",
     originalValues: {
       zaiKey: "",
       openrouterKey: "",
@@ -26,9 +25,7 @@ export const useSettingsStore = defineStore("settings", {
       huggingfaceKey: "",
       zaiBaseUrl: "",
     },
-    // Track which providers have unsaved changes
     unsavedProviders: new Set<string>(),
-    // Debounce timers for auto-save
     autoSaveTimers: {} as Record<string, number>,
   }),
   actions: {
@@ -36,7 +33,6 @@ export const useSettingsStore = defineStore("settings", {
       if (this.initialized) return;
       this.loading = true;
 
-      // Set up message listener
       window.addEventListener("message", (event) => {
         const message = event.data;
         switch (message.command) {
@@ -58,7 +54,6 @@ export const useSettingsStore = defineStore("settings", {
             this.zaiBaseUrl = zaiBaseUrl || "";
             this.googleAIEndpoint = googleAIEndpoint || "openai-compatible";
 
-            // Store original values to track changes
             this.originalValues.zaiKey = zaiKey || "";
             this.originalValues.openrouterKey = openrouterKey || "";
             this.originalValues.googleAIStudioKey = googleAIStudioKey || "";
@@ -66,7 +61,6 @@ export const useSettingsStore = defineStore("settings", {
             this.originalValues.huggingfaceKey = huggingfaceKey || "";
             this.originalValues.zaiBaseUrl = zaiBaseUrl || "";
 
-            // Clear unsaved changes since we just loaded from storage
             this.unsavedProviders.clear();
 
             this.initialized = true;
@@ -88,7 +82,6 @@ export const useSettingsStore = defineStore("settings", {
             return;
           }
           case "providers": {
-            // Set selectedProvider to the first provider with a key, or default to google-ai-studio
             const providers = message.payload || [];
             const withKey = providers.find((p: any) => p.hasKey);
 
@@ -98,9 +91,7 @@ export const useSettingsStore = defineStore("settings", {
         }
       });
 
-      // Request API keys from the extension
       vscode.postMessage({ command: "getApiKeys" });
-      // Also request providers to set the selected provider
       vscode.postMessage({ command: "getProviders" });
     },
     async saveZai() {
@@ -148,7 +139,6 @@ export const useSettingsStore = defineStore("settings", {
       });
       this.saving = false;
     },
-    // Track changes to API keys
     trackApiKeyChange(providerId: string, newValue: string) {
       const originalKey =
         this.originalValues[`${providerId}Key` as keyof typeof this.originalValues];
@@ -159,7 +149,6 @@ export const useSettingsStore = defineStore("settings", {
         this.unsavedProviders.delete(providerId);
       }
     },
-    // Save a setting value
     async saveSetting(setting: string, value: string) {
       this.saving = true;
       vscode.postMessage({
@@ -168,20 +157,16 @@ export const useSettingsStore = defineStore("settings", {
       });
       this.saving = false;
     },
-    // Auto-save with debounce for API keys
     autoSaveApiKey(providerId: string, apiKey: string) {
-      // Clear any existing timer for this provider
       if (this.autoSaveTimers[providerId]) {
         clearTimeout(this.autoSaveTimers[providerId]);
       }
 
-      // Set a new timer for auto-save (2 seconds delay)
       this.autoSaveTimers[providerId] = window.setTimeout(() => {
         this.saveApiKey(providerId, apiKey);
         delete this.autoSaveTimers[providerId];
       }, 2000);
     },
-    // Save a specific API key
     async saveApiKey(providerId: string, apiKey: string) {
       if (!apiKey) return;
 
@@ -192,23 +177,19 @@ export const useSettingsStore = defineStore("settings", {
         payload: { providerId, apiKey },
       });
 
-      // Update original value after successful save
       this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
       this.unsavedProviders.delete(providerId);
 
       this.saving = false;
     },
-    // Global save method that saves all providers with unsaved changes
     async saveAll() {
       if (this.unsavedProviders.size === 0) return;
 
       this.saving = true;
 
-      // Save each provider with unsaved changes
       const savePromises = Array.from(this.unsavedProviders).map((providerId) => {
         let apiKey = "";
 
-        // Get the current API key for this provider
         switch (providerId) {
           case "zai":
             apiKey = this.zaiKeyInput;
@@ -234,7 +215,6 @@ export const useSettingsStore = defineStore("settings", {
           payload: { providerId, apiKey },
         });
 
-        // Update original value
         this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
 
         return Promise.resolve();
@@ -242,16 +222,12 @@ export const useSettingsStore = defineStore("settings", {
 
       await Promise.all(savePromises);
 
-      // Clear all unsaved changes
       this.unsavedProviders.clear();
 
       this.saving = false;
     },
-    // Auto-save provider selection
     autoSaveProviderSelection(providerId: string) {
-      // Provider selection changes are saved immediately
       this.selectedProvider = providerId;
-      // No need to save provider selection to extension as it's handled in App.vue
     },
   },
 });

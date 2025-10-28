@@ -2,15 +2,7 @@ import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } fr
 import { buildWikiPrompt } from "../prompt";
 import { getNonce } from "../../utilities/getNonce";
 
-/**
- * Z.ai provider.
- *
- * Notes:
- * - This implementation assumes an OpenAI-compatible endpoint exposed by Z.ai.
- * - Configure base URL and model via settings; default model is 'z-1' if not provided.
- */
 const ZAI_MODELS = [
-  // Prefer broadly-available, cost-effective default first
   "glm-4.5-flash",
   "glm-4.5",
   "glm-4.5-air",
@@ -30,8 +22,6 @@ export class ZAiProvider implements LLMProvider {
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) throw new Error("Z.ai API key is not set");
     const model = params.model || ZAI_MODELS[0];
-    // Z.ai OpenAPI base server: https://api.z.ai/api
-    // Chat completions endpoint path: /paas/v4/chat/completions
     const base = this.baseUrl || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
     const url = `${base.replace(/\/$/, "")}/paas/v4/chat/completions`;
 
@@ -72,7 +62,6 @@ export class ZAiProvider implements LLMProvider {
         const code = err?.error?.code;
         const msg = err?.error?.message || text;
         if (res.status === 429 && code === "1113") {
-          // Retry with fallback models that are more broadly available
           for (const fb of ZAI_MODELS) {
             if (fb === model) continue;
             const attempt = await doRequest(fb);

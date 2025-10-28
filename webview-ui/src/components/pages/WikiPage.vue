@@ -13,12 +13,10 @@ const { setPage } = useNavigation();
 
 const wikiTitle = computed(() => {
   if (wiki.content) {
-    // Extract title from the first heading in the wiki content
     const headingMatch = wiki.content.match(/^#\s+(.+)$/m);
     if (headingMatch) {
       return headingMatch[1].trim();
     }
-    // If no heading found, try to extract from the first line
     const firstLine = wiki.content.split("\n")[0].trim();
     if (firstLine && !firstLine.startsWith("#")) {
       return firstLine;
@@ -29,7 +27,6 @@ const wikiTitle = computed(() => {
 
 const wikiContentWithoutTitle = computed(() => {
   if (wiki.content) {
-    // Remove the first heading since it's displayed in the top bar
     return wiki.content.replace(/^#\s+.+$/m, "");
   }
   return wiki.content;
@@ -38,7 +35,6 @@ const wikiContentWithoutTitle = computed(() => {
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- Wiki content when generated -->
     <div class="flex-1 overflow-auto pb-3">
       <div v-if="wiki.loading" class="h-full">
         <LoadingState
@@ -57,7 +53,6 @@ const wikiContentWithoutTitle = computed(() => {
       </div>
       <ErrorDisplay v-else-if="wiki.error" :error="wiki.error">
         <template #actions>
-          <!-- Change Model Link -->
           <div class="flex justify-center pt-6">
             <button
               class="text-muted-foreground hover:text-muted-foreground/80 text-sm"

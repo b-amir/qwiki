@@ -1,6 +1,5 @@
 <template>
   <div class="flex h-full flex-col">
-    <!-- Minimal status indicator -->
     <div class="flex-shrink-0 px-4 py-3">
       <div class="flex items-center justify-start gap-3">
         <div class="flex items-center">
@@ -106,7 +105,6 @@
       </div>
     </div>
 
-    <!-- Refined skeleton content -->
     <div class="flex-1 overflow-hidden px-4 py-4">
       <div class="mx-auto max-w-2xl space-y-3">
         <div
@@ -115,14 +113,12 @@
           class="animate-pulse"
           :style="{ animationDelay: `${index * 0.05}s` }"
         >
-          <!-- Line skeleton -->
           <div
             v-if="skeleton.type === 'line'"
             class="skeleton-line"
             :style="{ width: skeleton.width }"
           ></div>
 
-          <!-- Paragraph skeleton -->
           <div v-else-if="skeleton.type === 'paragraph'" class="skeleton-paragraph">
             <div
               v-for="(line, lineIndex) in skeleton.lines"
@@ -138,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted } from "vue";
 
 interface SkeletonElement {
   type: "line" | "paragraph";
@@ -177,29 +173,17 @@ const displayDescription = computed(() => {
   return steps.value[0].text;
 });
 
-// Generate wiki-style skeleton layout
 const generateSkeletonElements = (): SkeletonElement[] => {
   return [
-    // Page title
     { type: "line", width: "45%" },
-
-    // Introduction paragraph
     { type: "line", width: "100%" },
     { type: "line", width: "100%" },
     { type: "line", width: "95%" },
-
-    // First section heading
     { type: "line", width: "35%" },
-
-    // Section content
     { type: "line", width: "100%" },
     { type: "line", width: "100%" },
     { type: "line", width: "95%" },
-
-    // Second section heading
     { type: "line", width: "40%" },
-
-    // Section content
     { type: "line", width: "100%" },
   ];
 };

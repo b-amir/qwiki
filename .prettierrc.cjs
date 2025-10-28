@@ -1,4 +1,3 @@
-/** Shared Prettier config for extension + webview */
 module.exports = {
   semi: true,
   singleQuote: false,

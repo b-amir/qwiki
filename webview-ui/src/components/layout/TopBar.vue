@@ -10,12 +10,10 @@ const settings = useSettingsStore();
 
 const wikiTitle = computed(() => {
   if (wiki.content) {
-    // Extract title from the first heading in the wiki content
     const headingMatch = wiki.content.match(/^#\s+(.+)$/m);
     if (headingMatch) {
       return headingMatch[1].trim();
     }
-    // If no heading found, try to extract from the first line
     const firstLine = wiki.content.split("\n")[0].trim();
     if (firstLine && !firstLine.startsWith("#")) {
       return firstLine;
@@ -24,28 +22,23 @@ const wikiTitle = computed(() => {
   return "Wiki";
 });
 
-// Handle back button click for settings page
 const handleSettingsBack = () => {
-  // Clear all wiki state to ensure we go back to the HomePage
   wiki.clearContent();
   wiki.error = "";
   wiki.loading = false;
   setPage("wiki");
 };
 
-// Handle back button click for wiki page
 const handleWikiBack = () => {
   wiki.clearContent();
 };
 </script>
 
 <template>
-  <!-- Top bar for settings page -->
   <div
     v-if="currentPage === 'settings'"
     class="bg-background flex items-center gap-1 border-b px-2 py-3 pl-3"
   >
-    <!-- Back button on settings page -->
     <div class="flex items-center gap-2">
       <a
         class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
@@ -65,12 +58,10 @@ const handleWikiBack = () => {
     <span class="text-sm font-medium">Settings</span>
   </div>
 
-  <!-- Top bar for wiki page when content is displayed -->
   <div
     v-if="currentPage === 'wiki' && (wiki.content || wiki.loading || wiki.error)"
     class="bg-background flex items-center gap-1 border-b px-2 py-3 pl-3"
   >
-    <!-- Back button on wiki page -->
     <div class="flex items-center gap-2">
       <a
         class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"

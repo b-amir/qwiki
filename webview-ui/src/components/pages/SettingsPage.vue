@@ -9,7 +9,6 @@ const wiki = useWikiStore();
 const settings = useSettingsStore();
 const settingsLoading = ref(false);
 
-// Store provider configurations from the centralized system
 const centralizedProviderConfigs = ref<
   Array<{
     id: string;
@@ -31,10 +30,8 @@ const centralizedProviderConfigs = ref<
   }>
 >([]);
 
-// Get provider configurations from centralized system
 const providerConfigs = computed(() => {
   return centralizedProviderConfigs.value.map((config) => {
-    // Check if this provider exists in wiki providers
     const wikiProvider = wiki.providers.find((p) => p.id === config.id);
 
     return {
@@ -47,19 +44,16 @@ const providerConfigs = computed(() => {
       modelFallbackIds: config.modelFallbackIds,
       defaultModel: config.defaultModel,
       customFields: config.customFields,
-      // Include wiki provider data if available
       hasKey: wikiProvider?.hasKey || false,
       models: wikiProvider?.models || [],
     };
   });
 });
 
-// Get models for a specific provider with fallback support
 const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
   const provider = wiki.providers.find((p) => p.id === providerId);
   if (provider?.models?.length) return provider.models;
 
-  // Check fallback providers if specified
   if (fallbackIds) {
     for (const fallbackId of fallbackIds) {
       const fallbackProvider = wiki.providers.find((p) => p.id === fallbackId);
@@ -70,24 +64,20 @@ const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
   return [];
 };
 
-// Get API key input value for a provider
 const getApiKeyInput = (providerId: string) => {
   const config = providerConfigs.value.find((p) => p.id === providerId);
   return config ? (settings as any)[config.apiKeyInput] : "";
 };
 
-// Get custom field value
 const getCustomFieldValue = (fieldId: string) => {
   return (settings as any)[fieldId] || "";
 };
 
-// Handle provider selection change
 const handleProviderChange = (providerId: string) => {
   wiki.providerId = providerId;
   settings.autoSaveProviderSelection(providerId);
 };
 
-// Handle API key change with auto-save
 const handleApiKeyChange = (providerId: string, newValue: string) => {
   const config = providerConfigs.value.find((p) => p.id === providerId);
   if (config) {
@@ -96,12 +86,10 @@ const handleApiKeyChange = (providerId: string, newValue: string) => {
   }
 };
 
-// Handle custom field change
 const handleCustomFieldChange = (fieldId: string, newValue: string) => {
   settings.saveSetting(fieldId, newValue);
 };
 
-// Initialize settings when component is mounted
 const initSettings = async () => {
   if (!settings.initialized) {
     settingsLoading.value = true;
@@ -109,21 +97,16 @@ const initSettings = async () => {
     settingsLoading.value = false;
   }
 
-  // Request providers for wiki store (needed for hasKey and models data)
   vscode.postMessage({ command: "getProviders" });
-
-  // Request provider configurations from the extension
   vscode.postMessage({ command: "getProviderConfigs" });
 };
 
-// Set up message listener for provider configurations
 const setupMessageListener = () => {
   window.addEventListener("message", (event) => {
     const message = event.data;
     switch (message.command) {
       case "providerConfigs": {
         centralizedProviderConfigs.value = message.payload || [];
-        // Calculate heights after providers are loaded
         nextTick(() => {
           setTimeout(() => {
             providerConfigs.value.forEach((provider) => {
@@ -137,7 +120,6 @@ const setupMessageListener = () => {
   });
 };
 
-// Watch for provider selection changes to recalculate heights
 watch(
   () => settings.selectedProvider,
   (newProviderId) => {
@@ -146,13 +128,11 @@ watch(
         calculateContentHeight(newProviderId);
       });
 
-      // Set default model for the selected provider if no model is selected
       if (!wiki.model) {
         const provider = providerConfigs.value.find((p) => p.id === newProviderId);
         if (provider?.defaultModel) {
           wiki.model = provider.defaultModel;
         } else {
-          // Fallback to first available model
           const models = getModelsForProvider(newProviderId, provider?.modelFallbackIds);
           if (models.length > 0) {
             wiki.model = models[0];
@@ -163,10 +143,8 @@ watch(
   },
 );
 
-// Store the height of each provider content for smooth animations
 const contentHeights = ref<Record<string, number>>({});
 
-// Calculate the actual height of content elements
 const calculateContentHeight = async (providerId: string) => {
   await nextTick();
   const element = document.getElementById(`provider-content-${providerId}`);
@@ -175,12 +153,10 @@ const calculateContentHeight = async (providerId: string) => {
   }
 };
 
-// Initialize on component mount
 onMounted(() => {
   setupMessageListener();
   initSettings();
 
-  // Calculate heights after providers are loaded
   setTimeout(() => {
     providerConfigs.value.forEach((provider) => {
       calculateContentHeight(provider.id);
