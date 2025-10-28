@@ -1,5 +1,5 @@
 import { Uri, Webview, workspace } from "vscode";
-import { Outbound, LoadingStep } from "../../constants/Events";
+import { OutboundEvents, LoadingSteps } from "../../constants";
 import {
   FilePatterns,
   FileLimits,
@@ -26,7 +26,7 @@ export class ProjectContextService {
     const filesSample = files.slice(0, FileLimits.maxFileSample).map(this.relativePath);
     const overview = await this.readOverview();
     if (webview)
-      webview.postMessage({ command: Outbound.loadingStep, payload: { step: LoadingStep.finding } });
+      webview.postMessage({ command: OutboundEvents.loadingStep, payload: { step: LoadingSteps.finding } });
     const token = this.extractIdentifier(snippet) || this.baseName(filePath);
     const related = token ? await this.findTextUsages(token) : [];
     return { rootName, overview, filesSample, related };
