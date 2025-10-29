@@ -16,3 +16,4 @@ export {
   type PerformanceStats as ProviderPerformanceStats,
   type ProviderRanking,
 } from "./ProviderPerformanceService";
+export { ProviderFileSystemService } from "./ProviderFileSystemService";
