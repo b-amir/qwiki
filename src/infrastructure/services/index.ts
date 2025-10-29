@@ -17,3 +17,4 @@ export {
   type ProviderRanking,
 } from "./ProviderPerformanceService";
 export { ProviderFileSystemService } from "./ProviderFileSystemService";
+export { GenerationCacheService } from "./GenerationCacheService";
