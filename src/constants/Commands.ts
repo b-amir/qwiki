@@ -11,6 +11,11 @@ export const CommandIds = {
   getProviderConfigs: "getProviderConfigs",
   getConfiguration: "getConfiguration",
   updateConfiguration: "updateConfiguration",
+  validateConfiguration: "validateConfiguration",
+  applyConfigurationTemplate: "applyConfigurationTemplate",
+  createConfigurationBackup: "createConfigurationBackup",
+  getProviderHealth: "getProviderHealth",
+  getProviderPerformance: "getProviderPerformance",
 } as const;
 
 export const VSCodeCommandIds = {

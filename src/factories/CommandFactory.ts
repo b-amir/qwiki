@@ -15,6 +15,11 @@ import {
   GetProviderConfigsCommand,
   GetConfigurationCommand,
   UpdateConfigurationCommand,
+  ValidateConfigurationCommand,
+  ApplyConfigurationTemplateCommand,
+  CreateConfigurationBackupCommand,
+  GetProviderHealthCommand,
+  GetProviderPerformanceCommand,
 } from "../application/commands";
 import { MessageBus } from "../application/services/MessageBus";
 import { CommandIds } from "../constants";
@@ -96,6 +101,36 @@ export class CommandFactory {
           container.resolve("configurationManager"),
         ) as Command<T>;
 
+      case CommandIds.validateConfiguration:
+        return new ValidateConfigurationCommand(
+          container.resolve("configurationValidator"),
+          this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.applyConfigurationTemplate:
+        return new ApplyConfigurationTemplateCommand(
+          container.resolve("configurationTemplateService"),
+          this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.createConfigurationBackup:
+        return new CreateConfigurationBackupCommand(
+          container.resolve("configurationBackupService"),
+          this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.getProviderHealth:
+        return new GetProviderHealthCommand(
+          container.resolve("providerHealthService"),
+          this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.getProviderPerformance:
+        return new GetProviderPerformanceCommand(
+          container.resolve("providerPerformanceService"),
+          this.messageBus,
+        ) as Command<T>;
+
       default:
         return undefined;
     }
@@ -117,6 +152,11 @@ export class CommandFactory {
       CommandIds.getProviderConfigs,
       CommandIds.getConfiguration,
       CommandIds.updateConfiguration,
+      CommandIds.validateConfiguration,
+      CommandIds.applyConfigurationTemplate,
+      CommandIds.createConfigurationBackup,
+      CommandIds.getProviderHealth,
+      CommandIds.getProviderPerformance,
     ];
 
     for (const commandId of commandIds) {

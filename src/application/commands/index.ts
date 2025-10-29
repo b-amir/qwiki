@@ -11,3 +11,8 @@ export { GetSelectionCommand } from "./GetSelectionCommand";
 export { OpenFileCommand } from "./OpenFileCommand";
 export { SaveApiKeyCommand } from "./SaveApiKeyCommand";
 export { SaveSettingCommand } from "./SaveSettingCommand";
+export { ValidateConfigurationCommand } from "./ValidateConfigurationCommand";
+export { ApplyConfigurationTemplateCommand } from "./ApplyConfigurationTemplateCommand";
+export { CreateConfigurationBackupCommand } from "./CreateConfigurationBackupCommand";
+export { GetProviderHealthCommand } from "./GetProviderHealthCommand";
+export { GetProviderPerformanceCommand } from "./GetProviderPerformanceCommand";
