@@ -16,3 +16,6 @@ export { ApplyConfigurationTemplateCommand } from "./ApplyConfigurationTemplateC
 export { CreateConfigurationBackupCommand } from "./CreateConfigurationBackupCommand";
 export { GetProviderHealthCommand } from "./GetProviderHealthCommand";
 export { GetProviderPerformanceCommand } from "./GetProviderPerformanceCommand";
+export { CreatePromptTemplateCommand } from "./CreatePromptTemplateCommand";
+export { CreateWikiPageCommand } from "./CreateWikiPageCommand";
+export { CalculateQualityMetricsCommand } from "./CalculateQualityMetricsCommand";

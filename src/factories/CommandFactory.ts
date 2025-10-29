@@ -20,6 +20,9 @@ import {
   CreateConfigurationBackupCommand,
   GetProviderHealthCommand,
   GetProviderPerformanceCommand,
+  CreatePromptTemplateCommand,
+  CreateWikiPageCommand,
+  CalculateQualityMetricsCommand,
 } from "../application/commands";
 import { MessageBus } from "../application/services/MessageBus";
 import { CommandIds } from "../constants";
@@ -131,6 +134,24 @@ export class CommandFactory {
           this.messageBus,
         ) as Command<T>;
 
+      case CommandIds.createPromptTemplate:
+        return new CreatePromptTemplateCommand(
+          eventBus,
+          container.resolve("promptTemplateService"),
+        ) as Command<T>;
+
+      case CommandIds.createWikiPage:
+        return new CreateWikiPageCommand(
+          eventBus,
+          container.resolve("wikiStorageService"),
+        ) as Command<T>;
+
+      case CommandIds.calculateQualityMetrics:
+        return new CalculateQualityMetricsCommand(
+          eventBus,
+          container.resolve("qualityMetricsService"),
+        ) as Command<T>;
+
       default:
         return undefined;
     }
@@ -157,6 +178,9 @@ export class CommandFactory {
       CommandIds.createConfigurationBackup,
       CommandIds.getProviderHealth,
       CommandIds.getProviderPerformance,
+      CommandIds.createPromptTemplate,
+      CommandIds.createWikiPage,
+      CommandIds.calculateQualityMetrics,
     ];
 
     for (const commandId of commandIds) {
