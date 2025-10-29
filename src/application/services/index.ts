@@ -5,3 +5,4 @@ export { SelectionService } from "./SelectionService";
 export { WikiService } from "./WikiService";
 export { CachedWikiService } from "./CachedWikiService";
 export { ConfigurationManager } from "./ConfigurationManager";
+export { ConfigurationValidator } from "./ConfigurationValidator";
