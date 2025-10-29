@@ -39,7 +39,7 @@ export class ConfigurationManager {
     await this.configurationRepository.set(cacheKey, config);
     this.configCache.set(cacheKey, config);
 
-    await this.eventBus.emit("providerConfigChanged", { providerId, config });
+    await this.eventBus.publish("providerConfigChanged", { providerId, config });
   }
 
   async getGlobalConfig(): Promise<GlobalConfiguration> {
@@ -79,7 +79,7 @@ export class ConfigurationManager {
     await this.configurationRepository.set(cacheKey, updatedConfig);
     this.configCache.set(cacheKey, updatedConfig);
 
-    await this.eventBus.emit("globalConfigChanged", { config: updatedConfig });
+    await this.eventBus.publish("globalConfigChanged", { config: updatedConfig });
   }
 
   async validateConfiguration(config: any, schema: ConfigurationSchema): Promise<ValidationResult> {
