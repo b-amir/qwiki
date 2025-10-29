@@ -63,6 +63,7 @@ export class AppBootstrap {
   }
 
   private registerServices(): void {
+    this.container.registerInstance("eventBus", new EventBusImpl());
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
     this.container.registerInstance("cacheService", new CacheService());
@@ -154,8 +155,6 @@ export class AppBootstrap {
 
     this.container.register("commandRegistry", () => new CommandRegistry());
 
-    this.container.registerInstance("eventBus", new EventBusImpl());
-
     this.container.register(
       "errorHandler",
       () => new ErrorHandlerImpl(this.container.resolve("eventBus")),
@@ -167,7 +166,11 @@ export class AppBootstrap {
 
     this.container.registerLazy(
       "providerSelectionService",
-      async () => new ProviderSelectionService(await this.container.resolveLazy("llmRegistry")),
+      async () =>
+        new ProviderSelectionService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("eventBus"),
+        ),
     );
 
     this.container.registerLazy(
