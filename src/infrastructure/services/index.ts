@@ -19,3 +19,4 @@ export {
 export { ProviderFileSystemService } from "./ProviderFileSystemService";
 export { GenerationCacheService } from "./GenerationCacheService";
 export { RequestBatchingService } from "./RequestBatchingService";
+export { DebouncingService } from "./DebouncingService";
