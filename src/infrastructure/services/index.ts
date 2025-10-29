@@ -21,3 +21,4 @@ export { GenerationCacheService } from "./GenerationCacheService";
 export { RequestBatchingService } from "./RequestBatchingService";
 export { DebouncingService } from "./DebouncingService";
 export { BackgroundProcessingService } from "./BackgroundProcessingService";
+export { MemoryOptimizationService } from "./MemoryOptimizationService";
