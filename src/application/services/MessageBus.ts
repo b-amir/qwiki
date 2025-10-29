@@ -23,10 +23,22 @@ export class MessageBus {
   }
 
   postMessage(command: string, payload?: any): void {
-    this.debouncedPostMessage(command, payload);
+    try {
+      const size = payload ? JSON.stringify(payload).length : 0;
+      console.log(
+        `[QWIKI] MessageBus: Queueing message to webview - command=${command}, size=${size}`,
+      );
+    } catch {}
+    this.optimizer.postMessage(command, payload);
   }
 
   postImmediate(command: string, payload?: any): void {
+    try {
+      const size = payload ? JSON.stringify(payload).length : 0;
+      console.log(
+        `[QWIKI] MessageBus: Posting immediate message to webview - command=${command}, size=${size}`,
+      );
+    } catch {}
     this.optimizer.postImmediate(command, payload);
   }
 
@@ -54,6 +66,7 @@ export class MessageBus {
   }
 
   postSuccess(command: string, payload?: any): void {
+    console.log(`[QWIKI] MessageBus: postSuccess called for command=${command}`);
     this.postMessage(command, payload);
   }
 

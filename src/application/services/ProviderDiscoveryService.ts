@@ -16,50 +16,121 @@ export class ProviderDiscoveryService {
   ) {}
 
   async discoverProviders(): Promise<ProviderMetadata[]> {
-    const providerDirs = await this.getProviderDirectories();
-    const allProviders: ProviderMetadata[] = [];
+    const discoverStartTime = Date.now();
+    console.log("[QWIKI] ProviderDiscoveryService: Starting provider discovery");
 
-    for (const dir of providerDirs) {
-      try {
-        const providers = await this.scanDirectory(dir);
-        allProviders.push(...providers);
-      } catch (error) {
-        console.error(`[QWIKI] Failed to scan directory ${dir}:`, error);
+    try {
+      const providerDirs = await this.getProviderDirectories();
+      console.log(
+        `[QWIKI] ProviderDiscoveryService: Found ${providerDirs.length} provider directories to scan`,
+      );
+
+      const allProviders: ProviderMetadata[] = [];
+
+      for (const dir of providerDirs) {
+        const scanStartTime = Date.now();
+        console.log(`[QWIKI] ProviderDiscoveryService: Scanning directory ${dir}`);
+
+        try {
+          const providers = await this.scanDirectory(dir);
+          allProviders.push(...providers);
+
+          const scanEndTime = Date.now();
+          console.log(
+            `[QWIKI] ProviderDiscoveryService: Directory ${dir} scanned in ${scanEndTime - scanStartTime}ms, found ${providers.length} providers`,
+          );
+        } catch (error) {
+          const scanEndTime = Date.now();
+          console.error(
+            `[QWIKI] ProviderDiscoveryService: Failed to scan directory ${dir} after ${scanEndTime - scanStartTime}ms:`,
+            error,
+          );
+        }
       }
-    }
 
-    return allProviders;
+      const discoverEndTime = Date.now();
+      console.log(
+        `[QWIKI] ProviderDiscoveryService: Provider discovery completed in ${discoverEndTime - discoverStartTime}ms, found ${allProviders.length} total providers`,
+      );
+
+      return allProviders;
+    } catch (error) {
+      const discoverEndTime = Date.now();
+      console.error(
+        `[QWIKI] ProviderDiscoveryService: Provider discovery failed after ${discoverEndTime - discoverStartTime}ms:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   async scanDirectory(directoryPath: string): Promise<ProviderMetadata[]> {
-    if (!fs.existsSync(directoryPath)) {
-      return [];
-    }
+    const scanStartTime = Date.now();
+    console.log(`[QWIKI] ProviderDiscoveryService: Scanning directory ${directoryPath}`);
 
-    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
-    const providers: ProviderMetadata[] = [];
+    try {
+      if (!fs.existsSync(directoryPath)) {
+        console.warn(`[QWIKI] ProviderDiscoveryService: Directory ${directoryPath} does not exist`);
+        return [];
+      }
 
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const providerPath = path.join(directoryPath, entry.name);
-        const manifestPath = path.join(providerPath, "manifest.json");
+      const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+      const providers: ProviderMetadata[] = [];
+      let manifestCount = 0;
+      let successCount = 0;
 
-        if (fs.existsSync(manifestPath)) {
-          try {
-            const manifest =
-              await this.providerFileSystemService.readProviderManifest(manifestPath);
-            if (manifest) {
-              providers.push(manifest);
-              this.discoveredProviders.set(manifest.id, manifest);
+      console.log(
+        `[QWIKI] ProviderDiscoveryService: Found ${entries.length} entries in directory ${directoryPath}`,
+      );
+
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const providerPath = path.join(directoryPath, entry.name);
+          const manifestPath = path.join(providerPath, "manifest.json");
+
+          if (fs.existsSync(manifestPath)) {
+            manifestCount++;
+            console.log(`[QWIKI] ProviderDiscoveryService: Processing manifest ${manifestPath}`);
+
+            try {
+              const manifest =
+                await this.providerFileSystemService.readProviderManifest(manifestPath);
+              if (manifest) {
+                providers.push(manifest);
+                this.discoveredProviders.set(manifest.id, manifest);
+                successCount++;
+                console.log(
+                  `[QWIKI] ProviderDiscoveryService: Successfully loaded provider ${manifest.id} from ${manifestPath}`,
+                );
+              } else {
+                console.warn(
+                  `[QWIKI] ProviderDiscoveryService: No valid manifest returned from ${manifestPath}`,
+                );
+              }
+            } catch (error) {
+              console.error(
+                `[QWIKI] ProviderDiscoveryService: Failed to load manifest from ${manifestPath}:`,
+                error,
+              );
             }
-          } catch (error) {
-            console.error(`Failed to load manifest from ${manifestPath}:`, error);
           }
         }
       }
-    }
 
-    return providers;
+      const scanEndTime = Date.now();
+      console.log(
+        `[QWIKI] ProviderDiscoveryService: Directory scan completed in ${scanEndTime - scanStartTime}ms - ${manifestCount} manifests found, ${successCount} providers loaded successfully`,
+      );
+
+      return providers;
+    } catch (error) {
+      const scanEndTime = Date.now();
+      console.error(
+        `[QWIKI] ProviderDiscoveryService: Directory scan failed for ${directoryPath} after ${scanEndTime - scanStartTime}ms:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   async validateProviderManifest(manifest: any): Promise<ValidationResult> {
@@ -102,49 +173,112 @@ export class ProviderDiscoveryService {
   }
 
   async loadProviderFromMetadata(metadata: ProviderMetadata): Promise<LLMProvider | null> {
+    const loadStartTime = Date.now();
+    console.log(
+      `[QWIKI] ProviderDiscoveryService: Loading provider ${metadata.id} from ${metadata.entryPoint}`,
+    );
+
     try {
+      const importStartTime = Date.now();
       const providerModule = await import(metadata.entryPoint);
+      const importEndTime = Date.now();
+      console.log(
+        `[QWIKI] ProviderDiscoveryService: Module import completed in ${importEndTime - importStartTime}ms`,
+      );
+
       const ProviderClass = providerModule.default || providerModule[metadata.id];
 
       if (!ProviderClass) {
-        throw new Error(`Provider class not found in ${metadata.entryPoint}`);
+        const error = new Error(`Provider class not found in ${metadata.entryPoint}`);
+        console.error(`[QWIKI] ProviderDiscoveryService: ${error.message}`);
+        throw error;
       }
 
-      return new ProviderClass() as LLMProvider;
+      const instantiateStartTime = Date.now();
+      const provider = new ProviderClass() as LLMProvider;
+      const instantiateEndTime = Date.now();
+
+      const loadEndTime = Date.now();
+      console.log(
+        `[QWIKI] ProviderDiscoveryService: Provider ${metadata.id} loaded successfully in ${loadEndTime - loadStartTime}ms (instantiate: ${instantiateEndTime - instantiateStartTime}ms)`,
+      );
+
+      return provider;
     } catch (error) {
-      console.error(`[QWIKI] Failed to load provider ${metadata.id}:`, error);
+      const loadEndTime = Date.now();
+      console.error(
+        `[QWIKI] ProviderDiscoveryService: Failed to load provider ${metadata.id} after ${loadEndTime - loadStartTime}ms:`,
+        error,
+      );
       return null;
     }
   }
 
   startWatching(directories: string[]): void {
+    console.log(
+      `[QWIKI] ProviderDiscoveryService: Starting to watch ${directories.length} directories for changes`,
+    );
     this.stopWatching();
 
     for (const directory of directories) {
       if (fs.existsSync(directory)) {
-        const watcher = this.providerFileSystemService.watchProviderDirectory(
-          directory,
-          (change) => {
-            if (change.filename.endsWith("manifest.json")) {
-              this.eventBus.publish("provider-manifest-changed", {
-                directory,
-                filename: change.filename,
-                eventType: change.eventType,
-              });
-            }
-          },
+        console.log(
+          `[QWIKI] ProviderDiscoveryService: Setting up watcher for directory ${directory}`,
         );
 
-        this.watchers.push(watcher);
+        try {
+          const watcher = this.providerFileSystemService.watchProviderDirectory(
+            directory,
+            (change) => {
+              if (change.filename.endsWith("manifest.json")) {
+                console.log(
+                  `[QWIKI] ProviderDiscoveryService: Manifest file ${change.filename} changed in ${directory} (${change.eventType})`,
+                );
+                this.eventBus.publish("provider-manifest-changed", {
+                  directory,
+                  filename: change.filename,
+                  eventType: change.eventType,
+                });
+              }
+            },
+          );
+
+          this.watchers.push(watcher);
+          console.log(
+            `[QWIKI] ProviderDiscoveryService: Watcher established for directory ${directory}`,
+          );
+        } catch (error) {
+          console.error(
+            `[QWIKI] ProviderDiscoveryService: Failed to set up watcher for directory ${directory}:`,
+            error,
+          );
+        }
+      } else {
+        console.warn(
+          `[QWIKI] ProviderDiscoveryService: Directory ${directory} does not exist, cannot set up watcher`,
+        );
       }
     }
+
+    console.log(
+      `[QWIKI] ProviderDiscoveryService: Watching set up with ${this.watchers.length} active watchers`,
+    );
   }
 
   stopWatching(): void {
-    for (const watcher of this.watchers) {
-      watcher.close();
+    console.log(
+      `[QWIKI] ProviderDiscoveryService: Stopping ${this.watchers.length} directory watchers`,
+    );
+
+    try {
+      for (const watcher of this.watchers) {
+        watcher.close();
+      }
+      this.watchers = [];
+      console.log(`[QWIKI] ProviderDiscoveryService: All directory watchers stopped`);
+    } catch (error) {
+      console.error(`[QWIKI] ProviderDiscoveryService: Error stopping directory watchers:`, error);
     }
-    this.watchers = [];
   }
 
   getDiscoveredProviders(): ProviderMetadata[] {

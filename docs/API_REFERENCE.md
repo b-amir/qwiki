@@ -11,6 +11,7 @@ This document provides detailed API documentation for Qwiki's LLM providers and 
 3. [Message Types](#message-types)
 4. [Configuration API](#configuration-api)
 5. [Error Handling](#error-handling)
+6. [Phase 2 Services API](#phase-2-services-api)
 
 ## LLM Provider API
 
@@ -18,9 +19,9 @@ This document provides detailed API documentation for Qwiki's LLM providers and 
 
 **Important Note**: The system currently uses a **Registry Pattern**, not a Factory pattern as previously documented. Providers are statically instantiated and registered, not dynamically created.
 
-### Core Interface
+### Core Interface (Phase 2 Enhanced)
 
-All LLM providers must implement the `LLMProvider` interface:
+All LLM providers must implement the enhanced `LLMProvider` interface:
 
 ```typescript
 interface LLMProvider {
@@ -30,32 +31,95 @@ interface LLMProvider {
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
+
+  // Phase 2 additions
+  initialize?(): Promise<void>;
+  dispose?(): Promise<void>;
+  healthCheck?(): Promise<HealthCheckResult>;
+  getCapabilities?(): ProviderCapabilities;
+  getMetadata?(): ProviderMetadata;
 }
 ```
 
-### Provider Registration System
-
-**Current Implementation**:
+### Provider Metadata System (Phase 2)
 
 ```typescript
-// src/llm/providers/registry.ts
-export function loadProviders(getSetting: GetSetting): Record<string, LLMProvider> {
-  const providers: Record<string, LLMProvider> = {};
-  providers["google-ai-studio"] = new GoogleAIStudioProvider(getSetting);
-  providers["zai"] = new ZAiProvider(getSetting);
-  // ... hardcoded instantiation
-  return providers;
+interface ProviderMetadata {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  homepage?: string;
+  capabilities: ProviderCapabilities;
+  dependencies: string[];
+  minQwikiVersion: string;
+  entryPoint: string;
+}
+
+interface ProviderCapabilities {
+  maxTokens: number;
+  supportedLanguages: string[];
+  features: ProviderFeature[];
+  streaming: boolean;
+  functionCalling: boolean;
+  documentationTypes: DocumentationType[];
+  complexity: ComplexityRange;
+}
+
+interface ProviderManifest extends ProviderMetadata {
+  manifestVersion: string;
+  checksum: string;
 }
 ```
 
-**Limitations**:
+### Provider Registration System (Phase 2 Enhanced)
 
-- Hardcoded provider instantiation
-- Requires core code changes to add providers
-- No runtime discovery capabilities
-- Not truly extensible without modification
+**Current Implementation with Dynamic Discovery**:
 
-**Future Vision: Plugin Architecture**:
+```typescript
+// src/llm/providers/registry.ts (Phase 2 enhanced)
+export class ProviderRegistry {
+  private discoveryService: ProviderDiscoveryService;
+  private lifecycleManager: ProviderLifecycleManager;
+  private dependencyResolver: ProviderDependencyResolver;
+
+  async loadProviders(getSetting: GetSetting): Promise<Record<string, LLMProvider>> {
+    // Dynamic provider discovery
+    const discoveredProviders = await this.discoveryService.discoverProviders();
+
+    // Dependency resolution
+    const loadOrder = this.dependencyResolver.getLoadOrder(discoveredProviders);
+
+    // Lifecycle management
+    const providers: Record<string, LLMProvider> = {};
+    for (const providerId of loadOrder) {
+      const provider = await this.lifecycleManager.initializeProvider(providerId);
+      if (provider) {
+        providers[providerId] = provider;
+      }
+    }
+
+    return providers;
+  }
+
+  // Phase 2 additions
+  async reloadProviders(): Promise<void>;
+  async addProviderDirectory(directoryPath: string): Promise<void>;
+  async removeProviderDirectory(directoryPath: string): Promise<void>;
+  getProviderMetadata(providerId: string): ProviderMetadata | null;
+}
+```
+
+**Phase 2 Achievements**:
+
+- ✅ Dynamic provider discovery with manifest system
+- ✅ Provider lifecycle management with state machine
+- ✅ Automatic dependency resolution
+- ✅ Hot-reloading of providers
+- ✅ Runtime extensibility without core code changes
+
+**Future Vision: Plugin Architecture (Phase 3+)**:
 
 ```typescript
 // Planned: Dynamic provider discovery
@@ -694,8 +758,229 @@ const message = {
 2. **Error Handling**: Inconsistent across providers
 3. **Configuration Leakage**: Some provider knowledge in services
 
-**Planned Improvements**:
+**Phase 2 Implemented Improvements**:
 
-1. **Plugin Architecture**: Dynamic provider discovery
-2. **Standardized Errors**: Consistent error types and handling
-3. **Better Separation**: Reduce configuration leakage
+1. ✅ **Dynamic Provider Discovery**: Provider discovery service with manifest system
+2. ✅ **Standardized Errors**: Consistent error types and handling
+3. ✅ **Better Separation**: Reduced configuration leakage through validation engine
+4. ✅ **Smart Selection**: Context-aware provider selection with fallback
+5. ✅ **Performance Optimization**: Caching, batching, and background processing
+
+**Future Improvements (Phase 3+)**:
+
+1. **Plugin Architecture**: True plugin system with hot-swapping
+2. **Advanced AI Features**: Multi-provider generation and ensembles
+3. **Enterprise Features**: Team management and collaboration
+
+## Phase 2 Services API
+
+### Provider Discovery Service
+
+```typescript
+class ProviderDiscoveryService {
+  constructor(
+    private fileSystemService: ProviderFileSystemService,
+    private eventBus: EventBus
+  );
+
+  async discoverProviders(): Promise<ProviderMetadata[]>;
+  async scanDirectory(directoryPath: string): Promise<ProviderMetadata[]>;
+  validateProviderManifest(manifest: any): ValidationResult;
+  async loadProviderFromMetadata(metadata: ProviderMetadata): Promise<LLMProvider>;
+  startWatching(directories: string[]): void;
+  stopWatching(): void;
+  getDiscoveredProviders(): ProviderMetadata[];
+}
+```
+
+### Provider Lifecycle Manager
+
+```typescript
+class ProviderLifecycleManager {
+  constructor(
+    private discoveryService: ProviderDiscoveryService,
+    private eventBus: EventBus
+  );
+
+  async initializeProvider(providerId: string): Promise<void>;
+  async disposeProvider(providerId: string): Promise<void>;
+  async restartProvider(providerId: string): Promise<void>;
+  getProviderState(providerId: string): ProviderState;
+  getAllProviderStates(): Record<string, ProviderState>;
+  async healthCheckProvider(providerId: string): Promise<HealthCheckResult>;
+}
+
+enum ProviderState {
+  'unloaded' = 'unloaded',
+  'loading' = 'loading',
+  'loaded' = 'loaded',
+  'initializing' = 'initializing',
+  'ready' = 'ready',
+  'error' = 'error',
+  'disposing' = 'disposing'
+}
+```
+
+### Smart Provider Selection Service
+
+```typescript
+class SmartProviderSelectionService {
+  constructor(
+    private providerRegistry: ProviderRegistry,
+    private contextAnalysisService: ContextAnalysisService,
+    private providerPerformanceService: ProviderPerformanceService
+  );
+
+  async selectOptimalProvider(
+    context: CodeContext,
+    criteria?: SelectionCriteria
+  ): Promise<string>;
+
+  async scoreProvider(
+    providerId: string,
+    requirements: ContextRequirements
+  ): Promise<ProviderScore>;
+
+  async rankProviders(
+    requirements: ContextRequirements
+  ): Promise<ProviderRanking[]>;
+
+  async getSelectionExplanation(
+    providerId: string,
+    context: CodeContext
+  ): Promise<string>;
+}
+
+interface SelectionCriteria {
+  prioritizeCost?: boolean;
+  prioritizeSpeed?: boolean;
+  prioritizeQuality?: boolean;
+  excludeProviders?: string[];
+  preferredProviders?: string[];
+}
+```
+
+### Configuration Validation Engine
+
+```typescript
+class ConfigurationValidationEngine {
+  validateConfiguration(
+    config: any,
+    schema: ValidationSchema,
+    context: ValidationContext,
+  ): ValidationResult;
+
+  addValidationRule(rule: ValidationRule): void;
+  removeValidationRule(ruleId: string): void;
+  getValidationRules(): ValidationRule[];
+}
+
+interface ValidationRule {
+  id: string;
+  name: string;
+  description: string;
+  validator: (value: any, context: ValidationContext) => ValidationResult;
+  severity: "error" | "warning" | "info";
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+  correctedValue?: any;
+}
+```
+
+### Configuration Template Service
+
+```typescript
+class ConfigurationTemplateService {
+  createTemplate(config: any, metadata: TemplateMetadata): ConfigurationTemplate;
+
+  async applyTemplate(templateId: string, variables: Record<string, any>): Promise<void>;
+
+  validateTemplate(template: ConfigurationTemplate): ValidationResult;
+  getAvailableTemplates(): ConfigurationTemplate[];
+  async saveTemplate(template: ConfigurationTemplate): Promise<void>;
+  async deleteTemplate(templateId: string): Promise<void>;
+}
+
+interface ConfigurationTemplate {
+  id: string;
+  name: string;
+  description: string;
+  metadata: TemplateMetadata;
+  variables: TemplateVariable[];
+  configuration: any;
+}
+
+interface TemplateVariable {
+  name: string;
+  type: "string" | "number" | "boolean" | "select";
+  description: string;
+  defaultValue?: any;
+  required: boolean;
+  options?: string[];
+}
+```
+
+### Performance Optimization Services
+
+```typescript
+class CachingService {
+  async get<T>(key: string): Promise<T | null>;
+  async set<T>(
+    key: string,
+    value: T,
+    options?: CacheOptions
+  ): Promise<void>;
+  async delete(key: string): Promise<void>;
+  async clear(): Promise<void>;
+  getStatistics(): CacheStatistics;
+  async evictExpired(): Promise<void>;
+}
+
+interface CacheOptions {
+  ttl?: number;
+  priority?: number;
+  tags?: string[];
+}
+
+class GenerationCacheService {
+  constructor(private cachingService: CachingService);
+
+  async getCachedGeneration(
+    params: GenerateParams
+  ): Promise<GenerateResult | null>;
+
+  async cacheGeneration(
+    params: GenerateParams,
+    result: GenerateResult
+  ): Promise<void>;
+
+  generateCacheKey(params: GenerateParams): string;
+  async invalidateCache(pattern: string): Promise<void>;
+  async warmCache(commonParams: GenerateParams[]): Promise<void>;
+}
+
+class RequestBatchingService {
+  batchRequest<T>(
+    request: () => Promise<T>,
+    options?: BatchOptions
+  ): Promise<T>;
+
+  async flushBatch(): Promise<void>;
+  getBatchStatistics(): BatchStatistics;
+  configureBatching(options: BatchOptions): void;
+}
+
+class BackgroundProcessingService {
+  enqueueTask(task: BackgroundTask): string;
+  dequeueTask(taskId: string): boolean;
+  getTaskStatus(taskId: string): TaskStatus;
+  async processQueue(): Promise<void>;
+  pauseQueue(): void;
+  resumeQueue(): void;
+  getQueueStatistics(): QueueStatistics;
+}
+```

@@ -38,15 +38,31 @@ export class QwikiPanel {
   private async initializeAsync(): Promise<void> {
     try {
       await this.bootstrap.initialize();
+      console.log("[QWIKI] QwikiPanel: bootstrap.initialize completed successfully");
     } catch (e) {
       console.error("[QWIKI] QwikiPanel: bootstrap.initialize failed:", e);
+      return;
     }
+
     try {
       await this.bootstrap.initializeEventHandlers();
+      console.log("[QWIKI] QwikiPanel: initializeEventHandlers completed successfully");
     } catch (e) {
       console.error("[QWIKI] QwikiPanel: initializeEventHandlers failed:", e);
+      return;
     }
-    this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
+
+    try {
+      this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
+      console.log("[QWIKI] QwikiPanel: errorHandler retrieved successfully");
+    } catch (e) {
+      console.error("[QWIKI] QwikiPanel: getErrorHandler failed:", e);
+      this.errorHandler = {
+        handle: (error: any, context?: any) => {
+          console.error("[QWIKI] Fallback error handler:", error, context);
+        },
+      } as ErrorHandler;
+    }
   }
 
   public async resolveWebviewView(webviewView: WebviewView) {
@@ -66,16 +82,19 @@ export class QwikiPanel {
       .createCommandRegistry(webviewView.webview)
       .then((registry) => {
         this.commandRegistry = registry;
+        console.log("[QWIKI] QwikiPanel: createCommandRegistry completed successfully");
       })
       .catch((e) => {
         console.error("[QWIKI] QwikiPanel: createCommandRegistry failed:", e);
+        this.createFallbackCommandRegistry(webviewView.webview);
       });
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
 
     try {
       webviewView.webview.postMessage({ command: Outbound.webviewReady, payload: { ready: true } });
+      console.log("[QWIKI] QwikiPanel: webviewReady message sent successfully");
     } catch (error) {
-      console.error("[QWIKI] QwikiPanel: Exception in initializeAsync:", error);
+      console.error("[QWIKI] QwikiPanel: Failed to send webviewReady message:", error);
     }
   }
 
@@ -175,7 +194,23 @@ export class QwikiPanel {
         const payload = message.payload;
 
         try {
+          const receiveTs = Date.now();
+          console.log(`[QWIKI] QwikiPanel: Received webview message - command=${command}`);
           switch (command) {
+            case "frontendLog": {
+              try {
+                const msg = payload?.message ?? "";
+                const data = payload?.data;
+                if (data !== undefined) {
+                  console.log(`[QWIKI] Frontend: ${msg}`, data);
+                } else {
+                  console.log(`[QWIKI] Frontend: ${msg}`);
+                }
+              } catch (e) {
+                console.log(`[QWIKI] Frontend: <log formatting error>`);
+              }
+              return;
+            }
             case Inbound.webviewReady: {
               this._webviewReady = true;
               this._flushPendingNavigation();
@@ -204,6 +239,10 @@ export class QwikiPanel {
                   console.error("[QWIKI] Initialization failed before command execution:", e);
                 });
                 await this.commandRegistry.execute(command, payload);
+                const doneTs = Date.now();
+                console.log(
+                  `[QWIKI] QwikiPanel: Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`,
+                );
               }
               return;
             }
@@ -215,5 +254,37 @@ export class QwikiPanel {
       undefined,
       this._disposables,
     );
+  }
+
+  private createFallbackCommandRegistry(webview: Webview): void {
+    console.warn(
+      "[QWIKI] QwikiPanel: Creating fallback command registry with limited functionality",
+    );
+
+    const fallbackRegistry = new CommandRegistry();
+
+    const originalExecute = fallbackRegistry.execute.bind(fallbackRegistry);
+    const originalRegister = fallbackRegistry.register.bind(fallbackRegistry);
+
+    fallbackRegistry.execute = async <T>(name: string, payload: T): Promise<void> => {
+      console.warn(
+        `[QWIKI] Fallback command registry: Attempting to execute command "${name}" - initialization may have failed`,
+      );
+      try {
+        return await originalExecute(name, payload);
+      } catch (error) {
+        console.error(`[QWIKI] Fallback command registry: Command "${name}" failed:`, error);
+        throw new Error(
+          `Command "${name}" cannot be executed due to initialization failure: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    };
+
+    fallbackRegistry.register = <T>(name: string, command: any): void => {
+      console.log(`[QWIKI] Fallback command registry: Registered command "${name}"`);
+      return originalRegister(name, command);
+    };
+
+    this.commandRegistry = fallbackRegistry;
   }
 }

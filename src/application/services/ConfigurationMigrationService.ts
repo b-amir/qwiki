@@ -4,8 +4,9 @@ import { EventBus } from "../../events";
 
 export class ConfigurationMigrationService {
   private migrationSteps: MigrationStep[] = [];
-  private readonly MIGRATION_VERSION_KEY = "qwiki.migration.version";
-  private readonly BACKUP_PREFIX = "qwiki.migration.backup.";
+  private readonly MIGRATION_VERSION_KEY = "migration.version";
+  private readonly BACKUP_PREFIX = "migration.backup.";
+  private readonly GLOBAL_BACKUP_KEY = "migration.globalBackup";
 
   constructor(
     private configurationRepository: ConfigurationRepository,
@@ -88,8 +89,10 @@ export class ConfigurationMigrationService {
       return;
     }
 
-    const backupKey = `${this.BACKUP_PREFIX}${targetVersion}`;
-    const backup = await this.configurationRepository.get<ExportedConfiguration>(backupKey);
+    const globalBackup = await this.configurationRepository.get<
+      Record<string, ExportedConfiguration>
+    >(this.GLOBAL_BACKUP_KEY);
+    const backup = globalBackup?.[targetVersion];
 
     if (!backup) {
       throw new Error(`No backup found for version ${targetVersion}`);
@@ -105,31 +108,36 @@ export class ConfigurationMigrationService {
   }
 
   async getAvailableBackups(): Promise<string[]> {
-    const allConfigs = await this.configurationRepository.getAll();
-    const backupVersions: string[] = [];
-
-    for (const key of Object.keys(allConfigs)) {
-      if (key.startsWith(this.BACKUP_PREFIX)) {
-        const version = key.replace(this.BACKUP_PREFIX, "");
-        backupVersions.push(version);
-      }
+    const globalBackup = await this.configurationRepository.get<
+      Record<string, ExportedConfiguration>
+    >(this.GLOBAL_BACKUP_KEY);
+    if (!globalBackup) {
+      return [];
     }
 
+    const backupVersions = Object.keys(globalBackup);
     return backupVersions.sort((a, b) => this.compareVersions(b, a));
   }
 
   async deleteBackup(version: string): Promise<void> {
-    const backupKey = `${this.BACKUP_PREFIX}${version}`;
-    await this.configurationRepository.set(backupKey, undefined as any);
+    const globalBackup =
+      (await this.configurationRepository.get<Record<string, ExportedConfiguration>>(
+        this.GLOBAL_BACKUP_KEY,
+      )) || {};
+    delete globalBackup[version];
+    await this.configurationRepository.set(this.GLOBAL_BACKUP_KEY, globalBackup);
 
     await this.eventBus.publish("backupDeleted", { version });
   }
 
   private async createBackup(version: string): Promise<void> {
     const config = await this.getAllConfiguration();
-    const backupKey = `${this.BACKUP_PREFIX}${version}`;
-
-    await this.configurationRepository.set(backupKey, config);
+    const globalBackup =
+      (await this.configurationRepository.get<Record<string, ExportedConfiguration>>(
+        this.GLOBAL_BACKUP_KEY,
+      )) || {};
+    globalBackup[version] = config;
+    await this.configurationRepository.set(this.GLOBAL_BACKUP_KEY, globalBackup);
 
     await this.eventBus.publish("backupCreated", { version });
   }

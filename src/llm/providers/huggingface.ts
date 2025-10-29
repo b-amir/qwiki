@@ -67,20 +67,39 @@ export class HuggingFaceProvider implements LLMProvider {
     const url = `https://api-inference.huggingface.co/models/${encodeURIComponent(model)}`;
     const prompt = buildWikiPrompt(params);
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          temperature: 0.2,
-          max_new_tokens: 3072,
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
-      }),
-    });
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            temperature: 0.2,
+            max_new_tokens: 3072,
+          },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new ProviderError(
+          ErrorCodes.NETWORK_ERROR,
+          "Hugging Face request timed out after 30 seconds",
+          this.id,
+          "Request timeout",
+        );
+      }
+      throw error;
+    }
 
     if (!res.ok) {
       const text = await res.text();

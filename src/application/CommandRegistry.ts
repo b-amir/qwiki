@@ -13,7 +13,20 @@ export class CommandRegistry {
     if (!command) {
       throw new Error(`${ErrorMessages[ErrorCodes.missingCommand]}: ${name}`);
     }
-    await command.execute(payload);
+    const start = Date.now();
+    try {
+      console.log(`[QWIKI] CommandRegistry: Executing command "${name}"`);
+      await command.execute(payload);
+      const duration = Date.now() - start;
+      console.log(`[QWIKI] CommandRegistry: Command "${name}" completed in ${duration}ms`);
+    } catch (error) {
+      const duration = Date.now() - start;
+      console.error(
+        `[QWIKI] CommandRegistry: Command "${name}" failed after ${duration}ms:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   has(name: string): boolean {

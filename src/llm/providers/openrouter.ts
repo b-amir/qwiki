@@ -71,22 +71,41 @@ export class OpenRouterProvider implements LLMProvider {
       { role: "user", content: prompt },
     ];
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer":
-          "https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-qwiki",
-        "X-Title": "Qwiki - VS Code Extension",
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.2,
-        max_tokens: 4096,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer":
+            "https://marketplace.visualstudio.com/items?itemName=ms-vscode.vscode-qwiki",
+          "X-Title": "Qwiki - VS Code Extension",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+          max_tokens: 4096,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new ProviderError(
+          ErrorCodes.NETWORK_ERROR,
+          "OpenRouter request timed out after 30 seconds",
+          this.id,
+          "Request timeout",
+        );
+      }
+      throw error;
+    }
 
     if (!res.ok) {
       const text = await res.text();

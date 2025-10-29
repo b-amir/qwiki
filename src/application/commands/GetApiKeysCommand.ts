@@ -13,6 +13,8 @@ export class GetApiKeysCommand implements Command<void> {
   ) {}
 
   async execute(): Promise<void> {
+    const start = Date.now();
+    console.log("[QWIKI] GetApiKeysCommand: Starting to gather API keys and settings");
     const providerConfigs = getAllProviderConfigs();
 
     const providerIds = providerConfigs.map((p) => p.id);
@@ -46,5 +48,8 @@ export class GetApiKeysCommand implements Command<void> {
     const payload = { apiKeys, settings };
 
     this.messageBus.postSuccess(OutboundEvents.apiKeys, payload);
+    console.log(
+      `[QWIKI] GetApiKeysCommand: Sent apiKeys for ${Object.keys(apiKeys).length} providers in ${Date.now() - start}ms`,
+    );
   }
 }

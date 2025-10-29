@@ -85,13 +85,32 @@ export class GoogleAIStudioProvider implements LLMProvider {
         },
       };
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let res;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new ProviderError(
+            ErrorCodes.NETWORK_ERROR,
+            "Google AI Studio request timed out after 30 seconds",
+            this.id,
+            "Request timeout",
+          );
+        }
+        throw error;
+      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -142,19 +161,38 @@ export class GoogleAIStudioProvider implements LLMProvider {
         { role: "user", content: prompt },
       ];
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 4096,
-        }),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let res;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.2,
+            max_tokens: 4096,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new ProviderError(
+            ErrorCodes.NETWORK_ERROR,
+            "Google AI Studio request timed out after 30 seconds",
+            this.id,
+            "Request timeout",
+          );
+        }
+        throw error;
+      }
 
       if (!res.ok) {
         const text = await res.text();

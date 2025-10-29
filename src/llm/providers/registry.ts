@@ -13,6 +13,8 @@ import { HuggingFaceProvider } from "./huggingface";
 import { CachingService } from "../../infrastructure/services/CachingService";
 import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
 import type { GenerateParams, GenerateResult } from "../types";
+import { ErrorRecoveryService } from "../../infrastructure/services/ErrorRecoveryService";
+import { ProviderError, ErrorCodes } from "../../errors";
 
 export type GetSetting = (key: string) => Promise<any>;
 
@@ -113,10 +115,45 @@ export class LLMRegistry {
       return cachedResult;
     }
 
-    const result = await provider.generate(params, undefined);
-    await this.cachingService.set(cacheKey, result, { ttl: 300000 });
+    const errorRecoveryService = new ErrorRecoveryService(this.eventBus);
 
-    return result;
+    try {
+      const result = await errorRecoveryService.executeWithRetry(
+        async () => {
+          const apiKey = await this.getApiKeyForProvider(providerId);
+          return provider.generate(params, apiKey);
+        },
+        (error: any) => {
+          if (error instanceof Error) {
+            return new ProviderError(
+              ErrorCodes.GENERATION_FAILED,
+              error.message,
+              providerId,
+              error.stack,
+            );
+          }
+          return error;
+        },
+        providerId,
+      );
+
+      await this.cachingService.set(cacheKey, result, { ttl: 300000 });
+      return result;
+    } catch (error) {
+      console.error(`[QWIKI] Provider ${providerId} generation failed after retries:`, error);
+
+      await this.eventBus.publish("providerGenerationFailed", {
+        providerId,
+        error,
+        params,
+      });
+
+      throw error;
+    }
+  }
+
+  private async getApiKeyForProvider(providerId: string): Promise<string | undefined> {
+    return undefined;
   }
 
   private async loadBuiltInProviders(): Promise<void> {

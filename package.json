@@ -27,6 +27,21 @@
           ],
           "default": "openai-compatible",
           "description": "Google AI Studio endpoint type. Use 'openai-compatible' for OpenAI-compatible endpoint or 'native' for Google's native endpoint."
+        },
+        "qwiki.global": {
+          "type": "object",
+          "default": {},
+          "description": "Global Qwiki configuration settings."
+        },
+        "qwiki.migration.version": {
+          "type": "string",
+          "default": "1.0.0",
+          "description": "Current migration version for configuration migration."
+        },
+        "qwiki.migration.globalBackup": {
+          "type": "object",
+          "default": {},
+          "description": "Global backup storage for configuration migrations."
         }
       }
     },

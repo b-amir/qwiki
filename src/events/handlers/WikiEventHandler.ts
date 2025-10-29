@@ -28,41 +28,43 @@ export class WikiEventHandler {
         payload?.languageId,
       );
 
-      await this.wikiService
-        .generateWiki(payload, projectContext, (step: LoadingStep) => {
+      const result = await this.wikiService.generateWiki(
+        payload,
+        projectContext,
+        (step: LoadingStep) => {
           this.eventBus.publish(OutboundEvents.loadingStep, { step });
-        })
-        .then((result: any) => {
-          if (result.success) {
-            this.eventBus.publish(OutboundEvents.wikiResult, {
-              content: result.content,
-              success: true,
-            });
-          } else {
-            const error = new ProviderError(
-              ErrorCodes.GENERATION_FAILED,
-              result.error || "Wiki generation failed",
-              payload.providerId,
-            );
+        },
+      );
 
-            console.error("[QWIKI]", `Wiki generation failed in handler`, {
-              code: error.code,
-              message: error.message,
-              providerId: payload.providerId,
-              snippet:
-                payload.snippet?.substring(0, 100) + (payload.snippet?.length > 100 ? "..." : ""),
-              filePath: payload.filePath,
-              languageId: payload.languageId,
-            });
-
-            this.errorLoggingService.logError(error);
-            this.eventBus.publish(OutboundEvents.error, {
-              code: error.code,
-              message: this.errorRecoveryService.getUserFriendlyMessage(error),
-              suggestion: this.errorRecoveryService.getActionableSuggestion(error),
-            });
-          }
+      if (result && result.success) {
+        this.eventBus.publish(OutboundEvents.wikiResult, {
+          content: result.content,
+          success: true,
         });
+      } else {
+        const error = new ProviderError(
+          ErrorCodes.GENERATION_FAILED,
+          (result && result.error) || "Wiki generation failed",
+          payload.providerId,
+        );
+
+        console.error("[QWIKI]", `Wiki generation failed in handler`, {
+          code: error.code,
+          message: error.message,
+          providerId: payload.providerId,
+          snippet:
+            payload.snippet?.substring(0, 100) + (payload.snippet?.length > 100 ? "..." : ""),
+          filePath: payload.filePath,
+          languageId: payload.languageId,
+        });
+
+        this.errorLoggingService.logError(error);
+        this.eventBus.publish(OutboundEvents.error, {
+          code: error.code,
+          message: this.errorRecoveryService.getUserFriendlyMessage(error),
+          suggestion: this.errorRecoveryService.getActionableSuggestion(error),
+        });
+      }
     } catch (error: any) {
       const providerError = ProviderError.fromError(error, payload.providerId);
 

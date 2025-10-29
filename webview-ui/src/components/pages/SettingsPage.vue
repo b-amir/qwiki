@@ -31,28 +31,46 @@ const centralizedProviderConfigs = ref<
 >([]);
 
 const providerCapabilities = ref<Record<string, any>>({});
+const validating = ref(false);
+const lastValidationValid = ref<boolean | null>(null);
 const showValidationErrors = ref(false);
 const validationErrors = ref<string[]>([]);
 const validationWarnings = ref<string[]>([]);
 
 const providerConfigs = computed(() => {
-  return centralizedProviderConfigs.value.map((config) => {
-    const wikiProvider = wiki.providers.find((p) => p.id === config.id);
+  if (centralizedProviderConfigs.value.length > 0) {
+    return centralizedProviderConfigs.value.map((config) => {
+      const wikiProvider = wiki.providers.find((p) => p.id === config.id);
 
-    return {
-      id: config.id,
-      name: config.name,
-      apiKeyUrl: config.apiKeyUrl,
-      apiKeyInput: config.apiKeyInput,
-      additionalInfo: config.additionalInfo,
-      hasEndpointType: config.hasEndpointType,
-      modelFallbackIds: config.modelFallbackIds,
-      defaultModel: config.defaultModel,
-      customFields: config.customFields,
-      hasKey: wikiProvider?.hasKey || false,
-      models: wikiProvider?.models || [],
-    };
-  });
+      return {
+        id: config.id,
+        name: config.name,
+        apiKeyUrl: config.apiKeyUrl,
+        apiKeyInput: config.apiKeyInput,
+        additionalInfo: config.additionalInfo,
+        hasEndpointType: config.hasEndpointType,
+        modelFallbackIds: config.modelFallbackIds,
+        defaultModel: config.defaultModel,
+        customFields: config.customFields,
+        hasKey: wikiProvider?.hasKey || false,
+        models: wikiProvider?.models || [],
+      };
+    });
+  }
+
+  return wiki.providers.map((p) => ({
+    id: p.id,
+    name: p.name,
+    apiKeyUrl: "",
+    apiKeyInput: "",
+    additionalInfo: undefined,
+    hasEndpointType: false,
+    modelFallbackIds: [],
+    defaultModel: p.models?.[0],
+    customFields: [],
+    hasKey: p.hasKey,
+    models: p.models || [],
+  }));
 });
 
 const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
@@ -78,20 +96,46 @@ const getProviderCapability = (providerId: string, capability: string) => {
 };
 
 const validateCurrentConfiguration = () => {
-  const selectedProviderConfig = providerConfigs.value.find(
-    (p) => p.id === settings.selectedProvider,
+  const validationStartTime = Date.now();
+  console.log(
+    `[QWIKI] Settings: Validating configuration for provider ${settings.selectedProvider}`,
   );
 
-  if (selectedProviderConfig) {
-    const config = {
-      apiKey: getApiKeyInput(settings.selectedProvider),
-      model: wiki.model,
-    };
+  try {
+    const selectedProviderConfig = providerConfigs.value.find(
+      (p) => p.id === settings.selectedProvider,
+    );
 
-    settings.validateConfiguration(config, settings.selectedProvider);
-    showValidationErrors.value = true;
-    validationErrors.value = settings.validationErrors;
-    validationWarnings.value = settings.validationWarnings;
+    if (selectedProviderConfig) {
+      const config = {
+        id: selectedProviderConfig.id,
+        name: selectedProviderConfig.name,
+        enabled: true,
+        apiKey: getApiKeyInput(settings.selectedProvider),
+        model: wiki.model,
+      };
+
+      validating.value = true;
+      lastValidationValid.value = null;
+      settings.validateConfiguration(config, settings.selectedProvider);
+      showValidationErrors.value = true;
+      validationErrors.value = settings.validationErrors;
+      validationWarnings.value = settings.validationWarnings;
+
+      const validationEndTime = Date.now();
+      console.log(
+        `[QWIKI] Settings: Configuration validation completed in ${validationEndTime - validationStartTime}ms`,
+      );
+    } else {
+      console.error(
+        `[QWIKI] Settings: Selected provider config not found for ${settings.selectedProvider}`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[QWIKI] Settings: Error validating configuration for provider ${settings.selectedProvider}:`,
+      error,
+    );
   }
 };
 
@@ -100,16 +144,42 @@ const getCustomFieldValue = (fieldId: string) => {
 };
 
 const handleProviderChange = (providerId: string) => {
-  wiki.providerId = providerId;
-  settings.autoSaveProviderSelection(providerId);
+  const changeStartTime = Date.now();
+  console.log(`[QWIKI] Settings: Changing provider to ${providerId}`);
+
+  try {
+    wiki.providerId = providerId;
+    settings.autoSaveProviderSelection(providerId);
+
+    const changeEndTime = Date.now();
+    console.log(
+      `[QWIKI] Settings: Provider change completed in ${changeEndTime - changeStartTime}ms`,
+    );
+  } catch (error) {
+    console.error(`[QWIKI] Settings: Error changing provider to ${providerId}:`, error);
+  }
 };
 
 const handleApiKeyChange = (providerId: string, newValue: string) => {
-  const config = providerConfigs.value.find((p) => p.id === providerId);
-  if (config) {
-    settings.apiKeyInputs[providerId] = newValue;
-    settings.trackApiKeyChange(providerId, newValue);
-    settings.autoSaveApiKey(providerId, newValue);
+  const changeStartTime = Date.now();
+  console.log(`[QWIKI] Settings: Updating API key for provider ${providerId}`);
+
+  try {
+    const config = providerConfigs.value.find((p) => p.id === providerId);
+    if (config) {
+      settings.apiKeyInputs[providerId] = newValue;
+      settings.trackApiKeyChange(providerId, newValue);
+      settings.autoSaveApiKey(providerId, newValue);
+
+      const changeEndTime = Date.now();
+      console.log(
+        `[QWIKI] Settings: API key update completed in ${changeEndTime - changeStartTime}ms`,
+      );
+    } else {
+      console.error(`[QWIKI] Settings: Provider config not found for ${providerId}`);
+    }
+  } catch (error) {
+    console.error(`[QWIKI] Settings: Error updating API key for provider ${providerId}:`, error);
   }
 };
 
@@ -118,48 +188,88 @@ const handleCustomFieldChange = (fieldId: string, newValue: string) => {
 };
 
 const initSettings = async () => {
+  const initStartTime = Date.now();
+  console.log("[QWIKI] Settings: Starting initialization");
+
   if (!settings.initialized) {
     settingsLoading.value = true;
     try {
       await settings.init();
+      console.log("[QWIKI] Settings: Initialization completed successfully");
     } catch (error) {
-      console.error("[QWIKI]", "Failed to initialize settings:", error);
+      console.error("[QWIKI] Settings: Failed to initialize settings:", error);
     } finally {
       settingsLoading.value = false;
     }
   }
 
-  vscode.postMessage({ command: "getProviders" });
-  vscode.postMessage({ command: "getProviderConfigs" });
-  settings.getProviderCapabilities();
+  console.log("[QWIKI] Settings: Fetching provider data");
+  const providersStartTime = Date.now();
+
+  try {
+    vscode.postMessage({ command: "getProviders" });
+    vscode.postMessage({ command: "getProviderConfigs" });
+    settings.getProviderCapabilities();
+
+    const providersEndTime = Date.now();
+    console.log(
+      `[QWIKI] Settings: Provider data requests sent in ${providersEndTime - providersStartTime}ms`,
+    );
+  } catch (error) {
+    console.error("[QWIKI] Settings: Error fetching provider data:", error);
+  }
+
+  const initEndTime = Date.now();
+  console.log(`[QWIKI] Settings: Total initialization time: ${initEndTime - initStartTime}ms`);
 };
 
 const setupMessageListener = () => {
   const handleMessage = (event: MessageEvent) => {
     const message = event.data;
-    switch (message.command) {
-      case "providerConfigs": {
-        centralizedProviderConfigs.value = message.payload || [];
-        nextTick(() => {
-          setTimeout(() => {
-            providerConfigs.value.forEach((provider) => {
-              calculateContentHeight(provider.id);
-            });
-          }, 50);
-        });
-        break;
+    const messageStartTime = Date.now();
+
+    try {
+      switch (message.command) {
+        case "providerConfigs": {
+          console.log(
+            `[QWIKI] Settings: Received ${message.payload?.length || 0} provider configs`,
+          );
+          centralizedProviderConfigs.value = message.payload || [];
+          nextTick(() => {
+            setTimeout(() => {
+              providerConfigs.value.forEach((provider) => {
+                calculateContentHeight(provider.id);
+              });
+            }, 50);
+          });
+          break;
+        }
+        case "providerCapabilitiesRetrieved": {
+          const capabilitiesCount = Object.keys(message.payload?.capabilities || {}).length;
+          console.log(`[QWIKI] Settings: Received capabilities for ${capabilitiesCount} providers`);
+          providerCapabilities.value = message.payload.capabilities || {};
+          break;
+        }
+        case "configurationValidated": {
+          const { isValid, errors = [], warnings = [] } = message.payload || {};
+          console.log(
+            `[QWIKI] Settings: Configuration validation result - Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
+          );
+          validating.value = false;
+          lastValidationValid.value = !!isValid;
+          showValidationErrors.value = !isValid;
+          validationErrors.value = errors;
+          validationWarnings.value = warnings;
+          break;
+        }
       }
-      case "providerCapabilitiesRetrieved": {
-        providerCapabilities.value = message.payload.capabilities || {};
-        break;
-      }
-      case "configurationValidated": {
-        const { isValid, errors = [], warnings = [] } = message.payload || {};
-        showValidationErrors.value = !isValid;
-        validationErrors.value = errors;
-        validationWarnings.value = warnings;
-        break;
-      }
+
+      const messageEndTime = Date.now();
+      console.log(
+        `[QWIKI] Settings: Message ${message.command} processed in ${messageEndTime - messageStartTime}ms`,
+      );
+    } catch (error) {
+      console.error(`[QWIKI] Settings: Error processing message ${message.command}:`, error);
     }
   };
 
@@ -167,7 +277,7 @@ const setupMessageListener = () => {
 
   setTimeout(() => {
     if (centralizedProviderConfigs.value.length === 0) {
-      console.error("[QWIKI]", "Provider configs not received within timeout");
+      console.error("[QWIKI] Settings: Provider configs not received within timeout");
     }
   }, 5000);
 };
@@ -276,7 +386,11 @@ onMounted(() => {
           </span>
         </div>
 
-        <div v-if="settings.loadingProviders || !providerConfigs.length">
+        <div
+          v-if="
+            settings.loadingProviders || (providerConfigs.length === 0 && !wiki.providers.length)
+          "
+        >
           <LoadingState
             :steps="[
               { text: 'Loading settings...', key: 'loading' },
@@ -294,11 +408,20 @@ onMounted(() => {
               LLM Provider
             </h3>
             <button
-              class="text-primary hover:text-primary/80 text-xs font-medium"
+              class="text-primary hover:text-primary/80 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="validating"
+              :aria-busy="validating ? 'true' : 'false'"
               @click="validateCurrentConfiguration"
             >
-              Validate Configuration
+              {{ validating ? "Validating…" : "Validate Configuration" }}
             </button>
+          </div>
+
+          <div
+            v-if="lastValidationValid === true && !showValidationErrors"
+            class="rounded-md border border-emerald-500/20 bg-emerald-500/10 p-2 text-emerald-700"
+          >
+            <p class="text-xs font-medium">Configuration is valid.</p>
           </div>
 
           <div

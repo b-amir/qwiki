@@ -74,7 +74,16 @@ qwiki/
 │   │   │   ├── ProviderSelectionService.ts
 │   │   │   ├── ProviderHealthService.ts
 │   │   │   ├── ProviderPerformanceService.ts
-│   │   │   └── [Cached services]
+│   │   │   ├── [Phase 2 Services]
+│   │   │   │   ├── ProviderDiscoveryService.ts
+│   │   │   │   ├── ProviderLifecycleManager.ts
+│   │   │   │   ├── ProviderDependencyResolver.ts
+│   │   │   │   ├── ContextAnalysisService.ts
+│   │   │   │   ├── SmartProviderSelectionService.ts
+│   │   │   │   ├── ProviderFallbackManager.ts
+│   │   │   │   ├── ConfigurationValidationEngine.ts
+│   │   │   │   ├── ConfigurationImportExportService.ts
+│   │   │   │   └── [Cached services]
 │   │   ├── commands/         # Command implementations
 │   │   │   ├── GenerateWikiCommand.ts
 │   │   │   ├── GetSelectionCommand.ts
@@ -112,6 +121,10 @@ qwiki/
 │   │   │   ├── openrouter.ts
 │   │   │   ├── zai.ts
 │   │   │   └── registry.ts
+│   │   ├── types/            # Type definitions (Phase 2 enhanced)
+│   │   │   ├── ProviderCapabilities.ts
+│   │   │   ├── ProviderMetadata.ts
+│   │   │   └── index.ts
 │   │   ├── index.ts
 │   │   ├── prompt.ts
 │   │   ├── provider-config.ts
@@ -221,64 +234,116 @@ interface ApiKeyRepository {
 5. Add infrastructure implementations
 6. Update UI components if necessary
 
-### 3. Adding New LLM Providers
+### 3. Adding New LLM Providers (Phase 2 Enhanced)
 
-**Current Process (Registry Pattern)**:
+**Current Process (Enhanced Registry with Dynamic Discovery)**:
 
-1. Create a provider file under `src/llm/providers/<provider-id>.ts` implementing `LLMProvider` and `getUiConfig()`.
-2. Register it in `src/llm/providers/registry.ts`. This file is the only place that imports provider implementations.
-3. No modifications elsewhere. The app and UI discover providers generically.
+1. Create a provider file under `src/llm/providers/<provider-id>.ts` implementing enhanced `LLMProvider` interface.
+2. Create a provider manifest file (`provider.json`) with metadata and capabilities.
+3. Place provider files in a discoverable directory (automatic discovery) or register in `src/llm/providers/registry.ts`.
+4. No modifications elsewhere. The system discovers and loads providers dynamically.
 
-**Current Limitations**:
+**Phase 2 Achievements**:
 
-- Requires modifying core registry code
-- No runtime discovery - providers are compiled in
-- Hardcoded instantiation prevents true extensibility
+- ✅ Dynamic provider discovery with manifest system
+- ✅ Provider lifecycle management (initialize, dispose, health checks)
+- ✅ Capability-based provider selection
+- ✅ Dependency resolution between providers
+- ✅ Hot-reloading without extension restart
 
-**Example provider structure**:
+**Example provider structure (Phase 2)**:
 
 ```typescript
 // src/llm/providers/newprovider.ts
-import { LLMProvider, ProviderConfig } from "../types";
+import { LLMProvider, ProviderConfig, ProviderMetadata } from "../types";
 
-export const newProvider: LLMProvider = {
-  id: "newprovider",
-  name: "New Provider",
-  requiresApiKey: true,
+export class NewProvider implements LLMProvider {
+  id = "newprovider";
+  name = "New Provider";
+  requiresApiKey = true;
+
+  async initialize(): Promise<void> {
+    // Provider initialization logic
+  }
+
+  async dispose(): Promise<void> {
+    // Cleanup logic
+  }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    // Health check implementation
+  }
+
+  getCapabilities(): ProviderCapabilities {
+    return {
+      maxTokens: 4096,
+      supportedLanguages: ["typescript", "python"],
+      features: ["streaming", "function-calling"],
+      documentationTypes: ["javadoc", "jsdoc", "pydoc"],
+      complexity: { min: 1, max: 10 }
+    };
+  }
+
+  getMetadata(): ProviderMetadata {
+    return {
+      id: "newprovider",
+      name: "New Provider",
+      version: "1.0.0",
+      description: "A new LLM provider for Qwiki",
+      author: "Your Name",
+      homepage: "https://github.com/yourname/newprovider",
+      capabilities: this.getCapabilities(),
+      dependencies: [],
+      minQwikiVersion: "2.0.0",
+      entryPoint: "./newprovider.js"
+    };
+  }
+
   generate: async (prompt, options) => {
     // Provider-specific implementation
-  },
-  listModels: () => ["model1", "model2"],
+  };
+
+  listModels: () => ["model1", "model2"];
+
   getUiConfig: () => ({
     apiKeyRequired: true,
     customFields: [{ key: "model", label: "Model", type: "select", options: ["model1", "model2"] }],
-  }),
-};
+  });
+}
 ```
 
-**Future Vision (Plugin System)**:
+**Provider Manifest (Phase 2)**:
+
+```json
+{
+  "id": "newprovider",
+  "name": "New Provider",
+  "version": "1.0.0",
+  "description": "A new LLM provider for Qwiki",
+  "author": "Your Name",
+  "homepage": "https://github.com/yourname/newprovider",
+  "capabilities": {
+    "maxTokens": 4096,
+    "supportedLanguages": ["typescript", "python"],
+    "features": ["streaming", "function-calling"],
+    "documentationTypes": ["javadoc", "jsdoc", "pydoc"],
+    "complexity": { "min": 1, "max": 10 }
+  },
+  "dependencies": [],
+  "minQwikiVersion": "2.0.0",
+  "entryPoint": "./newprovider.js",
+  "manifestVersion": "1.0",
+  "checksum": "sha256-hash-of-provider-files"
+}
+```
+
+**Future Vision (Phase 3+ Plugin System)**:
 
 1. **Provider Self-Registration**: Providers register themselves dynamically
 2. **Runtime Discovery**: No core code modifications needed
 3. **Capability-Based**: Providers declare their capabilities and requirements
 4. **Hot-Pluggable**: Add/remove providers without restarting
-
-**Future Example**:
-
-```typescript
-// Future: Dynamic provider registration
-import { registerProvider } from "../plugin-system";
-
-registerProvider({
-  id: "newprovider",
-  capabilities: {
-    maxTokens: 4096,
-    supportedLanguages: ["typescript", "python"],
-    features: ["streaming", "function-calling"],
-  },
-  provider: () => import("./newprovider").then((p) => new p.NewProvider()),
-});
-```
+5. **Plugin Marketplace**: Third-party provider distribution
 
 ## Code Style Guidelines
 

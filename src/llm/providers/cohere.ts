@@ -58,19 +58,38 @@ export class CohereProvider implements LLMProvider {
     const url = "https://api.cohere.com/v1/chat";
     const prompt = buildWikiPrompt(params);
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        message: prompt,
-        temperature: 0.2,
-        max_tokens: 4096,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          message: prompt,
+          temperature: 0.2,
+          max_tokens: 4096,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new ProviderError(
+          ErrorCodes.NETWORK_ERROR,
+          "Cohere request timed out after 30 seconds",
+          this.id,
+          "Request timeout",
+        );
+      }
+      throw error;
+    }
 
     if (!res.ok) {
       const text = await res.text();

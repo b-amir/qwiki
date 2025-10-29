@@ -25,16 +25,12 @@ export class WebviewOptimizer {
     };
 
     this.messageQueue.push(message);
-    try {
-    } catch (error) {
-      console.error("[QWIKI] WebviewOptimizer: Exception in postMessage:", error);
-    }
     this.scheduleBatch();
   }
 
   postImmediate(command: string, payload?: any): void {
     this.flushQueue();
-    this.webview.postMessage({ command, payload });
+    this.safePostMessage({ command, payload });
   }
 
   private scheduleBatch(): void {
@@ -61,9 +57,15 @@ export class WebviewOptimizer {
 
     if (batch.length === 1) {
       const message = batch[0];
-      this.webview.postMessage({ command: message.command, payload: message.payload });
+      this.safePostMessage({ command: message.command, payload: message.payload });
     } else {
-      this.webview.postMessage({
+      try {
+        const cmds = batch.map((m) => m.command).filter(Boolean);
+        console.log(
+          `[QWIKI] WebviewOptimizer: Flushing batch of ${batch.length} -> [${cmds.join(", ")}]`,
+        );
+      } catch {}
+      this.safePostMessage({
         command: "batch",
         payload: {
           messages: batch,
@@ -73,6 +75,30 @@ export class WebviewOptimizer {
 
     if (this.messageQueue.length > 0) {
       this.scheduleBatch();
+    }
+  }
+
+  private safePostMessage(message: any): void {
+    try {
+      this.webview.postMessage(message);
+      try {
+        const command = message?.command ?? "unknown";
+        const size = message?.payload ? JSON.stringify(message.payload).length : 0;
+        console.log(`[QWIKI] WebviewOptimizer: Posted message - command=${command}, size=${size}`);
+      } catch {}
+    } catch (error) {
+      console.error("[QWIKI] WebviewOptimizer: Channel closed, message discarded:", {
+        error: error instanceof Error ? error.message : String(error),
+        message: message.command || "unknown",
+        timestamp: new Date().toISOString(),
+      });
+
+      this.messageQueue = [];
+
+      if (this.batchTimeout) {
+        clearTimeout(this.batchTimeout);
+        this.batchTimeout = null;
+      }
     }
   }
 

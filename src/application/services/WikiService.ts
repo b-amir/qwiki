@@ -72,7 +72,7 @@ export class WikiService {
         ) as any;
       }
 
-      return this.debouncedGenerate(request, projectContext, onProgress);
+      return this.performGeneration(request, projectContext, onProgress);
     } catch (error: any) {
       return {
         content: "",

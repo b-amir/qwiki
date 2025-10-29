@@ -80,25 +80,45 @@ export class ZAiProvider implements LLMProvider {
       { role: "user", content: buildWikiPrompt(params) },
     ];
 
-    const doRequest = async (modelName: string) =>
-      fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages,
-          temperature: 0.2,
-          top_p: 0.95,
-          stream: false,
-          max_tokens: 4096,
-          request_id: `qwiki-${getNonce()}`,
-          user_id: "qwiki-user",
-        }),
-      });
+    const doRequest = async (modelName: string) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages,
+            temperature: 0.2,
+            top_p: 0.95,
+            stream: false,
+            max_tokens: 4096,
+            request_id: `qwiki-${getNonce()}`,
+            user_id: "qwiki-user",
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new ProviderError(
+            ErrorCodes.NETWORK_ERROR,
+            "Z.ai request timed out after 30 seconds",
+            this.id,
+            "Request timeout",
+          );
+        }
+        throw error;
+      }
+    };
 
     let res = await doRequest(model);
     if (!res.ok) {
