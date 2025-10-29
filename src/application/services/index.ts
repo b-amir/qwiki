@@ -12,5 +12,6 @@ export { ProviderSelectionService } from "./ProviderSelectionService";
 export { SmartProviderSelectionService } from "./SmartProviderSelectionService";
 export { ContextAnalysisService } from "./ContextAnalysisService";
 export { ProviderDiscoveryService } from "./ProviderDiscoveryService";
+export { ProviderFallbackManager } from "./ProviderFallbackManager";
 export { ProviderLifecycleManager } from "./ProviderLifecycleManager";
 export { ProviderDependencyResolver } from "./ProviderDependencyResolver";
