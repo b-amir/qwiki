@@ -1,388 +1,367 @@
 import type {
   ConfigurationTemplate,
   TemplateMetadata,
-  ProviderConfiguration,
+  ValidationResult,
   GlobalConfiguration,
   ProviderConfigurationMap,
+  ProviderConfiguration,
 } from "../../domain/configuration";
-import type { ConfigurationRepository } from "../../domain/repositories/ConfigurationRepository";
-import { EventBus } from "../../events";
+import type {
+  ConfigurationValidationEngine,
+  ValidationContext,
+} from "./ConfigurationValidationEngine";
+
+export interface TemplateVariable {
+  name: string;
+  description: string;
+  type: "string" | "number" | "boolean" | "array" | "object";
+  required: boolean;
+  defaultValue?: any;
+  validation?: {
+    pattern?: string;
+    min?: number;
+    max?: number;
+    enum?: any[];
+  };
+}
+
+export interface TemplateInheritance {
+  parentId: string;
+  overrides: Partial<ConfigurationTemplate>;
+}
+
+export interface TemplateComposition {
+  templates: string[];
+  mergeStrategy: "deep" | "shallow" | "replace";
+}
 
 export class ConfigurationTemplateService {
   private templates = new Map<string, ConfigurationTemplate>();
-  private readonly TEMPLATE_KEY_PREFIX = "qwiki.template.";
+  private templateVariables = new Map<string, TemplateVariable[]>();
+  private templateInheritance = new Map<string, TemplateInheritance>();
+  private templateComposition = new Map<string, TemplateComposition>();
 
-  constructor(
-    private configurationRepository: ConfigurationRepository,
-    private eventBus: EventBus,
-  ) {
+  constructor(private validationEngine: ConfigurationValidationEngine) {
     this.initializeBuiltinTemplates();
+  }
+
+  createTemplate(
+    config: any,
+    metadata: TemplateMetadata & { version?: string; compatibleProviders?: string[] },
+  ): ConfigurationTemplate {
+    const template: ConfigurationTemplate = {
+      id: this.generateTemplateId(metadata.name),
+      name: metadata.name,
+      description: metadata.description,
+      category: metadata.category as "development" | "production" | "enterprise" | "custom",
+      configuration: {
+        global: config.global || {},
+        providers: config.providers || {},
+      },
+      metadata: {
+        author: metadata.author,
+        version: metadata.version || "1.0.0",
+        tags: metadata.tags || [],
+        compatibleProviders: metadata.compatibleProviders || [],
+      },
+    };
+
+    this.templates.set(template.id, template);
+    return template;
+  }
+
+  async applyTemplate(templateId: string, variables: Record<string, any>): Promise<void> {
+    const template = this.templates.get(templateId);
+    if (!template) {
+      throw new Error(`Template with ID ${templateId} not found`);
+    }
+
+    const resolvedTemplate = await this.resolveTemplate(template, variables);
+    const validationResult = await this.validateTemplate(resolvedTemplate);
+
+    if (!validationResult.isValid) {
+      throw new Error(
+        `Template validation failed: ${validationResult.errors.map((e) => e.message).join(", ")}`,
+      );
+    }
+
+    await this.saveTemplate(resolvedTemplate);
+  }
+
+  validateTemplate(template: ConfigurationTemplate): ValidationResult {
+    const context: ValidationContext = {
+      configuration: template.configuration,
+      operation: "create",
+      timestamp: new Date(),
+    };
+
+    return this.validationEngine.validateConfiguration(
+      template.configuration,
+      this.createTemplateSchema(template),
+      context,
+    );
   }
 
   getAvailableTemplates(): ConfigurationTemplate[] {
     return Array.from(this.templates.values());
   }
 
-  getTemplate(id: string): ConfigurationTemplate | null {
-    return this.templates.get(id) || null;
-  }
-
-  async applyTemplate(templateId: string): Promise<void> {
-    const template = this.getTemplate(templateId);
-
-    if (!template) {
-      throw new Error(`Template with id '${templateId}' not found`);
-    }
-
-    await this.eventBus.publish("templateApplying", { templateId, template });
-
-    try {
-      await this.configurationRepository.set("global", template.configuration.global);
-
-      for (const [providerId, providerConfig] of Object.entries(template.configuration.providers)) {
-        await this.configurationRepository.set(`provider.${providerId}`, providerConfig);
-      }
-
-      await this.eventBus.publish("templateApplied", { templateId, template });
-    } catch (error) {
-      await this.eventBus.publish("templateApplyFailed", {
-        templateId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
-  }
-
-  createTemplate(config: any, metadata: TemplateMetadata): ConfigurationTemplate {
-    const templateId = this.generateTemplateId(metadata.name);
-
-    const template: ConfigurationTemplate = {
-      id: templateId,
-      name: metadata.name,
-      description: metadata.description,
-      category: metadata.category as any,
-      configuration: {
-        global: config.global || this.getDefaultGlobalConfig(),
-        providers: config.providers || {},
-      },
-      metadata: {
-        author: metadata.author,
-        version: "1.0.0",
-        tags: metadata.tags,
-        compatibleProviders: Object.keys(config.providers || {}),
-      },
-    };
-
-    return template;
+  getTemplate(templateId: string): ConfigurationTemplate | undefined {
+    return this.templates.get(templateId);
   }
 
   async saveTemplate(template: ConfigurationTemplate): Promise<void> {
     this.templates.set(template.id, template);
-
-    const key = `${this.TEMPLATE_KEY_PREFIX}${template.id}`;
-    await this.configurationRepository.set(key, template);
-
-    await this.eventBus.publish("templateSaved", { templateId: template.id, template });
   }
 
   async deleteTemplate(templateId: string): Promise<void> {
-    if (!this.templates.has(templateId)) {
-      throw new Error(`Template with id '${templateId}' not found`);
+    const template = this.templates.get(templateId);
+    if (!template) {
+      throw new Error(`Template with ID ${templateId} not found`);
+    }
+
+    if (template.category !== "custom") {
+      throw new Error("Cannot delete built-in templates");
     }
 
     this.templates.delete(templateId);
-
-    const key = `${this.TEMPLATE_KEY_PREFIX}${templateId}`;
-    await this.configurationRepository.set(key, undefined as any);
-
-    await this.eventBus.publish("templateDeleted", { templateId });
   }
 
-  async loadCustomTemplates(): Promise<void> {
-    const allConfigs = await this.configurationRepository.getAll();
-
-    for (const [key, value] of Object.entries(allConfigs)) {
-      if (key.startsWith(this.TEMPLATE_KEY_PREFIX) && value) {
-        const template = value as ConfigurationTemplate;
-        this.templates.set(template.id, template);
-      }
-    }
+  addTemplateVariable(templateId: string, variable: TemplateVariable): void {
+    const variables = this.templateVariables.get(templateId) || [];
+    variables.push(variable);
+    this.templateVariables.set(templateId, variables);
   }
 
-  async exportTemplate(templateId: string): Promise<string> {
-    const template = this.getTemplate(templateId);
+  getTemplateVariables(templateId: string): TemplateVariable[] {
+    return this.templateVariables.get(templateId) || [];
+  }
 
+  setTemplateInheritance(templateId: string, inheritance: TemplateInheritance): void {
+    this.templateInheritance.set(templateId, inheritance);
+  }
+
+  getTemplateInheritance(templateId: string): TemplateInheritance | undefined {
+    return this.templateInheritance.get(templateId);
+  }
+
+  setTemplateComposition(templateId: string, composition: TemplateComposition): void {
+    this.templateComposition.set(templateId, composition);
+  }
+
+  getTemplateComposition(templateId: string): TemplateComposition | undefined {
+    return this.templateComposition.get(templateId);
+  }
+
+  async migrateTemplate(templateId: string, targetVersion: string): Promise<ConfigurationTemplate> {
+    const template = this.templates.get(templateId);
     if (!template) {
-      throw new Error(`Template with id '${templateId}' not found`);
+      throw new Error(`Template with ID ${templateId} not found`);
     }
 
-    return JSON.stringify(template, null, 2);
+    const currentVersion = template.metadata.version;
+    if (currentVersion === targetVersion) {
+      return template;
+    }
+
+    const migrationSteps = this.getMigrationSteps(currentVersion, targetVersion);
+    let migratedTemplate = { ...template };
+
+    for (const step of migrationSteps) {
+      migratedTemplate = await step.migrate(migratedTemplate);
+    }
+
+    migratedTemplate.metadata.version = targetVersion;
+    this.templates.set(templateId, migratedTemplate);
+    return migratedTemplate;
   }
 
-  async importTemplate(templateJson: string): Promise<ConfigurationTemplate> {
-    try {
-      const template = JSON.parse(templateJson) as ConfigurationTemplate;
+  private async resolveTemplate(
+    template: ConfigurationTemplate,
+    variables: Record<string, any>,
+  ): Promise<ConfigurationTemplate> {
+    const resolvedTemplate = JSON.parse(JSON.stringify(template));
+    const templateVars = this.templateVariables.get(template.id) || [];
 
-      if (!this.validateTemplate(template)) {
-        throw new Error("Invalid template structure");
+    for (const variable of templateVars) {
+      if (variables[variable.name] !== undefined) {
+        const value = this.validateVariableValue(variable, variables[variable.name]);
+        this.substituteVariable(resolvedTemplate, variable.name, value);
+      } else if (variable.required) {
+        throw new Error(`Required variable ${variable.name} is missing`);
+      } else if (variable.defaultValue !== undefined) {
+        this.substituteVariable(resolvedTemplate, variable.name, variable.defaultValue);
+      }
+    }
+
+    const inheritance = this.templateInheritance.get(template.id);
+    if (inheritance) {
+      const parentTemplate = await this.resolveTemplate(
+        this.templates.get(inheritance.parentId)!,
+        variables,
+      );
+      this.mergeTemplate(resolvedTemplate, parentTemplate, inheritance.overrides);
+    }
+
+    const composition = this.templateComposition.get(template.id);
+    if (composition) {
+      const composedTemplates = await Promise.all(
+        composition.templates.map((t) => this.resolveTemplate(this.templates.get(t)!, variables)),
+      );
+      this.composeTemplates(resolvedTemplate, composedTemplates, composition.mergeStrategy);
+    }
+
+    return resolvedTemplate;
+  }
+
+  private substituteVariable(template: any, variableName: string, value: any): void {
+    const templateString = JSON.stringify(template);
+    const regex = new RegExp(`\\$\\{${variableName}\\}`, "g");
+    const substituted = templateString.replace(regex, JSON.stringify(value));
+    Object.assign(template, JSON.parse(substituted));
+  }
+
+  private validateVariableValue(variable: TemplateVariable, value: any): any {
+    if (variable.type === "string" && typeof value !== "string") {
+      throw new Error(`Variable ${variable.name} must be a string`);
+    }
+
+    if (variable.type === "number" && typeof value !== "number") {
+      throw new Error(`Variable ${variable.name} must be a number`);
+    }
+
+    if (variable.type === "boolean" && typeof value !== "boolean") {
+      throw new Error(`Variable ${variable.name} must be a boolean`);
+    }
+
+    if (variable.type === "array" && !Array.isArray(value)) {
+      throw new Error(`Variable ${variable.name} must be an array`);
+    }
+
+    if (variable.type === "object" && (typeof value !== "object" || Array.isArray(value))) {
+      throw new Error(`Variable ${variable.name} must be an object`);
+    }
+
+    if (variable.validation) {
+      if (variable.validation.pattern && typeof value === "string") {
+        const regex = new RegExp(variable.validation.pattern);
+        if (!regex.test(value)) {
+          throw new Error(`Variable ${variable.name} does not match required pattern`);
+        }
       }
 
-      this.templates.set(template.id, template);
-      await this.saveTemplate(template);
+      if (variable.validation.min !== undefined && typeof value === "number") {
+        if (value < variable.validation.min) {
+          throw new Error(`Variable ${variable.name} must be at least ${variable.validation.min}`);
+        }
+      }
 
-      await this.eventBus.publish("templateImported", { templateId: template.id, template });
+      if (variable.validation.max !== undefined && typeof value === "number") {
+        if (value > variable.validation.max) {
+          throw new Error(`Variable ${variable.name} must be at most ${variable.validation.max}`);
+        }
+      }
 
-      return template;
-    } catch (error) {
-      await this.eventBus.publish("templateImportFailed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error(`Failed to import template: ${error}`);
+      if (variable.validation.enum && !variable.validation.enum.includes(value)) {
+        throw new Error(
+          `Variable ${variable.name} must be one of: ${variable.validation.enum.join(", ")}`,
+        );
+      }
     }
+
+    return value;
+  }
+
+  private mergeTemplate(
+    target: ConfigurationTemplate,
+    parent: ConfigurationTemplate,
+    overrides: Partial<ConfigurationTemplate>,
+  ): void {
+    this.deepMerge(target.configuration.global, parent.configuration.global);
+    this.deepMerge(target.configuration.providers, parent.configuration.providers);
+    this.deepMerge(target, overrides);
+  }
+
+  private composeTemplates(
+    target: ConfigurationTemplate,
+    templates: ConfigurationTemplate[],
+    strategy: "deep" | "shallow" | "replace",
+  ): void {
+    for (const template of templates) {
+      if (strategy === "deep") {
+        this.deepMerge(target.configuration.global, template.configuration.global);
+        this.deepMerge(target.configuration.providers, template.configuration.providers);
+      } else if (strategy === "shallow") {
+        Object.assign(target.configuration.global, template.configuration.global);
+        Object.assign(target.configuration.providers, template.configuration.providers);
+      } else if (strategy === "replace") {
+        target.configuration.global = { ...template.configuration.global };
+        target.configuration.providers = { ...template.configuration.providers };
+      }
+    }
+  }
+
+  private deepMerge(target: any, source: any): void {
+    for (const key in source) {
+      if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+        if (!target[key]) target[key] = {};
+        this.deepMerge(target[key], source[key]);
+      } else {
+        target[key] = source[key];
+      }
+    }
+  }
+
+  private createTemplateSchema(template: ConfigurationTemplate): any {
+    return {
+      version: "1.0.0",
+      fields: [
+        {
+          name: "global",
+          type: "object",
+          required: true,
+          description: "Global configuration settings",
+        },
+        {
+          name: "providers",
+          type: "object",
+          required: true,
+          description: "Provider configuration settings",
+        },
+      ],
+    };
   }
 
   private generateTemplateId(name: string): string {
     return name
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
-      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9]/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
   }
 
-  private getDefaultGlobalConfig(): GlobalConfiguration {
-    return {
-      defaultProviderId: undefined,
-      autoGenerateWiki: false,
-      wikiOutputFormat: "markdown",
-      maxContextLength: 10000,
-      enableCaching: true,
-      cacheExpirationHours: 24,
-      enablePerformanceMonitoring: true,
-      enableErrorReporting: true,
-      logLevel: "error",
-      uiTheme: "auto",
-      language: "en",
-      autoSave: true,
-      backupEnabled: true,
-      backupRetentionDays: 30,
-    };
-  }
-
-  private validateTemplate(template: any): boolean {
-    if (!template || typeof template !== "object") {
-      return false;
-    }
-
-    const requiredFields = ["id", "name", "description", "category", "configuration", "metadata"];
-    for (const field of requiredFields) {
-      if (!(field in template)) {
-        return false;
-      }
-    }
-
-    if (!template.configuration || typeof template.configuration !== "object") {
-      return false;
-    }
-
-    if (!template.configuration.global || typeof template.configuration.global !== "object") {
-      return false;
-    }
-
-    if (!template.configuration.providers || typeof template.configuration.providers !== "object") {
-      return false;
-    }
-
-    if (!template.metadata || typeof template.metadata !== "object") {
-      return false;
-    }
-
-    const requiredMetadataFields = ["author", "version", "tags", "compatibleProviders"];
-    for (const field of requiredMetadataFields) {
-      if (!(field in template.metadata)) {
-        return false;
-      }
-    }
-
-    return true;
+  private getMigrationSteps(fromVersion: string, toVersion: string): any[] {
+    return [];
   }
 
   private initializeBuiltinTemplates(): void {
-    const developmentTemplate: ConfigurationTemplate = {
-      id: "development-setup",
-      name: "Development Setup",
-      description: "Optimized configuration for development environments with debugging enabled",
-      category: "development",
+    const emptyTemplate: ConfigurationTemplate = {
+      id: "empty",
+      name: "Empty Template",
+      description: "A blank template for creating custom configurations",
+      category: "custom",
       configuration: {
-        global: {
-          ...this.getDefaultGlobalConfig(),
-          logLevel: "debug",
-          enablePerformanceMonitoring: true,
-          enableErrorReporting: true,
-          autoGenerateWiki: true,
-          wikiOutputFormat: "markdown",
-        },
-        providers: {
-          openai: {
-            id: "openai",
-            name: "OpenAI",
-            enabled: true,
-            model: "gpt-4",
-            temperature: 0.3,
-            maxTokens: 2000,
-            timeout: 30000,
-            retryAttempts: 3,
-          },
-        },
+        global: {},
+        providers: {},
       },
       metadata: {
-        author: "Qwiki Team",
+        author: "Qwiki",
         version: "1.0.0",
-        tags: ["development", "debugging", "openai"],
-        compatibleProviders: ["openai"],
+        tags: ["empty", "custom"],
+        compatibleProviders: [],
       },
     };
 
-    const productionTemplate: ConfigurationTemplate = {
-      id: "production-setup",
-      name: "Production Setup",
-      description: "Optimized configuration for production environments with reliability focus",
-      category: "production",
-      configuration: {
-        global: {
-          ...this.getDefaultGlobalConfig(),
-          logLevel: "error",
-          enablePerformanceMonitoring: true,
-          enableErrorReporting: false,
-          autoGenerateWiki: false,
-          wikiOutputFormat: "markdown",
-          backupEnabled: true,
-          backupRetentionDays: 90,
-        },
-        providers: {
-          openai: {
-            id: "openai",
-            name: "OpenAI",
-            enabled: true,
-            model: "gpt-4-turbo",
-            temperature: 0.1,
-            maxTokens: 4000,
-            timeout: 60000,
-            retryAttempts: 5,
-            fallbackProviderIds: ["anthropic"],
-          },
-          anthropic: {
-            id: "anthropic",
-            name: "Anthropic",
-            enabled: true,
-            model: "claude-3-sonnet-20240229",
-            temperature: 0.1,
-            maxTokens: 4000,
-            timeout: 60000,
-            retryAttempts: 5,
-          },
-        },
-      },
-      metadata: {
-        author: "Qwiki Team",
-        version: "1.0.0",
-        tags: ["production", "reliability", "multi-provider"],
-        compatibleProviders: ["openai", "anthropic"],
-      },
-    };
-
-    const enterpriseTemplate: ConfigurationTemplate = {
-      id: "enterprise-setup",
-      name: "Enterprise Setup",
-      description: "Enterprise-grade configuration with security and compliance features",
-      category: "enterprise",
-      configuration: {
-        global: {
-          ...this.getDefaultGlobalConfig(),
-          logLevel: "warn",
-          enablePerformanceMonitoring: true,
-          enableErrorReporting: false,
-          autoGenerateWiki: false,
-          wikiOutputFormat: "markdown",
-          backupEnabled: true,
-          backupRetentionDays: 365,
-          enableCaching: true,
-          cacheExpirationHours: 48,
-        },
-        providers: {
-          openai: {
-            id: "openai",
-            name: "OpenAI",
-            enabled: true,
-            model: "gpt-4-turbo",
-            temperature: 0.0,
-            maxTokens: 8000,
-            timeout: 120000,
-            retryAttempts: 3,
-            rateLimitPerMinute: 60,
-            fallbackProviderIds: ["anthropic"],
-          },
-          anthropic: {
-            id: "anthropic",
-            name: "Anthropic",
-            enabled: true,
-            model: "claude-3-opus-20240229",
-            temperature: 0.0,
-            maxTokens: 8000,
-            timeout: 120000,
-            retryAttempts: 3,
-            rateLimitPerMinute: 50,
-          },
-        },
-      },
-      metadata: {
-        author: "Qwiki Team",
-        version: "1.0.0",
-        tags: ["enterprise", "security", "compliance", "multi-provider"],
-        compatibleProviders: ["openai", "anthropic"],
-      },
-    };
-
-    const minimalTemplate: ConfigurationTemplate = {
-      id: "minimal-setup",
-      name: "Minimal Setup",
-      description: "Lightweight configuration for quick start with basic features",
-      category: "development",
-      configuration: {
-        global: {
-          ...this.getDefaultGlobalConfig(),
-          logLevel: "error",
-          enablePerformanceMonitoring: false,
-          enableErrorReporting: false,
-          autoGenerateWiki: false,
-          wikiOutputFormat: "markdown",
-          backupEnabled: false,
-          enableCaching: false,
-        },
-        providers: {
-          openai: {
-            id: "openai",
-            name: "OpenAI",
-            enabled: true,
-            model: "gpt-3.5-turbo",
-            temperature: 0.7,
-            maxTokens: 1000,
-            timeout: 30000,
-            retryAttempts: 1,
-          },
-        },
-      },
-      metadata: {
-        author: "Qwiki Team",
-        version: "1.0.0",
-        tags: ["minimal", "quick-start", "basic"],
-        compatibleProviders: ["openai"],
-      },
-    };
-
-    this.templates.set(developmentTemplate.id, developmentTemplate);
-    this.templates.set(productionTemplate.id, productionTemplate);
-    this.templates.set(enterpriseTemplate.id, enterpriseTemplate);
-    this.templates.set(minimalTemplate.id, minimalTemplate);
+    this.templates.set(emptyTemplate.id, emptyTemplate);
   }
 }
