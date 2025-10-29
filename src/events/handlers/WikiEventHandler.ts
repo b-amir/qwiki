@@ -44,6 +44,17 @@ export class WikiEventHandler {
               result.error || "Wiki generation failed",
               payload.providerId,
             );
+
+            console.error("[QWIKI]", `Wiki generation failed in handler`, {
+              code: error.code,
+              message: error.message,
+              providerId: payload.providerId,
+              snippet:
+                payload.snippet?.substring(0, 100) + (payload.snippet?.length > 100 ? "..." : ""),
+              filePath: payload.filePath,
+              languageId: payload.languageId,
+            });
+
             this.errorLoggingService.logError(error);
             this.eventBus.publish(OutboundEvents.error, {
               code: error.code,
@@ -54,6 +65,17 @@ export class WikiEventHandler {
         });
     } catch (error: any) {
       const providerError = ProviderError.fromError(error, payload.providerId);
+
+      console.error("[QWIKI]", `Exception in handleGenerateWiki`, {
+        code: providerError.code,
+        message: providerError.message,
+        providerId: payload.providerId,
+        snippet: payload.snippet?.substring(0, 100) + (payload.snippet?.length > 100 ? "..." : ""),
+        filePath: payload.filePath,
+        languageId: payload.languageId,
+        originalError: error,
+      });
+
       this.errorLoggingService.logError(providerError);
       this.eventBus.publish(OutboundEvents.error, {
         code: providerError.code,
@@ -75,6 +97,14 @@ export class WikiEventHandler {
       });
     } catch (error: any) {
       const providerError = ProviderError.fromError(error);
+
+      console.error("[QWIKI]", `Exception in handleGetRelated`, {
+        code: providerError.code,
+        message: providerError.message,
+        filePath: _payload?.filePath,
+        originalError: error,
+      });
+
       this.errorLoggingService.logError(providerError);
       this.eventBus.publish(OutboundEvents.error, {
         code: providerError.code,

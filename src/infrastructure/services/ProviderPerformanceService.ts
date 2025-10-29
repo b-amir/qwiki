@@ -78,7 +78,7 @@ export class ProviderPerformanceService {
     );
 
     if (!startMetric) {
-      console.warn(`No start metric found for request: ${requestId}`);
+      console.warn(`[QWIKI] No start metric found for request: ${requestId}`);
       return;
     }
 

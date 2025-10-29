@@ -30,8 +30,27 @@ export class MessageBus {
     this.optimizer.postImmediate(command, payload);
   }
 
-  postError(message: string, code: string = ErrorCodes.unknown, suggestion?: string): void {
-    this.postImmediate(OutboundEvents.error, { code, message, suggestion });
+  postError(
+    message: string,
+    code: string = ErrorCodes.unknown,
+    suggestion?: string,
+    context?: any,
+  ): void {
+    console.error("[QWIKI]", `Error posted to frontend`, {
+      code,
+      message,
+      suggestion,
+      context,
+      timestamp: new Date().toISOString(),
+    });
+
+    this.postImmediate(OutboundEvents.error, {
+      code,
+      message,
+      suggestion,
+      timestamp: new Date().toISOString(),
+      context: context ? JSON.stringify(context).substring(0, 500) : undefined,
+    });
   }
 
   postSuccess(command: string, payload?: any): void {

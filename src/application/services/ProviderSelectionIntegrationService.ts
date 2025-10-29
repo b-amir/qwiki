@@ -65,17 +65,17 @@ export class ProviderSelectionIntegrationService {
 
   async getProviderRanking(providerId: string): Promise<any> {
     console.log(
-      "[ProviderSelectionIntegrationService] getProviderRanking called for provider:",
+      "[QWIKI] [ProviderSelectionIntegrationService] getProviderRanking called for provider:",
       providerId,
     );
     console.log(
-      "[ProviderSelectionIntegrationService] Available methods on smartProviderSelectionService:",
+      "[QWIKI] [ProviderSelectionIntegrationService] Available methods on smartProviderSelectionService:",
       Object.getOwnPropertyNames(Object.getPrototypeOf(this.smartProviderSelectionService)),
     );
 
     if (typeof this.smartProviderSelectionService["determineRequirements"] !== "function") {
       console.error(
-        "[ProviderSelectionIntegrationService] ERROR: determineRequirements method does not exist or is not accessible!",
+        "[QWIKI] [ProviderSelectionIntegrationService] ERROR: determineRequirements method does not exist or is not accessible!",
       );
       return {
         providerId,

@@ -146,7 +146,7 @@ export class LLMRegistry {
           this.providers[providerId] = provider;
         }
       } catch (error) {
-        console.error(`Failed to load provider ${providerId}:`, error);
+        console.error(`[QWIKI] Failed to load provider ${providerId}:`, error);
       }
     }
   }

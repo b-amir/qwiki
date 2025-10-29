@@ -170,7 +170,7 @@ export class ProviderLifecycleManager {
     const discoveredProviders = this.providerDiscoveryService.getDiscoveredProviders();
     const initializationPromises = discoveredProviders.map((provider) =>
       this.initializeProvider(provider.id).catch((error) => {
-        console.error(`Failed to initialize provider ${provider.id}:`, error);
+        console.error(`[QWIKI] Failed to initialize provider ${provider.id}:`, error);
       }),
     );
 
@@ -180,7 +180,7 @@ export class ProviderLifecycleManager {
   async disposeAllProviders(): Promise<void> {
     const disposePromises = Array.from(this.activeProviders.keys()).map((providerId) =>
       this.disposeProvider(providerId).catch((error) => {
-        console.error(`Failed to dispose provider ${providerId}:`, error);
+        console.error(`[QWIKI] Failed to dispose provider ${providerId}:`, error);
       }),
     );
 

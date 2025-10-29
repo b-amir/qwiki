@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { TopBar } from "@/components/layout";
-import { HomePage, WikiPage, SettingsPage } from "@/components/pages";
+import { HomePage, WikiPage, SettingsPage, ErrorHistoryPage } from "@/components/pages";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useNavigation } from "@/composables/useNavigation";
@@ -53,6 +53,10 @@ watch(
 
       <div v-else-if="currentPage === 'settings'">
         <SettingsPage />
+      </div>
+
+      <div v-else-if="currentPage === 'errorHistory'">
+        <ErrorHistoryPage />
       </div>
     </div>
   </main>

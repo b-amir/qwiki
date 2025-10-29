@@ -26,6 +26,15 @@ export class ErrorLoggingService {
   logError(error: ProviderError, context?: any): void {
     const timestamp = Date.now();
 
+    console.error("[QWIKI]", `Provider Error logged: ${error.code}`, {
+      code: error.code,
+      message: error.message,
+      providerId: error.providerId,
+      timestamp: new Date(timestamp).toISOString(),
+      context: context,
+      stack: error.stack,
+    });
+
     this.errorStats.totalErrors++;
     this.errorStats.errorsByCode[error.code] = (this.errorStats.errorsByCode[error.code] || 0) + 1;
 
@@ -51,6 +60,20 @@ export class ErrorLoggingService {
   logGenerationMetrics(providerId: string, success: boolean, duration: number): void {
     const timestamp = Date.now();
     const code = success ? "GENERATION_SUCCESS" : "GENERATION_FAILED";
+
+    if (success) {
+      console.log("[QWIKI]", `Generation successful`, {
+        providerId,
+        duration: `${duration}ms`,
+        timestamp: new Date(timestamp).toISOString(),
+      });
+    } else {
+      console.error("[QWIKI]", `Generation failed`, {
+        providerId,
+        duration: `${duration}ms`,
+        timestamp: new Date(timestamp).toISOString(),
+      });
+    }
 
     this.errorStats.totalErrors++;
     this.errorStats.errorsByCode[code] = (this.errorStats.errorsByCode[code] || 0) + 1;
@@ -93,7 +116,7 @@ export class ErrorLoggingService {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.errorStats));
       }
     } catch (error) {
-      console.warn("Failed to save error statistics to storage:", error);
+      console.warn("[QWIKI] Failed to save error statistics to storage:", error);
     }
   }
 
@@ -109,7 +132,7 @@ export class ErrorLoggingService {
         }
       }
     } catch (error) {
-      console.warn("Failed to load error statistics from storage:", error);
+      console.warn("[QWIKI] Failed to load error statistics from storage:", error);
     }
   }
 

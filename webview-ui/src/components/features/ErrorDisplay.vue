@@ -7,6 +7,8 @@ interface Props {
   suggestions?: string[];
   retryable?: boolean;
   onRetry?: () => void;
+  timestamp?: string;
+  context?: string;
 }
 
 const props = defineProps<Props>();
@@ -44,9 +46,17 @@ const errorIcon = computed(() => {
 
 const copyErrorToClipboard = async () => {
   try {
-    const errorText = props.errorCode
+    let errorText = props.errorCode
       ? `Error Code: ${props.errorCode}\n\n${props.error}`
       : props.error;
+    
+    if (props.timestamp) {
+      errorText = `Timestamp: ${props.timestamp}\n\n${errorText}`;
+    }
+    
+    if (props.context) {
+      errorText = `${errorText}\n\nContext: ${props.context}`;
+    }
 
     await navigator.clipboard.writeText(errorText);
     copySuccess.value = true;
@@ -105,6 +115,9 @@ const copyErrorToClipboard = async () => {
                   </span>
                   <span v-if="errorCode" class="text-muted-foreground text-xs">
                     {{ errorCode }}
+                  </span>
+                  <span v-if="timestamp" class="text-muted-foreground text-xs ml-2">
+                    {{ new Date(timestamp).toLocaleTimeString() }}
                   </span>
                 </div>
               </div>
@@ -173,6 +186,13 @@ const copyErrorToClipboard = async () => {
                   <span>{{ suggestion }}</span>
                 </li>
               </ul>
+            </div>
+
+            <div v-if="context" class="mt-3 text-left">
+              <p class="text-muted-foreground mb-2 text-xs font-medium">Context:</p>
+              <div class="bg-muted/50 rounded p-2 text-xs font-mono break-words">
+                {{ context }}
+              </div>
             </div>
 
             <div v-if="retryable && onRetry" class="mt-3 flex justify-center">

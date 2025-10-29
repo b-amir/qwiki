@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
+import { useErrorHistoryStore } from "./errorHistory";
 
 export type ProviderStatus = { id: string; name: string; hasKey: boolean; models: string[] };
 
@@ -8,6 +9,8 @@ export interface ErrorInfo {
   code?: string;
   suggestions?: string[];
   retryable?: boolean;
+  timestamp?: string;
+  context?: string;
 }
 
 export const useWikiStore = defineStore("wiki", {
@@ -90,7 +93,16 @@ export const useWikiStore = defineStore("wiki", {
               code: message.payload?.code,
               suggestions: message.payload?.suggestions,
               retryable: message.payload?.retryable || false,
+              timestamp: message.payload?.timestamp,
+              context: message.payload?.context,
             };
+
+            const errorHistory = useErrorHistoryStore();
+            errorHistory.addError({
+              ...this.errorInfo,
+              timestamp: message.payload?.timestamp || new Date().toISOString(),
+            });
+
             return;
           }
           case "loadingStep": {

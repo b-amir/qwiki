@@ -88,7 +88,7 @@ export class ProviderHealthService {
         try {
           await this.checkProviderHealth(providerId);
         } catch (error) {
-          console.error(`Health check failed for provider ${providerId}:`, error);
+          console.error(`[QWIKI] Health check failed for provider ${providerId}:`, error);
         }
       }
     }, interval);

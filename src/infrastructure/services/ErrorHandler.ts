@@ -13,9 +13,19 @@ export class ErrorHandlerImpl implements ErrorHandler {
   async handle(error: Error | BaseError, context?: Record<string, any>): Promise<void> {
     const errorInfo = this.normalizeError(error, context);
 
+    console.error("[QWIKI]", `Error occurred: ${errorInfo.name}`, {
+      code: errorInfo.code,
+      message: errorInfo.message,
+      timestamp: errorInfo.timestamp,
+      context: errorInfo.context,
+      stack: errorInfo.stack,
+      isRecoverable: errorInfo.isRecoverable,
+    });
+
     await this.eventBus.publish(ErrorEvents.occurred, errorInfo);
 
     if (errorInfo.isRecoverable) {
+      console.log("[QWIKI]", `Attempting recovery for error: ${errorInfo.code}`);
       await this.eventBus.publish(ErrorEvents.recoveryAttempt, errorInfo);
     }
   }

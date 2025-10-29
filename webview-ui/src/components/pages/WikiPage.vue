@@ -46,6 +46,8 @@ const wikiContentWithoutTitle = computed(() => {
         :suggestions="wiki.errorInfo?.suggestions"
         :retryable="wiki.errorInfo?.retryable"
         :on-retry="wiki.retryGeneration"
+        :timestamp="wiki.errorInfo?.timestamp"
+        :context="wiki.errorInfo?.context"
       >
         <template #actions>
           <div class="flex justify-center gap-4 pt-6">

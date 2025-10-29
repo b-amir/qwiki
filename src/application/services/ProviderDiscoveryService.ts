@@ -24,7 +24,7 @@ export class ProviderDiscoveryService {
         const providers = await this.scanDirectory(dir);
         allProviders.push(...providers);
       } catch (error) {
-        console.error(`Failed to scan directory ${dir}:`, error);
+        console.error(`[QWIKI] Failed to scan directory ${dir}:`, error);
       }
     }
 
@@ -112,7 +112,7 @@ export class ProviderDiscoveryService {
 
       return new ProviderClass() as LLMProvider;
     } catch (error) {
-      console.error(`Failed to load provider ${metadata.id}:`, error);
+      console.error(`[QWIKI] Failed to load provider ${metadata.id}:`, error);
       return null;
     }
   }
