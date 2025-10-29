@@ -26,39 +26,133 @@ cd qwiki
 ### 2. Install Dependencies
 
 ```bash
-pnpm install
+pnpm run install:all
 ```
 
-### 3. Build the Extension
+This installs dependencies for both the extension and the webview UI.
+
+### 3. Build the Webview UI
+
+```bash
+pnpm run build:webview
+```
+
+### 4. Build the Extension
 
 ```bash
 pnpm run compile
 ```
 
-### 4. Run in Development Mode
+### 5. Run in Development Mode
 
 1. Open the project in VS Code
 2. Press F5 to launch a new Extension Development Host window
 3. In the new window, open a project folder
 4. Open the Qwiki panel from the activity bar
+5. Configure an LLM provider in the settings to test functionality
 
 ## Project Structure
 
 The project follows a clean architecture with clear separation of concerns:
 
 ```
-src/
-├── application/          # Application services and commands
-├── domain/              # Core business entities and interfaces
-├── infrastructure/      # External integrations and implementations
-├── panels/              # VS Code webview panels
-├── constants/           # Application constants
-├── container/           # Dependency injection container
-├── errors/              # Custom error classes
-├── events/              # Event system
-├── factories/           # Factory classes
-├── llm/                 # LLM provider implementations
-└── utilities/           # Utility functions
+qwiki/
+├── src/                      # Extension source code
+│   ├── extension.ts          # Main extension entry point
+│   ├── application/          # Application layer (services, commands)
+│   │   ├── services/         # Business logic services
+│   │   │   ├── WikiService.ts
+│   │   │   ├── SelectionService.ts
+│   │   │   ├── ProjectContextService.ts
+│   │   │   ├── MessageBus.ts
+│   │   │   ├── ConfigurationManager.ts
+│   │   │   ├── ConfigurationValidator.ts
+│   │   │   ├── ConfigurationMigrationService.ts
+│   │   │   ├── ConfigurationTemplateService.ts
+│   │   │   ├── ErrorRecoveryService.ts
+│   │   │   ├── ErrorLoggingService.ts
+│   │   │   ├── ProviderSelectionService.ts
+│   │   │   ├── ProviderHealthService.ts
+│   │   │   ├── ProviderPerformanceService.ts
+│   │   │   └── [Cached services]
+│   │   ├── commands/         # Command implementations
+│   │   │   ├── GenerateWikiCommand.ts
+│   │   │   ├── GetSelectionCommand.ts
+│   │   │   ├── SaveApiKeyCommand.ts
+│   │   │   └── [Other command files]
+│   │   ├── CommandRegistry.ts
+│   │   └── AppBootstrap.ts
+│   ├── domain/               # Domain layer (entities, repositories)
+│   │   ├── entities/         # Business entities
+│   │   │   ├── Wiki.ts
+│   │   │   └── Selection.ts
+│   │   └── repositories/     # Repository interfaces
+│   │       ├── ApiKeyRepository.ts
+│   │       └── ConfigurationRepository.ts
+│   ├── infrastructure/       # Infrastructure layer (implementations)
+│   │   ├── repositories/     # VS Code implementations
+│   │   │   ├── VSCodeApiKeyRepository.ts
+│   │   │   └── VSCodeConfigurationRepository.ts
+│   │   └── services/         # Technical services
+│   │       ├── ErrorHandler.ts
+│   │       ├── CacheService.ts
+│   │       ├── PerformanceMonitor.ts
+│   │       ├── WebviewOptimizer.ts
+│   │       ├── ErrorRecoveryService.ts
+│   │       ├── ErrorLoggingService.ts
+│   │       ├── ConfigurationBackupService.ts
+│   │       ├── ProviderHealthService.ts
+│   │       └── ProviderPerformanceService.ts
+│   ├── llm/                  # LLM provider system
+│   │   ├── providers/        # Individual provider implementations
+│   │   │   ├── openai.ts
+│   │   │   ├── google-ai-studio.ts
+│   │   │   ├── cohere.ts
+│   │   │   ├── huggingface.ts
+│   │   │   ├── openrouter.ts
+│   │   │   ├── zai.ts
+│   │   │   └── registry.ts
+│   │   ├── index.ts
+│   │   ├── prompt.ts
+│   │   ├── provider-config.ts
+│   │   └── types.ts
+│   ├── panels/               # WebView panel implementations
+│   │   ├── QwikiPanel.ts     # Main Qwiki panel
+│   │   ├── webviewContent.ts
+│   │   ├── constants.ts
+│   │   ├── contextBuilder.ts
+│   │   ├── fileOps.ts
+│   │   └── messages.ts
+│   ├── container/            # Dependency injection container
+│   │   └── Container.ts
+│   ├── constants/            # Application constants
+│   │   ├── Commands.ts
+│   │   ├── ErrorCodes.ts
+│   │   ├── Events.ts
+│   │   ├── Extension.ts
+│   │   ├── FilePatterns.ts
+│   │   ├── MessageConstants.ts
+│   │   ├── PathConstants.ts
+│   │   └── WebviewConstants.ts
+│   ├── errors/               # Custom error classes
+│   │   └── BaseError.ts
+│   ├── events/               # Event system
+│   ├── factories/            # Factory implementations
+│   └── utilities/            # Helper functions
+├── webview-ui/               # Vue.js webview application
+│   ├── src/
+│   │   ├── App.vue           # Main Vue component
+│   │   ├── components/       # Vue components
+│   │   ├── stores/           # Pinia state management
+│   │   ├── composables/      # Vue composables
+│   │   ├── lib/              # Shared utilities
+│   │   └── utilities/        # Helper functions
+│   ├── package.json          # Webview dependencies
+│   ├── vite.config.ts        # Vite build configuration
+│   └── tailwind.config.cjs   # Tailwind CSS configuration
+├── docs/                     # Documentation
+├── resources/                # Extension resources
+└── package.json              # Extension manifest and dependencies
 ```
 
 ## Key Concepts
@@ -129,9 +223,62 @@ interface ApiKeyRepository {
 
 ### 3. Adding New LLM Providers
 
+**Current Process (Registry Pattern)**:
+
 1. Create a provider file under `src/llm/providers/<provider-id>.ts` implementing `LLMProvider` and `getUiConfig()`.
 2. Register it in `src/llm/providers/registry.ts`. This file is the only place that imports provider implementations.
 3. No modifications elsewhere. The app and UI discover providers generically.
+
+**Current Limitations**:
+
+- Requires modifying core registry code
+- No runtime discovery - providers are compiled in
+- Hardcoded instantiation prevents true extensibility
+
+**Example provider structure**:
+
+```typescript
+// src/llm/providers/newprovider.ts
+import { LLMProvider, ProviderConfig } from "../types";
+
+export const newProvider: LLMProvider = {
+  id: "newprovider",
+  name: "New Provider",
+  requiresApiKey: true,
+  generate: async (prompt, options) => {
+    // Provider-specific implementation
+  },
+  listModels: () => ["model1", "model2"],
+  getUiConfig: () => ({
+    apiKeyRequired: true,
+    customFields: [{ key: "model", label: "Model", type: "select", options: ["model1", "model2"] }],
+  }),
+};
+```
+
+**Future Vision (Plugin System)**:
+
+1. **Provider Self-Registration**: Providers register themselves dynamically
+2. **Runtime Discovery**: No core code modifications needed
+3. **Capability-Based**: Providers declare their capabilities and requirements
+4. **Hot-Pluggable**: Add/remove providers without restarting
+
+**Future Example**:
+
+```typescript
+// Future: Dynamic provider registration
+import { registerProvider } from "../plugin-system";
+
+registerProvider({
+  id: "newprovider",
+  capabilities: {
+    maxTokens: 4096,
+    supportedLanguages: ["typescript", "python"],
+    features: ["streaming", "function-calling"],
+  },
+  provider: () => import("./newprovider").then((p) => new p.NewProvider()),
+});
+```
 
 ## Code Style Guidelines
 
@@ -225,51 +372,30 @@ export class NewRepositoryImpl implements NewRepository {
 container.register("newRepository", () => new NewRepositoryImpl());
 ```
 
-## Testing
-
-### 1. Running Tests
-
-```bash
-pnpm test
-```
-
-### 2. Writing Tests
-
-- Test individual components in isolation
-- Use dependency injection for mocking
-- Test commands, services, and repositories separately
-- Focus on business logic testing
-
-### 3. Test Structure
-
-```
-src/test/
-├── unit/              # Unit tests for individual components
-├── integration/       # Integration tests
-├── mocks/            # Mock implementations
-└── utils/            # Test utilities
-```
-
 ## Debugging
 
 ### 1. Extension Debugging
 
-1. Set breakpoints in your code
+1. Set breakpoints in your TypeScript code
 2. Press F5 to launch the extension in debug mode
 3. Use the VS Code debugger to step through code
+4. Check the Debug Console for extension output
 
 ### 2. Webview Debugging
 
-1. Open the webview in the extension
-2. Right-click and select "Inspect" to open DevTools
-3. Use DevTools for frontend debugging
+1. Open the Qwiki webview in the extension
+2. Right-click in the webview and select "Inspect" to open DevTools
+3. Use DevTools for webview debugging (Vue components, network, console)
+4. Use Vue DevTools extension for better Vue debugging
 
 ### 3. Common Issues
 
-- **Extension not loading**: Check the extension.ts file for errors
-- **Commands not working**: Verify command registration in CommandRegistry
+- **Extension not loading**: Check the extension.ts file for errors, verify all dependencies are installed
+- **Commands not working**: Verify command registration in CommandRegistry and constants
 - **Services not available**: Ensure proper DI registration in AppBootstrap
-- **Webview not communicating**: Check MessageBus implementation
+- **Webview not communicating**: Check MessageBus implementation and webview message handling
+- **LLM provider errors**: Verify API keys are properly stored and provider configuration is correct
+- **Build errors**: Ensure webview UI is built (`pnpm run build:webview`) before compiling extension
 
 ## Performance Considerations
 
@@ -296,15 +422,14 @@ src/test/
 ### 1. Before Submitting
 
 1. Ensure your code follows the project's style guidelines
-2. Test your changes thoroughly
+2. Verify functionality in development environment
 3. Update documentation if necessary
-4. Ensure all existing tests pass
 
 ### 2. Pull Request Process
 
 1. Create a feature branch from main
 2. Make your changes following the established patterns
-3. Test your changes
+3. Verify functionality in development environment
 4. Submit a pull request with a clear description
 5. Address any feedback from code review
 
@@ -328,6 +453,10 @@ src/test/
 - [VS Code Extension Development](https://code.visualstudio.com/api/get-started/your-first-extension)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [Vue.js Documentation](https://vuejs.org/guide/) (for webview UI)
+- [Pinia State Management](https://pinia.vuejs.org/)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [shadcn/vue Components](https://www.shadcn-vue.com/)
+- [Vite Build Tool](https://vitejs.dev/)
 
 ### 3. Best Practices
 
@@ -351,9 +480,12 @@ If you need help:
 - Commands: `src/application/commands/`
 - Services: `src/application/services/`
 - Repositories: `src/infrastructure/repositories/`
+- LLM Providers: `src/llm/providers/`
 - Constants: `src/constants/`
 - Error Classes: `src/errors/`
 - Webview UI: `webview-ui/src/`
+- DI Container: `src/container/Container.ts`
+- Extension Entry: `src/extension.ts`
 
 ### Common Patterns
 
