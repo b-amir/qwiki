@@ -34,11 +34,29 @@ import {
 } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
-import { CommandIds, Extension } from "../constants";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
 import { OutboundEvents } from "../constants";
 import type { ExtensionContext, Webview } from "vscode";
-import { workspace } from "vscode";
+import { PromptTemplateService } from "../prompts/services/PromptTemplateService";
+import { ProviderPromptVariants } from "../prompts/variants/ProviderPromptVariants";
+import { PromptValidationService } from "../prompts/services/PromptValidationService";
+import { DynamicPromptAdjustmentService } from "../prompts/services/DynamicPromptAdjustmentService";
+import { PromptLibraryService } from "../prompts/services/PromptLibraryService";
+import { OutputValidationService } from "../output/services/OutputValidationService";
+import { OutputNormalizationService } from "../output/services/OutputNormalizationService";
+import { ConsistencyScoreService } from "../output/services/ConsistencyScoreService";
+import { OutputCacheService } from "../output/services/OutputCacheService";
+import { FallbackStrategyService } from "../output/services/FallbackStrategyService";
+import { WikiStorageService } from "../wiki/services/WikiStorageService";
+import { WikiAggregationService } from "../wiki/services/WikiAggregationService";
+import { WikiLinkingService } from "../wiki/services/WikiLinkingService";
+import { ProjectWikiIndexService } from "../wiki/services/ProjectWikiIndexService";
+import { WikiSearchService } from "../wiki/services/WikiSearchService";
+import { WikiVersioningService } from "../wiki/services/WikiVersioningService";
+import { QualityMetricsService } from "../quality/services/QualityMetricsService";
+import { QualityImprovementService } from "../quality/services/QualityImprovementService";
+import { QualityAssuranceService } from "../quality/services/QualityAssuranceService";
+import type { WikiStorageConfig } from "../wiki/types/WikiTypes";
 
 export class AppBootstrap {
   private container = new Container();
@@ -261,6 +279,65 @@ export class AppBootstrap {
           this.container.resolve("errorLoggingService"),
         ),
     );
+
+    this.registerPhase3Services();
+  }
+
+  private registerPhase3Services(): void {
+    this.container.register(
+      "promptTemplateService",
+      () =>
+        new PromptTemplateService(
+          this.container.resolve("cacheService") as any,
+          this.container.resolve("cacheService") as any,
+        ),
+    );
+    this.container.register(
+      "providerPromptVariants",
+      () =>
+        new ProviderPromptVariants(
+          this.container.resolve("cacheService") as any,
+          this.container.resolve("promptTemplateService") as any,
+        ),
+    );
+    this.container.register("promptValidationService", () => new PromptValidationService());
+    this.container.register(
+      "dynamicPromptAdjustmentService",
+      () => new DynamicPromptAdjustmentService(),
+    );
+    this.container.register(
+      "promptLibraryService",
+      () =>
+        new PromptLibraryService(
+          this.container.resolve("cacheService") as any,
+          this.container.resolve("promptTemplateService") as any,
+        ),
+    );
+
+    this.container.register("outputValidationService", () => new OutputValidationService());
+    this.container.register("outputNormalizationService", () => new OutputNormalizationService());
+    this.container.register("consistencyScoreService", () => new ConsistencyScoreService());
+    this.container.register("outputCacheService", () => new OutputCacheService());
+    this.container.register("fallbackStrategyService", () => new FallbackStrategyService());
+    this.container.register(
+      "wikiStorageService",
+      () =>
+        new WikiStorageService({
+          storagePath: ".qwiki/storage",
+          indexPath: ".qwiki/index",
+          autoSave: true,
+          compressionEnabled: false,
+          encryptionEnabled: false,
+        } as WikiStorageConfig),
+    );
+    this.container.register("wikiAggregationService", () => new WikiAggregationService());
+    this.container.register("wikiLinkingService", () => new WikiLinkingService());
+    this.container.register("projectWikiIndexService", () => new ProjectWikiIndexService());
+    this.container.register("wikiSearchService", () => new WikiSearchService());
+    this.container.register("wikiVersioningService", () => new WikiVersioningService());
+    this.container.register("qualityMetricsService", () => new QualityMetricsService());
+    this.container.register("qualityImprovementService", () => new QualityImprovementService());
+    this.container.register("qualityAssuranceService", () => new QualityAssuranceService());
   }
 
   async initializeEventHandlers(): Promise<void> {
