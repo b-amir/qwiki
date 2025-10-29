@@ -26,6 +26,11 @@ import {
   ConfigurationBackupService,
   ProviderHealthService,
   ProviderPerformanceService,
+  GenerationCacheService,
+  RequestBatchingService,
+  DebouncingService,
+  BackgroundProcessingService,
+  MemoryOptimizationService,
 } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
@@ -57,6 +62,18 @@ export class AppBootstrap {
       "providerHealthService",
     )) as ProviderHealthService;
     healthService.startHealthMonitoring();
+
+    const memoryOptimizationService = this.container.resolve(
+      "memoryOptimizationService",
+    ) as MemoryOptimizationService;
+    memoryOptimizationService.setMemoryLimit(512 * 1024 * 1024);
+    memoryOptimizationService.scheduleCleanup(60000);
+    memoryOptimizationService.enableLeakDetection(true);
+
+    const backgroundProcessingService = this.container.resolve(
+      "backgroundProcessingService",
+    ) as BackgroundProcessingService;
+    backgroundProcessingService.setMaxConcurrentTasks(3);
   }
 
   private registerServices(): void {
@@ -65,6 +82,17 @@ export class AppBootstrap {
     this.container.registerInstance("secrets", this.context.secrets);
     this.container.registerInstance("cacheService", new CachingService());
     this.container.registerInstance("performanceMonitor", new PerformanceMonitor());
+    this.container.registerInstance(
+      "generationCacheService",
+      new GenerationCacheService(this.container.resolve("cacheService") as CachingService),
+    );
+    this.container.registerInstance("requestBatchingService", new RequestBatchingService());
+    this.container.registerInstance("debouncingService", new DebouncingService());
+    this.container.registerInstance(
+      "backgroundProcessingService",
+      new BackgroundProcessingService(),
+    );
+    this.container.registerInstance("memoryOptimizationService", new MemoryOptimizationService());
 
     this.container.register(
       "apiKeyRepository",
@@ -153,7 +181,15 @@ export class AppBootstrap {
 
     this.container.registerLazy(
       "wikiService",
-      async () => new WikiService(await this.container.resolveLazy("llmRegistry")),
+      async () =>
+        new WikiService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("generationCacheService") as GenerationCacheService,
+          this.container.resolve("requestBatchingService") as RequestBatchingService,
+          this.container.resolve("debouncingService") as DebouncingService,
+          this.container.resolve("backgroundProcessingService") as BackgroundProcessingService,
+          this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
+        ),
     );
 
     this.container.registerLazy(
