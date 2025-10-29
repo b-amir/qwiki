@@ -159,3 +159,122 @@ export interface ProgressReport {
   averageImpact: number;
   completionRate: number;
 }
+
+export interface QAWorkflow {
+  id: string;
+  name: string;
+  steps: QAStep[];
+  checks: QACheck[];
+  approvals: QAApproval[];
+  standards: QualityStandard[];
+  enabled: boolean;
+}
+
+export interface QAStep {
+  id: string;
+  name: string;
+  description: string;
+  type: StepType;
+  required: boolean;
+  order: number;
+  automated: boolean;
+}
+
+export interface QACheck {
+  id: string;
+  name: string;
+  description: string;
+  type: CheckType;
+  severity: IssueSeverity;
+  enabled: boolean;
+}
+
+export interface QAApproval {
+  id: string;
+  approver: string;
+  role: string;
+  required: boolean;
+  status: ApprovalStatus;
+  timestamp?: Date;
+  comments?: string;
+}
+
+export interface QualityStandard {
+  id: string;
+  name: string;
+  description: string;
+  category: StandardCategory;
+  rules: ValidationRule[];
+  threshold: MetricThresholds;
+  enabled: boolean;
+}
+
+export interface ValidationRule {
+  id: string;
+  name: string;
+  pattern: string;
+  description: string;
+  severity: IssueSeverity;
+  enabled: boolean;
+}
+
+export interface QACheckResult {
+  passed: boolean;
+  issues: QualityIssue[];
+  recommendations: ImprovementSuggestion[];
+  score: number;
+  completedAt: Date;
+  completedBy: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+  score: number;
+}
+
+export interface ValidationError {
+  rule: string;
+  message: string;
+  location?: string;
+  severity: IssueSeverity;
+}
+
+export interface ValidationWarning {
+  rule: string;
+  message: string;
+  location?: string;
+  suggestion?: string;
+}
+
+export enum StepType {
+  VALIDATION = 'validation',
+  REVIEW = 'review',
+  APPROVAL = 'approval',
+  AUTOMATED_CHECK = 'automated_check'
+}
+
+export enum CheckType {
+  ACCURACY = 'accuracy',
+  COMPLETENESS = 'completeness',
+  CLARITY = 'clarity',
+  CONSISTENCY = 'consistency',
+  STYLE = 'style',
+  GRAMMAR = 'grammar'
+}
+
+export enum ApprovalStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  SKIPPED = 'skipped'
+}
+
+export enum StandardCategory {
+  CONTENT = 'content',
+  STYLE = 'style',
+  TECHNICAL = 'technical',
+  LEGAL = 'legal',
+  ACCESSIBILITY = 'accessibility'
+}
