@@ -39,14 +39,28 @@ const wikiContentWithoutTitle = computed(() => {
           density="medium"
         />
       </div>
-      <ErrorDisplay v-else-if="wiki.error" :error="wiki.error">
+      <ErrorDisplay
+        v-else-if="wiki.error"
+        :error="wiki.error"
+        :error-code="wiki.errorInfo?.code"
+        :suggestions="wiki.errorInfo?.suggestions"
+        :retryable="wiki.errorInfo?.retryable"
+        :on-retry="wiki.retryGeneration"
+      >
         <template #actions>
-          <div class="flex justify-center pt-6">
+          <div class="flex justify-center gap-4 pt-6">
             <button
               class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
               @click="setPage('settings')"
             >
               Change model
+            </button>
+            <button
+              v-if="wiki.errorInfo?.retryable"
+              class="text-primary hover:text-primary/80 text-sm"
+              @click="wiki.retryGeneration"
+            >
+              Retry
             </button>
           </div>
         </template>

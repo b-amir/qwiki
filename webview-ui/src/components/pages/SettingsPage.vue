@@ -30,6 +30,11 @@ const centralizedProviderConfigs = ref<
   }>
 >([]);
 
+const providerCapabilities = ref<Record<string, any>>({});
+const showValidationErrors = ref(false);
+const validationErrors = ref<string[]>([]);
+const validationWarnings = ref<string[]>([]);
+
 const providerConfigs = computed(() => {
   return centralizedProviderConfigs.value.map((config) => {
     const wikiProvider = wiki.providers.find((p) => p.id === config.id);
@@ -68,6 +73,28 @@ const getApiKeyInput = (providerId: string) => {
   return settings.apiKeyInputs[providerId] || "";
 };
 
+const getProviderCapability = (providerId: string, capability: string) => {
+  return providerCapabilities.value[providerId]?.[capability] || false;
+};
+
+const validateCurrentConfiguration = () => {
+  const selectedProviderConfig = providerConfigs.value.find(
+    (p) => p.id === settings.selectedProvider,
+  );
+
+  if (selectedProviderConfig) {
+    const config = {
+      apiKey: getApiKeyInput(settings.selectedProvider),
+      model: wiki.model,
+    };
+
+    settings.validateConfiguration(config, settings.selectedProvider);
+    showValidationErrors.value = true;
+    validationErrors.value = settings.validationErrors;
+    validationWarnings.value = settings.validationWarnings;
+  }
+};
+
 const getCustomFieldValue = (fieldId: string) => {
   return settings.customSettings[fieldId] || "";
 };
@@ -104,6 +131,7 @@ const initSettings = async () => {
 
   vscode.postMessage({ command: "getProviders" });
   vscode.postMessage({ command: "getProviderConfigs" });
+  settings.getProviderCapabilities();
 };
 
 const setupMessageListener = () => {
@@ -119,6 +147,17 @@ const setupMessageListener = () => {
             });
           }, 50);
         });
+        break;
+      }
+      case "providerCapabilitiesRetrieved": {
+        providerCapabilities.value = message.payload.capabilities || {};
+        break;
+      }
+      case "configurationValidated": {
+        const { isValid, errors = [], warnings = [] } = message.payload || {};
+        showValidationErrors.value = !isValid;
+        validationErrors.value = errors;
+        validationWarnings.value = warnings;
         break;
       }
     }
@@ -250,9 +289,82 @@ onMounted(() => {
         </div>
 
         <div v-else class="space-y-4">
-          <h3 class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
-            LLM Provider
-          </h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+              LLM Provider
+            </h3>
+            <button
+              class="text-primary hover:text-primary/80 text-xs font-medium"
+              @click="validateCurrentConfiguration"
+            >
+              Validate Configuration
+            </button>
+          </div>
+
+          <div
+            v-if="
+              showValidationErrors && (validationErrors.length > 0 || validationWarnings.length > 0)
+            "
+            class="space-y-2"
+          >
+            <div
+              v-if="validationErrors.length > 0"
+              class="bg-destructive/10 border-destructive/20 text-destructive rounded-md border p-3"
+            >
+              <p class="text-xs font-medium">Configuration Errors:</p>
+              <ul class="mt-1 space-y-1 text-xs">
+                <li
+                  v-for="(error, index) in validationErrors"
+                  :key="index"
+                  class="flex items-start gap-2"
+                >
+                  <svg
+                    class="mt-0.5 h-3 w-3 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                  <span>{{ error }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div
+              v-if="validationWarnings.length > 0"
+              class="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-amber-700"
+            >
+              <p class="text-xs font-medium">Configuration Warnings:</p>
+              <ul class="mt-1 space-y-1 text-xs">
+                <li
+                  v-for="(warning, index) in validationWarnings"
+                  :key="index"
+                  class="flex items-start gap-2"
+                >
+                  <svg
+                    class="mt-0.5 h-3 w-3 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  <span>{{ warning }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
 
           <div class="space-y-3">
             <div
@@ -307,6 +419,33 @@ onMounted(() => {
                 >
                   {{ provider.name }}
                 </label>
+
+                <div
+                  v-if="providerCapabilities[provider.id]"
+                  class="ml-auto flex items-center gap-1"
+                >
+                  <div
+                    v-if="getProviderCapability(provider.id, 'streaming')"
+                    class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
+                    title="Supports Streaming"
+                  >
+                    Streaming
+                  </div>
+                  <div
+                    v-if="getProviderCapability(provider.id, 'functionCalling')"
+                    class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
+                    title="Supports Function Calling"
+                  >
+                    Functions
+                  </div>
+                  <div
+                    v-if="getProviderCapability(provider.id, 'maxTokens')"
+                    class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
+                    :title="`Max Tokens: ${getProviderCapability(provider.id, 'maxTokens')}`"
+                  >
+                    {{ getProviderCapability(provider.id, "maxTokens") }} tokens
+                  </div>
+                </div>
               </div>
               <div
                 class="overflow-hidden"
@@ -411,6 +550,71 @@ onMounted(() => {
                       >
                         Get API key ->
                       </a>
+                    </div>
+
+                    <div
+                      v-if="providerCapabilities[provider.id]"
+                      class="border-border space-y-2 border-t pt-2"
+                    >
+                      <p class="text-muted-foreground text-xs font-medium">
+                        Provider Capabilities:
+                      </p>
+                      <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="flex items-center gap-1">
+                          <svg
+                            class="h-3 w-3"
+                            :class="
+                              getProviderCapability(provider.id, 'streaming')
+                                ? 'text-green-500'
+                                : 'text-muted-foreground'
+                            "
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span>Streaming</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <svg
+                            class="h-3 w-3"
+                            :class="
+                              getProviderCapability(provider.id, 'functionCalling')
+                                ? 'text-green-500'
+                                : 'text-muted-foreground'
+                            "
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span>Function Calling</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span class="text-muted-foreground">Max Tokens:</span>
+                          <span>{{
+                            getProviderCapability(provider.id, "maxTokens") || "N/A"
+                          }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span class="text-muted-foreground">Context:</span>
+                          <span>{{
+                            getProviderCapability(provider.id, "contextWindowSize") || "N/A"
+                          }}</span>
+                        </div>
+                      </div>
                     </div>
 
                     <p v-if="provider.additionalInfo" class="text-muted-foreground text-xs">

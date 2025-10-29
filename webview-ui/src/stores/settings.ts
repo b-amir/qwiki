@@ -15,6 +15,13 @@ export const useSettingsStore = defineStore("settings", {
     originalApiKeys: {} as Record<string, string>,
     unsavedProviders: new Set<string>(),
     autoSaveTimers: {} as Record<string, number>,
+    configurationTemplates: [] as any[],
+    availableBackups: [] as any[],
+    providerHealthStatus: {} as any,
+    providerPerformanceStats: {} as any,
+    validationErrors: [] as string[],
+    validationWarnings: [] as string[],
+    providerCapabilities: {} as Record<string, any>,
   }),
   actions: {
     async init() {
@@ -57,6 +64,53 @@ export const useSettingsStore = defineStore("settings", {
             this.selectedProvider = withKey?.id || providers[0]?.id || "";
             return;
           }
+          case "configurationValidated": {
+            const { isValid, errors = [], warnings = [] } = message.payload || {};
+            this.savedMessage = isValid
+              ? "Configuration is valid"
+              : `Configuration validation failed: ${errors.join(", ")}`;
+            this.validationErrors = errors;
+            this.validationWarnings = warnings;
+            setTimeout(() => {
+              this.savedMessage = "";
+              this.validationErrors = [];
+              this.validationWarnings = [];
+            }, 5000);
+            return;
+          }
+          case "configurationTemplateApplied": {
+            this.savedMessage = "Configuration template applied successfully";
+            setTimeout(() => {
+              this.savedMessage = "";
+            }, 3000);
+            return;
+          }
+          case "configurationBackupCreated": {
+            this.savedMessage = "Configuration backup created successfully";
+            setTimeout(() => {
+              this.savedMessage = "";
+            }, 3000);
+            return;
+          }
+          case "providerHealthRetrieved": {
+            this.providerHealthStatus = message.payload.healthStatus;
+            return;
+          }
+          case "providerPerformanceRetrieved": {
+            this.providerPerformanceStats = message.payload.performanceStats;
+            return;
+          }
+          case "providerCapabilitiesRetrieved": {
+            this.providerCapabilities = message.payload.capabilities || {};
+            return;
+          }
+          case "configurationBackupRestored": {
+            this.savedMessage = "Configuration backup restored successfully";
+            setTimeout(() => {
+              this.savedMessage = "";
+            }, 3000);
+            return;
+          }
         }
       };
 
@@ -65,6 +119,8 @@ export const useSettingsStore = defineStore("settings", {
       vscode.postMessage({ command: "webviewReady" });
       vscode.postMessage({ command: "getApiKeys" });
       vscode.postMessage({ command: "getProviders" });
+      vscode.postMessage({ command: "getConfigurationTemplates" });
+      vscode.postMessage({ command: "getConfigurationBackups" });
 
       setTimeout(() => {
         if (this.loading && !this.initialized) {
@@ -144,6 +200,48 @@ export const useSettingsStore = defineStore("settings", {
     },
     autoSaveProviderSelection(providerId: string) {
       this.selectedProvider = providerId;
+    },
+    async validateConfiguration(config: any, providerId?: string) {
+      vscode.postMessage({
+        command: "validateConfiguration",
+        payload: { providerId, config },
+      });
+    },
+    async applyConfigurationTemplate(templateId: string) {
+      vscode.postMessage({
+        command: "applyConfigurationTemplate",
+        payload: { templateId },
+      });
+    },
+    async createConfigurationBackup(description?: string) {
+      vscode.postMessage({
+        command: "createConfigurationBackup",
+        payload: { description },
+      });
+    },
+    async getProviderHealth(providerId: string) {
+      vscode.postMessage({
+        command: "getProviderHealth",
+        payload: { providerId },
+      });
+    },
+    async getProviderPerformance(providerId: string) {
+      vscode.postMessage({
+        command: "getProviderPerformance",
+        payload: { providerId },
+      });
+    },
+    async getProviderCapabilities() {
+      vscode.postMessage({
+        command: "getProviderCapabilities",
+        payload: {},
+      });
+    },
+    async restoreConfigurationBackup(backupId: string) {
+      vscode.postMessage({
+        command: "restoreConfigurationBackup",
+        payload: { backupId },
+      });
     },
   },
 });

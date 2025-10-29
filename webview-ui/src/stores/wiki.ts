@@ -3,6 +3,13 @@ import { vscode } from "@/utilities/vscode";
 
 export type ProviderStatus = { id: string; name: string; hasKey: boolean; models: string[] };
 
+export interface ErrorInfo {
+  message: string;
+  code?: string;
+  suggestions?: string[];
+  retryable?: boolean;
+}
+
 export const useWikiStore = defineStore("wiki", {
   state: () => ({
     loading: false as boolean,
@@ -20,6 +27,7 @@ export const useWikiStore = defineStore("wiki", {
     providerId: "" as string,
     model: "" as string,
     pendingAutoGenerate: false as boolean,
+    errorInfo: null as ErrorInfo | null,
   }),
   actions: {
     init() {
@@ -77,6 +85,12 @@ export const useWikiStore = defineStore("wiki", {
             this.loading = false;
             this.loadingStep = "";
             this.error = message.payload?.message || "Unknown error";
+            this.errorInfo = {
+              message: message.payload?.message || "Unknown error",
+              code: message.payload?.code,
+              suggestions: message.payload?.suggestions,
+              retryable: message.payload?.retryable || false,
+            };
             return;
           }
           case "loadingStep": {
@@ -128,10 +142,16 @@ export const useWikiStore = defineStore("wiki", {
     clearContent() {
       this.content = "";
       this.error = "";
+      this.errorInfo = null;
       this.loadingStep = "";
       this.related = [];
       this.filesSample = [];
       this.overview = "";
+    },
+    retryGeneration() {
+      if (this.errorInfo?.retryable) {
+        this.generate();
+      }
     },
   },
 });
