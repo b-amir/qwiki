@@ -11,3 +11,4 @@ export { ConfigurationTemplateService } from "./ConfigurationTemplateService";
 export { ProviderSelectionService } from "./ProviderSelectionService";
 export { ProviderDiscoveryService } from "./ProviderDiscoveryService";
 export { ProviderLifecycleManager } from "./ProviderLifecycleManager";
+export { ProviderDependencyResolver } from "./ProviderDependencyResolver";
