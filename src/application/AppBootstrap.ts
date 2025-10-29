@@ -8,6 +8,10 @@ import {
   CachedWikiService,
   MessageBus,
   ConfigurationManager,
+  ConfigurationValidator,
+  ConfigurationMigrationService,
+  ConfigurationTemplateService,
+  ProviderSelectionService,
 } from "./";
 import {
   VSCodeApiKeyRepository,
@@ -17,6 +21,9 @@ import {
   ErrorRecoveryService,
   CacheService,
   PerformanceMonitor,
+  ConfigurationBackupService,
+  ProviderHealthService,
+  ProviderPerformanceService,
 } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
@@ -36,6 +43,23 @@ export class AppBootstrap {
   async initialize(): Promise<void> {
     const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
     await configManager.initialize();
+
+    const migrationService = this.container.resolve(
+      "configurationMigrationService",
+    ) as ConfigurationMigrationService;
+    if (await migrationService.needsMigration()) {
+      await migrationService.migrateToVersion("1.4.0");
+    }
+
+    const templateService = this.container.resolve(
+      "configurationTemplateService",
+    ) as ConfigurationTemplateService;
+    await templateService.loadCustomTemplates();
+
+    const healthService = (await this.container.resolveLazy(
+      "providerHealthService",
+    )) as ProviderHealthService;
+    healthService.startHealthMonitoring();
   }
 
   private registerServices(): void {
@@ -46,15 +70,45 @@ export class AppBootstrap {
 
     this.container.register(
       "apiKeyRepository",
-      () => new VSCodeApiKeyRepository(this.container.resolve("secrets")),
+      () => new VSCodeApiKeyRepository(this.container.resolve("secrets") as any),
     );
 
     this.container.register("configurationRepository", () => new VSCodeConfigurationRepository());
 
     const configManager = new ConfigurationManager(
       this.container.resolve("configurationRepository"),
+      this.container.resolve("eventBus"),
     );
     this.container.registerInstance("configurationManager", configManager);
+
+    this.container.register("configurationValidator", () => new ConfigurationValidator());
+
+    this.container.register(
+      "configurationMigrationService",
+      () =>
+        new ConfigurationMigrationService(
+          this.container.resolve("configurationRepository"),
+          this.container.resolve("eventBus"),
+        ),
+    );
+
+    this.container.register(
+      "configurationTemplateService",
+      () =>
+        new ConfigurationTemplateService(
+          this.container.resolve("configurationRepository"),
+          this.container.resolve("eventBus"),
+        ),
+    );
+
+    this.container.register(
+      "configurationBackupService",
+      () =>
+        new ConfigurationBackupService(
+          this.container.resolve("configurationRepository"),
+          this.container.resolve("eventBus"),
+        ),
+    );
 
     this.container.register("selectionService", () => new SelectionService());
 
@@ -77,6 +131,8 @@ export class AppBootstrap {
       return new LLMRegistry(
         this.container.resolve("secrets"),
         this.container.resolve("errorRecoveryService"),
+        this.container.resolve("errorLoggingService"),
+        this.container.resolve("configurationManager"),
         getSetting,
       );
     });
@@ -108,6 +164,29 @@ export class AppBootstrap {
     this.container.register("errorLoggingService", () => new ErrorLoggingService());
 
     this.container.register("errorRecoveryService", () => new ErrorRecoveryService());
+
+    this.container.registerLazy(
+      "providerSelectionService",
+      async () => new ProviderSelectionService(await this.container.resolveLazy("llmRegistry")),
+    );
+
+    this.container.registerLazy(
+      "providerHealthService",
+      async () =>
+        new ProviderHealthService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("eventBus"),
+        ),
+    );
+
+    this.container.registerLazy(
+      "providerPerformanceService",
+      async () =>
+        new ProviderPerformanceService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("eventBus"),
+        ),
+    );
 
     this.container.register(
       "selectionEventHandler",
