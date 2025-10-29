@@ -1,5 +1,6 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
+import { ProviderError, ErrorCodes } from "../../errors";
 
 const HUGGINGFACE_MODELS = [
   "bigscience/bloomz-7b1",
@@ -15,7 +16,11 @@ export class HuggingFaceProvider implements LLMProvider {
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
-      throw new Error("Hugging Face API key is not set");
+      throw new ProviderError(
+        ErrorCodes.API_KEY_MISSING,
+        "Hugging Face API key is not set",
+        this.id,
+      );
     }
 
     const model = params.model || HUGGINGFACE_MODELS[0];
@@ -39,7 +44,36 @@ export class HuggingFaceProvider implements LLMProvider {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Hugging Face request failed: ${res.status} ${text}`);
+      if (res.status === 401) {
+        throw new ProviderError(
+          ErrorCodes.API_KEY_INVALID,
+          "Hugging Face API key is invalid",
+          this.id,
+          text,
+        );
+      }
+      if (res.status === 429) {
+        throw new ProviderError(
+          ErrorCodes.RATE_LIMIT_EXCEEDED,
+          "Hugging Face rate limit exceeded",
+          this.id,
+          text,
+        );
+      }
+      if (res.status >= 500) {
+        throw new ProviderError(
+          ErrorCodes.NETWORK_ERROR,
+          "Hugging Face server error",
+          this.id,
+          text,
+        );
+      }
+      throw new ProviderError(
+        ErrorCodes.GENERATION_FAILED,
+        `Hugging Face request failed: ${res.status}`,
+        this.id,
+        text,
+      );
     }
 
     const data: any = await res.json();

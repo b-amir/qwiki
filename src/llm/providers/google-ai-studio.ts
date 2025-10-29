@@ -1,6 +1,7 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import type { GetSetting } from "./registry";
 import { buildWikiPrompt } from "../prompt";
+import { ProviderError, ErrorCodes } from "../../errors";
 
 const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
 
@@ -13,7 +14,11 @@ export class GoogleAIStudioProvider implements LLMProvider {
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
-      throw new Error(`Google AI Studio API key is not set`);
+      throw new ProviderError(
+        ErrorCodes.API_KEY_MISSING,
+        "Google AI Studio API key is not set",
+        this.id,
+      );
     }
 
     const model = params.model || "gemini-2.5-pro";
@@ -50,7 +55,36 @@ export class GoogleAIStudioProvider implements LLMProvider {
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`Google AI Studio request failed: ${res.status} ${text}`);
+        if (res.status === 401) {
+          throw new ProviderError(
+            ErrorCodes.API_KEY_INVALID,
+            "Google AI Studio API key is invalid",
+            this.id,
+            text,
+          );
+        }
+        if (res.status === 429) {
+          throw new ProviderError(
+            ErrorCodes.RATE_LIMIT_EXCEEDED,
+            "Google AI Studio rate limit exceeded",
+            this.id,
+            text,
+          );
+        }
+        if (res.status >= 500) {
+          throw new ProviderError(
+            ErrorCodes.NETWORK_ERROR,
+            "Google AI Studio server error",
+            this.id,
+            text,
+          );
+        }
+        throw new ProviderError(
+          ErrorCodes.GENERATION_FAILED,
+          `Google AI Studio request failed: ${res.status}`,
+          this.id,
+          text,
+        );
       }
 
       const data: any = await res.json();
@@ -84,7 +118,36 @@ export class GoogleAIStudioProvider implements LLMProvider {
 
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`Google AI Studio request failed: ${res.status} ${text}`);
+        if (res.status === 401) {
+          throw new ProviderError(
+            ErrorCodes.API_KEY_INVALID,
+            "Google AI Studio API key is invalid",
+            this.id,
+            text,
+          );
+        }
+        if (res.status === 429) {
+          throw new ProviderError(
+            ErrorCodes.RATE_LIMIT_EXCEEDED,
+            "Google AI Studio rate limit exceeded",
+            this.id,
+            text,
+          );
+        }
+        if (res.status >= 500) {
+          throw new ProviderError(
+            ErrorCodes.NETWORK_ERROR,
+            "Google AI Studio server error",
+            this.id,
+            text,
+          );
+        }
+        throw new ProviderError(
+          ErrorCodes.GENERATION_FAILED,
+          `Google AI Studio request failed: ${res.status}`,
+          this.id,
+          text,
+        );
       }
 
       const data: any = await res.json();

@@ -2,6 +2,7 @@ import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } fr
 import type { GetSetting } from "./registry";
 import { buildWikiPrompt } from "../prompt";
 import { getNonce } from "../../utilities/getNonce";
+import { ProviderError, ErrorCodes } from "../../errors";
 
 const ZAI_MODELS = [
   "glm-4.5-flash",
@@ -21,7 +22,8 @@ export class ZAiProvider implements LLMProvider {
   constructor(private getSetting?: GetSetting) {}
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
-    if (!apiKey) throw new Error("Z.ai API key is not set");
+    if (!apiKey)
+      throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Z.ai API key is not set", this.id);
     const model = params.model || ZAI_MODELS[0];
     const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
       | string
@@ -75,14 +77,65 @@ export class ZAiProvider implements LLMProvider {
             }
           }
           if (!res.ok) {
-            throw new Error(
-              `Z.ai request failed: 429 ${msg}. Likely your plan doesn't include the selected model. Select a model in your package (e.g., glm-4.5-flash) or set qwiki.zaiBaseUrl for your tenant and retry.`,
+            throw new ProviderError(
+              ErrorCodes.MODEL_NOT_SUPPORTED,
+              `Z.ai model ${model} not supported. Likely your plan doesn't include the selected model. Select a model in your package (e.g., glm-4.5-flash) or set qwiki.zaiBaseUrl for your tenant and retry.`,
+              this.id,
+              text,
             );
           }
         }
-        throw new Error(`Z.ai request failed: ${res.status} ${code ? `code ${code} ` : ""}${msg}`);
+        if (res.status === 401) {
+          throw new ProviderError(
+            ErrorCodes.API_KEY_INVALID,
+            "Z.ai API key is invalid",
+            this.id,
+            text,
+          );
+        }
+        if (res.status === 429) {
+          throw new ProviderError(
+            ErrorCodes.RATE_LIMIT_EXCEEDED,
+            "Z.ai rate limit exceeded",
+            this.id,
+            text,
+          );
+        }
+        if (res.status >= 500) {
+          throw new ProviderError(ErrorCodes.NETWORK_ERROR, "Z.ai server error", this.id, text);
+        }
+        throw new ProviderError(
+          ErrorCodes.GENERATION_FAILED,
+          `Z.ai request failed: ${res.status} ${code ? `code ${code} ` : ""}${msg}`,
+          this.id,
+          text,
+        );
       } catch {
-        throw new Error(`Z.ai request failed: ${res.status} ${text}`);
+        if (res.status === 401) {
+          throw new ProviderError(
+            ErrorCodes.API_KEY_INVALID,
+            "Z.ai API key is invalid",
+            this.id,
+            text,
+          );
+        }
+        if (res.status === 429) {
+          throw new ProviderError(
+            ErrorCodes.RATE_LIMIT_EXCEEDED,
+            "Z.ai rate limit exceeded",
+            this.id,
+            text,
+          );
+        }
+        if (res.status >= 500) {
+          throw new ProviderError(ErrorCodes.NETWORK_ERROR, "Z.ai server error", this.id, text);
+        }
+        throw new ProviderError(
+          ErrorCodes.GENERATION_FAILED,
+          `Z.ai request failed: ${res.status} ${text}`,
+          this.id,
+          text,
+        );
       }
     }
     const data: any = await res.json();

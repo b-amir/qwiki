@@ -1,5 +1,6 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
+import { ProviderError, ErrorCodes } from "../../errors";
 
 const OPENROUTER_MODELS = [
   "openai/gpt-oss-20b",
@@ -14,7 +15,7 @@ export class OpenRouterProvider implements LLMProvider {
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
-      throw new Error("OpenRouter API key is not set");
+      throw new ProviderError(ErrorCodes.API_KEY_MISSING, "OpenRouter API key is not set", this.id);
     }
 
     const model = params.model || OPENROUTER_MODELS[0];
@@ -49,7 +50,31 @@ export class OpenRouterProvider implements LLMProvider {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`OpenRouter request failed: ${res.status} ${text}`);
+      if (res.status === 401) {
+        throw new ProviderError(
+          ErrorCodes.API_KEY_INVALID,
+          "OpenRouter API key is invalid",
+          this.id,
+          text,
+        );
+      }
+      if (res.status === 429) {
+        throw new ProviderError(
+          ErrorCodes.RATE_LIMIT_EXCEEDED,
+          "OpenRouter rate limit exceeded",
+          this.id,
+          text,
+        );
+      }
+      if (res.status >= 500) {
+        throw new ProviderError(ErrorCodes.NETWORK_ERROR, "OpenRouter server error", this.id, text);
+      }
+      throw new ProviderError(
+        ErrorCodes.GENERATION_FAILED,
+        `OpenRouter request failed: ${res.status}`,
+        this.id,
+        text,
+      );
     }
 
     const data: any = await res.json();

@@ -1,5 +1,6 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
 import { buildWikiPrompt } from "../prompt";
+import { ProviderError, ErrorCodes } from "../../errors";
 
 const COHERE_MODELS = ["command-a-03-2025", "command-r-plus-08-2024", "command-r-08-2024"];
 
@@ -10,7 +11,7 @@ export class CohereProvider implements LLMProvider {
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
-      throw new Error("Cohere API key is not set");
+      throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Cohere API key is not set", this.id);
     }
 
     const model = params.model || COHERE_MODELS[0];
@@ -33,7 +34,31 @@ export class CohereProvider implements LLMProvider {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Cohere request failed: ${res.status} ${text}`);
+      if (res.status === 401) {
+        throw new ProviderError(
+          ErrorCodes.API_KEY_INVALID,
+          "Cohere API key is invalid",
+          this.id,
+          text,
+        );
+      }
+      if (res.status === 429) {
+        throw new ProviderError(
+          ErrorCodes.RATE_LIMIT_EXCEEDED,
+          "Cohere rate limit exceeded",
+          this.id,
+          text,
+        );
+      }
+      if (res.status >= 500) {
+        throw new ProviderError(ErrorCodes.NETWORK_ERROR, "Cohere server error", this.id, text);
+      }
+      throw new ProviderError(
+        ErrorCodes.GENERATION_FAILED,
+        `Cohere request failed: ${res.status}`,
+        this.id,
+        text,
+      );
     }
 
     const data: any = await res.json();
