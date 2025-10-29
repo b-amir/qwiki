@@ -10,3 +10,9 @@ export {
   type PerformanceStats,
 } from "./PerformanceMonitor";
 export { ProviderHealthService } from "./ProviderHealthService";
+export {
+  ProviderPerformanceService,
+  type PerformanceMetric as ProviderPerformanceMetric,
+  type PerformanceStats as ProviderPerformanceStats,
+  type ProviderRanking,
+} from "./ProviderPerformanceService";
