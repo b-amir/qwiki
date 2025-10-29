@@ -32,7 +32,13 @@ export class WikiService {
       onProgress?.(LoadingSteps.preparing);
 
       await new Promise((resolve) => setTimeout(resolve, 100));
-      onProgress?.(LoadingSteps.generating);
+      onProgress?.(LoadingSteps.buildingPrompt);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      onProgress?.(LoadingSteps.sendingRequest);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      onProgress?.(LoadingSteps.waitingForResponse);
 
       const result = await this.llmRegistry.generate(request.providerId as ProviderId, {
         model: request.model,

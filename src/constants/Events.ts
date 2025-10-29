@@ -34,7 +34,9 @@ export const LoadingSteps = {
   analyzing: "analyzing",
   finding: "finding",
   preparing: "preparing",
-  generating: "generating",
+  buildingPrompt: "buildingPrompt",
+  sendingRequest: "sendingRequest",
+  waitingForResponse: "waitingForResponse",
   processing: "processing",
   finalizing: "finalizing",
 } as const;

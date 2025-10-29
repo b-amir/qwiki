@@ -29,7 +29,9 @@ const wikiContentWithoutTitle = computed(() => {
             { text: 'Analyzing code structure...', key: 'analyzing' },
             { text: 'Finding related files...', key: 'finding' },
             { text: 'Preparing LLM request...', key: 'preparing' },
-            { text: 'Generating documentation...', key: 'generating' },
+            { text: 'Building documentation prompt...', key: 'buildingPrompt' },
+            { text: 'Sending request to LLM...', key: 'sendingRequest' },
+            { text: 'Waiting for LLM response...', key: 'waitingForResponse' },
             { text: 'Processing response...', key: 'processing' },
             { text: 'Finalizing documentation...', key: 'finalizing' },
           ]"
