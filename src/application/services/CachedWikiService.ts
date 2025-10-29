@@ -1,5 +1,12 @@
 import { CachingService } from "../../infrastructure/services/CachingService";
 import { PerformanceMonitor } from "../../infrastructure/services/PerformanceMonitor";
+import {
+  GenerationCacheService,
+  RequestBatchingService,
+  DebouncingService,
+  BackgroundProcessingService,
+  MemoryOptimizationService,
+} from "../../infrastructure/services";
 import type { LLMRegistry } from "../../llm";
 import type { WikiGenerationRequest, WikiGenerationResult } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
@@ -14,8 +21,20 @@ export class CachedWikiService {
     private llmRegistry: LLMRegistry,
     private cacheService: CachingService,
     private performanceMonitor: PerformanceMonitor,
+    private generationCacheService: GenerationCacheService,
+    private requestBatchingService: RequestBatchingService,
+    private debouncingService: DebouncingService,
+    private backgroundProcessingService: BackgroundProcessingService,
+    private memoryOptimizationService: MemoryOptimizationService,
   ) {
-    this.wikiService = new WikiService(llmRegistry);
+    this.wikiService = new WikiService(
+      llmRegistry,
+      generationCacheService,
+      requestBatchingService,
+      debouncingService,
+      backgroundProcessingService,
+      memoryOptimizationService,
+    );
   }
 
   async generateWiki(

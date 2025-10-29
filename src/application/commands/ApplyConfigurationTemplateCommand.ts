@@ -16,7 +16,7 @@ export class ApplyConfigurationTemplateCommand
 
   async execute(payload: ApplyConfigurationTemplatePayload): Promise<void> {
     try {
-      await this.configurationTemplateService.applyTemplate(payload.templateId);
+      await this.configurationTemplateService.applyTemplate(payload.templateId, {});
 
       this.messageBus.postSuccess("configurationTemplateApplied", {
         templateId: payload.templateId,

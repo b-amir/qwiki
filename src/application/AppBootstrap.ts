@@ -199,6 +199,11 @@ export class AppBootstrap {
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("cacheService"),
           this.container.resolve("performanceMonitor"),
+          this.container.resolve("generationCacheService") as GenerationCacheService,
+          this.container.resolve("requestBatchingService") as RequestBatchingService,
+          this.container.resolve("debouncingService") as DebouncingService,
+          this.container.resolve("backgroundProcessingService") as BackgroundProcessingService,
+          this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
         ),
     );
 
