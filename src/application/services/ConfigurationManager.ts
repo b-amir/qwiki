@@ -8,6 +8,16 @@ import type {
 } from "../../domain/configuration";
 import { EventBus } from "../../events";
 import { ConfigurationError } from "../../errors";
+import type {
+  ConfigurationValidationEngine,
+  ValidationContext,
+} from "./ConfigurationValidationEngine";
+import type { ConfigurationTemplateService } from "./ConfigurationTemplateService";
+import type {
+  ConfigurationImportExportService,
+  ExportOptions,
+  ImportOptions,
+} from "./ConfigurationImportExportService";
 
 export class ConfigurationManager {
   private configCache = new Map<string, any>();
@@ -15,6 +25,9 @@ export class ConfigurationManager {
   constructor(
     private configurationRepository: ConfigurationRepository,
     private eventBus: EventBus,
+    private validationEngine: ConfigurationValidationEngine,
+    private templateService: ConfigurationTemplateService,
+    private importExportService: ConfigurationImportExportService,
   ) {}
 
   async initialize(): Promise<void> {
@@ -158,11 +171,95 @@ export class ConfigurationManager {
     };
   }
 
+  private validateField(value: any, field: any, errors: any[], warnings: any[]): void {
+    if (field.type === "number" && typeof value !== "number") {
+      errors.push({
+        field: field.name,
+        code: "INVALID_TYPE",
+        message: `Field ${field.name} must be a number`,
+        severity: "error",
+      });
+      return;
+    }
+
+    if (field.type === "string" && typeof value !== "string") {
+      errors.push({
+        field: field.name,
+        code: "INVALID_TYPE",
+        message: `Field ${field.name} must be a string`,
+        severity: "error",
+      });
+      return;
+    }
+
+    if (field.type === "boolean" && typeof value !== "boolean") {
+      errors.push({
+        field: field.name,
+        code: "INVALID_TYPE",
+        message: `Field ${field.name} must be a boolean`,
+        severity: "error",
+      });
+      return;
+    }
+
+    if (field.validation) {
+      if (field.validation.min !== undefined && value < field.validation.min) {
+        errors.push({
+          field: field.name,
+          code: "VALUE_TOO_SMALL",
+          message: `Field ${field.name} must be at least ${field.validation.min}`,
+          severity: "error",
+        });
+      }
+
+      if (field.validation.max !== undefined && value > field.validation.max) {
+        errors.push({
+          field: field.name,
+          code: "VALUE_TOO_LARGE",
+          message: `Field ${field.name} must be at most ${field.validation.max}`,
+          severity: "error",
+        });
+      }
+
+      if (field.validation.pattern && typeof value === "string") {
+        const regex = new RegExp(field.validation.pattern);
+        if (!regex.test(value)) {
+          errors.push({
+            field: field.name,
+            code: "INVALID_FORMAT",
+            message: `Field ${field.name} does not match required pattern`,
+            severity: "error",
+          });
+        }
+      }
+
+      if (field.validation.enum && !field.validation.enum.includes(value)) {
+        errors.push({
+          field: field.name,
+          code: "INVALID_ENUM_VALUE",
+          message: `Field ${field.name} must be one of: ${field.validation.enum.join(", ")}`,
+          severity: "error",
+        });
+      }
+
+      if (field.validation.custom && !field.validation.custom(value)) {
+        errors.push({
+          field: field.name,
+          code: "CUSTOM_VALIDATION_FAILED",
+          message: `Field ${field.name} failed custom validation`,
+          severity: "error",
+        });
+      }
+    }
+  }
+
   clearCache(): void {
     this.configCache.clear();
   }
 
-  async exportConfiguration(): Promise<ExportedConfiguration> {
+  async exportConfigurationWithImportExportService(
+    options: ExportOptions = {},
+  ): Promise<ExportedConfiguration> {
     const global = await this.getGlobalConfig();
     const allConfigs = await this.configurationRepository.getAll();
     const providers: Record<string, ProviderConfiguration> = {};
@@ -174,25 +271,28 @@ export class ConfigurationManager {
       }
     }
 
-    return {
-      version: "1.0.0",
-      exportedAt: new Date().toISOString(),
+    const exportResult = await this.importExportService.exportConfiguration(
       global,
       providers,
+      options,
+    );
+    return {
+      version: exportResult.version,
+      exportedAt: exportResult.exportedAt,
+      global: exportResult.data.global,
+      providers: exportResult.data.providers,
       metadata: {
-        exportedBy: "qwiki",
-        description: "Configuration export",
+        exportedBy: exportResult.metadata.exportedBy || "",
+        description: exportResult.metadata.description || "",
       },
     };
   }
 
-  async importConfiguration(config: ExportedConfiguration): Promise<void> {
-    await this.setGlobalConfig(config.global);
-
-    for (const [providerId, providerConfig] of Object.entries(config.providers)) {
-      await this.setProviderConfig(providerId, providerConfig);
-    }
-
+  async importConfigurationWithImportExportService(
+    config: any,
+    options: ImportOptions = {},
+  ): Promise<void> {
+    await this.importExportService.importConfiguration(config, options);
     await this.eventBus.publish("configurationImported", { config });
   }
 
@@ -246,5 +346,61 @@ export class ConfigurationManager {
   async getWithDefault<T>(key: string, defaultValue: T): Promise<T> {
     const value = await this.get<T>(key);
     return value !== undefined ? value : defaultValue;
+  }
+
+  async applyTemplate(templateId: string, variables: Record<string, any>): Promise<void> {
+    await this.templateService.applyTemplate(templateId, variables);
+  }
+
+  private createProviderSchema(providerId: string): ConfigurationSchema {
+    return {
+      version: "1.0.0",
+      fields: [
+        {
+          name: "id",
+          type: "string",
+          required: true,
+          description: "Provider identifier",
+        },
+        {
+          name: "name",
+          type: "string",
+          required: true,
+          description: "Provider display name",
+        },
+        {
+          name: "enabled",
+          type: "boolean",
+          required: true,
+          description: "Whether the provider is enabled",
+        },
+        {
+          name: "apiKey",
+          type: "string",
+          required: false,
+          description: "API key for authentication",
+        },
+        {
+          name: "model",
+          type: "string",
+          required: false,
+          description: "Default model to use",
+        },
+        {
+          name: "temperature",
+          type: "number",
+          required: false,
+          validation: { min: 0, max: 2 },
+          description: "Temperature for generation",
+        },
+        {
+          name: "maxTokens",
+          type: "number",
+          required: false,
+          validation: { min: 1, max: 32000 },
+          description: "Maximum tokens to generate",
+        },
+      ],
+    };
   }
 }
