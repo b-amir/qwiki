@@ -11,6 +11,8 @@ import {
   ConfigurationValidator,
   ConfigurationMigrationService,
   ConfigurationTemplateService,
+  ConfigurationValidationEngine,
+  ConfigurationImportExportService,
   ProviderSelectionService,
 } from "./";
 import {
@@ -19,7 +21,7 @@ import {
   ErrorHandlerImpl,
   ErrorLoggingService,
   ErrorRecoveryService,
-  CacheService,
+  CachingService,
   PerformanceMonitor,
   ConfigurationBackupService,
   ProviderHealthService,
@@ -51,11 +53,6 @@ export class AppBootstrap {
       await migrationService.migrateToVersion("1.4.0");
     }
 
-    const templateService = this.container.resolve(
-      "configurationTemplateService",
-    ) as ConfigurationTemplateService;
-    await templateService.loadCustomTemplates();
-
     const healthService = (await this.container.resolveLazy(
       "providerHealthService",
     )) as ProviderHealthService;
@@ -66,7 +63,7 @@ export class AppBootstrap {
     this.container.registerInstance("eventBus", new EventBusImpl());
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
-    this.container.registerInstance("cacheService", new CacheService());
+    this.container.registerInstance("cacheService", new CachingService());
     this.container.registerInstance("performanceMonitor", new PerformanceMonitor());
 
     this.container.register(
@@ -76,13 +73,32 @@ export class AppBootstrap {
 
     this.container.register("configurationRepository", () => new VSCodeConfigurationRepository());
 
-    const configManager = new ConfigurationManager(
-      this.container.resolve("configurationRepository"),
-      this.container.resolve("eventBus"),
+    this.container.register(
+      "configurationManager",
+      () =>
+        new ConfigurationManager(
+          this.container.resolve("configurationRepository"),
+          this.container.resolve("eventBus"),
+          this.container.resolve("configurationValidationEngine"),
+          this.container.resolve("configurationTemplateService"),
+          this.container.resolve("configurationImportExportService"),
+        ),
     );
-    this.container.registerInstance("configurationManager", configManager);
 
     this.container.register("configurationValidator", () => new ConfigurationValidator());
+
+    this.container.register(
+      "configurationValidationEngine",
+      () => new ConfigurationValidationEngine(),
+    );
+
+    this.container.register(
+      "configurationImportExportService",
+      () =>
+        new ConfigurationImportExportService(
+          this.container.resolve("configurationValidationEngine"),
+        ),
+    );
 
     this.container.register(
       "configurationMigrationService",
@@ -96,10 +112,7 @@ export class AppBootstrap {
     this.container.register(
       "configurationTemplateService",
       () =>
-        new ConfigurationTemplateService(
-          this.container.resolve("configurationRepository"),
-          this.container.resolve("eventBus"),
-        ),
+        new ConfigurationTemplateService(this.container.resolve("configurationValidationEngine")),
     );
 
     this.container.register(

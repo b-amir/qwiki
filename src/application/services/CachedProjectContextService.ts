@@ -1,4 +1,4 @@
-import { CacheService } from "../../infrastructure/services/CacheService";
+import { CachingService } from "../../infrastructure/services/CachingService";
 import { PerformanceMonitor } from "../../infrastructure/services/PerformanceMonitor";
 import { ProjectContextService } from "./ProjectContextService";
 import type { ProjectContext } from "../../domain/entities/Selection";
@@ -8,7 +8,7 @@ export class CachedProjectContextService {
   private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
   constructor(
-    private cacheService: CacheService,
+    private cacheService: CachingService,
     private performanceMonitor: PerformanceMonitor,
     private projectContextService: ProjectContextService,
   ) {}
@@ -27,7 +27,7 @@ export class CachedProjectContextService {
 
     const cacheKey = this.generateCacheKey(snippet, filePath, languageId);
 
-    const cached = this.cacheService.get<ProjectContext>(cacheKey);
+    const cached = await this.cacheService.get<ProjectContext>(cacheKey);
     if (cached) {
       endTimer();
       return cached;
@@ -39,7 +39,7 @@ export class CachedProjectContextService {
       languageId,
       webview,
     );
-    this.cacheService.set(cacheKey, context, this.CACHE_TTL);
+    await this.cacheService.set(cacheKey, context, { ttl: this.CACHE_TTL });
 
     endTimer();
     return context;
@@ -62,7 +62,7 @@ export class CachedProjectContextService {
     return Math.abs(hash).toString(36);
   }
 
-  clearCache(): void {
-    this.cacheService.clear();
+  async clearCache(): Promise<void> {
+    await this.cacheService.clear();
   }
 }

@@ -8,6 +8,8 @@ export { ConfigurationManager } from "./ConfigurationManager";
 export { ConfigurationValidator } from "./ConfigurationValidator";
 export { ConfigurationMigrationService } from "./ConfigurationMigrationService";
 export { ConfigurationTemplateService } from "./ConfigurationTemplateService";
+export { ConfigurationValidationEngine } from "./ConfigurationValidationEngine";
+export { ConfigurationImportExportService } from "./ConfigurationImportExportService";
 export { ProviderSelectionService } from "./ProviderSelectionService";
 export { SmartProviderSelectionService } from "./SmartProviderSelectionService";
 export { ProviderSelectionIntegrationService } from "./ProviderSelectionIntegrationService";

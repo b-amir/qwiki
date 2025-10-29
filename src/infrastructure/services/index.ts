@@ -2,7 +2,7 @@ export { ErrorHandler, ErrorHandlerImpl } from "./ErrorHandler";
 export { ErrorRecoveryService } from "./ErrorRecoveryService";
 export { ErrorLoggingService } from "./ErrorLoggingService";
 export { ConfigurationBackupService } from "./ConfigurationBackupService";
-export { CacheService } from "./CacheService";
+export { CachingService } from "./CachingService";
 export { WebviewOptimizer, Debouncer } from "./WebviewOptimizer";
 export {
   PerformanceMonitor,
