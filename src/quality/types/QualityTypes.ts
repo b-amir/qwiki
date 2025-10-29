@@ -131,3 +131,31 @@ export enum TrendDirection {
   STABLE = 'stable',
   FLUCTUATING = 'fluctuating'
 }
+
+export interface ImprovementSuggestion {
+  type: RecommendationType;
+  description: string;
+  priority: Priority;
+  impact: Impact;
+  effort: Effort;
+  affectedContent?: string;
+  automatedAction?: boolean;
+}
+
+export interface ImprovementPlan {
+  suggestions: ImprovementSuggestion[];
+  estimatedTime: number;
+  impact: Impact;
+  priority: Priority;
+  totalEffort: Effort;
+  automatedActions: number;
+}
+
+export interface ProgressReport {
+  totalSuggestions: number;
+  completedSuggestions: number;
+  pendingSuggestions: number;
+  automatedSuggestions: number;
+  averageImpact: number;
+  completionRate: number;
+}
