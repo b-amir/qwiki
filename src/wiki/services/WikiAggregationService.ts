@@ -1,8 +1,7 @@
 import { EventEmitter } from 'events'
 import type {
   WikiPage,
-  WikiIndex,
-  WikiStatus
+  WikiIndex
 } from '../types/WikiTypes'
 import type {
   AggregationStrategy,
@@ -16,16 +15,20 @@ import type {
   WikiCategory,
   WikiRelationshipMap,
   AggregatedWikiMetadata,
+  ConflictResolution,
+  DuplicateDetectionResult,
+  DuplicateGroup
+} from '../types/AggregationTypes'
+import {
   MergeStrategy,
   ConflictResolutionStrategy,
   ConflictType,
-  ConflictResolution,
-  DuplicateDetectionResult,
-  DuplicateGroup,
   DuplicateType,
   SuggestedAction,
   IssueType,
-  IssueSeverity
+  IssueSeverity,
+  AggregationType,
+  WarningType
 } from '../types/AggregationTypes'
 
 export class WikiAggregationService extends EventEmitter {
@@ -369,10 +372,10 @@ export class WikiAggregationService extends EventEmitter {
     )
 
     switch (strategy) {
-      case MergeStrategy.LATEST_WINS:
+      case MergeStrategy.TEMPORAL:
         return latestPage
 
-      case MergeStrategy.MERGE:
+      case MergeStrategy.APPEND:
         return this.mergePageContents(pages)
 
       case MergeStrategy.SEMANTIC:
