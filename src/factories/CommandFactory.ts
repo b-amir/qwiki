@@ -121,13 +121,13 @@ export class CommandFactory {
 
       case CommandIds.getProviderHealth:
         return new GetProviderHealthCommand(
-          container.resolve("providerHealthService"),
+          await container.resolveLazy("providerHealthService"),
           this.messageBus,
         ) as Command<T>;
 
       case CommandIds.getProviderPerformance:
         return new GetProviderPerformanceCommand(
-          container.resolve("providerPerformanceService"),
+          await container.resolveLazy("providerPerformanceService"),
           this.messageBus,
         ) as Command<T>;
 
