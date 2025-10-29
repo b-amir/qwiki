@@ -9,6 +9,7 @@ export { ConfigurationValidator } from "./ConfigurationValidator";
 export { ConfigurationMigrationService } from "./ConfigurationMigrationService";
 export { ConfigurationTemplateService } from "./ConfigurationTemplateService";
 export { ProviderSelectionService } from "./ProviderSelectionService";
+export { ContextAnalysisService } from "./ContextAnalysisService";
 export { ProviderDiscoveryService } from "./ProviderDiscoveryService";
 export { ProviderLifecycleManager } from "./ProviderLifecycleManager";
 export { ProviderDependencyResolver } from "./ProviderDependencyResolver";
