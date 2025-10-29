@@ -1,4 +1,5 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
+import type { GetSetting } from "./registry";
 import { buildWikiPrompt } from "../prompt";
 
 const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
@@ -8,7 +9,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
   name = "Google AI Studio";
   requiresApiKey = true;
 
-  constructor(private useNativeEndpoint: boolean = false) {}
+  constructor(private getSetting?: GetSetting) {}
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
@@ -16,9 +17,14 @@ export class GoogleAIStudioProvider implements LLMProvider {
     }
 
     const model = params.model || "gemini-2.5-pro";
+    const endpointType = (this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined) as
+      | "openai-compatible"
+      | "native"
+      | undefined;
+    const useNativeEndpoint = endpointType === "native";
     const prompt = buildWikiPrompt(params);
 
-    if (this.useNativeEndpoint) {
+    if (useNativeEndpoint) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
       const body = {
@@ -96,9 +102,17 @@ export class GoogleAIStudioProvider implements LLMProvider {
     return {
       apiKeyUrl: "https://aistudio.google.com/app/apikey",
       apiKeyInput: "googleAIStudioKeyInput",
-      hasEndpointType: true,
       modelFallbackIds: [],
       defaultModel: "gemini-2.5-pro",
+      customFields: [
+        {
+          id: "googleAIEndpoint",
+          label: "Endpoint Type",
+          type: "select",
+          options: ["openai-compatible", "native"],
+          defaultValue: "openai-compatible",
+        },
+      ],
     };
   }
 }

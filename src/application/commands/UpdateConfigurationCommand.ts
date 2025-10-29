@@ -8,13 +8,6 @@ export class UpdateConfigurationCommand implements Command {
   async execute(payload: { key: string; value: any }): Promise<any> {
     const { key, value } = payload;
 
-    if (!this.configManager.isKeyValid(key)) {
-      throw new ConfigurationError(
-        "invalidConfiguration",
-        `Unknown configuration key: ${key}. Valid keys: ${this.configManager.getConfigurationKeys().join(", ")}`,
-      );
-    }
-
     try {
       await this.configManager.set(key, value);
       return { success: true, key, value };

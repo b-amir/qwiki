@@ -19,8 +19,8 @@ import {
   PerformanceMonitor,
 } from "../infrastructure";
 import { LLMRegistry } from "../llm";
-import { CommandFactory, LLMProviderFactory } from "../factories";
-import { CommandIds, ConfigurationKeys, Extension } from "../constants";
+import { CommandFactory } from "../factories";
+import { CommandIds, Extension } from "../constants";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
 import { OutboundEvents } from "../constants";
 import type { ExtensionContext, Webview } from "vscode";
@@ -70,11 +70,12 @@ export class AppBootstrap {
     );
 
     this.container.registerLazy("llmRegistry", async () => {
-      const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
-      return new LLMRegistry(this.container.resolve("secrets"), {
-        zaiBaseUrl: configManager.getZaiBaseUrl(),
-        googleAIEndpoint: configManager.getGoogleAIEndpoint(),
-      });
+      const configurationRepository = this.container.resolve(
+        "configurationRepository",
+      ) as import("../domain/repositories/ConfigurationRepository").ConfigurationRepository;
+      const getSetting = async (key: string) =>
+        await configurationRepository.get<string>(key);
+      return new LLMRegistry(this.container.resolve("secrets"), getSetting);
     });
 
     this.container.registerLazy(

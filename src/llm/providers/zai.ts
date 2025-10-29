@@ -1,4 +1,5 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
+import type { GetSetting } from "./registry";
 import { buildWikiPrompt } from "../prompt";
 import { getNonce } from "../../utilities/getNonce";
 
@@ -17,12 +18,15 @@ export class ZAiProvider implements LLMProvider {
   name = "Z.ai";
   requiresApiKey = true;
 
-  constructor(private baseUrl: string | undefined) {}
+  constructor(private getSetting?: GetSetting) {}
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) throw new Error("Z.ai API key is not set");
     const model = params.model || ZAI_MODELS[0];
-    const base = this.baseUrl || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+    const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
+      | string
+      | undefined;
+    const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
     const url = `${base.replace(/\/$/, "")}/paas/v4/chat/completions`;
 
     const messages = [

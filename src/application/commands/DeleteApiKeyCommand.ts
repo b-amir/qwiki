@@ -2,10 +2,9 @@ import type { Command } from "./Command";
 import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
 import type { MessageBus } from "../services/MessageBus";
 import { OutboundEvents } from "../../constants/Events";
-import type { ProviderId } from "../../llm/types";
 
 interface DeleteApiKeyPayload {
-  providerId: ProviderId;
+  providerId: string;
 }
 
 export class DeleteApiKeyCommand implements Command<DeleteApiKeyPayload> {

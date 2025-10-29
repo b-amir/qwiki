@@ -1,11 +1,5 @@
-import type { LLMProvider, ProviderUiConfig } from "./types";
-import { ZAiProvider } from "./providers/zai";
-import { OpenRouterProvider } from "./providers/openrouter";
-import { GoogleAIStudioProvider } from "./providers/google-ai-studio";
-import { CohereProvider } from "./providers/cohere";
-import { HuggingFaceProvider } from "./providers/huggingface";
-import type { SecretStorage } from "vscode";
-import { ProviderIds, MessageStrings } from "../constants";
+import type { LLMProvider } from "./types";
+import { loadProviders, type GetSetting } from "./providers/registry";
 
 export interface ProviderConfig {
   id: string;
@@ -13,33 +7,18 @@ export interface ProviderConfig {
   apiKeyUrl: string;
   apiKeyInput: string;
   additionalInfo?: string;
-  hasEndpointType?: boolean;
   modelFallbackIds?: string[];
   defaultModel?: string;
   customFields?: import("./types").ProviderCustomField[];
 }
 
-const createProviderInstances = (settings: { zaiBaseUrl?: string; googleAIEndpoint?: string }) => {
-  const googleAIStudioProvider = new GoogleAIStudioProvider(
-    settings.googleAIEndpoint === MessageStrings.native,
-  );
+const createProviderInstances = (getSetting?: GetSetting) => loadProviders(getSetting || (async () => undefined));
 
-  return {
-    [ProviderIds.googleAIStudio]: googleAIStudioProvider,
-    [ProviderIds.zai]: new ZAiProvider(settings.zaiBaseUrl),
-    [ProviderIds.openrouter]: new OpenRouterProvider(),
-    [ProviderIds.cohere]: new CohereProvider(),
-    [ProviderIds.huggingface]: new HuggingFaceProvider(),
-  };
-};
-
-export function getAllProviderConfigs(
-  settings: { zaiBaseUrl?: string; googleAIEndpoint?: string } = {},
-): ProviderConfig[] {
-  const providers = createProviderInstances(settings);
+export function getAllProviderConfigs(getSetting?: GetSetting): ProviderConfig[] {
+  const providers = createProviderInstances(getSetting);
 
   return Object.entries(providers).map(([id, provider]) => {
-    const uiConfig = provider.getUiConfig?.() || {};
+    const uiConfig = (provider.getUiConfig?.() || {}) as import("./types").ProviderUiConfig;
 
     return {
       id,
@@ -47,7 +26,6 @@ export function getAllProviderConfigs(
       apiKeyUrl: uiConfig.apiKeyUrl || "",
       apiKeyInput: uiConfig.apiKeyInput || "",
       additionalInfo: uiConfig.additionalInfo,
-      hasEndpointType: uiConfig.hasEndpointType,
       modelFallbackIds: uiConfig.modelFallbackIds || [],
       defaultModel: uiConfig.defaultModel,
       customFields: uiConfig.customFields,
@@ -57,16 +35,16 @@ export function getAllProviderConfigs(
 
 export function getProviderConfig(
   providerId: string,
-  settings: { zaiBaseUrl?: string; googleAIEndpoint?: string } = {},
+  getSetting?: GetSetting,
 ): ProviderConfig | undefined {
-  const providers = createProviderInstances(settings);
+  const providers = createProviderInstances(getSetting);
   const provider = providers[providerId as keyof typeof providers];
 
   if (!provider) {
     return undefined;
   }
 
-  const uiConfig = provider.getUiConfig?.() || {};
+  const uiConfig = (provider.getUiConfig?.() || {}) as import("./types").ProviderUiConfig;
 
   return {
     id: providerId,
@@ -74,7 +52,6 @@ export function getProviderConfig(
     apiKeyUrl: uiConfig.apiKeyUrl || "",
     apiKeyInput: uiConfig.apiKeyInput || "",
     additionalInfo: uiConfig.additionalInfo,
-    hasEndpointType: uiConfig.hasEndpointType,
     modelFallbackIds: uiConfig.modelFallbackIds || [],
     defaultModel: uiConfig.defaultModel,
     customFields: uiConfig.customFields,

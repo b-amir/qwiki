@@ -129,10 +129,9 @@ interface ApiKeyRepository {
 
 ### 3. Adding New LLM Providers
 
-1. Create provider implementation in `src/llm/providers/`
-2. Update `LLMProviderFactory` to include the new provider
-3. Add provider configuration to constants
-4. Update provider list command
+1. Create a provider file under `src/llm/providers/<provider-id>.ts` implementing `LLMProvider` and `getUiConfig()`.
+2. Register it in `src/llm/providers/registry.ts`. This file is the only place that imports provider implementations.
+3. No modifications elsewhere. The app and UI discover providers generically.
 
 ## Code Style Guidelines
 

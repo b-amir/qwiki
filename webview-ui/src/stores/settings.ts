@@ -3,28 +3,16 @@ import { vscode } from "@/utilities/vscode";
 
 export const useSettingsStore = defineStore("settings", {
   state: () => ({
-    zaiKeyInput: "",
-    openrouterKeyInput: "",
-    googleAIStudioKeyInput: "",
-    cohereKeyInput: "",
-    huggingfaceKeyInput: "",
-    zaiBaseUrl: "",
-    googleAIEndpoint: "openai-compatible",
+    apiKeyInputs: {} as Record<string, string>,
+    customSettings: {} as Record<string, string>,
     saving: false,
     savedMessage: "",
     loading: false,
     loadingProviders: false,
     initialized: false,
     listenerAttached: false,
-    selectedProvider: "zai",
-    originalValues: {
-      zaiKey: "",
-      openrouterKey: "",
-      googleAIStudioKey: "",
-      cohereKey: "",
-      huggingfaceKey: "",
-      zaiBaseUrl: "",
-    },
+    selectedProvider: "",
+    originalApiKeys: {} as Record<string, string>,
     unsavedProviders: new Set<string>(),
     autoSaveTimers: {} as Record<string, number>,
   }),
@@ -37,30 +25,11 @@ export const useSettingsStore = defineStore("settings", {
         const message = event.data;
         switch (message.command) {
           case "apiKeys": {
-            const {
-              zaiKey,
-              openrouterKey,
-              googleAIStudioKey,
-              cohereKey,
-              huggingfaceKey,
-              googleAIEndpoint,
-              zaiBaseUrl,
-            } = message.payload || {};
-            this.zaiKeyInput = zaiKey || "";
-            this.openrouterKeyInput = openrouterKey || "";
-            this.googleAIStudioKeyInput = googleAIStudioKey || "";
-            this.cohereKeyInput = cohereKey || "";
-            this.huggingfaceKeyInput = huggingfaceKey || "";
-            this.zaiBaseUrl = zaiBaseUrl || "";
-            this.googleAIEndpoint = googleAIEndpoint || "openai-compatible";
+            const { apiKeys = {}, settings = {} } = message.payload || {};
+            this.apiKeyInputs = { ...apiKeys };
+            this.customSettings = { ...settings };
 
-            this.originalValues.zaiKey = zaiKey || "";
-            this.originalValues.openrouterKey = openrouterKey || "";
-            this.originalValues.googleAIStudioKey = googleAIStudioKey || "";
-            this.originalValues.cohereKey = cohereKey || "";
-            this.originalValues.huggingfaceKey = huggingfaceKey || "";
-            this.originalValues.zaiBaseUrl = zaiBaseUrl || "";
-
+            this.originalApiKeys = { ...apiKeys };
             this.unsavedProviders.clear();
 
             this.initialized = true;
@@ -85,8 +54,7 @@ export const useSettingsStore = defineStore("settings", {
           case "providers": {
             const providers = message.payload || [];
             const withKey = providers.find((p: any) => p.hasKey);
-
-            this.selectedProvider = withKey?.id || "google-ai-studio";
+            this.selectedProvider = withKey?.id || providers[0]?.id || "";
             return;
           }
         }
@@ -105,54 +73,8 @@ export const useSettingsStore = defineStore("settings", {
         }
       }, 5000);
     },
-    async saveZai() {
-      if (!this.zaiKeyInput) return;
-      this.saving = true;
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "zai", apiKey: this.zaiKeyInput },
-      });
-      this.saving = false;
-    },
-    async saveOpenrouter() {
-      if (!this.openrouterKeyInput) return;
-      this.saving = true;
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "openrouter", apiKey: this.openrouterKeyInput },
-      });
-      this.saving = false;
-    },
-    async saveGoogleAIStudio() {
-      if (!this.googleAIStudioKeyInput) return;
-      this.saving = true;
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "google-ai-studio", apiKey: this.googleAIStudioKeyInput },
-      });
-      this.saving = false;
-    },
-    async saveCohere() {
-      if (!this.cohereKeyInput) return;
-      this.saving = true;
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "cohere", apiKey: this.cohereKeyInput },
-      });
-      this.saving = false;
-    },
-    async saveHuggingFace() {
-      if (!this.huggingfaceKeyInput) return;
-      this.saving = true;
-      vscode.postMessage({
-        command: "saveApiKey",
-        payload: { providerId: "huggingface", apiKey: this.huggingfaceKeyInput },
-      });
-      this.saving = false;
-    },
     trackApiKeyChange(providerId: string, newValue: string) {
-      const originalKey =
-        this.originalValues[`${providerId}Key` as keyof typeof this.originalValues];
+      const originalKey = this.originalApiKeys[providerId];
 
       if (originalKey !== newValue) {
         this.unsavedProviders.add(providerId);
@@ -166,6 +88,7 @@ export const useSettingsStore = defineStore("settings", {
         command: "saveSetting",
         payload: { setting, value },
       });
+      this.customSettings[setting] = value;
       this.saving = false;
     },
     autoSaveApiKey(providerId: string, apiKey: string) {
@@ -188,7 +111,8 @@ export const useSettingsStore = defineStore("settings", {
         payload: { providerId, apiKey },
       });
 
-      this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
+      this.apiKeyInputs[providerId] = apiKey;
+      this.originalApiKeys[providerId] = apiKey;
       this.unsavedProviders.delete(providerId);
 
       this.saving = false;
@@ -199,26 +123,7 @@ export const useSettingsStore = defineStore("settings", {
       this.saving = true;
 
       const savePromises = Array.from(this.unsavedProviders).map((providerId) => {
-        let apiKey = "";
-
-        switch (providerId) {
-          case "zai":
-            apiKey = this.zaiKeyInput;
-            break;
-          case "openrouter":
-            apiKey = this.openrouterKeyInput;
-            break;
-          case "google-ai-studio":
-            apiKey = this.googleAIStudioKeyInput;
-            break;
-          case "cohere":
-            apiKey = this.cohereKeyInput;
-            break;
-          case "huggingface":
-            apiKey = this.huggingfaceKeyInput;
-            break;
-        }
-
+        const apiKey = this.apiKeyInputs[providerId];
         if (!apiKey) return Promise.resolve();
 
         vscode.postMessage({
@@ -226,7 +131,7 @@ export const useSettingsStore = defineStore("settings", {
           payload: { providerId, apiKey },
         });
 
-        this.originalValues[`${providerId}Key` as keyof typeof this.originalValues] = apiKey;
+        this.originalApiKeys[providerId] = apiKey;
 
         return Promise.resolve();
       });

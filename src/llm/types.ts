@@ -33,7 +33,6 @@ export interface ProviderUiConfig {
   apiKeyUrl: string;
   apiKeyInput: string;
   additionalInfo?: string;
-  hasEndpointType?: boolean;
   modelFallbackIds?: string[];
   defaultModel?: string;
   customFields?: ProviderCustomField[];
@@ -48,4 +47,4 @@ export interface ProviderCustomField {
   defaultValue?: string;
 }
 
-export type ProviderId = "zai" | "openrouter" | "google-ai-studio" | "cohere" | "huggingface";
+export type ProviderId = string;

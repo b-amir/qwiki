@@ -1,18 +1,13 @@
-import type { LLMProvider, GenerateParams, GenerateResult } from "./types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "./types";
 import type { SecretStorage } from "vscode";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
-import { LLMProviderFactory, type LLMProviderSettings } from "../factories";
-
-export type ProviderId = "zai" | "openrouter" | "google-ai-studio" | "cohere" | "huggingface";
+import { loadProviders, type GetSetting } from "./providers/registry";
 
 export class LLMRegistry {
   private providers = new Map<string, LLMProvider>();
 
-  constructor(
-    private secrets: SecretStorage,
-    private settings: LLMProviderSettings,
-  ) {
-    const allProviders = LLMProviderFactory.createAllProviders(settings);
+  constructor(private secrets: SecretStorage, getSetting?: GetSetting) {
+    const allProviders = loadProviders(getSetting || (async () => undefined));
 
     for (const [id, provider] of Object.entries(allProviders)) {
       this.providers.set(id, provider);
@@ -27,12 +22,12 @@ export class LLMRegistry {
     }));
   }
 
-  getProviderConfigs(): ProviderConfig[] {
-    return getAllProviderConfigs(this.settings);
+  getProviderConfigs(getSetting?: GetSetting): ProviderConfig[] {
+    return getAllProviderConfigs(getSetting);
   }
 
-  getProviderConfig(providerId: string): ProviderConfig | undefined {
-    return getAllProviderConfigs(this.settings).find((config) => config.id === providerId);
+  getProviderConfig(providerId: string, getSetting?: GetSetting): ProviderConfig | undefined {
+    return getAllProviderConfigs(getSetting).find((config) => config.id === providerId);
   }
 
   getProvider(providerId: ProviderId) {

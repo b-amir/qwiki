@@ -5,13 +5,3 @@ export { SelectionService } from "./SelectionService";
 export { WikiService } from "./WikiService";
 export { CachedWikiService } from "./CachedWikiService";
 export { ConfigurationManager } from "./ConfigurationManager";
-export { ConfigurationValidator } from "./ConfigurationValidator";
-export { ConfigurationMigration } from "./ConfigurationMigration";
-export type {
-  ConfigurationSchema,
-  ConfigurationValidationRule,
-  ConfigurationValidationRules,
-  ConfigurationValidationError,
-  ConfigurationValidationResult,
-} from "./ConfigurationSchema";
-export type { MigrationStep } from "./ConfigurationMigration";

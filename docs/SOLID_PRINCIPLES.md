@@ -137,26 +137,19 @@ export class CommandRegistry {
 commandRegistry.register("newFeature", "newFeatureCommand");
 ```
 
-#### 2. LLM Provider Factory
+#### 2. LLM Providers Registry
 
-New LLM providers can be added without modifying existing providers:
+New LLM providers are added without modifying app code, by placing a single file under `src/llm/providers` and registering it in the providers registry:
 
 ```typescript
-// src/factories/LLMProviderFactory.ts
-export class LLMProviderFactory {
-  createProvider(providerType: string): LLMProvider {
-    switch (providerType) {
-      case "openai":
-        return new OpenAIProvider();
-      case "cohere":
-        return new CohereProvider();
-      // New providers can be added here
-      case "newProvider":
-        return new NewProvider();
-      default:
-        throw new Error(`Unknown provider: ${providerType}`);
-    }
-  }
+// src/llm/providers/registry.ts
+import { MyProvider } from "./my-provider";
+
+export function loadProviders(getSetting: (key: string) => Promise<any>) {
+  return {
+    'my-provider': new MyProvider(getSetting),
+    // other providers ...
+  };
 }
 ```
 

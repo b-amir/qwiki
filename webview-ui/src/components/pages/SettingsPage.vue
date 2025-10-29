@@ -65,12 +65,11 @@ const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
 };
 
 const getApiKeyInput = (providerId: string) => {
-  const config = providerConfigs.value.find((p) => p.id === providerId);
-  return config ? (settings as any)[config.apiKeyInput] : "";
+  return settings.apiKeyInputs[providerId] || "";
 };
 
 const getCustomFieldValue = (fieldId: string) => {
-  return (settings as any)[fieldId] || "";
+  return settings.customSettings[fieldId] || "";
 };
 
 const handleProviderChange = (providerId: string) => {
@@ -81,6 +80,7 @@ const handleProviderChange = (providerId: string) => {
 const handleApiKeyChange = (providerId: string, newValue: string) => {
   const config = providerConfigs.value.find((p) => p.id === providerId);
   if (config) {
+    settings.apiKeyInputs[providerId] = newValue;
     settings.trackApiKeyChange(providerId, newValue);
     settings.autoSaveApiKey(providerId, newValue);
   }
@@ -368,18 +368,7 @@ onMounted(() => {
                       />
                     </div>
 
-                    <div v-if="provider.hasEndpointType" class="space-y-2">
-                      <label class="text-muted-foreground text-xs font-medium tracking-wide">
-                        Endpoint Type
-                      </label>
-                      <select
-                        v-model="settings.googleAIEndpoint"
-                        class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="openai-compatible">OpenAI Compatible</option>
-                        <option value="native">Native</option>
-                      </select>
-                    </div>
+                    
 
                     <div v-for="field in provider.customFields" :key="field.id" class="space-y-2">
                       <label class="text-muted-foreground text-xs font-medium tracking-wide">

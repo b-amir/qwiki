@@ -150,11 +150,12 @@ Benefits:
 - Swappable implementations
 - Clear separation of data access logic
 
-### 3. Factory Pattern
+### 3. Provider Registry + Factories
 
-Object creation is centralized in factories:
+Object creation uses a provider registry and small factories where it adds clarity:
 
-- `LLMProviderFactory`: Creates LLM provider instances
+- `Providers Registry` (`src/llm/providers/registry.ts`): The single place that imports and registers all LLM providers that live under `src/llm/providers`. No other part of the app knows provider details.
+- `LLMRegistry` (`src/llm/index.ts`): Loads providers from the registry and exposes generic operations (list, configs, generate) without provider knowledge.
 - `CommandFactory`: Creates command instances with lazy loading
 
 Benefits:
@@ -260,12 +261,11 @@ Error handling is implemented through:
 
 ## Configuration Management
 
-Configuration is handled through:
+Configuration is intentionally provider-agnostic:
 
-1. **ConfigurationManager**: Centralized configuration management
-2. **ConfigurationValidator**: Validates configuration values
-3. **ConfigurationMigration**: Handles configuration versioning
-4. **ConfigurationSchema**: Defines configuration structure
+1. **ConfigurationManager**: Thin wrapper around the repository for read/write and caching. No global schema or defaults.
+2. **Provider-owned settings**: Each provider returns UI metadata from `getUiConfig()` (e.g., `customFields`) declaring its own keys and defaults.
+3. **Generic access**: The providers registry injects a `getSetting(key)` accessor to providers so they can read their own settings without the app knowing about them.
 
 ## Testing Strategy
 
