@@ -61,8 +61,15 @@ export class QwikiPanel {
     this.view = webviewView;
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this._webviewReady = false;
-    this.commandRegistry = await this.bootstrap.createCommandRegistry(webviewView.webview);
     this._setWebviewMessageListener(webviewView.webview);
+    this.bootstrap
+      .createCommandRegistry(webviewView.webview)
+      .then((registry) => {
+        this.commandRegistry = registry;
+      })
+      .catch((e) => {
+        console.error("[QWIKI] QwikiPanel: createCommandRegistry failed:", e);
+      });
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
 
     try {
