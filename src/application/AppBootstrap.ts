@@ -13,7 +13,7 @@ import {
   VSCodeApiKeyRepository,
   VSCodeConfigurationRepository,
   ErrorHandlerImpl,
-  ErrorLoggingServiceImpl,
+  ErrorLoggingService,
   ErrorRecoveryService,
   CacheService,
   PerformanceMonitor,
@@ -105,10 +105,7 @@ export class AppBootstrap {
       () => new ErrorHandlerImpl(this.container.resolve("eventBus")),
     );
 
-    this.container.register(
-      "errorLoggingService",
-      () => new ErrorLoggingServiceImpl(this.container.resolve("eventBus")),
-    );
+    this.container.register("errorLoggingService", () => new ErrorLoggingService());
 
     this.container.register("errorRecoveryService", () => new ErrorRecoveryService());
 
@@ -125,6 +122,7 @@ export class AppBootstrap {
           await this.container.resolveLazy("wikiService"),
           this.container.resolve("projectContextService"),
           this.container.resolve("errorRecoveryService"),
+          this.container.resolve("errorLoggingService"),
         ),
     );
   }

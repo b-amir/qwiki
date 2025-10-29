@@ -2,7 +2,7 @@ import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "./
 import type { SecretStorage } from "vscode";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
 import { loadProviders, type GetSetting } from "./providers/registry";
-import { ErrorRecoveryService } from "../infrastructure/services";
+import { ErrorRecoveryService, ErrorLoggingService } from "../infrastructure/services";
 import { ProviderError, ErrorCodes } from "../errors";
 
 export class LLMRegistry {
@@ -41,6 +41,7 @@ export class LLMRegistry {
   }
 
   async generate(providerId: ProviderId, params: GenerateParams): Promise<GenerateResult> {
+    const startTime = Date.now();
     const provider = this.providers.get(providerId);
     if (!provider) {
       throw new ProviderError(
@@ -59,11 +60,23 @@ export class LLMRegistry {
       return ProviderError.fromError(error, providerId);
     };
 
-    return this.errorRecoveryService.executeWithRetry(
-      () => provider.generate(params, apiKey || undefined),
-      errorClassifier,
-      providerId,
-    );
+    try {
+      const result = await this.errorRecoveryService.executeWithRetry(
+        () => provider.generate(params, apiKey || undefined),
+        errorClassifier,
+        providerId,
+      );
+
+      const duration = Date.now() - startTime;
+      this.errorLoggingService.logGenerationMetrics(providerId, true, duration);
+
+      return result;
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      this.errorLoggingService.logGenerationMetrics(providerId, false, duration);
+      this.errorLoggingService.logError(errorClassifier(error));
+      throw error;
+    }
   }
 
   async setApiKey(providerId: ProviderId, key: string) {

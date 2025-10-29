@@ -1,97 +1,130 @@
-import type { EventBus } from "../../events";
-import { ErrorEvents } from "../../constants/Events";
-import { window } from "vscode";
+import { ProviderError } from "../../errors";
 
-export interface ErrorLoggingService {
-  logError(errorInfo: any): Promise<void>;
-  logRecoveryAttempt(errorInfo: any): Promise<void>;
-  logRecoverySuccess(errorInfo: any): Promise<void>;
-  logRecoveryFailed(errorInfo: any): Promise<void>;
+export interface ErrorStatistics {
+  totalErrors: number;
+  errorsByCode: Record<string, number>;
+  errorsByProvider: Record<string, number>;
+  recentErrors: Array<{
+    timestamp: number;
+    code: string;
+    providerId?: string;
+    message: string;
+  }>;
 }
 
-export class ErrorLoggingServiceImpl implements ErrorLoggingService {
-  constructor(private eventBus: EventBus) {
-    this.setupEventHandlers();
-  }
+export class ErrorLoggingService {
+  private readonly MAX_RECENT_ERRORS = 50;
+  private readonly STORAGE_KEY = "qwiki-error-statistics";
 
-  async logError(errorInfo: any): Promise<void> {
-    const logMessage = `[${errorInfo.timestamp.toISOString()}] ${errorInfo.name}: ${errorInfo.message}`;
+  private errorStats: ErrorStatistics = {
+    totalErrors: 0,
+    errorsByCode: {},
+    errorsByProvider: {},
+    recentErrors: [],
+  };
 
-    if (errorInfo.context) {
-      console.error("[QWIKI]", `${logMessage}\nContext:`, errorInfo.context);
-    } else {
-      console.error("[QWIKI]", logMessage);
+  logError(error: ProviderError, context?: any): void {
+    const timestamp = Date.now();
+
+    this.errorStats.totalErrors++;
+    this.errorStats.errorsByCode[error.code] = (this.errorStats.errorsByCode[error.code] || 0) + 1;
+
+    if (error.providerId) {
+      this.errorStats.errorsByProvider[error.providerId] =
+        (this.errorStats.errorsByProvider[error.providerId] || 0) + 1;
     }
 
-    if (errorInfo.stack) {
-      console.error("[QWIKI]", "Stack trace:", errorInfo.stack);
+    this.errorStats.recentErrors.unshift({
+      timestamp,
+      code: error.code,
+      providerId: error.providerId,
+      message: error.message,
+    });
+
+    if (this.errorStats.recentErrors.length > this.MAX_RECENT_ERRORS) {
+      this.errorStats.recentErrors = this.errorStats.recentErrors.slice(0, this.MAX_RECENT_ERRORS);
     }
 
-    this.showUserNotification(errorInfo);
+    this.saveToStorage();
   }
 
-  async logRecoveryAttempt(errorInfo: any): Promise<void> {
-    const logMessage = `[${new Date().toISOString()}] Attempting recovery for ${errorInfo.code}`;
-  }
+  logGenerationMetrics(providerId: string, success: boolean, duration: number): void {
+    const timestamp = Date.now();
+    const code = success ? "GENERATION_SUCCESS" : "GENERATION_FAILED";
 
-  async logRecoverySuccess(errorInfo: any): Promise<void> {
-    const logMessage = `[${new Date().toISOString()}] Recovery successful for ${errorInfo.code}`;
-  }
+    this.errorStats.totalErrors++;
+    this.errorStats.errorsByCode[code] = (this.errorStats.errorsByCode[code] || 0) + 1;
+    this.errorStats.errorsByProvider[providerId] =
+      (this.errorStats.errorsByProvider[providerId] || 0) + 1;
 
-  async logRecoveryFailed(errorInfo: any): Promise<void> {
-    const logMessage = `[${new Date().toISOString()}] Recovery failed for ${errorInfo.code}`;
-    console.error("[QWIKI]", logMessage);
-  }
-
-  private setupEventHandlers(): void {
-    this.eventBus.subscribe(ErrorEvents.occurred, (errorInfo) => {
-      this.logError(errorInfo);
+    this.errorStats.recentErrors.unshift({
+      timestamp,
+      code,
+      providerId,
+      message: success
+        ? `Generation successful in ${duration}ms`
+        : `Generation failed after ${duration}ms`,
     });
 
-    this.eventBus.subscribe(ErrorEvents.recoveryAttempt, (errorInfo) => {
-      this.logRecoveryAttempt(errorInfo);
-    });
+    if (this.errorStats.recentErrors.length > this.MAX_RECENT_ERRORS) {
+      this.errorStats.recentErrors = this.errorStats.recentErrors.slice(0, this.MAX_RECENT_ERRORS);
+    }
 
-    this.eventBus.subscribe(ErrorEvents.recoverySuccess, (errorInfo) => {
-      this.logRecoverySuccess(errorInfo);
-    });
-
-    this.eventBus.subscribe(ErrorEvents.recoveryFailed, (errorInfo) => {
-      this.logRecoveryFailed(errorInfo);
-    });
+    this.saveToStorage();
   }
 
-  private showUserNotification(errorInfo: any): void {
-    const userMessages: Record<string, string> = {
-      "error.generationFailed": "Failed to generate wiki documentation",
-      "error.invalidSelection": "Invalid selection detected",
-      "error.missingSnippet": "No code selected for documentation",
-      "error.missingProvider": "LLM provider not configured",
-      "error.invalidConfiguration": "Invalid configuration detected",
-      "error.missingCommand": "Command not found",
+  getErrorStats(): ErrorStatistics {
+    return { ...this.errorStats };
+  }
+
+  clearStats(): void {
+    this.errorStats = {
+      totalErrors: 0,
+      errorsByCode: {},
+      errorsByProvider: {},
+      recentErrors: [],
     };
-
-    const message = userMessages[errorInfo.code] || "An unexpected error occurred";
-
-    window.showErrorMessage(message, "Show Details").then((selection) => {
-      if (selection === "Show Details") {
-        this.showErrorDetails(errorInfo);
-      }
-    });
+    this.saveToStorage();
   }
 
-  private showErrorDetails(errorInfo: any): void {
-    const details = [
-      `Error: ${errorInfo.name}`,
-      `Code: ${errorInfo.code}`,
-      `Message: ${errorInfo.message}`,
-      `Time: ${errorInfo.timestamp.toISOString()}`,
-    ];
-
-    if (errorInfo.context) {
-      details.push(`Context: ${JSON.stringify(errorInfo.context, null, 2)}`);
+  private saveToStorage(): void {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.errorStats));
+      }
+    } catch (error) {
+      console.warn("Failed to save error statistics to storage:", error);
     }
+  }
 
-    window.showInformationMessage(details.join("\n"), "Close");
+  private loadFromStorage(): void {
+    try {
+      if (typeof localStorage !== "undefined") {
+        const stored = localStorage.getItem(this.STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (this.isValidStatistics(parsed)) {
+            this.errorStats = parsed;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to load error statistics from storage:", error);
+    }
+  }
+
+  private isValidStatistics(data: any): data is ErrorStatistics {
+    return (
+      data &&
+      typeof data === "object" &&
+      typeof data.totalErrors === "number" &&
+      typeof data.errorsByCode === "object" &&
+      typeof data.errorsByProvider === "object" &&
+      Array.isArray(data.recentErrors)
+    );
+  }
+
+  constructor() {
+    this.loadFromStorage();
   }
 }

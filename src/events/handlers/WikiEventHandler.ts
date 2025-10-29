@@ -3,7 +3,7 @@ import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import { InboundEvents, OutboundEvents, LoadingSteps } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
-import { ErrorRecoveryService } from "../../infrastructure/services";
+import { ErrorLoggingService, ErrorRecoveryService } from "../../infrastructure/services";
 import { ProviderError, ErrorCodes, getErrorMessage } from "../../errors";
 
 export class WikiEventHandler {
@@ -12,6 +12,7 @@ export class WikiEventHandler {
     private wikiService: any,
     private projectContextService: any,
     private errorRecoveryService: ErrorRecoveryService,
+    private errorLoggingService: ErrorLoggingService,
   ) {}
 
   register(): void {
@@ -43,6 +44,7 @@ export class WikiEventHandler {
               result.error || "Wiki generation failed",
               payload.providerId,
             );
+            this.errorLoggingService.logError(error);
             this.eventBus.publish(OutboundEvents.error, {
               code: error.code,
               message: this.errorRecoveryService.getUserFriendlyMessage(error),
@@ -52,6 +54,7 @@ export class WikiEventHandler {
         });
     } catch (error: any) {
       const providerError = ProviderError.fromError(error, payload.providerId);
+      this.errorLoggingService.logError(providerError);
       this.eventBus.publish(OutboundEvents.error, {
         code: providerError.code,
         message: this.errorRecoveryService.getUserFriendlyMessage(providerError),
@@ -72,6 +75,7 @@ export class WikiEventHandler {
       });
     } catch (error: any) {
       const providerError = ProviderError.fromError(error);
+      this.errorLoggingService.logError(providerError);
       this.eventBus.publish(OutboundEvents.error, {
         code: providerError.code,
         message: this.errorRecoveryService.getUserFriendlyMessage(providerError),
