@@ -13,6 +13,16 @@ export class VSCodeConfigurationRepository implements ConfigurationRepository {
   }
 
   async getAll(): Promise<Record<string, any>> {
-    return {};
+    const config = workspace.getConfiguration(Extension.configurationSection);
+    const result: Record<string, any> = {};
+
+    for (const key of Object.keys(config)) {
+      const value = config.get(key);
+      if (value !== undefined) {
+        result[key] = value;
+      }
+    }
+
+    return result;
   }
 }

@@ -1,5 +1,5 @@
 import type { Command } from "./Command";
-import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
+import type { ConfigurationManager } from "../services";
 import type { MessageBus } from "../services/MessageBus";
 import { OutboundEvents } from "../../constants/Events";
 
@@ -10,12 +10,30 @@ interface SaveApiKeyPayload {
 
 export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
   constructor(
-    private apiKeyRepository: ApiKeyRepository,
+    private configManager: ConfigurationManager,
     private messageBus: MessageBus,
   ) {}
 
   async execute(payload: SaveApiKeyPayload): Promise<void> {
-    await this.apiKeyRepository.save(payload.providerId, payload.apiKey);
+    const providerConfig = await this.configManager.getProviderConfig(payload.providerId);
+    const updatedConfig = {
+      id: payload.providerId,
+      name: providerConfig?.name || payload.providerId,
+      enabled: providerConfig?.enabled ?? true,
+      apiKey: payload.apiKey,
+      model: providerConfig?.model,
+      temperature: providerConfig?.temperature,
+      maxTokens: providerConfig?.maxTokens,
+      topP: providerConfig?.topP,
+      frequencyPenalty: providerConfig?.frequencyPenalty,
+      presencePenalty: providerConfig?.presencePenalty,
+      customFields: providerConfig?.customFields,
+      rateLimitPerMinute: providerConfig?.rateLimitPerMinute,
+      timeout: providerConfig?.timeout,
+      retryAttempts: providerConfig?.retryAttempts,
+      fallbackProviderIds: providerConfig?.fallbackProviderIds,
+    };
+    await this.configManager.setProviderConfig(payload.providerId, updatedConfig);
     this.messageBus.postSuccess(OutboundEvents.apiKeySaved, { providerId: payload.providerId });
   }
 }

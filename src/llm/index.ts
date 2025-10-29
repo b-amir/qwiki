@@ -1,5 +1,7 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "./types";
 import type { SecretStorage } from "vscode";
+import type { ConfigurationManager } from "../application/services";
+import type { ProviderConfiguration } from "../domain/configuration";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
 import { loadProviders, type GetSetting } from "./providers/registry";
 import { ErrorRecoveryService, ErrorLoggingService } from "../infrastructure/services";
@@ -11,6 +13,8 @@ export class LLMRegistry {
   constructor(
     private secrets: SecretStorage,
     private errorRecoveryService: ErrorRecoveryService,
+    private errorLoggingService: ErrorLoggingService,
+    private configurationManager: ConfigurationManager,
     getSetting?: GetSetting,
   ) {
     const allProviders = loadProviders(getSetting || (async () => undefined));
@@ -28,12 +32,68 @@ export class LLMRegistry {
     }));
   }
 
-  getProviderConfigs(getSetting?: GetSetting): ProviderConfig[] {
-    return getAllProviderConfigs(getSetting);
+  async getProviderConfigs(): Promise<ProviderConfig[]> {
+    const allConfigs = await this.configurationManager.getAll();
+    const providerConfigs: ProviderConfig[] = [];
+
+    for (const [key, value] of Object.entries(allConfigs)) {
+      if (key.startsWith("provider.") && value) {
+        const providerId = key.replace("provider.", "");
+        const providerConfig = value as ProviderConfiguration;
+
+        const customFields = providerConfig.customFields
+          ? Object.entries(providerConfig.customFields).map(([key, value]) => ({
+              id: key,
+              label: key,
+              type: "text" as const,
+              placeholder: `Enter ${key}`,
+              defaultValue: typeof value === "string" ? value : String(value),
+            }))
+          : undefined;
+
+        providerConfigs.push({
+          id: providerId,
+          name: providerConfig.name,
+          apiKeyUrl: "",
+          apiKeyInput: "",
+          additionalInfo: customFields?.find((f) => f.id === "description")?.defaultValue,
+          modelFallbackIds: providerConfig.fallbackProviderIds,
+          defaultModel: providerConfig.model,
+          customFields,
+        });
+      }
+    }
+
+    return providerConfigs;
   }
 
-  getProviderConfig(providerId: string, getSetting?: GetSetting): ProviderConfig | undefined {
-    return getAllProviderConfigs(getSetting).find((config) => config.id === providerId);
+  async getProviderConfig(providerId: string): Promise<ProviderConfig | undefined> {
+    const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+
+    if (!providerConfig) {
+      return undefined;
+    }
+
+    const customFields = providerConfig.customFields
+      ? Object.entries(providerConfig.customFields).map(([key, value]) => ({
+          id: key,
+          label: key,
+          type: "text" as const,
+          placeholder: `Enter ${key}`,
+          defaultValue: typeof value === "string" ? value : String(value),
+        }))
+      : undefined;
+
+    return {
+      id: providerConfig.id,
+      name: providerConfig.name,
+      apiKeyUrl: "",
+      apiKeyInput: "",
+      additionalInfo: customFields?.find((f) => f.id === "description")?.defaultValue,
+      modelFallbackIds: providerConfig.fallbackProviderIds,
+      defaultModel: providerConfig.model,
+      customFields,
+    };
   }
 
   getProvider(providerId: ProviderId) {
@@ -52,6 +112,11 @@ export class LLMRegistry {
     }
 
     let apiKey = await this.secrets.get(this.keyName(providerId));
+
+    if (!apiKey) {
+      const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+      apiKey = providerConfig?.apiKey;
+    }
 
     const errorClassifier = (error: any): ProviderError => {
       if (error instanceof ProviderError) {
