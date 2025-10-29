@@ -3,13 +3,15 @@ import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import { InboundEvents, OutboundEvents, LoadingSteps } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
-import { ErrorCodes, ErrorMessages } from "../../constants";
+import { ErrorRecoveryService } from "../../infrastructure/services";
+import { ProviderError, ErrorCodes, getErrorMessage } from "../../errors";
 
 export class WikiEventHandler {
   constructor(
     private eventBus: EventBus,
     private wikiService: any,
     private projectContextService: any,
+    private errorRecoveryService: ErrorRecoveryService,
   ) {}
 
   register(): void {
@@ -36,20 +38,24 @@ export class WikiEventHandler {
               success: true,
             });
           } else {
+            const error = new ProviderError(
+              ErrorCodes.GENERATION_FAILED,
+              result.error || "Wiki generation failed",
+              payload.providerId,
+            );
             this.eventBus.publish(OutboundEvents.error, {
-              code: ErrorCodes.generationFailed,
-              message: result.error || ErrorMessages[ErrorCodes.generationFailed],
+              code: error.code,
+              message: this.errorRecoveryService.getUserFriendlyMessage(error),
+              suggestion: this.errorRecoveryService.getActionableSuggestion(error),
             });
           }
         });
     } catch (error: any) {
-      console.error(
-        "[QWIKI] WikiEventHandler: Exception in handleGenerateWiki:",
-        error?.message || error,
-      );
+      const providerError = ProviderError.fromError(error, payload.providerId);
       this.eventBus.publish(OutboundEvents.error, {
-        code: ErrorCodes.generationFailed,
-        message: error?.message || ErrorMessages[ErrorCodes.generationFailed],
+        code: providerError.code,
+        message: this.errorRecoveryService.getUserFriendlyMessage(providerError),
+        suggestion: this.errorRecoveryService.getActionableSuggestion(providerError),
       });
     }
   }
@@ -65,9 +71,11 @@ export class WikiEventHandler {
         related: projectContext.related,
       });
     } catch (error: any) {
+      const providerError = ProviderError.fromError(error);
       this.eventBus.publish(OutboundEvents.error, {
-        code: ErrorCodes.unknown,
-        message: error?.message || ErrorMessages[ErrorCodes.unknown],
+        code: providerError.code,
+        message: this.errorRecoveryService.getUserFriendlyMessage(providerError),
+        suggestion: this.errorRecoveryService.getActionableSuggestion(providerError),
       });
     }
   }

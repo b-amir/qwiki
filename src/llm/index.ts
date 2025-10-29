@@ -2,12 +2,15 @@ import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "./
 import type { SecretStorage } from "vscode";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
 import { loadProviders, type GetSetting } from "./providers/registry";
+import { ErrorRecoveryService } from "../infrastructure/services";
+import { ProviderError, ErrorCodes } from "../errors";
 
 export class LLMRegistry {
   private providers = new Map<string, LLMProvider>();
 
   constructor(
     private secrets: SecretStorage,
+    private errorRecoveryService: ErrorRecoveryService,
     getSetting?: GetSetting,
   ) {
     const allProviders = loadProviders(getSetting || (async () => undefined));
@@ -39,10 +42,28 @@ export class LLMRegistry {
 
   async generate(providerId: ProviderId, params: GenerateParams): Promise<GenerateResult> {
     const provider = this.providers.get(providerId);
-    if (!provider) throw new Error(`Unknown provider: ${providerId}`);
+    if (!provider) {
+      throw new ProviderError(
+        ErrorCodes.PROVIDER_NOT_FOUND,
+        `Unknown provider: ${providerId}`,
+        providerId,
+      );
+    }
 
     let apiKey = await this.secrets.get(this.keyName(providerId));
-    return provider.generate(params, apiKey || undefined);
+
+    const errorClassifier = (error: any): ProviderError => {
+      if (error instanceof ProviderError) {
+        return error;
+      }
+      return ProviderError.fromError(error, providerId);
+    };
+
+    return this.errorRecoveryService.executeWithRetry(
+      () => provider.generate(params, apiKey || undefined),
+      errorClassifier,
+      providerId,
+    );
   }
 
   async setApiKey(providerId: ProviderId, key: string) {

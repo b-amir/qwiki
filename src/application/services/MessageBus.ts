@@ -19,8 +19,8 @@ export class MessageBus {
     this.optimizer.postImmediate(command, payload);
   }
 
-  postError(message: string, code: string = ErrorCodes.unknown): void {
-    this.postImmediate(OutboundEvents.error, { code, message });
+  postError(message: string, code: string = ErrorCodes.unknown, suggestion?: string): void {
+    this.postImmediate(OutboundEvents.error, { code, message, suggestion });
   }
 
   postSuccess(command: string, payload?: any): void {

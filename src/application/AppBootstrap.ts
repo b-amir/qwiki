@@ -14,7 +14,7 @@ import {
   VSCodeConfigurationRepository,
   ErrorHandlerImpl,
   ErrorLoggingServiceImpl,
-  ErrorRecoveryServiceImpl,
+  ErrorRecoveryService,
   CacheService,
   PerformanceMonitor,
 } from "../infrastructure";
@@ -74,7 +74,11 @@ export class AppBootstrap {
         "configurationRepository",
       ) as import("../domain/repositories/ConfigurationRepository").ConfigurationRepository;
       const getSetting = async (key: string) => await configurationRepository.get<string>(key);
-      return new LLMRegistry(this.container.resolve("secrets"), getSetting);
+      return new LLMRegistry(
+        this.container.resolve("secrets"),
+        this.container.resolve("errorRecoveryService"),
+        getSetting,
+      );
     });
 
     this.container.registerLazy(
@@ -106,10 +110,7 @@ export class AppBootstrap {
       () => new ErrorLoggingServiceImpl(this.container.resolve("eventBus")),
     );
 
-    this.container.register(
-      "errorRecoveryService",
-      () => new ErrorRecoveryServiceImpl(this.container.resolve("eventBus")),
-    );
+    this.container.register("errorRecoveryService", () => new ErrorRecoveryService());
 
     this.container.register(
       "selectionEventHandler",
@@ -123,6 +124,7 @@ export class AppBootstrap {
           this.container.resolve("eventBus"),
           await this.container.resolveLazy("wikiService"),
           this.container.resolve("projectContextService"),
+          this.container.resolve("errorRecoveryService"),
         ),
     );
   }
@@ -171,7 +173,7 @@ export class AppBootstrap {
     });
 
     eventBus.subscribe(OutboundEvents.error, (payload: any) => {
-      messageBus.postError(payload.message, payload.code);
+      messageBus.postError(payload.message, payload.code, payload.suggestion);
     });
 
     return commandRegistry;
