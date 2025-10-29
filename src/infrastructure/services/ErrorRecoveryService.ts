@@ -1,56 +1,75 @@
-import type { EventBus } from "../../events";
-import { ErrorEvents } from "../../constants/Events";
-import type { BaseError } from "../../errors";
+import { ProviderError, ErrorCodes, type ErrorCode, getErrorMessage } from "../../errors";
 
-export interface ErrorRecoveryService {
-  attemptRecovery(errorInfo: any): Promise<boolean>;
-}
+export class ErrorRecoveryService {
+  private readonly MAX_RETRY_ATTEMPTS = 3;
+  private readonly BASE_RETRY_DELAY = 1000;
+  private readonly MAX_RETRY_DELAY = 10000;
 
-export class ErrorRecoveryServiceImpl implements ErrorRecoveryService {
-  constructor(private eventBus: EventBus) {}
+  canRetry(error: ProviderError): boolean {
+    const retryableCodes: ErrorCode[] = [ErrorCodes.NETWORK_ERROR, ErrorCodes.RATE_LIMIT_EXCEEDED];
 
-  async attemptRecovery(errorInfo: any): Promise<boolean> {
-    try {
-      const recoveryStrategy = this.getRecoveryStrategy(errorInfo.code);
+    return retryableCodes.includes(error.code as ErrorCode);
+  }
 
-      if (recoveryStrategy) {
-        const success = await recoveryStrategy(errorInfo);
+  shouldFallback(error: ProviderError): boolean {
+    const fallbackCodes: ErrorCode[] = [
+      ErrorCodes.RATE_LIMIT_EXCEEDED,
+      ErrorCodes.MODEL_NOT_SUPPORTED,
+      ErrorCodes.GENERATION_FAILED,
+    ];
 
-        if (success) {
-          await this.eventBus.publish(ErrorEvents.recoverySuccess, errorInfo);
-        } else {
-          await this.eventBus.publish(ErrorEvents.recoveryFailed, errorInfo);
+    return fallbackCodes.includes(error.code as ErrorCode);
+  }
+
+  getRetryDelay(attempt: number, error: ProviderError): number {
+    const baseDelay = this.BASE_RETRY_DELAY;
+    const maxDelay = this.MAX_RETRY_DELAY;
+
+    let delay = baseDelay * Math.pow(2, attempt - 1);
+
+    if (error.code === ErrorCodes.RATE_LIMIT_EXCEEDED) {
+      delay = Math.max(delay, 5000);
+    }
+
+    return Math.min(delay, maxDelay);
+  }
+
+  getUserFriendlyMessage(error: ProviderError): string {
+    const { message } = getErrorMessage(error.code, error.providerId);
+    return message;
+  }
+
+  getActionableSuggestion(error: ProviderError): string {
+    const { suggestion } = getErrorMessage(error.code, error.providerId);
+    return suggestion;
+  }
+
+  async sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    errorClassifier: (error: any) => ProviderError,
+    providerId: string,
+  ): Promise<T> {
+    let lastError: ProviderError;
+
+    for (let attempt = 1; attempt <= this.MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        return await operation();
+      } catch (error: any) {
+        lastError = errorClassifier(error);
+
+        if (!this.canRetry(lastError) || attempt === this.MAX_RETRY_ATTEMPTS) {
+          throw lastError;
         }
 
-        return success;
+        const delay = this.getRetryDelay(attempt, lastError);
+        await this.sleep(delay);
       }
-
-      return false;
-    } catch (error) {
-      await this.eventBus.publish(ErrorEvents.recoveryFailed, errorInfo);
-      return false;
     }
-  }
 
-  private getRecoveryStrategy(errorCode: string): ((errorInfo: any) => Promise<boolean>) | null {
-    const strategies: Record<string, (errorInfo: any) => Promise<boolean>> = {
-      "error.invalidSelection": this.recoverFromInvalidSelection.bind(this),
-      "error.missingSnippet": this.recoverFromMissingSnippet.bind(this),
-      "error.missingProvider": this.recoverFromMissingProvider.bind(this),
-    };
-
-    return strategies[errorCode] || null;
-  }
-
-  private async recoverFromInvalidSelection(errorInfo: any): Promise<boolean> {
-    return false;
-  }
-
-  private async recoverFromMissingSnippet(errorInfo: any): Promise<boolean> {
-    return false;
-  }
-
-  private async recoverFromMissingProvider(errorInfo: any): Promise<boolean> {
-    return false;
+    throw lastError!;
   }
 }

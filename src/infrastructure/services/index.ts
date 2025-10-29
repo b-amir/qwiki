@@ -1,5 +1,5 @@
 export { ErrorHandler, ErrorHandlerImpl } from "./ErrorHandler";
-export { ErrorRecoveryService, ErrorRecoveryServiceImpl } from "./ErrorRecoveryService";
+export { ErrorRecoveryService } from "./ErrorRecoveryService";
 export { ErrorLoggingService, ErrorLoggingServiceImpl } from "./ErrorLoggingService";
 export { CacheService } from "./CacheService";
 export { WebviewOptimizer, Debouncer } from "./WebviewOptimizer";
