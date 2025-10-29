@@ -43,6 +43,11 @@ The application layer contains services, commands, and application-specific busi
   - `ConfigurationManager.ts`: Configuration management
   - `CachedProjectContextService.ts`: Cached version of project context service
   - `CachedWikiService.ts`: Cached version of wiki service
+  - `PromptTemplateService.ts`: Prompt template lifecycle
+  - `PromptValidationService.ts`: Prompt validation and scoring
+  - `PromptLibraryService.ts`: Prompt library management
+  - `DynamicPromptAdjustmentService.ts`: Context-aware prompt adaptation
+  - `ProviderPromptVariants.ts`: Provider-specific prompt variants
   - `ProviderDiscoveryService.ts`: Dynamic provider discovery and loading
   - `ProviderLifecycleManager.ts`: Provider lifecycle management
   - `ProviderDependencyResolver.ts`: Provider dependency resolution
@@ -52,6 +57,20 @@ The application layer contains services, commands, and application-specific busi
   - `ConfigurationValidationEngine.ts`: Configuration validation rules engine
   - `ConfigurationTemplateService.ts`: Configuration templates and presets
   - `ConfigurationImportExportService.ts`: Configuration import/export functionality
+  - `OutputValidationService.ts`: Output schema validation
+  - `OutputNormalizationService.ts`: Output format normalization
+  - `ConsistencyScoreService.ts`: Output consistency scoring
+  - `OutputCacheService.ts`: Output caching and TTL management
+  - `FallbackStrategyService.ts`: Output fallback orchestration
+  - `WikiStorageService.ts`: Wiki persistence and indexing
+  - `WikiAggregationService.ts`: Wiki aggregation and conflict resolution
+  - `WikiLinkingService.ts`: Cross-reference management
+  - `ProjectWikiIndexService.ts`: Project index building
+  - `WikiSearchService.ts`: Wiki search and discovery
+  - `WikiVersioningService.ts`: Wiki version history
+  - `QualityMetricsService.ts`: Documentation quality scoring
+  - `QualityImprovementService.ts`: Improvement planning
+  - `QualityAssuranceService.ts`: QA workflows and approvals
 - **Commands** (`src/application/commands/`)
   - `Command.ts`: Base command interface
   - `GenerateWikiCommand.ts`: Wiki generation command
@@ -66,14 +85,33 @@ The application layer contains services, commands, and application-specific busi
   - `GetProviderConfigsCommand.ts`: Get provider configurations command
   - `GetConfigurationCommand.ts`: Get configuration command
   - `UpdateConfigurationCommand.ts`: Update configuration command
+  - `CreatePromptTemplateCommand.ts`: Create prompt template
+  - `UpdatePromptTemplateCommand.ts`: Update prompt template
+  - `DeletePromptTemplateCommand.ts`: Delete prompt template
+  - `CreateWikiPageCommand.ts`: Create wiki page entry
+  - `AggregateWikisCommand.ts`: Run aggregation workflow
+  - `CalculateQualityMetricsCommand.ts`: Generate quality metrics
+  - `GenerateQualityReportCommand.ts`: Produce quality reports
+  - `RunQAChecksCommand.ts`: Execute QA workflows
 - **CommandRegistry.ts**: Registry for managing commands
-- \*\*AppBootstrap.ts`: Application bootstrap and dependency injection setup
+- `AppBootstrap.ts`: Application bootstrap and dependency injection setup
 
 **Purpose:**
 
 - Implement application-specific business logic
 - Coordinate between domain and infrastructure layers
 - Handle user interactions through commands
+
+### Phase 3 Capabilities
+
+Phase 3 extends the application layer with coordinated subsystems:
+
+- **Prompt Engineering** – Template lifecycle, validation, provider variants, dynamic adjustments, and library management work together to deliver resilient prompts across providers.
+- **Output Consistency** – Validation, normalization, consistency scoring, caching, and fallback services ensure generated documentation is reliable and recoverable.
+- **Wiki Aggregation** – Storage, aggregation, linking, indexing, search, and versioning combine to build comprehensive project documentation maps.
+- **Quality Assurance** – Metrics, improvement planning, and QA workflow services provide continuous insight and gated approval flows for documentation updates.
+
+Each subsystem is registered in `AppBootstrap` so commands and webviews can resolve dependencies through the container.
 
 ### 3. Infrastructure Layer
 

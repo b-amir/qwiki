@@ -1,4 +1,4 @@
-# Developer Onboarding Guide
+﻿# Developer Onboarding Guide
 
 ## Welcome to Qwiki
 
@@ -60,7 +60,7 @@ qwiki/
 ├── src/                      # Extension source code
 │   ├── extension.ts          # Main extension entry point
 │   ├── application/          # Application layer (services, commands)
-│   │   ├── services/         # Business logic services
+│   │   ├── services/
 │   │   │   ├── WikiService.ts
 │   │   │   ├── SelectionService.ts
 │   │   │   ├── ProjectContextService.ts
@@ -74,95 +74,59 @@ qwiki/
 │   │   │   ├── ProviderSelectionService.ts
 │   │   │   ├── ProviderHealthService.ts
 │   │   │   ├── ProviderPerformanceService.ts
-│   │   │   ├── [Phase 2 Services]
-│   │   │   │   ├── ProviderDiscoveryService.ts
-│   │   │   │   ├── ProviderLifecycleManager.ts
-│   │   │   │   ├── ProviderDependencyResolver.ts
-│   │   │   │   ├── ContextAnalysisService.ts
-│   │   │   │   ├── SmartProviderSelectionService.ts
-│   │   │   │   ├── ProviderFallbackManager.ts
-│   │   │   │   ├── ConfigurationValidationEngine.ts
-│   │   │   │   ├── ConfigurationImportExportService.ts
-│   │   │   │   └── [Cached services]
-│   │   ├── commands/         # Command implementations
+│   │   │   ├── ProviderDiscoveryService.ts
+│   │   │   ├── ProviderLifecycleManager.ts
+│   │   │   ├── ProviderDependencyResolver.ts
+│   │   │   ├── ContextAnalysisService.ts
+│   │   │   ├── SmartProviderSelectionService.ts
+│   │   │   ├── ProviderFallbackManager.ts
+│   │   │   ├── ConfigurationValidationEngine.ts
+│   │   │   ├── ConfigurationImportExportService.ts
+│   │   │   ├── PromptTemplateService.ts
+│   │   │   ├── PromptValidationService.ts
+│   │   │   ├── PromptLibraryService.ts
+│   │   │   ├── DynamicPromptAdjustmentService.ts
+│   │   │   ├── OutputValidationService.ts
+│   │   │   ├── OutputNormalizationService.ts
+│   │   │   ├── ConsistencyScoreService.ts
+│   │   │   ├── OutputCacheService.ts
+│   │   │   ├── FallbackStrategyService.ts
+│   │   │   ├── WikiStorageService.ts
+│   │   │   ├── WikiAggregationService.ts
+│   │   │   ├── WikiLinkingService.ts
+│   │   │   ├── ProjectWikiIndexService.ts
+│   │   │   ├── WikiSearchService.ts
+│   │   │   ├── WikiVersioningService.ts
+│   │   │   ├── QualityMetricsService.ts
+│   │   │   ├── QualityImprovementService.ts
+│   │   │   └── QualityAssuranceService.ts
+│   │   ├── commands/
 │   │   │   ├── GenerateWikiCommand.ts
-│   │   │   ├── GetSelectionCommand.ts
-│   │   │   ├── SaveApiKeyCommand.ts
-│   │   │   └── [Other command files]
+│   │   │   ├── CreatePromptTemplateCommand.ts
+│   │   │   ├── CreateWikiPageCommand.ts
+│   │   │   ├── CalculateQualityMetricsCommand.ts
+│   │   │   └── RunQAChecksCommand.ts
 │   │   ├── CommandRegistry.ts
 │   │   └── AppBootstrap.ts
-│   ├── domain/               # Domain layer (entities, repositories)
-│   │   ├── entities/         # Business entities
-│   │   │   ├── Wiki.ts
-│   │   │   └── Selection.ts
-│   │   └── repositories/     # Repository interfaces
-│   │       ├── ApiKeyRepository.ts
-│   │       └── ConfigurationRepository.ts
-│   ├── infrastructure/       # Infrastructure layer (implementations)
-│   │   ├── repositories/     # VS Code implementations
-│   │   │   ├── VSCodeApiKeyRepository.ts
-│   │   │   └── VSCodeConfigurationRepository.ts
-│   │   └── services/         # Technical services
-│   │       ├── ErrorHandler.ts
-│   │       ├── CacheService.ts
-│   │       ├── PerformanceMonitor.ts
-│   │       ├── WebviewOptimizer.ts
-│   │       ├── ErrorRecoveryService.ts
-│   │       ├── ErrorLoggingService.ts
-│   │       ├── ConfigurationBackupService.ts
-│   │       ├── ProviderHealthService.ts
-│   │       └── ProviderPerformanceService.ts
-│   ├── llm/                  # LLM provider system
-│   │   ├── providers/        # Individual provider implementations
-│   │   │   ├── openai.ts
-│   │   │   ├── google-ai-studio.ts
-│   │   │   ├── cohere.ts
-│   │   │   ├── huggingface.ts
-│   │   │   ├── openrouter.ts
-│   │   │   ├── zai.ts
-│   │   │   └── registry.ts
-│   │   ├── types/            # Type definitions (Phase 2 enhanced)
-│   │   │   ├── ProviderCapabilities.ts
-│   │   │   ├── ProviderMetadata.ts
-│   │   │   └── index.ts
-│   │   ├── index.ts
-│   │   ├── prompt.ts
-│   │   ├── provider-config.ts
-│   │   └── types.ts
-│   ├── panels/               # WebView panel implementations
-│   │   ├── QwikiPanel.ts     # Main Qwiki panel
-│   │   ├── webviewContent.ts
-│   │   ├── constants.ts
-│   │   ├── contextBuilder.ts
-│   │   ├── fileOps.ts
-│   │   └── messages.ts
-│   ├── container/            # Dependency injection container
-│   │   └── Container.ts
-│   ├── constants/            # Application constants
-│   │   ├── Commands.ts
-│   │   ├── ErrorCodes.ts
-│   │   ├── Events.ts
-│   │   ├── Extension.ts
-│   │   ├── FilePatterns.ts
-│   │   ├── MessageConstants.ts
-│   │   ├── PathConstants.ts
-│   │   └── WebviewConstants.ts
-│   ├── errors/               # Custom error classes
-│   │   └── BaseError.ts
-│   ├── events/               # Event system
-│   ├── factories/            # Factory implementations
-│   └── utilities/            # Helper functions
+│   ├── prompts/
+│   │   ├── types/
+│   │   ├── services/
+│   │   └── variants/
+│   ├── output/
+│   │   └── services/
+│   ├── wiki/
+│   │   └── services/
+│   ├── quality/
+│   │   └── services/
+│   ├── llm/
+│   ├── panels/
+│   ├── container/
+│   ├── constants/
+│   ├── errors/
+│   ├── events/
+│   ├── factories/
+│   └── utilities/
 ├── webview-ui/               # Vue.js webview application
-│   ├── src/
-│   │   ├── App.vue           # Main Vue component
-│   │   ├── components/       # Vue components
-│   │   ├── stores/           # Pinia state management
-│   │   ├── composables/      # Vue composables
-│   │   ├── lib/              # Shared utilities
-│   │   └── utilities/        # Helper functions
-│   ├── package.json          # Webview dependencies
-│   ├── vite.config.ts        # Vite build configuration
-│   └── tailwind.config.cjs   # Tailwind CSS configuration
 ├── docs/                     # Documentation
 ├── resources/                # Extension resources
 └── package.json              # Extension manifest and dependencies
@@ -510,6 +474,9 @@ container.register("newRepository", () => new NewRepositoryImpl());
 ### 1. Documentation
 
 - [Architecture Documentation](./ARCHITECTURE.md)
+- [Prompt Engineering Guide](./PROMPT_ENGINEERING_GUIDE.md)
+- [Wiki Aggregation Documentation](./WIKI_AGGREGATION.md)
+- [Quality Assurance Guide](./QUALITY_ASSURANCE_GUIDE.md)
 - [SOLID Principles Implementation](./SOLID_PRINCIPLES.md)
 - [VS Code Extension API](https://code.visualstudio.com/api)
 

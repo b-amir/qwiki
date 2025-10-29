@@ -360,6 +360,284 @@ Saves an API key for a provider.
 }
 ```
 
+### Prompt Template Commands
+
+#### Create Prompt Template
+
+**Command ID**: `createPromptTemplate`
+
+Creates a new prompt template with metadata and variables.
+
+**Parameters**:
+
+```typescript
+{
+  name: string;
+  content: string;
+  variables?: Array<{
+    name: string;
+    type: string;
+    description: string;
+    required: boolean;
+    defaultValue?: string;
+  }>;
+  metadata?: {
+    category: string;
+    language: string;
+    provider: string;
+    complexity: string;
+    effectiveness?: number;
+  };
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  templateId: string;
+}
+```
+
+#### Update Prompt Template
+
+**Command ID**: `updatePromptTemplate`
+
+Applies partial updates to an existing template.
+
+**Parameters**:
+
+```typescript
+{
+  id: string;
+  name?: string;
+  content?: string;
+  metadata?: {
+    category?: string;
+    language?: string;
+    provider?: string;
+    complexity?: string;
+    effectiveness?: number;
+  };
+}
+```
+
+**Returns**: `void`
+
+#### Delete Prompt Template
+
+**Command ID**: `deletePromptTemplate`
+
+Deletes a prompt template by identifier.
+
+**Parameters**:
+
+```typescript
+{
+  id: string;
+}
+```
+
+**Returns**: `void`
+
+#### Get All Prompt Templates
+
+**Command ID**: `getAllPromptTemplates`
+
+Retrieves every stored template for the current project or workspace.
+
+**Parameters**: `{ }`
+
+**Returns**:
+
+```typescript
+{
+  templates: PromptTemplate[];
+}
+```
+
+#### Render Prompt Template
+
+**Command ID**: `renderPromptTemplate`
+
+Renders a template with context variables.
+
+**Parameters**:
+
+```typescript
+{
+  templateId: string;
+  context: PromptContext;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  content: string;
+}
+```
+
+### Wiki Aggregation Commands
+
+#### Create Wiki Page
+
+**Command ID**: `createWikiPage`
+
+Creates a wiki page entry for the active project.
+
+**Parameters**:
+
+```typescript
+{
+  title: string;
+  content: string;
+  tags?: string[];
+  metadata?: {
+    author?: string;
+    status?: string;
+    priority?: string;
+  };
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  pageId: string;
+}
+```
+
+#### Aggregate Wikis
+
+**Command ID**: `aggregateWikis`
+
+Runs the aggregation engine using the provided strategy.
+
+**Parameters**:
+
+```typescript
+{
+  projectId: string;
+  strategy: {
+    type: string;
+    rules: Array<Record<string, unknown>>;
+  };
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  success: boolean;
+  wiki?: AggregatedWiki;
+  issues?: string[];
+}
+```
+
+#### Get Wiki Statistics
+
+**Command ID**: `getWikiStatistics`
+
+Retrieves aggregate counts for pages, tags, and relationships.
+
+**Parameters**:
+
+```typescript
+{
+  projectId: string;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  statistics: {
+    totalPages: number;
+    totalTags: number;
+    totalRelationships: number;
+    lastUpdated: string;
+  };
+}
+```
+
+### Quality Assurance Commands
+
+#### Calculate Quality Metrics
+
+**Command ID**: `calculateQualityMetrics`
+
+Analyzes content and returns metric scores.
+
+**Parameters**:
+
+```typescript
+{
+  content: string;
+  context: DocumentationContext;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  metrics: QualityMetrics;
+  qualityScore: number;
+}
+```
+
+#### Generate Quality Report
+
+**Command ID**: `generateQualityReport`
+
+Produces a full quality report with issues and recommendations.
+
+**Parameters**:
+
+```typescript
+{
+  content: string;
+  context: DocumentationContext;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  qualityReport: QualityReport;
+}
+```
+
+#### Run QA Checks
+
+**Command ID**: `runQAChecks`
+
+Executes a QA workflow against provided content.
+
+**Parameters**:
+
+```typescript
+{
+  content: string;
+  context: DocumentationContext;
+  workflow: QAWorkflow;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  result: QACheckResult;
+}
+```
+
 **Returns**: Success confirmation
 
 #### Get API Keys
