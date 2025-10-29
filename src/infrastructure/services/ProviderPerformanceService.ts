@@ -251,6 +251,78 @@ export class ProviderPerformanceService {
     return result;
   }
 
+  updateProviderRankings(): void {
+    const rankings = this.getProviderRankings();
+    for (const ranking of rankings) {
+      this.eventBus.publish("provider-ranking-updated", {
+        providerId: ranking.providerId,
+        score: ranking.score,
+        stats: ranking.stats,
+      });
+    }
+  }
+
+  getWeightedScore(providerId: string): number {
+    const stats = this.getProviderStats(providerId);
+    if (!stats) return 0;
+
+    let score = 0;
+
+    score += Math.min(50, stats.successRate);
+    score += Math.min(30, 1000 / Math.max(1, stats.averageResponseTime));
+    score += Math.min(20, stats.totalRequests / 10);
+
+    if (stats.averageTokensPerRequest) {
+      score += Math.min(10, stats.averageTokensPerRequest / 100);
+    }
+
+    return Math.round(score);
+  }
+
+  recordSelection(providerId: string, context: any): void {
+    const stats = this.getProviderStats(providerId);
+    if (!stats) return;
+
+    const metric: PerformanceMetric = {
+      providerId,
+      timestamp: new Date(),
+      duration: 0,
+      success: true,
+      tokensUsed: 0,
+    };
+
+    this.addMetric(providerId, metric);
+    this.eventBus.publish("provider-selected", {
+      providerId,
+      context,
+      timestamp: new Date(),
+    });
+  }
+
+  recordFallback(fromProvider: string, toProvider: string, success: boolean): void {
+    const metric: PerformanceMetric = {
+      providerId: fromProvider,
+      timestamp: new Date(),
+      duration: 0,
+      success,
+      error: success ? undefined : `Fallback to ${toProvider}`,
+    };
+
+    this.addMetric(fromProvider, metric);
+    this.addMetric(toProvider, {
+      ...metric,
+      providerId: toProvider,
+      success: true,
+    });
+
+    this.eventBus.publish("provider-fallback", {
+      fromProvider,
+      toProvider,
+      success,
+      timestamp: new Date(),
+    });
+  }
+
   clearProviderMetrics(providerId: string): void {
     this.performanceMetrics.delete(providerId);
     this.eventBus.publish("providerMetricsCleared", { providerId });
