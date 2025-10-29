@@ -7,3 +7,4 @@ export { CachedWikiService } from "./CachedWikiService";
 export { ConfigurationManager } from "./ConfigurationManager";
 export { ConfigurationValidator } from "./ConfigurationValidator";
 export { ConfigurationMigrationService } from "./ConfigurationMigrationService";
+export { ConfigurationTemplateService } from "./ConfigurationTemplateService";
