@@ -1,3 +1,10 @@
+import {
+  ProviderCapabilities,
+  ProviderFeature,
+  ValidationResult,
+  HealthCheckResult,
+} from "./types/ProviderCapabilities";
+
 export type GenerateParams = {
   snippet: string;
   languageId?: string;
@@ -24,9 +31,15 @@ export interface LLMProvider {
   id: string;
   name: string;
   requiresApiKey: boolean;
+  capabilities: ProviderCapabilities;
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
+  supportsCapability(capability: ProviderFeature): boolean;
+  validateConfig(config: any): ValidationResult;
+  initialize(): Promise<void>;
+  dispose(): Promise<void>;
+  healthCheck(): Promise<HealthCheckResult>;
 }
 
 export interface ProviderUiConfig {
