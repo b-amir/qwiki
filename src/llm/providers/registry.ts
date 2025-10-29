@@ -11,6 +11,7 @@ import { GoogleAIStudioProvider } from "./google-ai-studio";
 import { CohereProvider } from "./cohere";
 import { HuggingFaceProvider } from "./huggingface";
 import { CachingService } from "../../infrastructure/services/CachingService";
+import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
 import type { GenerateParams, GenerateResult } from "../types";
 
 export type GetSetting = (key: string) => Promise<any>;
@@ -23,11 +24,16 @@ export class LLMRegistry {
   private eventBus: EventBus;
   private providerDirectories: string[] = [];
   private cachingService: CachingService;
+  private providerFileSystemService: ProviderFileSystemService;
 
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
     this.cachingService = new CachingService({ maxSize: 50, defaultTtl: 300000 });
-    this.providerDiscoveryService = new ProviderDiscoveryService(eventBus);
+    this.providerFileSystemService = new ProviderFileSystemService();
+    this.providerDiscoveryService = new ProviderDiscoveryService(
+      eventBus,
+      this.providerFileSystemService,
+    );
     this.providerLifecycleManager = new ProviderLifecycleManager(
       this.providerDiscoveryService,
       eventBus,

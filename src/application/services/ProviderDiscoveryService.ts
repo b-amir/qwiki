@@ -4,12 +4,16 @@ import { EventBus } from "../../events/EventBus";
 import { ProviderMetadata, ProviderManifest } from "../../llm/types/ProviderMetadata";
 import { LLMProvider } from "../../llm/types";
 import { ValidationResult } from "../../llm/types/ProviderCapabilities";
+import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
 
 export class ProviderDiscoveryService {
   private discoveredProviders = new Map<string, ProviderMetadata>();
   private watchers: fs.FSWatcher[] = [];
 
-  constructor(private eventBus: EventBus) {}
+  constructor(
+    private eventBus: EventBus,
+    private providerFileSystemService: ProviderFileSystemService,
+  ) {}
 
   async discoverProviders(): Promise<ProviderMetadata[]> {
     const providerDirs = await this.getProviderDirectories();
@@ -42,7 +46,8 @@ export class ProviderDiscoveryService {
 
         if (fs.existsSync(manifestPath)) {
           try {
-            const manifest = await this.readProviderManifest(manifestPath);
+            const manifest =
+              await this.providerFileSystemService.readProviderManifest(manifestPath);
             if (manifest) {
               providers.push(manifest);
               this.discoveredProviders.set(manifest.id, manifest);
@@ -117,15 +122,18 @@ export class ProviderDiscoveryService {
 
     for (const directory of directories) {
       if (fs.existsSync(directory)) {
-        const watcher = fs.watch(directory, { recursive: true }, (eventType, filename) => {
-          if (filename && filename.endsWith("manifest.json")) {
-            this.eventBus.publish("provider-manifest-changed", {
-              directory,
-              filename,
-              eventType,
-            });
-          }
-        });
+        const watcher = this.providerFileSystemService.watchProviderDirectory(
+          directory,
+          (change) => {
+            if (change.filename.endsWith("manifest.json")) {
+              this.eventBus.publish("provider-manifest-changed", {
+                directory,
+                filename: change.filename,
+                eventType: change.eventType,
+              });
+            }
+          },
+        );
 
         this.watchers.push(watcher);
       }
@@ -156,15 +164,14 @@ export class ProviderDiscoveryService {
 
   private async readProviderManifest(manifestPath: string): Promise<ProviderManifest | null> {
     try {
-      const manifestContent = fs.readFileSync(manifestPath, "utf-8");
-      const manifest = JSON.parse(manifestContent);
+      const manifest = await this.providerFileSystemService.readProviderManifest(manifestPath);
 
       const validation = await this.validateProviderManifest(manifest);
       if (!validation.isValid) {
         throw new Error(`Invalid manifest: ${validation.errors.join(", ")}`);
       }
 
-      return manifest as ProviderManifest;
+      return manifest;
     } catch (error) {
       return null;
     }
