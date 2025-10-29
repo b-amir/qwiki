@@ -10,6 +10,8 @@ import { OpenRouterProvider } from "./openrouter";
 import { GoogleAIStudioProvider } from "./google-ai-studio";
 import { CohereProvider } from "./cohere";
 import { HuggingFaceProvider } from "./huggingface";
+import { CachingService } from "../../infrastructure/services/CachingService";
+import type { GenerateParams, GenerateResult } from "../types";
 
 export type GetSetting = (key: string) => Promise<any>;
 
@@ -20,9 +22,11 @@ export class LLMRegistry {
   private providerDependencyResolver: ProviderDependencyResolver;
   private eventBus: EventBus;
   private providerDirectories: string[] = [];
+  private cachingService: CachingService;
 
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
+    this.cachingService = new CachingService({ maxSize: 50, defaultTtl: 300000 });
     this.providerDiscoveryService = new ProviderDiscoveryService(eventBus);
     this.providerLifecycleManager = new ProviderLifecycleManager(
       this.providerDiscoveryService,
@@ -88,6 +92,25 @@ export class LLMRegistry {
 
   getAllProviders(): Record<string, LLMProvider> {
     return { ...this.providers };
+  }
+
+  async generate(providerId: string, params: GenerateParams): Promise<GenerateResult> {
+    const provider = this.getProvider(providerId);
+    if (!provider) {
+      throw new Error(`Provider ${providerId} not found`);
+    }
+
+    const cacheKey = `provider_${providerId}_${JSON.stringify(params)}`;
+    const cachedResult = await this.cachingService.get<GenerateResult>(cacheKey);
+
+    if (cachedResult) {
+      return cachedResult;
+    }
+
+    const result = await provider.generate(params, undefined);
+    await this.cachingService.set(cacheKey, result, { ttl: 300000 });
+
+    return result;
   }
 
   private async loadBuiltInProviders(): Promise<void> {

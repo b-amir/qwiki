@@ -3,16 +3,27 @@ import { OutboundEvents } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
 import { ErrorCodes } from "../../constants/ErrorCodes";
 import { WebviewOptimizer } from "../../infrastructure/services/WebviewOptimizer";
+import { DebouncingService } from "../../infrastructure/services/DebouncingService";
 
 export class MessageBus {
   private optimizer: WebviewOptimizer;
+  private debouncingService: DebouncingService;
+  private debouncedPostMessage: any;
 
   constructor(webview: Webview) {
     this.optimizer = new WebviewOptimizer(webview);
+    this.debouncingService = new DebouncingService();
+    this.debouncedPostMessage = this.debouncingService.debounce(
+      (command: string, payload?: any) => {
+        this.optimizer.postMessage(command, payload);
+      },
+      50,
+      { leading: false, trailing: true },
+    );
   }
 
   postMessage(command: string, payload?: any): void {
-    this.optimizer.postMessage(command, payload);
+    this.debouncedPostMessage(command, payload);
   }
 
   postImmediate(command: string, payload?: any): void {
