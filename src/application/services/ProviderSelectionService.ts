@@ -1,10 +1,15 @@
-import { LLMRegistry } from "../../llm";
+import { LLMRegistry } from "../../llm/providers/registry";
 import {
   ProviderFeature,
   CapabilityRequirement,
   ProviderCapabilities,
 } from "../../llm/types/ProviderCapabilities";
 import { GenerateParams } from "../../llm/types";
+import { SmartProviderSelectionService } from "./SmartProviderSelectionService";
+import { ProviderFallbackManager } from "./ProviderFallbackManager";
+import { DeepContextAnalysis, ContextAnalysisService } from "./ContextAnalysisService";
+import { EventBus } from "../../events/EventBus";
+import { ProviderHealthService } from "../../infrastructure/services/ProviderHealthService";
 
 export interface GenerationContext {
   snippet: string;
@@ -32,11 +37,31 @@ export interface ProviderRanking {
 }
 
 export class ProviderSelectionService {
-  constructor(private llmRegistry: LLMRegistry) {}
+  private smartProviderSelectionService: SmartProviderSelectionService;
+  private providerFallbackManager: ProviderFallbackManager;
+
+  constructor(
+    private llmRegistry: LLMRegistry,
+    private eventBus: EventBus,
+  ) {
+    const contextAnalysisService = new ContextAnalysisService(this.eventBus);
+    this.smartProviderSelectionService = new SmartProviderSelectionService(
+      this,
+      contextAnalysisService,
+      this.llmRegistry,
+      this.eventBus,
+    );
+    this.providerFallbackManager = new ProviderFallbackManager(
+      this.smartProviderSelectionService,
+      new ProviderHealthService(this.llmRegistry as any, this.eventBus),
+      this.llmRegistry,
+      this.eventBus,
+    );
+  }
 
   selectProviderForContext(context: GenerationContext): string[] {
-    const providers = this.llmRegistry.list();
-    const providerIds = providers.map((p) => p.id);
+    const providers = this.llmRegistry.getAllProviders();
+    const providerIds = Object.keys(providers);
     const requirements = this.analyzeContextRequirements(context);
     const suitableProviders = this.filterProvidersByRequirements(providerIds, requirements);
     const rankedProviders = this.rankProvidersBySuitability(suitableProviders, context);
@@ -45,8 +70,8 @@ export class ProviderSelectionService {
   }
 
   getBestProvider(requirements: CapabilityRequirement): string {
-    const providers = this.llmRegistry.list();
-    const providerIds = providers.map((p) => p.id);
+    const providers = this.llmRegistry.getAllProviders();
+    const providerIds = Object.keys(providers);
     const suitableProviders = this.filterProvidersByRequirements(providerIds, requirements);
 
     if (suitableProviders.length === 0) {
@@ -57,8 +82,8 @@ export class ProviderSelectionService {
   }
 
   filterProvidersByCapability(capability: ProviderFeature): string[] {
-    const providers = this.llmRegistry.list();
-    const providerIds = providers.map((p) => p.id);
+    const providers = this.llmRegistry.getAllProviders();
+    const providerIds = Object.keys(providers);
     const filtered = providerIds.filter((providerId) => {
       const provider = this.llmRegistry.getProvider(providerId);
       return provider && provider.supportsCapability(capability);
@@ -68,8 +93,8 @@ export class ProviderSelectionService {
   }
 
   rankProvidersByPerformance(): string[] {
-    const providers = this.llmRegistry.list();
-    const providerIds = providers.map((p) => p.id);
+    const providers = this.llmRegistry.getAllProviders();
+    const providerIds = Object.keys(providers);
     const rankings: ProviderRanking[] = [];
 
     for (const providerId of providerIds) {
