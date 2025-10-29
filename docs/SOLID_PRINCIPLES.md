@@ -147,7 +147,7 @@ import { MyProvider } from "./my-provider";
 
 export function loadProviders(getSetting: (key: string) => Promise<any>) {
   return {
-    'my-provider': new MyProvider(getSetting),
+    "my-provider": new MyProvider(getSetting),
     // other providers ...
   };
 }

@@ -17,10 +17,9 @@ export class GoogleAIStudioProvider implements LLMProvider {
     }
 
     const model = params.model || "gemini-2.5-pro";
-    const endpointType = (this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined) as
-      | "openai-compatible"
-      | "native"
-      | undefined;
+    const endpointType = (
+      this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined
+    ) as "openai-compatible" | "native" | undefined;
     const useNativeEndpoint = endpointType === "native";
     const prompt = buildWikiPrompt(params);
 

@@ -40,14 +40,12 @@ export const useWikiStore = defineStore("wiki", {
           }
           case "providers": {
             this.providers = message.payload || [];
-            const withKey = this.providers.find((p) => p.hasKey)?.id;
-            if (withKey) {
-              this.providerId = withKey;
-              if (!this.model) {
-                const selectedProvider = this.providers.find((p) => p.id === withKey);
-                if (selectedProvider?.models?.length) {
-                  this.model = selectedProvider.models[0];
-                }
+
+            const selectedProvider = this.providers.find((p) => p.hasKey);
+            if (selectedProvider) {
+              this.providerId = selectedProvider.id;
+              if (!this.model && selectedProvider.models?.length) {
+                this.model = selectedProvider.models[0];
               }
             }
             return;

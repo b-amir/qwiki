@@ -54,17 +54,25 @@ export class CachedWikiService {
     const modelHash = request.model || "";
     const languageHash = request.languageId || "";
     const filePathHash = request.filePath ? this.simpleHash(request.filePath) : "";
-    const contextHash = this.simpleHash(JSON.stringify(projectContext));
+
+    const contextKey = [
+      projectContext.rootName || "",
+      projectContext.overview || "",
+      projectContext.filesSample?.slice(0, 10).join(",") || "", // Limit to first 10 files
+      projectContext.related
+        ?.slice(0, 5)
+        .map((r) => `${r.path}:${r.line}`)
+        .join(",") || "", // Limit to first 5 related files
+    ].join("|");
+    const contextHash = this.simpleHash(contextKey);
 
     return `wiki-generation:${snippetHash}:${providerHash}:${modelHash}:${languageHash}:${filePathHash}:${contextHash}`;
   }
 
   private simpleHash(str: string): string {
-    let hash = 0;
+    let hash = 5381;
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash;
+      hash = (hash << 5) + hash + str.charCodeAt(i);
     }
     return Math.abs(hash).toString(36);
   }

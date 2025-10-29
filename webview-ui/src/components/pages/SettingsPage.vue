@@ -368,8 +368,6 @@ onMounted(() => {
                       />
                     </div>
 
-                    
-
                     <div v-for="field in provider.customFields" :key="field.id" class="space-y-2">
                       <label class="text-muted-foreground text-xs font-medium tracking-wide">
                         {{ field.label }}

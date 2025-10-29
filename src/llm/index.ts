@@ -6,7 +6,10 @@ import { loadProviders, type GetSetting } from "./providers/registry";
 export class LLMRegistry {
   private providers = new Map<string, LLMProvider>();
 
-  constructor(private secrets: SecretStorage, getSetting?: GetSetting) {
+  constructor(
+    private secrets: SecretStorage,
+    getSetting?: GetSetting,
+  ) {
     const allProviders = loadProviders(getSetting || (async () => undefined));
 
     for (const [id, provider] of Object.entries(allProviders)) {

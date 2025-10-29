@@ -12,7 +12,8 @@ export interface ProviderConfig {
   customFields?: import("./types").ProviderCustomField[];
 }
 
-const createProviderInstances = (getSetting?: GetSetting) => loadProviders(getSetting || (async () => undefined));
+const createProviderInstances = (getSetting?: GetSetting) =>
+  loadProviders(getSetting || (async () => undefined));
 
 export function getAllProviderConfigs(getSetting?: GetSetting): ProviderConfig[] {
   const providers = createProviderInstances(getSetting);

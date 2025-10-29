@@ -37,13 +37,15 @@ export async function tryOpenFile(path: string, line?: number) {
       } else {
         globs.add(`**/${base}`);
       }
-      let matches: readonly Uri[] = [];
-      for (const g of globs) {
-        matches = await workspace.findFiles(
-          g,
-          "**/{node_modules,dist,out,build,.git,.vscode}/**",
-          5,
-        );
+
+      const excludePattern = "**/{node_modules,dist,out,build,.git,.vscode}/**";
+      const fileSearchPromises = Array.from(globs).map((glob) =>
+        workspace.findFiles(glob, excludePattern, 5),
+      );
+
+      const searchResults = await Promise.all(fileSearchPromises);
+
+      for (const matches of searchResults) {
         if (matches.length) {
           targetUri = matches[0];
           break;

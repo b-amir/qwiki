@@ -73,8 +73,7 @@ export class AppBootstrap {
       const configurationRepository = this.container.resolve(
         "configurationRepository",
       ) as import("../domain/repositories/ConfigurationRepository").ConfigurationRepository;
-      const getSetting = async (key: string) =>
-        await configurationRepository.get<string>(key);
+      const getSetting = async (key: string) => await configurationRepository.get<string>(key);
       return new LLMRegistry(this.container.resolve("secrets"), getSetting);
     });
 

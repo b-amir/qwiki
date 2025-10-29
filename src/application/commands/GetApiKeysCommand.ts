@@ -26,7 +26,8 @@ export class GetApiKeysCommand implements Command<void> {
 
     const flatFields = providerConfigs.flatMap((p) => p.customFields ?? []);
     const fieldDefaults = new Map<string, string | undefined>();
-    for (const f of flatFields) if (!fieldDefaults.has(f.id)) fieldDefaults.set(f.id, f.defaultValue);
+    for (const f of flatFields)
+      if (!fieldDefaults.has(f.id)) fieldDefaults.set(f.id, f.defaultValue);
 
     const fieldIds = Array.from(fieldDefaults.keys());
     const fieldValues = await Promise.all(

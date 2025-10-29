@@ -68,26 +68,35 @@ export class ProjectContextService {
     const re = new RegExp(
       `${PathPatterns.wordBoundaryRegex}${(token || "").replace(PathPatterns.specialCharsRegex, "\\$&")}${PathPatterns.wordBoundaryRegex}`,
     );
-    for (const uri of files) {
+
+    const filePromises = files.map(async (uri) => {
       try {
         const doc = await workspace.openTextDocument(uri);
         const text = doc.getText();
         const m = re.exec(text);
-        if (!m) continue;
+        if (!m) return null;
         const pos = doc.positionAt(m.index);
         const line = pos.line + 1;
         const previewLine = doc.lineAt(pos.line).text.trim();
-        related.push({
+        return {
           path: this.relativePath(uri),
           line,
           preview: previewLine,
           reason: MessageStrings.textMatch,
-        });
-        if (related.length >= FileLimits.maxRelatedResults) break;
+        };
       } catch (error) {
         console.error("[QWIKI] ProjectContextService: Exception in findTextUsages:", error);
+        return null;
       }
-    }
+    });
+
+    const results = await Promise.all(filePromises);
+
+    const validResults = results.filter(
+      (result): result is NonNullable<typeof result> => result !== null,
+    );
+    related.push(...validResults.slice(0, FileLimits.maxRelatedResults));
+
     return related;
   }
 
