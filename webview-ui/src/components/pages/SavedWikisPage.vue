@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
+import LoadingState from "@/components/features/LoadingState.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 
 interface SavedWiki {
@@ -120,7 +121,7 @@ onBeforeUnmount(() => {
     <div class="border-border flex-shrink-0 border-b p-4">
       <div class="flex items-center justify-between gap-4">
         <h1 class="text-lg font-semibold">Project Wiki Collection</h1>
-        <button @click="loadSavedWikis" class="text-muted-foreground hover:text-foreground text-sm">
+        <button class="text-muted-foreground hover:text-foreground text-sm" @click="loadSavedWikis">
           Refresh
         </button>
       </div>
@@ -136,17 +137,27 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex-1 overflow-hidden">
-      <div v-if="loading" class="text-muted-foreground flex h-full items-center justify-center">
-        Loading saved wikis...
+      <div v-if="loading" class="flex h-full w-full">
+        <LoadingState
+          :steps="[
+            { text: 'Loading saved wikis...', key: 'loading' },
+            { text: 'Preparing entries...', key: 'preparing' },
+          ]"
+          :current-step="'loading'"
+          density="low"
+        />
       </div>
 
-      <div v-else-if="error" class="text-destructive flex h-full items-center justify-center">
+      <div
+        v-else-if="error"
+        class="text-destructive flex h-full w-full items-center justify-center"
+      >
         {{ error }}
       </div>
 
       <div
         v-else-if="filteredWikis.length === 0"
-        class="text-muted-foreground flex h-full items-center justify-center"
+        class="text-muted-foreground flex h-full w-full items-center justify-center"
       >
         <div class="text-center">
           <div class="mb-2 text-lg font-medium">
@@ -201,8 +212,8 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex flex-shrink-0 items-center gap-2">
                   <button
-                    @click.stop="deleteWiki(wiki.id)"
                     class="text-destructive hover:text-destructive/80 text-xs"
+                    @click.stop="deleteWiki(wiki.id)"
                   >
                     Delete
                   </button>

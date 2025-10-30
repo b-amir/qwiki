@@ -300,6 +300,7 @@ const trackStyle = computed(() => {
   gap: 8px;
   will-change: transform;
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  min-height: 100%;
 }
 
 .step-row {

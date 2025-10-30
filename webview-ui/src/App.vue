@@ -106,47 +106,47 @@ const environmentCurrentStep = computed(() => {
         </template>
       </div>
 
-      <div v-else-if="currentPage === 'settings'">
+      <div v-else-if="currentPage === 'settings'" class="flex h-full">
         <LoadingState
           v-if="settingsNavigationLoading"
           class="flex-1"
           :steps="[
             { text: 'Loading settings...', key: 'loading' },
             { text: 'Fetching providers...', key: 'fetching' },
-            { text: 'Preparing configuration...', key: 'preparing' }
+            { text: 'Preparing configuration...', key: 'preparing' },
           ]"
           :current-step="'loading'"
           density="low"
         />
-        <SettingsPage v-else />
+        <SettingsPage v-else class="flex-1" />
       </div>
 
-      <div v-else-if="currentPage === 'errorHistory'">
+      <div v-else-if="currentPage === 'errorHistory'" class="flex h-full">
         <LoadingState
           v-if="errorHistoryNavigationLoading"
           class="flex-1"
           :steps="[
             { text: 'Gathering error history...', key: 'loading' },
-            { text: 'Preparing view...', key: 'preparing' }
+            { text: 'Preparing view...', key: 'preparing' },
           ]"
           :current-step="'loading'"
           density="low"
         />
-        <ErrorHistoryPage v-else />
+        <ErrorHistoryPage v-else class="flex-1" />
       </div>
 
-      <div v-else-if="currentPage === 'savedWikis'">
+      <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
         <LoadingState
           v-if="savedWikisNavigationLoading"
           class="flex-1"
           :steps="[
             { text: 'Loading saved wikis...', key: 'loading' },
-            { text: 'Preparing entries...', key: 'preparing' }
+            { text: 'Preparing entries...', key: 'preparing' },
           ]"
           :current-step="'loading'"
           density="low"
         />
-        <SavedWikisPage v-else />
+        <SavedWikisPage v-else class="flex-1" />
       </div>
     </div>
   </main>

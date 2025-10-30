@@ -423,23 +423,20 @@ watch(
 </script>
 
 <template>
-  <div class="settings-shell mx-auto max-w-3xl space-y-8 px-6 py-10">
-    <div
-      v-if="settingsLoading || settings.loading"
-      class="border-border bg-muted/20 rounded-2xl border p-8 shadow-sm"
-    >
-      <LoadingState
-        :steps="[
-          { text: 'Loading settings...', key: 'loading' },
-          { text: 'Fetching providers...', key: 'fetching' },
-          { text: 'Preparing configuration...', key: 'preparing' },
-        ]"
-        :current-step="'loading'"
-        density="low"
-      />
-    </div>
+  <div v-if="settingsLoading || settings.loading" class="flex h-full w-full">
+    <LoadingState
+      :steps="[
+        { text: 'Loading settings...', key: 'loading' },
+        { text: 'Fetching providers...', key: 'fetching' },
+        { text: 'Preparing configuration...', key: 'preparing' },
+      ]"
+      :current-step="'loading'"
+      density="low"
+    />
+  </div>
 
-    <section v-else class="border-border bg-background rounded-2xl border shadow-sm">
+  <div v-else class="settings-shell mx-auto max-w-3xl space-y-8 px-6 py-10">
+    <section class="border-border bg-background rounded-2xl border shadow-sm">
       <div class="space-y-6 px-6 py-6 sm:px-8">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div class="space-y-1">
@@ -479,6 +476,7 @@ watch(
           v-if="
             settings.loadingProviders || (providerConfigs.length === 0 && !wiki.providers.length)
           "
+          class="flex h-full min-h-64 w-full"
         >
           <LoadingState
             :steps="[

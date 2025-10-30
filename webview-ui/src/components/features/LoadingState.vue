@@ -1,6 +1,8 @@
 <template>
-  <div class="flex h-full w-full items-center justify-center px-12">
-    <DynamicSkeleton :steps="steps" :current-step="currentStep" :density="density" />
+  <div class="flex h-full w-full items-center justify-center px-16">
+    <div class="w-full max-w-md">
+      <DynamicSkeleton :steps="steps" :current-step="currentStep" :density="density" />
+    </div>
   </div>
 </template>
 
