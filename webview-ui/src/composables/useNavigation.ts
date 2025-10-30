@@ -1,4 +1,5 @@
 import { ref, onMounted, onBeforeUnmount, type Ref } from "vue";
+import { useNavigationStatusStore } from "@/stores/navigationStatus";
 
 export type PageType =
   | "wiki"
@@ -6,12 +7,13 @@ export type PageType =
   | "errorHistory"
   | "savedWikis"
   | "promptManager"
-  | "qualityDashboard"
-  | "wikiAggregator";
+| "qualityDashboard"
+| "wikiAggregator";
 
 const currentPage: Ref<PageType> = ref<PageType>("wiki");
 
 export function useNavigation() {
+  const navigationStatusStore = useNavigationStatusStore();
   const setPage = (newPage: PageType): void => {
     if (
       newPage === "wiki" ||
@@ -22,6 +24,9 @@ export function useNavigation() {
       newPage === "qualityDashboard" ||
       newPage === "wikiAggregator"
     ) {
+      if (currentPage.value !== newPage) {
+        navigationStatusStore.start(newPage);
+      }
       currentPage.value = newPage;
     } else {
       console.error("[QWIKI]", "setPage - invalid page:", newPage);
@@ -42,6 +47,9 @@ export function useNavigation() {
       nextPage === "qualityDashboard" ||
       nextPage === "wikiAggregator"
     ) {
+      if (currentPage.value !== nextPage) {
+        navigationStatusStore.start(nextPage);
+      }
       currentPage.value = nextPage;
     }
   };

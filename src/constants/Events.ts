@@ -13,6 +13,7 @@ export const InboundEvents = {
   saveWiki: "saveWiki",
   getSavedWikis: "getSavedWikis",
   deleteWiki: "deleteWiki",
+  getEnvironmentStatus: "getEnvironmentStatus",
 } as const;
 
 export const OutboundEvents = {
@@ -34,6 +35,7 @@ export const OutboundEvents = {
   savedWikisLoaded: "savedWikisLoaded",
   wikiDeleted: "wikiDeleted",
   showNotification: "showNotification",
+  environmentStatus: "environmentStatus",
 } as const;
 
 export const LoadingSteps = {

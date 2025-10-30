@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useVscode } from "@/composables/useVscode";
+import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 
 interface SavedWiki {
@@ -13,6 +14,7 @@ interface SavedWiki {
 }
 
 const vscode = useVscode();
+const navigationStatus = useNavigationStatusStore();
 const savedWikis = ref<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -52,8 +54,8 @@ const loadSavedWikis = async () => {
     vscode.postMessage({ command: "getSavedWikis" });
   } catch (err) {
     error.value = "Failed to load saved wikis";
-  } finally {
     loading.value = false;
+    navigationStatus.finish("savedWikis");
   }
 };
 
@@ -78,30 +80,38 @@ const formatCreatedAt = (date: Date) => {
   }).format(new Date(date));
 };
 
+const handleMessage = (event: MessageEvent) => {
+  const message = event.data;
+
+  switch (message.command) {
+    case "savedWikisLoaded":
+      savedWikis.value = message.payload.wikis;
+      loading.value = false;
+      navigationStatus.finish("savedWikis");
+      break;
+    case "wikiDeleted":
+      savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
+      if (selectedWiki.value?.id === message.payload.wikiId) {
+        selectedWiki.value = null;
+      }
+      break;
+    case "showNotification":
+      if (message.payload.type === "error") {
+        error.value = message.payload.message;
+        loading.value = false;
+        navigationStatus.finish("savedWikis");
+      }
+      break;
+  }
+};
+
 onMounted(() => {
   loadSavedWikis();
+  window.addEventListener("message", handleMessage);
+});
 
-  window.addEventListener("message", (event) => {
-    const message = event.data;
-
-    switch (message.command) {
-      case "savedWikisLoaded":
-        savedWikis.value = message.payload.wikis;
-        loading.value = false;
-        break;
-      case "wikiDeleted":
-        savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
-        if (selectedWiki.value?.id === message.payload.wikiId) {
-          selectedWiki.value = null;
-        }
-        break;
-      case "showNotification":
-        if (message.payload.type === "error") {
-          error.value = message.payload.message;
-        }
-        break;
-    }
-  });
+onBeforeUnmount(() => {
+  window.removeEventListener("message", handleMessage);
 });
 </script>
 

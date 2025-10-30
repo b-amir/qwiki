@@ -3,10 +3,12 @@ import { ref, computed, onMounted, nextTick, watch } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
+import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { vscode } from "@/utilities/vscode";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
+const navigationStatus = useNavigationStatusStore();
 const settingsLoading = ref(false);
 
 const centralizedProviderConfigs = ref<
@@ -403,7 +405,21 @@ onMounted(() => {
       centralizedProviderConfigs.value = [];
     }
   }, 5000);
+
+  if (!settings.loading && !settingsLoading.value && settings.initialized) {
+    navigationStatus.finish("settings");
+  }
 });
+
+watch(
+  () => settings.loading || settingsLoading.value,
+  (loading) => {
+    if (!loading && settings.initialized) {
+      navigationStatus.finish("settings");
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>

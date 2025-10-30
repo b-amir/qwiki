@@ -1,4 +1,14 @@
-import { Disposable, WebviewView, Uri, window, ExtensionContext, commands, Webview } from "vscode";
+import {
+  Disposable,
+  WebviewView,
+  Uri,
+  window,
+  workspace,
+  extensions,
+  ExtensionContext,
+  commands,
+  Webview,
+} from "vscode";
 import { AppBootstrap, CommandRegistry } from "../application";
 import { getWebviewHtml } from "./webviewContent";
 import { tryOpenFile } from "./fileOps";
@@ -6,11 +16,27 @@ import { Inbound, Outbound, Page, Pages } from "./constants";
 import { WebviewPaths, VSCodeCommandIds, MessageStrings } from "../constants";
 import { BaseError } from "../errors";
 import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
+import { MessageBus } from "../application/services/MessageBus";
 
 type SelectionPayload = {
   text: string;
   languageId?: string;
   filePath?: string;
+};
+
+type EnvironmentStatusPayload = {
+  extension: {
+    ready: boolean;
+    message: string;
+    reason?: string;
+  };
+  languageServer: {
+    ready: boolean;
+    languageId?: string;
+    message: string;
+    reason?: string;
+    extensions?: string[];
+  };
 };
 
 export class QwikiPanel {
@@ -25,6 +51,25 @@ export class QwikiPanel {
   private commandRegistry: CommandRegistry | undefined;
   private errorHandler: ErrorHandler | undefined;
   private _initPromise: Promise<void>;
+  private messageBus: MessageBus | undefined;
+  private _extensionStatus = {
+    ready: false,
+    message: "Preparing Qwiki services...",
+    reason: "initializing",
+  };
+  private _languageStatus: {
+    ready: boolean;
+    languageId?: string;
+    message: string;
+    reason?: string;
+    extensions?: string[];
+  } = {
+    ready: true,
+    message: "",
+    reason: "unknown",
+  };
+  private _latestEnvironmentStatus: EnvironmentStatusPayload | undefined;
+  private _languageStatusInterval: NodeJS.Timeout | undefined;
 
   constructor(
     extensionUri: Uri,
@@ -33,6 +78,8 @@ export class QwikiPanel {
     this._extensionUri = extensionUri;
     this.bootstrap = new AppBootstrap(ctx);
     this._initPromise = this.initializeAsync();
+    this._broadcastEnvironmentStatus();
+    this._startLanguageMonitoring();
   }
 
   private async initializeAsync(): Promise<void> {
@@ -41,6 +88,12 @@ export class QwikiPanel {
       console.log("[QWIKI] QwikiPanel: bootstrap.initialize completed successfully");
     } catch (e) {
       console.error("[QWIKI] QwikiPanel: bootstrap.initialize failed:", e);
+      this._extensionStatus = {
+        ready: false,
+        message: "Failed to initialize Qwiki services.",
+        reason: "error",
+      };
+      this._broadcastEnvironmentStatus();
       return;
     }
 
@@ -49,8 +102,21 @@ export class QwikiPanel {
       console.log("[QWIKI] QwikiPanel: initializeEventHandlers completed successfully");
     } catch (e) {
       console.error("[QWIKI] QwikiPanel: initializeEventHandlers failed:", e);
+      this._extensionStatus = {
+        ready: false,
+        message: "Failed to initialize Qwiki event handlers.",
+        reason: "error",
+      };
+      this._broadcastEnvironmentStatus();
       return;
     }
+
+    this._extensionStatus = {
+      ready: true,
+      message: "Qwiki services ready.",
+      reason: "ready",
+    };
+    this._broadcastEnvironmentStatus();
 
     try {
       this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
@@ -78,6 +144,7 @@ export class QwikiPanel {
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this._webviewReady = false;
     this._setWebviewMessageListener(webviewView.webview);
+    this.messageBus = new MessageBus(webviewView.webview);
     this.bootstrap
       .createCommandRegistry(webviewView.webview)
       .then((registry) => {
@@ -91,7 +158,7 @@ export class QwikiPanel {
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
 
     try {
-      webviewView.webview.postMessage({ command: Outbound.webviewReady, payload: { ready: true } });
+      this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
       console.log("[QWIKI] QwikiPanel: webviewReady message sent successfully");
     } catch (error) {
       console.error("[QWIKI] QwikiPanel: Failed to send webviewReady message:", error);
@@ -126,6 +193,12 @@ export class QwikiPanel {
   public dispose() {
     this.view = undefined;
     this._webviewReady = false;
+    this._clearLanguageStatusInterval();
+
+    if (this.messageBus) {
+      this.messageBus.dispose();
+      this.messageBus = undefined;
+    }
 
     if (this.commandRegistry) {
       const messageBus = (this.commandRegistry as any).messageBus;
@@ -151,10 +224,7 @@ export class QwikiPanel {
     if (!this._pendingPage || !this._webviewReady || !this.view?.webview) {
       return;
     }
-    this.view.webview.postMessage({
-      command: Outbound.navigate,
-      payload: { page: this._pendingPage },
-    });
+    this.messageBus?.postMessage(Outbound.navigate, { page: this._pendingPage });
     this._pendingPage = undefined;
   }
 
@@ -169,11 +239,171 @@ export class QwikiPanel {
       return;
     }
     const { payload, autoGenerate } = this._pendingSelection;
-    this.view.webview.postMessage({ command: Outbound.selection, payload });
+    this.messageBus?.postMessage(Outbound.selection, payload);
     if (autoGenerate) {
-      this.view.webview.postMessage({ command: Outbound.triggerGenerate });
+      this.messageBus?.postMessage(Outbound.triggerGenerate);
     }
     this._pendingSelection = undefined;
+  }
+
+  private _startLanguageMonitoring() {
+    const update = () => {
+      void this._updateLanguageServerStatus();
+    };
+
+    this._disposables.push(
+      window.onDidChangeActiveTextEditor(() => {
+        update();
+      }),
+    );
+    this._disposables.push(
+      workspace.onDidOpenTextDocument(() => {
+        update();
+      }),
+    );
+    this._disposables.push(
+      workspace.onDidCloseTextDocument(() => {
+        update();
+      }),
+    );
+    this._disposables.push(
+      extensions.onDidChange(() => {
+        update();
+      }),
+    );
+
+    update();
+  }
+
+  private async _updateLanguageServerStatus(): Promise<void> {
+    try {
+      const editor = window.activeTextEditor;
+      if (!editor) {
+        this._languageStatus = {
+          ready: true,
+          languageId: undefined,
+          message: "",
+          reason: "no-active-editor",
+        };
+        this._broadcastEnvironmentStatus();
+        this._clearLanguageStatusInterval();
+        return;
+      }
+
+      const languageId = editor.document.languageId;
+      const relevantExtensions = extensions.all.filter((ext) => {
+        const activationEvents = (ext.packageJSON as any)?.activationEvents;
+        if (!Array.isArray(activationEvents)) {
+          return false;
+        }
+        return activationEvents.some((event: string) => event === `onLanguage:${languageId}`);
+      });
+
+      if (!relevantExtensions.length) {
+        this._languageStatus = {
+          ready: true,
+          languageId,
+          message: `No dedicated language extension detected for ${languageId}.`,
+          reason: "no-language-extension",
+        };
+        this._broadcastEnvironmentStatus();
+        this._clearLanguageStatusInterval();
+        return;
+      }
+
+      const inactiveExtensions = relevantExtensions.filter((ext) => !ext.isActive);
+
+      if (inactiveExtensions.length === 0) {
+        this._languageStatus = {
+          ready: true,
+          languageId,
+          message: `${languageId} language features ready.`,
+          reason: "ready",
+          extensions: relevantExtensions.map((ext) => ext.id),
+        };
+        this._broadcastEnvironmentStatus();
+        this._clearLanguageStatusInterval();
+        return;
+      }
+
+      this._languageStatus = {
+        ready: false,
+        languageId,
+        message: `Waiting for ${languageId} language features to load...`,
+        reason: "loading",
+        extensions: relevantExtensions.map((ext) => ext.id),
+      };
+      this._broadcastEnvironmentStatus();
+      this._scheduleLanguageStatusInterval();
+    } catch (error) {
+      console.error("[QWIKI] QwikiPanel: Failed to determine language server status:", error);
+      this._languageStatus = {
+        ready: false,
+        languageId: this._languageStatus.languageId,
+        message: "Unable to check language server status.",
+        reason: "error",
+        extensions: this._languageStatus.extensions,
+      };
+      this._broadcastEnvironmentStatus();
+      this._scheduleLanguageStatusInterval();
+    }
+  }
+
+  private _scheduleLanguageStatusInterval() {
+    if (this._languageStatusInterval) {
+      return;
+    }
+    this._languageStatusInterval = setInterval(() => {
+      void this._updateLanguageServerStatus();
+    }, 1500);
+  }
+
+  private _clearLanguageStatusInterval() {
+    if (!this._languageStatusInterval) {
+      return;
+    }
+    clearInterval(this._languageStatusInterval);
+    this._languageStatusInterval = undefined;
+  }
+
+  private _composeEnvironmentStatus(): EnvironmentStatusPayload {
+    return {
+      extension: {
+        ready: this._extensionStatus.ready,
+        message: this._extensionStatus.message,
+        reason: this._extensionStatus.reason,
+      },
+      languageServer: {
+        ready: this._languageStatus.ready,
+        languageId: this._languageStatus.languageId,
+        message: this._languageStatus.message,
+        reason: this._languageStatus.reason,
+        extensions: this._languageStatus.extensions,
+      },
+    };
+  }
+
+  private _postEnvironmentStatus(payload: EnvironmentStatusPayload) {
+    if (!this._webviewReady || !this.view?.webview) {
+      return;
+    }
+    try {
+      this.messageBus?.postMessage(Outbound.environmentStatus, payload);
+    } catch (error) {
+      console.error("[QWIKI] QwikiPanel: Failed to post environment status:", error);
+    }
+  }
+
+  private _broadcastEnvironmentStatus() {
+    const payload = this._composeEnvironmentStatus();
+    this._latestEnvironmentStatus = payload;
+    this._postEnvironmentStatus(payload);
+  }
+
+  private _flushEnvironmentStatus() {
+    const payload = this._composeEnvironmentStatus();
+    this._latestEnvironmentStatus = payload;
+    this._postEnvironmentStatus(payload);
   }
 
   private _readSelectionFromEditor(allowFallback = true): SelectionPayload | undefined {
@@ -219,11 +449,9 @@ export class QwikiPanel {
               this._webviewReady = true;
               this._flushPendingNavigation();
               this._flushPendingSelection();
+              this._flushEnvironmentStatus();
               try {
-                this.view?.webview.postMessage({
-                  command: Outbound.webviewReady,
-                  payload: { ready: true },
-                });
+                this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
               } catch (error) {
                 console.error(
                   "[QWIKI] QwikiPanel: Exception in _setWebviewMessageListener:",
@@ -235,6 +463,10 @@ export class QwikiPanel {
             case Inbound.openFile: {
               const { path, line } = payload as { path: string; line?: number };
               await tryOpenFile(path, line);
+              return;
+            }
+            case Inbound.getEnvironmentStatus: {
+              this._flushEnvironmentStatus();
               return;
             }
             default: {

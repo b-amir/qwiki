@@ -6,10 +6,12 @@ import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import RelatedFiles from "@/components/features/RelatedFiles.vue";
 import ProjectFiles from "@/components/features/ProjectFiles.vue";
 import { useWikiStore } from "@/stores/wiki";
+import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useVscode } from "@/composables/useVscode";
 
 const wiki = useWikiStore();
+const navigationStatus = useNavigationStatusStore();
 const { setPage } = useNavigation();
 const vscode = useVscode();
 const isSaving = ref(false);
@@ -75,6 +77,8 @@ onMounted(() => {
     }
   };
   window.addEventListener("message", messageHandler);
+
+  navigationStatus.finish("wiki");
 });
 
 onBeforeUnmount(() => {

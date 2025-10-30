@@ -1,12 +1,21 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
+import { useEnvironmentStore } from "@/stores/environment";
+import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import Button from "@/components/ui/button.vue";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
+const environment = useEnvironmentStore();
+const navigationStatus = useNavigationStatusStore();
 const { setPage } = useNavigation();
+
+onMounted(() => {
+  navigationStatus.finish("wiki");
+});
 </script>
 
 <template>
@@ -85,7 +94,7 @@ const { setPage } = useNavigation();
     <div class="mt-auto flex flex-col gap-3 pt-6">
       <div class="w-full">
         <Button
-          :disabled="wiki.loading || !wiki.snippet?.trim()"
+          :disabled="wiki.loading || !wiki.snippet?.trim() || !environment.isReady"
           class="bg-foreground w-full"
           @click="wiki.generate"
         >
@@ -112,7 +121,6 @@ const { setPage } = useNavigation();
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-fill-color: transparent;
   animation: gradientShift 3s ease infinite;
 }
 
