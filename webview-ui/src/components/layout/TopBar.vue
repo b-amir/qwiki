@@ -86,6 +86,30 @@ const handleWikiBack = () => {
     </div>
   </div>
 
+  <!-- Saved Wikis Page Header -->
+  <div
+    v-if="currentPage === 'savedWikis'"
+    class="bg-background flex items-center gap-1 border-b px-2 py-3 pl-3"
+  >
+    <div class="flex items-center gap-2">
+      <a
+        class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
+        title="Back to homepage"
+        @click="() => setPage('wiki')"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+          <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" fill="currentColor" />
+          <path
+            d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"
+            fill="currentColor"
+          />
+        </svg>
+      </a>
+    </div>
+
+    <span class="text-sm font-medium">Project Wiki Collection</span>
+  </div>
+
   <!-- Error History Page Header -->
   <div
     v-if="currentPage === 'errorHistory'"
@@ -112,7 +136,7 @@ const handleWikiBack = () => {
 
   <!-- Default Header (for homepage) -->
   <div
-    v-if="!['settings', 'wiki', 'errorHistory'].includes(currentPage)"
+    v-if="!['settings', 'wiki', 'errorHistory', 'savedWikis'].includes(currentPage)"
     class="bg-background flex items-center justify-between border-b px-2 py-3 pl-3"
   >
     <div class="flex items-center gap-2">
@@ -166,6 +190,20 @@ const handleWikiBack = () => {
           />
         </svg>
         Settings
+      </button>
+      <button
+        class="text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center rounded-md bg-transparent px-3 text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2"
+        @click="() => setPage('savedWikis')"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+          />
+        </svg>
+        <span class="ml-2">Saved Wikis</span>
       </button>
     </div>
   </div>

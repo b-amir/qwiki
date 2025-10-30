@@ -9,6 +9,7 @@ export { GetProvidersCommand } from "./GetProvidersCommand";
 export { GetRelatedCommand } from "./GetRelatedCommand";
 export { GetSelectionCommand } from "./GetSelectionCommand";
 export { OpenFileCommand } from "./OpenFileCommand";
+export { OpenExternalCommand } from "./OpenExternalCommand";
 export { SaveApiKeyCommand } from "./SaveApiKeyCommand";
 export { SaveSettingCommand } from "./SaveSettingCommand";
 export { ValidateConfigurationCommand } from "./ValidateConfigurationCommand";
@@ -16,6 +17,6 @@ export { ApplyConfigurationTemplateCommand } from "./ApplyConfigurationTemplateC
 export { CreateConfigurationBackupCommand } from "./CreateConfigurationBackupCommand";
 export { GetProviderHealthCommand } from "./GetProviderHealthCommand";
 export { GetProviderPerformanceCommand } from "./GetProviderPerformanceCommand";
-export { CreatePromptTemplateCommand } from "./CreatePromptTemplateCommand";
-export { CreateWikiPageCommand } from "./CreateWikiPageCommand";
-export { CalculateQualityMetricsCommand } from "./CalculateQualityMetricsCommand";
+export { SaveWikiCommand } from "./SaveWikiCommand";
+export { GetSavedWikisCommand } from "./GetSavedWikisCommand";
+export { DeleteWikiCommand } from "./DeleteWikiCommand";

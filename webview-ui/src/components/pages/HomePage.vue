@@ -112,6 +112,7 @@ const { setPage } = useNavigation();
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
   animation: gradientShift 3s ease infinite;
 }
 

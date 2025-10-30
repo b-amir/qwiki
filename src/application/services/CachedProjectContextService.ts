@@ -5,7 +5,7 @@ import type { ProjectContext } from "../../domain/entities/Selection";
 import type { Webview } from "vscode";
 
 export class CachedProjectContextService {
-  private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+  private readonly CACHE_TTL = 10 * 60 * 1000;
 
   constructor(
     private cacheService: CachingService,

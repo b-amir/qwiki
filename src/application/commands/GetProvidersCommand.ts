@@ -2,6 +2,7 @@ import type { Command } from "./Command";
 import type { LLMRegistry } from "../../llm";
 import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
 import type { MessageBus } from "../services/MessageBus";
+import type { ConfigurationManager } from "../services/ConfigurationManager";
 import { OutboundEvents } from "../../constants/Events";
 import { ProviderId } from "../../llm/types";
 
@@ -9,6 +10,7 @@ export class GetProvidersCommand implements Command<void> {
   constructor(
     private llmRegistry: LLMRegistry,
     private apiKeyRepository: ApiKeyRepository,
+    private configurationManager: ConfigurationManager,
     private messageBus: MessageBus,
   ) {}
 
@@ -33,7 +35,12 @@ export class GetProvidersCommand implements Command<void> {
 
           try {
             const provider = this.llmRegistry.getProvider(p.id as ProviderId);
-            const hasKey = await this.apiKeyRepository.has(p.id as ProviderId);
+
+            const hasSecretKey = await this.apiKeyRepository.has(p.id as ProviderId);
+            const providerConfig = await this.configurationManager.getProviderConfig(p.id);
+            const hasConfigKey = Boolean(providerConfig?.apiKey);
+            const hasKey = hasSecretKey || hasConfigKey;
+
             const models = provider?.listModels?.() || [];
 
             const providerProcessEndTime = Date.now();

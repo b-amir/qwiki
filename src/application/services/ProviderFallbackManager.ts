@@ -65,8 +65,8 @@ export class ProviderFallbackManager {
   >();
 
   private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
-  private readonly CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute
-  private readonly CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT = 30000; // 30 seconds
+  private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
+  private readonly CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT = 30000;
 
   constructor(
     private smartProviderSelectionService: SmartProviderSelectionService,

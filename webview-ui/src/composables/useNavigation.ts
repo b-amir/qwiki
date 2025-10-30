@@ -1,12 +1,27 @@
 import { ref, onMounted, onBeforeUnmount, type Ref } from "vue";
 
-export type PageType = "wiki" | "settings" | "errorHistory";
+export type PageType =
+  | "wiki"
+  | "settings"
+  | "errorHistory"
+  | "savedWikis"
+  | "promptManager"
+  | "qualityDashboard"
+  | "wikiAggregator";
 
 const currentPage: Ref<PageType> = ref<PageType>("wiki");
 
 export function useNavigation() {
   const setPage = (newPage: PageType): void => {
-    if (newPage === "wiki" || newPage === "settings" || newPage === "errorHistory") {
+    if (
+      newPage === "wiki" ||
+      newPage === "settings" ||
+      newPage === "errorHistory" ||
+      newPage === "savedWikis" ||
+      newPage === "promptManager" ||
+      newPage === "qualityDashboard" ||
+      newPage === "wikiAggregator"
+    ) {
       currentPage.value = newPage;
     } else {
       console.error("[QWIKI]", "setPage - invalid page:", newPage);
@@ -18,7 +33,15 @@ export function useNavigation() {
     if (command !== "navigate") return;
 
     const nextPage = event.data?.payload?.page;
-    if (nextPage === "wiki" || nextPage === "settings" || nextPage === "errorHistory") {
+    if (
+      nextPage === "wiki" ||
+      nextPage === "settings" ||
+      nextPage === "errorHistory" ||
+      nextPage === "savedWikis" ||
+      nextPage === "promptManager" ||
+      nextPage === "qualityDashboard" ||
+      nextPage === "wikiAggregator"
+    ) {
       currentPage.value = nextPage;
     }
   };

@@ -524,7 +524,7 @@ Runs the aggregation engine using the provided strategy.
   strategy: {
     type: string;
     rules: Array<Record<string, unknown>>;
-  };
+  }
 }
 ```
 
@@ -561,7 +561,7 @@ Retrieves aggregate counts for pages, tags, and relationships.
     totalTags: number;
     totalRelationships: number;
     lastUpdated: string;
-  };
+  }
 }
 ```
 

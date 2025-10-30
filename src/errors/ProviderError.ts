@@ -30,8 +30,8 @@ export class ProviderError extends Error {
     if (error instanceof ProviderError) {
       return error;
     }
-    
-    const code = error.code || 'UNKNOWN_ERROR';
+
+    const code = error.code || "UNKNOWN_ERROR";
     const message = error.message || error.toString();
     return new ProviderError(code, message, providerId, error);
   }

@@ -82,7 +82,7 @@ export class ZAiProvider implements LLMProvider {
 
     const doRequest = async (modelName: string) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       try {
         const response = await fetch(url, {

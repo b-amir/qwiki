@@ -88,7 +88,15 @@ const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
 };
 
 const getApiKeyInput = (providerId: string) => {
-  return settings.apiKeyInputs[providerId] || "";
+  const input = settings.apiKeyInputs[providerId] || "";
+
+  const hasSavedKey =
+    settings.originalApiKeys[providerId] &&
+    settings.originalApiKeys[providerId].length > 0 &&
+    input === settings.originalApiKeys[providerId];
+  return hasSavedKey
+    ? "•".repeat(Math.min(settings.originalApiKeys[providerId].length, 20))
+    : input;
 };
 
 const getProviderCapability = (providerId: string, capability: string) => {
@@ -109,7 +117,7 @@ const validateCurrentConfiguration = () => {
     if (selectedProviderConfig) {
       const config = {
         id: selectedProviderConfig.id,
-        name: selectedProviderConfig.name,
+        name: selectedProviderConfig.name || settings.selectedProvider,
         enabled: true,
         apiKey: getApiKeyInput(settings.selectedProvider),
         model: wiki.model,
@@ -183,8 +191,41 @@ const handleApiKeyChange = (providerId: string, newValue: string) => {
   }
 };
 
+const handleApiKeyFocus = (providerId: string) => {
+  const input = settings.apiKeyInputs[providerId] || "";
+  const hasSavedKey =
+    settings.originalApiKeys[providerId] &&
+    settings.originalApiKeys[providerId].length > 0 &&
+    input.includes("•");
+  if (hasSavedKey) {
+    settings.apiKeyInputs[providerId] = settings.originalApiKeys[providerId];
+  }
+};
+
+const handleApiKeyBlur = (providerId: string) => {
+  const input = settings.apiKeyInputs[providerId] || "";
+  const hasSavedKey =
+    settings.originalApiKeys[providerId] &&
+    settings.originalApiKeys[providerId].length > 0 &&
+    input === settings.originalApiKeys[providerId];
+  if (hasSavedKey) {
+    settings.apiKeyInputs[providerId] = settings.originalApiKeys[providerId];
+  }
+};
+
 const handleCustomFieldChange = (fieldId: string, newValue: string) => {
   settings.saveSetting(fieldId, newValue);
+};
+
+const openExternalUrl = (url: string) => {
+  try {
+    vscode.postMessage({
+      command: "openExternal",
+      payload: { url },
+    });
+  } catch (error) {
+    console.error("[QWIKI] Settings: Failed to open external URL:", error);
+  }
 };
 
 const initSettings = async () => {
@@ -258,8 +299,12 @@ const setupMessageListener = () => {
           validating.value = false;
           lastValidationValid.value = !!isValid;
           showValidationErrors.value = !isValid;
-          validationErrors.value = errors;
-          validationWarnings.value = warnings;
+          validationErrors.value = (errors as any[]).map((e: any) =>
+            typeof e === "string" ? e : e?.message || JSON.stringify(e),
+          );
+          validationWarnings.value = (warnings as any[]).map((w: any) =>
+            typeof w === "string" ? w : w?.message || JSON.stringify(w),
+          );
           break;
         }
       }
@@ -290,12 +335,39 @@ watch(
         calculateContentHeight(newProviderId);
       });
 
-      if (!wiki.model) {
-        const provider = providerConfigs.value.find((p) => p.id === newProviderId);
-        if (provider?.defaultModel) {
+      const provider = providerConfigs.value.find((p) => p.id === newProviderId);
+      if (provider) {
+        if (!wiki.model) {
+          if (provider.defaultModel) {
+            wiki.model = provider.defaultModel;
+          } else {
+            const models = getModelsForProvider(newProviderId, provider.modelFallbackIds);
+            if (models.length > 0) {
+              wiki.model = models[0];
+            }
+          }
+        } else {
+          const models = getModelsForProvider(newProviderId, provider.modelFallbackIds);
+          if (!models.includes(wiki.model) && models.length > 0) {
+            wiki.model = models[0];
+          }
+        }
+      }
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => providerConfigs.value,
+  (newConfigs) => {
+    if (newConfigs.length > 0 && settings.selectedProvider) {
+      const provider = newConfigs.find((p) => p.id === settings.selectedProvider);
+      if (provider && !wiki.model) {
+        if (provider.defaultModel) {
           wiki.model = provider.defaultModel;
         } else {
-          const models = getModelsForProvider(newProviderId, provider?.modelFallbackIds);
+          const models = getModelsForProvider(settings.selectedProvider, provider.modelFallbackIds);
           if (models.length > 0) {
             wiki.model = models[0];
           }
@@ -303,6 +375,7 @@ watch(
       }
     }
   },
+  { immediate: true },
 );
 
 const contentHeights = ref<Record<string, number>>({});
@@ -624,6 +697,8 @@ onMounted(() => {
                         type="password"
                         placeholder="Enter your API key"
                         class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        @focus="handleApiKeyFocus(provider.id)"
+                        @blur="handleApiKeyBlur(provider.id)"
                         @input="
                           handleApiKeyChange(provider.id, ($event.target as HTMLInputElement).value)
                         "
@@ -665,14 +740,12 @@ onMounted(() => {
                     </div>
 
                     <div class="pt-1">
-                      <a
-                        :href="provider.apiKeyUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
                         class="text-primary hover:text-primary/80 text-xs font-medium underline underline-offset-4"
+                        @click="openExternalUrl(provider.apiKeyUrl)"
                       >
                         Get API key ->
-                      </a>
+                      </button>
                     </div>
 
                     <div

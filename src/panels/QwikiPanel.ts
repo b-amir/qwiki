@@ -119,16 +119,8 @@ export class QwikiPanel {
     this._flushPendingSelection();
   }
 
-  public showPromptManager() {
-    this.showPage(Pages.promptManager);
-  }
-
-  public showWikiAggregator() {
-    this.showPage(Pages.wikiAggregator);
-  }
-
-  public showQualityDashboard() {
-    this.showPage(Pages.qualityDashboard);
+  public showSavedWikis() {
+    this.showPage(Pages.savedWikis);
   }
 
   public dispose() {

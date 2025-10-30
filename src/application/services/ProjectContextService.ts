@@ -51,11 +51,45 @@ export class ProjectContextService {
 
   private extractIdentifier(text: string) {
     if (!text || typeof text !== "string") return undefined;
-    const matches = text.match(PathPatterns.identifierRegex);
-    if (!matches || !matches.length) return undefined;
-    const scored = matches.map((t) => ({ t, score: (/[A-Z]/.test(t) ? 1 : 0) + t.length / 10 }));
+
+    const lines = text.split("\n");
+    const candidates: string[] = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      const functionMatch = trimmed.match(
+        /(?:function|const|let|var|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/,
+      );
+      if (functionMatch) candidates.push(functionMatch[1]);
+
+      const exportMatch = trimmed.match(
+        /export\s+(?:default\s+)?(?:function|class|const|let|var)?\s*([a-zA-Z_][a-zA-Z0-9_]*)/,
+      );
+      if (exportMatch) candidates.push(exportMatch[1]);
+
+      const importMatch = trimmed.match(/import.*from\s+['"]([^'"]+)['"]/);
+      if (importMatch) candidates.push(importMatch[1]);
+
+      const typeMatch = trimmed.match(/(?:interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
+      if (typeMatch) candidates.push(typeMatch[1]);
+    }
+
+    if (candidates.length === 0) {
+      const matches = text.match(PathPatterns.identifierRegex);
+      if (matches && matches.length) {
+        const scored = matches.map((t) => ({
+          t,
+          score: (/[A-Z]/.test(t) ? 1 : 0) + t.length / 10,
+        }));
+        scored.sort((a, b) => b.score - a.score);
+        return scored[0].t;
+      }
+    }
+
+    const scored = candidates.map((t) => ({ t, score: (/[A-Z]/.test(t) ? 2 : 1) + t.length / 10 }));
     scored.sort((a, b) => b.score - a.score);
-    return scored[0].t;
+    return scored[0]?.t;
   }
 
   private async findTextUsages(token: string) {
@@ -65,27 +99,51 @@ export class ProjectContextService {
       FilePatterns.exclude,
       FileLimits.relatedFiles,
     );
-    const re = new RegExp(
-      `${PathPatterns.wordBoundaryRegex}${(token || "").replace(PathPatterns.specialCharsRegex, "\\$&")}${PathPatterns.wordBoundaryRegex}`,
-    );
+
+    const patterns = [
+      new RegExp(
+        `\\b(?:function|const|let|var|class|interface|type)\\s+${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      ),
+      new RegExp(
+        `\\bexport\\s+(?:default\\s+)?(?:function|class|const|let|var)?\\s*${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      ),
+      new RegExp(
+        `\\bimport.*from\\s+['"]${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]`,
+      ),
+      new RegExp(`\\b${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\(`),
+    ];
 
     const filePromises = files.map(async (uri) => {
       try {
+        const binaryExtensions =
+          /\.(png|jpg|jpeg|gif|bmp|ico|svg|mp4|avi|mov|wmv|flv|webm|mp3|wav|ogg|flac|aac|pdf|zip|rar|tar|gz|exe|dll|so|dylib|bin|dat|db|sqlite)$/i;
+        if (binaryExtensions.test(uri.fsPath)) {
+          return null;
+        }
+
         const doc = await workspace.openTextDocument(uri);
         const text = doc.getText();
-        const m = re.exec(text);
-        if (!m) return null;
-        const pos = doc.positionAt(m.index);
-        const line = pos.line + 1;
-        const previewLine = doc.lineAt(pos.line).text.trim();
-        return {
-          path: this.relativePath(uri),
-          line,
-          preview: previewLine,
-          reason: MessageStrings.textMatch,
-        };
-      } catch (error) {
-        console.error("[QWIKI] ProjectContextService: Exception in findTextUsages:", error);
+
+        for (const pattern of patterns) {
+          const m = pattern.exec(text);
+          if (m) {
+            const pos = doc.positionAt(m.index);
+            const line = pos.line + 1;
+            const previewLine = doc.lineAt(pos.line).text.trim();
+            return {
+              path: this.relativePath(uri),
+              line,
+              preview: previewLine,
+              reason: "Code reference",
+            };
+          }
+        }
+
+        return null;
+      } catch (error: any) {
+        if (!error.message?.includes("binary")) {
+          console.error("[QWIKI] ProjectContextService: Exception in findTextUsages:", error);
+        }
         return null;
       }
     });

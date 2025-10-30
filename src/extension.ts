@@ -17,11 +17,27 @@ export function activate(context: ExtensionContext) {
     provider.showPage(Pages.settings);
   });
 
+  const showSavedWikisCommand = commands.registerCommand(VSCodeCommandIds.viewSavedWikis, () => {
+    provider.showPage(Pages.savedWikis);
+  });
+
+  const showErrorHistoryCommand = commands.registerCommand(
+    VSCodeCommandIds.viewErrorHistory,
+    () => {
+      provider.showPage(Pages.errorHistory);
+    },
+  );
+
   const createQuickWikiCommand = commands.registerCommand(VSCodeCommandIds.createQuickWiki, () => {
     provider.createWikiFromEditorSelection();
   });
 
-  context.subscriptions.push(showQwikiCommand, showSettingsCommand, createQuickWikiCommand);
+  context.subscriptions.push(
+    showQwikiCommand,
+    showSettingsCommand,
+    showSavedWikisCommand,
+    createQuickWikiCommand,
+  );
 }
 
 export function deactivate() {}

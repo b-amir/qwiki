@@ -49,11 +49,11 @@ const copyErrorToClipboard = async () => {
     let errorText = props.errorCode
       ? `Error Code: ${props.errorCode}\n\n${props.error}`
       : props.error;
-    
+
     if (props.timestamp) {
       errorText = `Timestamp: ${props.timestamp}\n\n${errorText}`;
     }
-    
+
     if (props.context) {
       errorText = `${errorText}\n\nContext: ${props.context}`;
     }
@@ -116,7 +116,7 @@ const copyErrorToClipboard = async () => {
                   <span v-if="errorCode" class="text-muted-foreground text-xs">
                     {{ errorCode }}
                   </span>
-                  <span v-if="timestamp" class="text-muted-foreground text-xs ml-2">
+                  <span v-if="timestamp" class="text-muted-foreground ml-2 text-xs">
                     {{ new Date(timestamp).toLocaleTimeString() }}
                   </span>
                 </div>
@@ -190,7 +190,7 @@ const copyErrorToClipboard = async () => {
 
             <div v-if="context" class="mt-3 text-left">
               <p class="text-muted-foreground mb-2 text-xs font-medium">Context:</p>
-              <div class="bg-muted/50 rounded p-2 text-xs font-mono break-words">
+              <div class="bg-muted/50 break-words rounded p-2 font-mono text-xs">
                 {{ context }}
               </div>
             </div>

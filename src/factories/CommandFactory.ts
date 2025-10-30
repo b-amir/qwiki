@@ -9,6 +9,7 @@ import {
   SaveApiKeyCommand,
   GetProvidersCommand,
   OpenFileCommand,
+  OpenExternalCommand,
   SaveSettingCommand,
   DeleteApiKeyCommand,
   GetApiKeysCommand,
@@ -20,9 +21,9 @@ import {
   CreateConfigurationBackupCommand,
   GetProviderHealthCommand,
   GetProviderPerformanceCommand,
-  CreatePromptTemplateCommand,
-  CreateWikiPageCommand,
-  CalculateQualityMetricsCommand,
+  SaveWikiCommand,
+  GetSavedWikisCommand,
+  DeleteWikiCommand,
 } from "../application/commands";
 import { MessageBus } from "../application/services/MessageBus";
 import { CommandIds } from "../constants";
@@ -57,7 +58,7 @@ export class CommandFactory {
 
       case CommandIds.saveApiKey:
         return new SaveApiKeyCommand(
-          container.resolve("apiKeyRepository"),
+          container.resolve("configurationManager"),
           this.messageBus,
         ) as Command<T>;
 
@@ -65,11 +66,15 @@ export class CommandFactory {
         return new GetProvidersCommand(
           await container.resolveLazy("llmRegistry"),
           container.resolve("apiKeyRepository"),
+          container.resolve("configurationManager"),
           this.messageBus,
         ) as Command<T>;
 
       case CommandIds.openFile:
         return new OpenFileCommand() as Command<T>;
+
+      case CommandIds.openExternal:
+        return new OpenExternalCommand(this.messageBus) as Command<T>;
 
       case CommandIds.saveSetting:
         return new SaveSettingCommand(
@@ -134,22 +139,22 @@ export class CommandFactory {
           this.messageBus,
         ) as Command<T>;
 
-      case CommandIds.createPromptTemplate:
-        return new CreatePromptTemplateCommand(
-          eventBus,
-          container.resolve("promptTemplateService"),
-        ) as Command<T>;
-
-      case CommandIds.createWikiPage:
-        return new CreateWikiPageCommand(
-          eventBus,
+      case CommandIds.saveWiki:
+        return new SaveWikiCommand(
           container.resolve("wikiStorageService"),
+          this.messageBus,
         ) as Command<T>;
 
-      case CommandIds.calculateQualityMetrics:
-        return new CalculateQualityMetricsCommand(
-          eventBus,
-          container.resolve("qualityMetricsService"),
+      case CommandIds.getSavedWikis:
+        return new GetSavedWikisCommand(
+          container.resolve("wikiStorageService"),
+          this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.deleteWiki:
+        return new DeleteWikiCommand(
+          container.resolve("wikiStorageService"),
+          this.messageBus,
         ) as Command<T>;
 
       default:
@@ -167,6 +172,7 @@ export class CommandFactory {
       CommandIds.saveApiKey,
       CommandIds.getProviders,
       CommandIds.openFile,
+      CommandIds.openExternal,
       CommandIds.saveSetting,
       CommandIds.deleteApiKey,
       CommandIds.getApiKeys,
@@ -178,9 +184,9 @@ export class CommandFactory {
       CommandIds.createConfigurationBackup,
       CommandIds.getProviderHealth,
       CommandIds.getProviderPerformance,
-      CommandIds.createPromptTemplate,
-      CommandIds.createWikiPage,
-      CommandIds.calculateQualityMetrics,
+      CommandIds.saveWiki,
+      CommandIds.getSavedWikis,
+      CommandIds.deleteWiki,
     ];
 
     for (const commandId of commandIds) {

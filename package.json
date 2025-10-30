@@ -14,6 +14,211 @@
     "configuration": {
       "title": "Qwiki",
       "properties": {
+        "qwiki.provider.google-ai-studio": {
+          "type": "object",
+          "default": {},
+          "description": "Google AI Studio provider configuration.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "Google AI Studio",
+              "description": "Provider display name"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether the provider is enabled"
+            },
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "description": "Google AI Studio API key"
+            },
+            "model": {
+              "type": "string",
+              "default": "gemini-1.5-flash",
+              "description": "Default model to use"
+            },
+            "temperature": {
+              "type": "number",
+              "default": 0.7,
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Temperature for generation"
+            },
+            "maxTokens": {
+              "type": "number",
+              "default": 2048,
+              "minimum": 1,
+              "maximum": 32000,
+              "description": "Maximum tokens to generate"
+            }
+          }
+        },
+        "qwiki.provider.zai": {
+          "type": "object",
+          "default": {},
+          "description": "Z.ai provider configuration.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "Z.ai",
+              "description": "Provider display name"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether the provider is enabled"
+            },
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "description": "Z.ai API key"
+            },
+            "model": {
+              "type": "string",
+              "default": "gpt-4o",
+              "description": "Default model to use"
+            },
+            "temperature": {
+              "type": "number",
+              "default": 0.7,
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Temperature for generation"
+            },
+            "maxTokens": {
+              "type": "number",
+              "default": 2048,
+              "minimum": 1,
+              "maximum": 32000,
+              "description": "Maximum tokens to generate"
+            }
+          }
+        },
+        "qwiki.provider.openrouter": {
+          "type": "object",
+          "default": {},
+          "description": "OpenRouter provider configuration.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "OpenRouter",
+              "description": "Provider display name"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether the provider is enabled"
+            },
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "description": "OpenRouter API key"
+            },
+            "model": {
+              "type": "string",
+              "default": "anthropic/claude-3.5-sonnet",
+              "description": "Default model to use"
+            },
+            "temperature": {
+              "type": "number",
+              "default": 0.7,
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Temperature for generation"
+            },
+            "maxTokens": {
+              "type": "number",
+              "default": 2048,
+              "minimum": 1,
+              "maximum": 32000,
+              "description": "Maximum tokens to generate"
+            }
+          }
+        },
+        "qwiki.provider.cohere": {
+          "type": "object",
+          "default": {},
+          "description": "Cohere provider configuration.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "Cohere",
+              "description": "Provider display name"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether the provider is enabled"
+            },
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "description": "Cohere API key"
+            },
+            "model": {
+              "type": "string",
+              "default": "command-r-plus",
+              "description": "Default model to use"
+            },
+            "temperature": {
+              "type": "number",
+              "default": 0.7,
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Temperature for generation"
+            },
+            "maxTokens": {
+              "type": "number",
+              "default": 2048,
+              "minimum": 1,
+              "maximum": 32000,
+              "description": "Maximum tokens to generate"
+            }
+          }
+        },
+        "qwiki.provider.huggingface": {
+          "type": "object",
+          "default": {},
+          "description": "HuggingFace provider configuration.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "HuggingFace",
+              "description": "Provider display name"
+            },
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether the provider is enabled"
+            },
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "description": "HuggingFace API key"
+            },
+            "model": {
+              "type": "string",
+              "default": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+              "description": "Default model to use"
+            },
+            "temperature": {
+              "type": "number",
+              "default": 0.7,
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Temperature for generation"
+            },
+            "maxTokens": {
+              "type": "number",
+              "default": 2048,
+              "minimum": 1,
+              "maximum": 32000,
+              "description": "Maximum tokens to generate"
+            }
+          }
+        },
         "qwiki.zaiBaseUrl": {
           "type": "string",
           "default": "",
@@ -56,6 +261,16 @@
         "icon": "$(gear)"
       },
       {
+        "command": "qwiki.viewSavedWikis",
+        "title": "Qwiki: Saved Wikis",
+        "icon": "$(file-text)"
+      },
+      {
+        "command": "qwiki.viewErrorHistory",
+        "title": "Qwiki: Error History",
+        "icon": "$(testing-error-icon)"
+      },
+      {
         "command": "qwiki.createQuickWiki",
         "title": "Qwiki: Create a quick wiki!"
       }
@@ -66,6 +281,16 @@
           "command": "qwiki.viewSettings",
           "when": "view == qwiki.wikiView",
           "group": "navigation@1"
+        },
+        {
+          "command": "qwiki.viewSavedWikis",
+          "when": "view == qwiki.wikiView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "qwiki.viewErrorHistory",
+          "when": "view == qwiki.wikiView",
+          "group": "navigation@3"
         }
       ],
       "editor/context": [

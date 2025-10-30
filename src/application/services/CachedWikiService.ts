@@ -14,7 +14,7 @@ import type { LoadingStep } from "../../constants/Events";
 import { WikiService } from "./WikiService";
 
 export class CachedWikiService {
-  private readonly CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+  private readonly CACHE_TTL = 30 * 60 * 1000;
   private wikiService: WikiService;
 
   constructor(
@@ -77,11 +77,11 @@ export class CachedWikiService {
     const contextKey = [
       projectContext.rootName || "",
       projectContext.overview || "",
-      projectContext.filesSample?.slice(0, 10).join(",") || "", // Limit to first 10 files
+      projectContext.filesSample?.slice(0, 10).join(",") || "",
       projectContext.related
         ?.slice(0, 5)
         .map((r) => `${r.path}:${r.line}`)
-        .join(",") || "", // Limit to first 5 related files
+        .join(",") || "",
     ].join("|");
     const contextHash = this.simpleHash(contextKey);
 

@@ -132,6 +132,12 @@ export const useWikiStore = defineStore("wiki", {
         this.error = "No selection. Select some code or text.";
         return;
       }
+
+      if (!this.providerId?.trim()) {
+        this.error = "No provider selected. Please configure and select a provider in settings.";
+        return;
+      }
+
       this.loading = true;
       this.loadingStep = "validating";
       this.error = "";

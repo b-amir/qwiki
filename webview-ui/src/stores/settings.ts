@@ -85,6 +85,11 @@ export const useSettingsStore = defineStore("settings", {
               setTimeout(() => {
                 this.savedMessage = "";
               }, 3000);
+
+              try {
+                vscode.postMessage({ command: "getProviders" });
+                vscode.postMessage({ command: "getApiKeys" });
+              } catch {}
               return;
             }
             case "settingSaved": {
