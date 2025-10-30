@@ -286,11 +286,6 @@
           "command": "qwiki.viewSavedWikis",
           "when": "view == qwiki.wikiView",
           "group": "navigation@2"
-        },
-        {
-          "command": "qwiki.viewErrorHistory",
-          "when": "view == qwiki.wikiView",
-          "group": "navigation@3"
         }
       ],
       "editor/context": [

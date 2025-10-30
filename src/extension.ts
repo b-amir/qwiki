@@ -36,6 +36,7 @@ export function activate(context: ExtensionContext) {
     showQwikiCommand,
     showSettingsCommand,
     showSavedWikisCommand,
+    showErrorHistoryCommand,
     createQuickWikiCommand,
   );
 }
