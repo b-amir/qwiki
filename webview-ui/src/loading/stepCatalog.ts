@@ -19,10 +19,7 @@ export const stepCatalog: StepCatalog = {
     { text: "Fetching providers...", key: "fetching" },
     { text: "Preparing configuration...", key: "preparing" },
   ],
-  navigation: [
-    { text: "Loading page...", key: "loading" },
-    { text: "Preparing view...", key: "preparing" },
-  ],
+  navigation: [{ text: "Loading page...", key: "loading" }],
   environment: [
     { text: "Preparing Qwiki services...", key: "extensionLoading" },
     { text: "Waiting for language features...", key: "languageServerLoading" },

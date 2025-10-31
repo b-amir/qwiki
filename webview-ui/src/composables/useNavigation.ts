@@ -7,14 +7,14 @@ export type PageType =
   | "errorHistory"
   | "savedWikis"
   | "promptManager"
-| "qualityDashboard"
-| "wikiAggregator";
+  | "qualityDashboard"
+  | "wikiAggregator";
 
 const currentPage: Ref<PageType> = ref<PageType>("wiki");
 
 export function useNavigation() {
   const navigationStatusStore = useNavigationStatusStore();
-  const setPage = (newPage: PageType): void => {
+  const setPage = (newPage: PageType, isBack: boolean = false): void => {
     if (
       newPage === "wiki" ||
       newPage === "settings" ||
@@ -25,7 +25,7 @@ export function useNavigation() {
       newPage === "wikiAggregator"
     ) {
       if (currentPage.value !== newPage) {
-        navigationStatusStore.start(newPage);
+        navigationStatusStore.start(newPage, isBack);
       }
       currentPage.value = newPage;
     } else {
@@ -38,6 +38,8 @@ export function useNavigation() {
     if (command !== "navigate") return;
 
     const nextPage = event.data?.payload?.page;
+    const isBack = event.data?.payload?.isBack || false;
+
     if (
       nextPage === "wiki" ||
       nextPage === "settings" ||
@@ -48,7 +50,7 @@ export function useNavigation() {
       nextPage === "wikiAggregator"
     ) {
       if (currentPage.value !== nextPage) {
-        navigationStatusStore.start(nextPage);
+        navigationStatusStore.start(nextPage, isBack);
       }
       currentPage.value = nextPage;
     }

@@ -32,6 +32,7 @@ export const useWikiStore = defineStore("wiki", {
     model: "" as string,
     pendingAutoGenerate: false as boolean,
     errorInfo: null as ErrorInfo | null,
+    generateRequestId: null as string | null,
   }),
   actions: {
     init() {
@@ -153,6 +154,9 @@ export const useWikiStore = defineStore("wiki", {
       loadingStore.start({ context: "wiki", step: "validating" });
       this.error = "";
       this.content = "";
+
+      this.generateRequestId = Math.random().toString(36).substring(7);
+
       vscode.postMessage({
         command: "generateWiki",
         payload: {
@@ -161,6 +165,7 @@ export const useWikiStore = defineStore("wiki", {
           snippet: this.snippet,
           languageId: this.languageId || undefined,
           filePath: this.filePath || undefined,
+          requestId: this.generateRequestId,
         },
       });
       vscode.postMessage({ command: "getRelated" });
@@ -176,7 +181,24 @@ export const useWikiStore = defineStore("wiki", {
       this.related = [];
       this.filesSample = [];
       this.overview = "";
+      this.pendingAutoGenerate = false;
+      this.generateRequestId = null;
       useLoadingStore().reset("wiki");
+    },
+    cancelPendingActions() {
+      if (this.generateRequestId) {
+        vscode.postMessage({
+          command: "cancelWikiGeneration",
+          payload: { requestId: this.generateRequestId },
+        });
+      }
+
+      this.loading = false;
+      this.loadingStep = "";
+      this.pendingAutoGenerate = false;
+      this.generateRequestId = null;
+
+      this.clearContent();
     },
     retryGeneration() {
       if (this.errorInfo?.retryable) {

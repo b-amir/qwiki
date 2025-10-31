@@ -64,16 +64,28 @@ const navigationTarget = computed(() => navigationStatus.target);
 
 const environmentLoading = computed(() => environmentLoadingContext.isActive.value);
 const wikiNavigationLoading = computed(
-  () => navigationLoadingContext.isActive.value && navigationTarget.value === "wiki",
+  () =>
+    navigationLoadingContext.isActive.value &&
+    navigationTarget.value === "wiki" &&
+    navigationStatus.isBackNavigation,
 );
 const settingsNavigationLoading = computed(
-  () => navigationLoadingContext.isActive.value && navigationTarget.value === "settings",
+  () =>
+    navigationLoadingContext.isActive.value &&
+    navigationTarget.value === "settings" &&
+    navigationStatus.isBackNavigation,
 );
 const savedWikisNavigationLoading = computed(
-  () => navigationLoadingContext.isActive.value && navigationTarget.value === "savedWikis",
+  () =>
+    navigationLoadingContext.isActive.value &&
+    navigationTarget.value === "savedWikis" &&
+    navigationStatus.isBackNavigation,
 );
 const errorHistoryNavigationLoading = computed(
-  () => navigationLoadingContext.isActive.value && navigationTarget.value === "errorHistory",
+  () =>
+    navigationLoadingContext.isActive.value &&
+    navigationTarget.value === "errorHistory" &&
+    navigationStatus.isBackNavigation,
 );
 
 const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActive.value);

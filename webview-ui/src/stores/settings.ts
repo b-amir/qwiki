@@ -460,5 +460,22 @@ export const useSettingsStore = defineStore("settings", {
         payload: { backupId },
       });
     },
+    cancelPendingActions() {
+      this.loading = false;
+      this.loadingProviders = false;
+      this.saving = false;
+      this.savedMessage = "";
+      this.validationErrors = [];
+      this.validationWarnings = [];
+
+      this.loadingPhase = {
+        providersResolved: false,
+        apiKeysResolved: false,
+        preparingAnnounced: false,
+        completed: false,
+      };
+
+      useLoadingStore().reset("settings");
+    },
   },
 });

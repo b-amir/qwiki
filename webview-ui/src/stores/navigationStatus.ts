@@ -19,6 +19,7 @@ export const useNavigationStatusStore = defineStore("navigationStatus", {
     target: "" as NavigationTarget,
     startedAt: 0,
     timeoutHandle: null as TimeoutHandle,
+    isBackNavigation: false,
   }),
   getters: {
     isNavigating(state) {
@@ -26,31 +27,35 @@ export const useNavigationStatusStore = defineStore("navigationStatus", {
     },
   },
   actions: {
-    start(target: NavigationTarget) {
+    start(target: NavigationTarget, isBack: boolean = false) {
       if (this.busy && this.target === target) {
         return;
       }
       const loadingStore = useLoadingStore();
       this.busy = true;
       this.target = target;
+      this.isBackNavigation = isBack;
       this.startedAt = Date.now();
       this._clearTimeout();
-      loadingStore.start({ context: "navigation", step: "loading" });
-      this.timeoutHandle = setTimeout(() => {
-        this._handleTimeout(target);
-      }, 5000);
+
+      if (isBack) {
+        loadingStore.start({ context: "navigation", step: "loading" });
+        this.timeoutHandle = setTimeout(() => {
+          this._handleTimeout(target);
+        }, 5000);
+      }
     },
     finish(target?: NavigationTarget) {
       const loadingStore = useLoadingStore();
       if (target && this.target && target !== this.target) {
         return;
       }
-      if (this.busy) {
-        loadingStore.advance({ context: "navigation", step: "preparing" });
+      if (this.busy && this.isBackNavigation) {
         loadingStore.complete({ context: "navigation" });
       }
       this.busy = false;
       this.target = "";
+      this.isBackNavigation = false;
       this.startedAt = 0;
       this._clearTimeout();
     },
