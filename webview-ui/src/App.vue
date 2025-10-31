@@ -15,6 +15,7 @@ import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 import LoadingState from "@/components/features/LoadingState.vue";
+import { useLoading } from "@/loading/useLoading";
 
 const { currentPage } = useNavigation();
 const wiki = useWikiStore();
@@ -26,6 +27,13 @@ wiki.init();
 settings.init();
 environment.init();
 useBatchMessageBridge();
+
+const environmentLoadingContext = useLoading("environment");
+const navigationLoadingContext = useLoading("navigation");
+const wikiLoadingContext = useLoading("wiki");
+const settingsLoadingContext = useLoading("settings");
+const savedWikisLoadingContext = useLoading("savedWikis");
+const errorHistoryLoadingContext = useLoading("errorHistory");
 
 const currentModels = computed(
   () => wiki.providers.find((p) => p.id === wiki.providerId)?.models || [],
@@ -52,39 +60,23 @@ watch(
   { immediate: true },
 );
 
-const environmentLoading = computed(() => !environment.isReady);
-const navigationLoading = computed(() => navigationStatus.isNavigating);
+const navigationTarget = computed(() => navigationStatus.target);
+
+const environmentLoading = computed(() => environmentLoadingContext.isActive.value);
 const wikiNavigationLoading = computed(
-  () => navigationLoading.value && navigationStatus.target === "wiki",
+  () => navigationLoadingContext.isActive.value && navigationTarget.value === "wiki",
 );
 const settingsNavigationLoading = computed(
-  () => navigationLoading.value && navigationStatus.target === "settings",
+  () => navigationLoadingContext.isActive.value && navigationTarget.value === "settings",
 );
 const savedWikisNavigationLoading = computed(
-  () => navigationLoading.value && navigationStatus.target === "savedWikis",
+  () => navigationLoadingContext.isActive.value && navigationTarget.value === "savedWikis",
 );
 const errorHistoryNavigationLoading = computed(
-  () => navigationLoading.value && navigationStatus.target === "errorHistory",
+  () => navigationLoadingContext.isActive.value && navigationTarget.value === "errorHistory",
 );
 
-const environmentSteps = computed(() => {
-  if (environment.steps.length > 0) {
-    return environment.steps;
-  }
-  return [
-    {
-      key: "extensionLoading",
-      text: environment.extensionStatus.message || "Preparing Qwiki services...",
-    },
-  ];
-});
-
-const environmentCurrentStep = computed(() => {
-  if (environment.currentStep) {
-    return environment.currentStep;
-  }
-  return environmentSteps.value[0]?.key || "extensionLoading";
-});
+const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
 </script>
 
 <template>
@@ -93,13 +85,9 @@ const environmentCurrentStep = computed(() => {
 
     <div class="flex-1 overflow-auto py-3">
       <div v-if="currentPage === 'wiki'" class="flex h-full flex-col">
-        <LoadingState
-          v-if="environmentLoading || wikiNavigationLoading"
-          class="flex-1"
-          :steps="environmentSteps"
-          :current-step="environmentCurrentStep"
-          density="low"
-        />
+        <LoadingState v-if="environmentLoading" class="flex-1" context="environment" />
+        <LoadingState v-else-if="wikiNavigationLoading" class="flex-1" context="navigation" />
+        <LoadingState v-else-if="showWikiLoading" class="flex-1" context="wiki" />
         <template v-else>
           <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
           <WikiPage v-else />
@@ -107,44 +95,31 @@ const environmentCurrentStep = computed(() => {
       </div>
 
       <div v-else-if="currentPage === 'settings'" class="flex h-full">
+        <LoadingState v-if="settingsNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
-          v-if="settingsNavigationLoading"
+          v-else-if="settingsLoadingContext.isActive.value"
           class="flex-1"
-          :steps="[
-            { text: 'Loading settings...', key: 'loading' },
-            { text: 'Fetching providers...', key: 'fetching' },
-            { text: 'Preparing configuration...', key: 'preparing' },
-          ]"
-          :current-step="'loading'"
-          density="low"
+          context="settings"
         />
         <SettingsPage v-else class="flex-1" />
       </div>
 
       <div v-else-if="currentPage === 'errorHistory'" class="flex h-full">
+        <LoadingState v-if="errorHistoryNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
-          v-if="errorHistoryNavigationLoading"
+          v-else-if="errorHistoryLoadingContext.isActive.value"
           class="flex-1"
-          :steps="[
-            { text: 'Gathering error history...', key: 'loading' },
-            { text: 'Preparing view...', key: 'preparing' },
-          ]"
-          :current-step="'loading'"
-          density="low"
+          context="errorHistory"
         />
         <ErrorHistoryPage v-else class="flex-1" />
       </div>
 
       <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
+        <LoadingState v-if="savedWikisNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
-          v-if="savedWikisNavigationLoading"
+          v-else-if="savedWikisLoadingContext.isActive.value"
           class="flex-1"
-          :steps="[
-            { text: 'Loading saved wikis...', key: 'loading' },
-            { text: 'Preparing entries...', key: 'preparing' },
-          ]"
-          :current-step="'loading'"
-          density="low"
+          context="savedWikis"
         />
         <SavedWikisPage v-else class="flex-1" />
       </div>

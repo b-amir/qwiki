@@ -259,38 +259,61 @@ export class ZAiProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-
-    try {
-      const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
-        | string
-        | undefined;
-      const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
-      const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const responseTime = Date.now() - startTime;
-
-      if (response.ok) {
-        return {
-          isHealthy: true,
-          responseTime,
-          lastChecked: new Date(),
-        };
-      } else {
+    return this.healthCheckWithKey?.(undefined) ?? (async () => {
+      const startTime = Date.now();
+      try {
+        const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
+          | string
+          | undefined;
+        const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+        const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        const responseTime = Date.now() - startTime;
+        if (response.ok) {
+          return { isHealthy: true, responseTime, lastChecked: new Date() };
+        }
         return {
           isHealthy: false,
           responseTime,
           error: `HTTP ${response.status}: ${response.statusText}`,
           lastChecked: new Date(),
         };
+      } catch (error) {
+        const responseTime = Date.now() - startTime;
+        return {
+          isHealthy: false,
+          responseTime,
+          error: error instanceof Error ? error.message : "Unknown error",
+          lastChecked: new Date(),
+        };
       }
+    })();
+  }
+
+  async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
+    const startTime = Date.now();
+    try {
+      const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
+        | string
+        | undefined;
+      const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+      const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+      const response = await fetch(url, { method: "GET", headers });
+      const responseTime = Date.now() - startTime;
+      if (response.ok) {
+        return { isHealthy: true, responseTime, lastChecked: new Date() };
+      }
+      return {
+        isHealthy: false,
+        responseTime,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+        lastChecked: new Date(),
+      };
     } catch (error) {
       const responseTime = Date.now() - startTime;
       return {

@@ -15,6 +15,43 @@ import {
 } from "../../infrastructure/services/BackgroundProcessingService";
 import { MemoryOptimizationService } from "../../infrastructure/services/MemoryOptimizationService";
 
+type SnippetAnalysis = {
+  languageId?: string;
+  lineCount: number;
+  nonEmptyLineCount: number;
+  characterCount: number;
+  symbols: string[];
+};
+
+type ContextSummary = {
+  relatedCount: number;
+  relatedPaths: string[];
+  hasOverview: boolean;
+  hasRootName: boolean;
+  filesSample: string[];
+};
+
+type GenerationMetadata = {
+  analysis: SnippetAnalysis;
+  context: ContextSummary;
+};
+
+type GenerationInput = {
+  snippet: string;
+  project: ProjectContext;
+  metadata: GenerationMetadata;
+};
+
+type ProcessedGeneration = {
+  content: string;
+  metrics: {
+    headingCount: number;
+    listCount: number;
+    paragraphCount: number;
+    promptSeedLength: number;
+  };
+};
+
 export class WikiService {
   private debouncedGenerate: any;
   private generationCacheKeyPrefix = "wiki_generation";
@@ -67,12 +104,12 @@ export class WikiService {
       if (request.snippet.length > 10000) {
         return this.backgroundProcessingService.enqueueTask(
           `generate-wiki-${Date.now()}`,
-          () => this.performLargeGeneration(request, projectContext, onProgress),
+          () => this.performLargeGeneration(request, projectContext, generateParams, onProgress),
           TaskPriority.HIGH,
         ) as any;
       }
 
-      return this.performGeneration(request, projectContext, onProgress);
+      return this.performGeneration(request, projectContext, generateParams, onProgress);
     } catch (error: any) {
       return {
         content: "",
@@ -85,52 +122,18 @@ export class WikiService {
   private async performGeneration(
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
+    generateParams: {
+      snippet: string;
+      languageId?: string;
+      filePath?: string;
+      model?: string;
+      project: ProjectContext;
+    },
     onProgress?: (step: LoadingStep) => void,
   ): Promise<WikiGenerationResult> {
     return this.requestBatchingService.batchRequest(
       async () => {
-        onProgress?.(LoadingSteps.analyzing);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        onProgress?.(LoadingSteps.finding);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        onProgress?.(LoadingSteps.preparing);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        onProgress?.(LoadingSteps.buildingPrompt);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        onProgress?.(LoadingSteps.sendingRequest);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        onProgress?.(LoadingSteps.waitingForResponse);
-
-        const result = await this.llmRegistry.generate(request.providerId as ProviderId, {
-          model: request.model,
-          snippet: request.snippet,
-          languageId: request.languageId,
-          filePath: request.filePath,
-          project: projectContext,
-        });
-
-        const generateParams = {
-          snippet: request.snippet,
-          languageId: request.languageId,
-          filePath: request.filePath,
-          model: request.model,
-          project: projectContext,
-        };
-
-        await this.generationCacheService.cacheGeneration(generateParams, result);
-
-        onProgress?.(LoadingSteps.processing);
-        onProgress?.(LoadingSteps.finalizing);
-
-        return {
-          content: result.content,
-          success: true,
-        };
+        return this.executeGenerationFlow(request, projectContext, generateParams, onProgress);
       },
       {
         maxBatchSize: 5,
@@ -143,53 +146,228 @@ export class WikiService {
   private async performLargeGeneration(
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
+    generateParams: {
+      snippet: string;
+      languageId?: string;
+      filePath?: string;
+      model?: string;
+      project: ProjectContext;
+    },
     onProgress?: (step: LoadingStep) => void,
   ): Promise<WikiGenerationResult> {
     await this.memoryOptimizationService.optimizeMemory();
+    const result = await this.executeGenerationFlow(
+      request,
+      projectContext,
+      generateParams,
+      onProgress,
+    );
+    await this.memoryOptimizationService.optimizeMemory();
+    return result;
+  }
 
+  private async executeGenerationFlow(
+    request: WikiGenerationRequest,
+    projectContext: ProjectContext,
+    generateParams: {
+      snippet: string;
+      languageId?: string;
+      filePath?: string;
+      model?: string;
+      project: ProjectContext;
+    },
+    onProgress?: (step: LoadingStep) => void,
+  ): Promise<WikiGenerationResult> {
+    const analysis = this.analyzeSnippet(request.snippet, request.languageId);
     onProgress?.(LoadingSteps.analyzing);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await this.yieldForUi();
 
+    const contextSummary = this.summarizeContext(projectContext);
     onProgress?.(LoadingSteps.finding);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await this.yieldForUi();
 
+    const generationInput = this.prepareGenerationInput(
+      request,
+      projectContext,
+      analysis,
+      contextSummary,
+    );
     onProgress?.(LoadingSteps.preparing);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await this.yieldForUi();
 
+    const promptSeed = this.buildPromptSeed(generationInput);
     onProgress?.(LoadingSteps.buildingPrompt);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await this.yieldForUi();
 
     onProgress?.(LoadingSteps.sendingRequest);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    onProgress?.(LoadingSteps.waitingForResponse);
-
-    const result = await this.llmRegistry.generate(request.providerId as ProviderId, {
+    const generationPromise = this.llmRegistry.generate(request.providerId as ProviderId, {
       model: request.model,
-      snippet: request.snippet,
+      snippet: generationInput.snippet,
       languageId: request.languageId,
       filePath: request.filePath,
-      project: projectContext,
+      project: generationInput.project,
     });
 
-    const generateParams = {
-      snippet: request.snippet,
-      languageId: request.languageId,
-      filePath: request.filePath,
-      model: request.model,
-      project: projectContext,
-    };
+    onProgress?.(LoadingSteps.waitingForResponse);
+    const rawResult = await generationPromise;
 
-    await this.generationCacheService.cacheGeneration(generateParams, result);
-
+    const processed = this.processGenerationResult(
+      rawResult.content,
+      generationInput.metadata,
+      promptSeed,
+    );
     onProgress?.(LoadingSteps.processing);
+    await this.yieldForUi();
+
+    const finalContent = this.finalizeContent(processed, generationInput.metadata);
     onProgress?.(LoadingSteps.finalizing);
+    await this.yieldForUi();
 
-    await this.memoryOptimizationService.optimizeMemory();
-
-    return {
-      content: result.content,
+    const finalResult: WikiGenerationResult = {
+      content: finalContent,
       success: true,
     };
+
+    await this.generationCacheService.cacheGeneration(generateParams, finalResult);
+
+    return finalResult;
+  }
+
+  private analyzeSnippet(snippet: string, languageId?: string): SnippetAnalysis {
+    const normalized = snippet.replace(/\r\n/g, "\n");
+    const lines = normalized.split("\n");
+    const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+    const tokens = this.extractSymbolCandidates(lines);
+
+    return {
+      languageId,
+      lineCount: lines.length,
+      nonEmptyLineCount: nonEmptyLines.length,
+      characterCount: normalized.length,
+      symbols: tokens,
+    };
+  }
+
+  private extractSymbolCandidates(lines: string[]) {
+    const candidates = new Set<string>();
+    const identifierPattern = /(?:function|class|interface|type|const|let|var)\s+([A-Za-z0-9_]+)/;
+    const callPattern = /([A-Za-z0-9_]+)\s*\(/;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const declMatch = identifierPattern.exec(trimmed);
+      if (declMatch?.[1]) {
+        candidates.add(declMatch[1]);
+        continue;
+      }
+
+      const callMatch = callPattern.exec(trimmed);
+      if (callMatch?.[1]) {
+        candidates.add(callMatch[1]);
+      }
+    }
+
+    return Array.from(candidates).slice(0, 12);
+  }
+
+  private summarizeContext(projectContext: ProjectContext): ContextSummary {
+    const related = projectContext.related ?? [];
+    const filesSample = projectContext.filesSample ?? [];
+    return {
+      relatedCount: related.length,
+      relatedPaths: related.map((entry) => entry.path).slice(0, 10),
+      hasOverview: Boolean(projectContext.overview?.trim()),
+      hasRootName: Boolean(projectContext.rootName?.trim()),
+      filesSample: filesSample.slice(0, 20),
+    };
+  }
+
+  private prepareGenerationInput(
+    request: WikiGenerationRequest,
+    projectContext: ProjectContext,
+    analysis: SnippetAnalysis,
+    contextSummary: ContextSummary,
+  ): GenerationInput {
+    const normalizedSnippet = request.snippet.trimEnd();
+
+    const prunedProject: ProjectContext = {
+      rootName: projectContext.rootName,
+      overview: projectContext.overview,
+      filesSample: projectContext.filesSample?.slice(0, 50),
+      related: projectContext.related?.slice(0, 25),
+    };
+
+    return {
+      snippet: normalizedSnippet,
+      project: prunedProject,
+      metadata: {
+        analysis,
+        context: contextSummary,
+      },
+    };
+  }
+
+  private buildPromptSeed(
+    generationInput: GenerationInput,
+  ) {
+    const { analysis, context } = generationInput.metadata;
+    const topSymbols = analysis.symbols.slice(0, 5).join(", ");
+    const relatedPreview = context.relatedPaths.slice(0, 3).join(", ");
+
+    const segments = [
+      `Lines:${analysis.lineCount}`,
+      `NonEmpty:${analysis.nonEmptyLineCount}`,
+      topSymbols ? `Symbols:${topSymbols}` : null,
+      relatedPreview ? `Related:${relatedPreview}` : null,
+    ].filter(Boolean);
+
+    return segments.join(" | ");
+  }
+
+  private processGenerationResult(
+    content: string,
+    metadata: GenerationMetadata,
+    promptSeed: string,
+  ): ProcessedGeneration {
+    const normalized = content.replace(/\r\n/g, "\n").trim();
+    const collapsed = normalized.replace(/\n{3,}/g, "\n\n");
+    const headingMatches = collapsed.match(/^#\s+/gm) || [];
+    const listMatches = collapsed.match(/^\s*[-*+]|\d+\.\s+/gm) || [];
+    const paragraphMatches = collapsed.split(/\n\s*\n/).filter((block) => block.trim().length > 0);
+
+    const metrics = {
+      headingCount: headingMatches.length,
+      listCount: listMatches.length,
+      paragraphCount: paragraphMatches.length,
+      promptSeedLength: promptSeed.length,
+    };
+
+    return {
+      content: collapsed,
+      metrics,
+    };
+  }
+
+  private finalizeContent(
+    processed: ProcessedGeneration,
+    metadata: GenerationMetadata,
+  ) {
+    const lines = processed.content.split("\n");
+    const hasHeading = /^#\s+/.test(lines[0] || "");
+    const titleFromSymbol = metadata.analysis.symbols[0];
+    const heading = hasHeading
+      ? lines[0]
+      : `# ${titleFromSymbol ? `${titleFromSymbol} Overview` : "Generated Wiki"}`;
+
+    const body = hasHeading ? lines.slice(1).join("\n") : lines.join("\n");
+    const ensuredSpacing = body.replace(/(#\s.+)/g, "\n$1").replace(/\n{3,}/g, "\n\n");
+    const trimmed = ensuredSpacing.trimEnd();
+    const rebuilt = `${heading}\n\n${trimmed}`.trimEnd();
+
+    return rebuilt.endsWith("\n") ? rebuilt : `${rebuilt}\n`;
+  }
+
+  private async yieldForUi(minDuration = 12) {
+    await new Promise((resolve) => setTimeout(resolve, minDuration));
   }
 }

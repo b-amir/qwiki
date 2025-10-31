@@ -13,10 +13,19 @@ export class WebviewOptimizer {
   private readonly BATCH_DELAY = 50; // 50ms batch delay
   private readonly MAX_BATCH_SIZE = 10;
   private messageId = 0;
+  private lastEnvironmentStatusPayload: string | undefined;
 
   constructor(private webview: Webview) {}
 
   postMessage(command: string, payload?: any): void {
+    if (command === "environmentStatus") {
+      const payloadHash = JSON.stringify(payload);
+      if (this.lastEnvironmentStatusPayload === payloadHash) {
+        return;
+      }
+      this.lastEnvironmentStatusPayload = payloadHash;
+    }
+
     const message: QueuedMessage = {
       command,
       payload,
@@ -111,6 +120,7 @@ export class WebviewOptimizer {
       clearTimeout(this.batchTimeout);
       this.batchTimeout = null;
     }
+    this.lastEnvironmentStatusPayload = undefined;
     this.flushQueue();
   }
 }

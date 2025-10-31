@@ -1,8 +1,9 @@
 import { createApp } from "vue";
-import { createPinia } from "pinia";
+import { createPinia, setActivePinia } from "pinia";
 import App from "./App.vue";
 import "./style.css";
 import "highlight.js/styles/github-dark.css";
+import { initializeLoadingBus } from "@/loading/loadingBus";
 
 function applyVscodeThemeClass() {
   const body = document.body;
@@ -22,5 +23,8 @@ new MutationObserver(() => applyVscodeThemeClass()).observe(document.body, {
 });
 
 const app = createApp(App);
-app.use(createPinia());
+const pinia = createPinia();
+app.use(pinia);
+setActivePinia(pinia);
+initializeLoadingBus();
 app.mount("#app");

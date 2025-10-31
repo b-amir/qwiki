@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
 import { useErrorHistoryStore } from "./errorHistory";
+import { useLoadingStore } from "./loading";
 
 export type ProviderStatus = { id: string; name: string; hasKey: boolean; models: string[] };
 
@@ -36,6 +37,7 @@ export const useWikiStore = defineStore("wiki", {
     init() {
       const handleMessage = (event: MessageEvent) => {
         const message = event.data;
+        const loadingStore = useLoadingStore();
         switch (message.command) {
           case "selection": {
             const { text, languageId, filePath } = message.payload || {};
@@ -74,6 +76,7 @@ export const useWikiStore = defineStore("wiki", {
             this.loadingStep = "";
             this.error = "";
             this.content = message.payload?.content || "";
+            loadingStore.complete({ context: "wiki" });
             return;
           }
           case "related": {
@@ -103,10 +106,15 @@ export const useWikiStore = defineStore("wiki", {
               timestamp: message.payload?.timestamp || new Date().toISOString(),
             });
 
+            loadingStore.fail({ context: "wiki", error: this.error });
+
             return;
           }
           case "loadingStep": {
             this.loadingStep = message.payload?.step || "";
+            if (this.loadingStep) {
+              loadingStore.advance({ context: "wiki", step: this.loadingStep });
+            }
             return;
           }
         }
@@ -124,6 +132,7 @@ export const useWikiStore = defineStore("wiki", {
           this.loading = false;
           this.loadingStep = "";
           this.error = "Initialization timeout. Please try again.";
+          useLoadingStore().fail({ context: "wiki", error: this.error });
         }
       }, 10000);
     },
@@ -140,6 +149,8 @@ export const useWikiStore = defineStore("wiki", {
 
       this.loading = true;
       this.loadingStep = "validating";
+      const loadingStore = useLoadingStore();
+      loadingStore.start({ context: "wiki", step: "validating" });
       this.error = "";
       this.content = "";
       vscode.postMessage({
@@ -165,6 +176,7 @@ export const useWikiStore = defineStore("wiki", {
       this.related = [];
       this.filesSample = [];
       this.overview = "";
+      useLoadingStore().reset("wiki");
     },
     retryGeneration() {
       if (this.errorInfo?.retryable) {

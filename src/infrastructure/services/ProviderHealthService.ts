@@ -25,7 +25,7 @@ export class ProviderHealthService {
     const healthCheckStartTime = Date.now();
     console.log(`[QWIKI] ProviderHealthService: Starting health check for provider ${providerId}`);
 
-    const provider = this.llmRegistry.getProvider(providerId);
+    const provider = this.llmRegistry.getProvider(providerId as any);
     if (!provider) {
       const error = "Provider not found";
       console.error(
@@ -50,7 +50,13 @@ export class ProviderHealthService {
       console.log(
         `[QWIKI] ProviderHealthService: Executing health check for provider ${providerId}`,
       );
-      healthResult = await provider.healthCheck();
+
+      const reg: any = this.llmRegistry as any;
+      if (typeof reg.healthCheckProvider === "function") {
+        healthResult = await reg.healthCheckProvider(providerId as any);
+      } else {
+        healthResult = await provider.healthCheck();
+      }
 
       const healthCheckEndTime = Date.now();
       const responseTime = healthCheckEndTime - startTime;

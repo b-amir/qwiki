@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full w-full items-center justify-center px-16">
     <div class="w-full max-w-md">
-      <DynamicSkeleton :steps="steps" :current-step="currentStep" :density="density" />
+      <DynamicSkeleton :steps="resolvedSteps" :current-step="resolvedCurrentStep" :density="resolvedDensity" />
     </div>
   </div>
 </template>
@@ -9,49 +9,42 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import DynamicSkeleton from "@/components/DynamicSkeleton.vue";
-
-interface LoadingStep {
-  text: string;
-  key: string;
-}
+import type { LoadingContext, LoadingDensity, LoadingStepDefinition } from "@/loading/types";
+import { isKnownContext } from "@/loading/types";
+import { getStepsForContext } from "@/loading/stepCatalog";
+import { useLoading } from "@/loading/useLoading";
 
 interface Props {
-  steps: LoadingStep[];
-  currentStep: string;
-  density: "low" | "medium" | "high";
+  context?: LoadingContext;
+  steps?: LoadingStepDefinition[];
+  currentStep?: string;
+  density?: LoadingDensity;
+  percent?: number | null;
+  isActive?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  density: "medium",
+  density: "medium" as LoadingDensity,
 });
 
-const wikiSteps: LoadingStep[] = [
-  { text: "Validating selection...", key: "validating" },
-  { text: "Analyzing code structure...", key: "analyzing" },
-  { text: "Finding related files...", key: "finding" },
-  { text: "Preparing LLM request...", key: "preparing" },
-  { text: "Building documentation prompt...", key: "buildingPrompt" },
-  { text: "Sending request to LLM...", key: "sendingRequest" },
-  { text: "Waiting for LLM response...", key: "waitingForResponse" },
-  { text: "Processing response...", key: "processing" },
-  { text: "Finalizing documentation...", key: "finalizing" },
-];
+const loading = props.context ? useLoading(props.context, { steps: props.steps, density: props.density }) : null;
 
-const settingsSteps: LoadingStep[] = [
-  { text: "Loading settings...", key: "loading" },
-  { text: "Fetching providers...", key: "fetching" },
-  { text: "Preparing configuration...", key: "preparing" },
-];
+const resolvedSteps = computed<LoadingStepDefinition[]>(() => {
+  if (loading) return loading.steps.value;
+  if (props.steps?.length) return props.steps;
+  if (props.context && isKnownContext(props.context)) return getStepsForContext(props.context);
+  return getStepsForContext("wiki");
+});
 
-const steps = computed(() => {
-  if (props.steps && props.steps.length > 0) {
-    return props.steps;
+const resolvedCurrentStep = computed(() => {
+  if (loading) {
+    return loading.state.value.step ?? "";
   }
+  return props.currentStep ?? resolvedSteps.value[0]?.key ?? "";
+});
 
-  if (props.density === "low") {
-    return settingsSteps;
-  }
-
-  return wikiSteps;
+const resolvedDensity = computed<LoadingDensity>(() => {
+  if (loading) return loading.density.value;
+  return props.density ?? "medium";
 });
 </script>

@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { useLoadingStore } from "./loading";
 
 export type NavigationTarget =
   | ""
@@ -29,17 +30,24 @@ export const useNavigationStatusStore = defineStore("navigationStatus", {
       if (this.busy && this.target === target) {
         return;
       }
+      const loadingStore = useLoadingStore();
       this.busy = true;
       this.target = target;
       this.startedAt = Date.now();
       this._clearTimeout();
+      loadingStore.start({ context: "navigation", step: "loading" });
       this.timeoutHandle = setTimeout(() => {
-        this.finish(target);
+        this._handleTimeout(target);
       }, 5000);
     },
     finish(target?: NavigationTarget) {
+      const loadingStore = useLoadingStore();
       if (target && this.target && target !== this.target) {
         return;
+      }
+      if (this.busy) {
+        loadingStore.advance({ context: "navigation", step: "preparing" });
+        loadingStore.complete({ context: "navigation" });
       }
       this.busy = false;
       this.target = "";
@@ -51,6 +59,19 @@ export const useNavigationStatusStore = defineStore("navigationStatus", {
         clearTimeout(this.timeoutHandle);
         this.timeoutHandle = null;
       }
+    },
+    _handleTimeout(target?: NavigationTarget) {
+      if (target && this.target && target !== this.target) {
+        return;
+      }
+      if (!this.busy) {
+        return;
+      }
+      useLoadingStore().fail({ context: "navigation", error: "Navigation timed out" });
+      this.busy = false;
+      this.target = "";
+      this.startedAt = 0;
+      this._clearTimeout();
     },
   },
 });

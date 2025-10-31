@@ -9,14 +9,18 @@ import { useWikiStore } from "@/stores/wiki";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useVscode } from "@/composables/useVscode";
+import { useLoading } from "@/loading/useLoading";
 
 const wiki = useWikiStore();
 const navigationStatus = useNavigationStatusStore();
 const { setPage } = useNavigation();
 const vscode = useVscode();
+const wikiLoadingContext = useLoading("wiki");
 const isSaving = ref(false);
 const saveState = ref<"idle" | "saving" | "saved" | "error">("idle");
 let messageHandler: ((event: MessageEvent) => void) | null = null;
+
+const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
 
 const wikiContentWithoutTitle = computed(() => {
   if (wiki.content && typeof wiki.content === "string") {
@@ -92,22 +96,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full flex-col">
     <div class="flex-1 overflow-auto pb-3">
-      <div v-if="wiki.loading" class="h-full">
-        <LoadingState
-          :steps="[
-            { text: 'Validating selection...', key: 'validating' },
-            { text: 'Analyzing code structure...', key: 'analyzing' },
-            { text: 'Finding related files...', key: 'finding' },
-            { text: 'Preparing LLM request...', key: 'preparing' },
-            { text: 'Building documentation prompt...', key: 'buildingPrompt' },
-            { text: 'Sending request to LLM...', key: 'sendingRequest' },
-            { text: 'Waiting for LLM response...', key: 'waitingForResponse' },
-            { text: 'Processing response...', key: 'processing' },
-            { text: 'Finalizing documentation...', key: 'finalizing' },
-          ]"
-          :current-step="wiki.loadingStep"
-          density="medium"
-        />
+      <div v-if="showWikiLoading" class="h-full">
+        <LoadingState context="wiki" />
       </div>
       <ErrorDisplay
         v-else-if="wiki.error"

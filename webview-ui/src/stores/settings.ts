@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
+import { useLoadingStore } from "./loading";
 
 export const useSettingsStore = defineStore("settings", {
   state: () => ({
@@ -22,12 +23,24 @@ export const useSettingsStore = defineStore("settings", {
     validationErrors: [] as string[],
     validationWarnings: [] as string[],
     providerCapabilities: {} as Record<string, any>,
+    loadingPhase: {
+      providersResolved: false,
+      apiKeysResolved: false,
+      preparingAnnounced: false,
+      completed: false,
+    },
   }),
   actions: {
     async init() {
       if (this.initialized) return;
       const initStartTime = Date.now();
       console.log("[QWIKI] Settings Store: Starting initialization");
+      this.loadingPhase = {
+        providersResolved: false,
+        apiKeysResolved: false,
+        preparingAnnounced: false,
+        completed: false,
+      };
       try {
         vscode.postMessage({
           command: "frontendLog",
@@ -36,6 +49,8 @@ export const useSettingsStore = defineStore("settings", {
       } catch {}
 
       this.loading = true;
+      const loadingStore = useLoadingStore();
+      loadingStore.start({ context: "settings", step: "loading" });
 
       const handleMessage = (event: MessageEvent) => {
         const message = event.data;
@@ -65,18 +80,23 @@ export const useSettingsStore = defineStore("settings", {
 
               this.initialized = true;
               this.loading = false;
+              this.loadingPhase.apiKeysResolved = true;
+              this.ensurePreparingPhase(loadingStore);
+              this.tryCompleteLoading(loadingStore);
               try {
                 vscode.postMessage({
                   command: "frontendLog",
                   payload: { message: "Settings Store: Initialization completed, loading=false" },
                 });
               } catch {}
-              window.removeEventListener("message", handleMessage);
+              if (this.loadingPhase.completed) {
+                window.removeEventListener("message", handleMessage);
 
-              const initEndTime = Date.now();
-              console.log(
-                `[QWIKI] Settings Store: Initialization completed in ${initEndTime - initStartTime}ms`,
-              );
+                const initEndTime = Date.now();
+                console.log(
+                  `[QWIKI] Settings Store: Initialization completed in ${initEndTime - initStartTime}ms`,
+                );
+              }
               return;
             }
             case "apiKeySaved": {
@@ -105,6 +125,16 @@ export const useSettingsStore = defineStore("settings", {
               console.log(`[QWIKI] Settings Store: Received ${providers.length} providers`);
               const withKey = providers.find((p: any) => p.hasKey);
               this.selectedProvider = withKey?.id || providers[0]?.id || "";
+              this.loadingPhase.providersResolved = true;
+              this.ensurePreparingPhase(loadingStore);
+              this.tryCompleteLoading(loadingStore);
+              if (this.loadingPhase.completed) {
+                window.removeEventListener("message", handleMessage);
+                const initEndTime = Date.now();
+                console.log(
+                  `[QWIKI] Settings Store: Initialization completed in ${initEndTime - initStartTime}ms`,
+                );
+              }
               return;
             }
             case "configurationValidated": {
@@ -207,6 +237,7 @@ export const useSettingsStore = defineStore("settings", {
         vscode.postMessage({ command: "getProviders" });
         vscode.postMessage({ command: "getConfigurationTemplates" });
         vscode.postMessage({ command: "getConfigurationBackups" });
+        loadingStore.advance({ context: "settings", step: "fetching" });
       } catch (error) {
         console.error("[QWIKI] Settings Store: Error sending initialization messages:", error);
       }
@@ -218,8 +249,40 @@ export const useSettingsStore = defineStore("settings", {
           );
           this.loading = false;
           window.removeEventListener("message", handleMessage);
+          loadingStore.fail({ context: "settings", error: "Settings initialization timed out" });
         }
       }, 5000);
+    },
+    ensurePreparingPhase(loadingStore: ReturnType<typeof useLoadingStore>) {
+      if (
+        this.loadingPhase.providersResolved &&
+        this.loadingPhase.apiKeysResolved &&
+        !this.loadingPhase.preparingAnnounced
+      ) {
+        loadingStore.advance({ context: "settings", step: "preparing" });
+        this.loadingPhase.preparingAnnounced = true;
+      }
+    },
+    tryCompleteLoading(loadingStore: ReturnType<typeof useLoadingStore>) {
+      if (this.loadingPhase.completed) return;
+
+      const bothResolved = this.loadingPhase.providersResolved && this.loadingPhase.apiKeysResolved;
+      if (!bothResolved) return;
+
+      if (!this.loadingPhase.preparingAnnounced) {
+        loadingStore.advance({ context: "settings", step: "preparing" });
+        this.loadingPhase.preparingAnnounced = true;
+        setTimeout(() => {
+          if (!this.loadingPhase.completed) {
+            loadingStore.complete({ context: "settings" });
+            this.loadingPhase.completed = true;
+          }
+        }, 80);
+        return;
+      }
+
+      loadingStore.complete({ context: "settings" });
+      this.loadingPhase.completed = true;
     },
     trackApiKeyChange(providerId: string, newValue: string) {
       const originalKey = this.originalApiKeys[providerId];

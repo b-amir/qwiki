@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
+import { useLoadingStore } from "./loading";
 
 type EnvironmentStatusPayload = {
   extension?: {
@@ -106,12 +107,34 @@ export const useEnvironmentStore = defineStore("environment", {
               : [],
           };
         }
+
+        this.syncLoadingState();
       };
 
       window.addEventListener("message", handleMessage);
       vscode.postMessage({ command: "getEnvironmentStatus" });
 
       this.initialized = true;
+      this.syncLoadingState();
+    },
+    syncLoadingState() {
+      const loadingStore = useLoadingStore();
+      const steps = this.steps;
+
+      if (!this.isReady) {
+        const current = this.currentStep || steps[0]?.key || "extensionLoading";
+        if (!loadingStore.getState("environment").active) {
+          loadingStore.start({ context: "environment", step: current });
+        } else {
+          loadingStore.advance({ context: "environment", step: current });
+        }
+      } else {
+        if (loadingStore.getState("environment").active) {
+          loadingStore.complete({ context: "environment" });
+        } else {
+          loadingStore.reset("environment");
+        }
+      }
     },
   },
 });

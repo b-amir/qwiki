@@ -291,32 +291,116 @@ export class GoogleAIStudioProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    const startTime = Date.now();
+    return this.healthCheckWithKey?.(undefined) ?? (async () => {
+      const startTime = Date.now();
 
+      try {
+        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const responseTime = Date.now() - startTime;
+
+        if (response.ok) {
+          return {
+            isHealthy: true,
+            responseTime,
+            lastChecked: new Date(),
+          };
+        } else {
+          return {
+            isHealthy: false,
+            responseTime,
+            error: `HTTP ${response.status}: ${response.statusText}`,
+            lastChecked: new Date(),
+          };
+        }
+      } catch (error) {
+        const responseTime = Date.now() - startTime;
+        return {
+          isHealthy: false,
+          responseTime,
+          error: error instanceof Error ? error.message : "Unknown error",
+          lastChecked: new Date(),
+        };
+      }
+    })();
+  }
+
+  // Optional method used by registry to include API key if available
+  async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
+    const startTime = Date.now();
     try {
+      const endpointType = (this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined) as
+        | "openai-compatible"
+        | "native"
+        | undefined;
+
+      if (apiKey) {
+        if (endpointType === "openai-compatible") {
+          // Use OpenAI-compatible models endpoint with Bearer auth
+          const response = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/openai/models",
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+            },
+          );
+          const responseTime = Date.now() - startTime;
+          if (response.ok) {
+            return { isHealthy: true, responseTime, lastChecked: new Date() };
+          }
+          return {
+            isHealthy: false,
+            responseTime,
+            error: `HTTP ${response.status}: ${response.statusText}`,
+            lastChecked: new Date(),
+          };
+        } else {
+          // Native endpoint: try models with key param
+          const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
+            apiKey,
+          )}`;
+          const response = await fetch(url, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+          });
+          const responseTime = Date.now() - startTime;
+          if (response.ok) {
+            return { isHealthy: true, responseTime, lastChecked: new Date() };
+          }
+          return {
+            isHealthy: false,
+            responseTime,
+            error: `HTTP ${response.status}: ${response.statusText}`,
+            lastChecked: new Date(),
+          };
+        }
+      }
+
+      // Fallback unauthenticated check
       const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
       });
-
       const responseTime = Date.now() - startTime;
-
       if (response.ok) {
-        return {
-          isHealthy: true,
-          responseTime,
-          lastChecked: new Date(),
-        };
-      } else {
-        return {
-          isHealthy: false,
-          responseTime,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-          lastChecked: new Date(),
-        };
+        return { isHealthy: true, responseTime, lastChecked: new Date() };
       }
+      return {
+        isHealthy: false,
+        responseTime,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+        lastChecked: new Date(),
+      };
     } catch (error) {
       const responseTime = Date.now() - startTime;
       return {

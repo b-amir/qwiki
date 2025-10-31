@@ -9,6 +9,7 @@ export class MessageBus {
   private optimizer: WebviewOptimizer;
   private debouncingService: DebouncingService;
   private debouncedPostMessage: any;
+  private debouncedEnvironmentStatus: any;
 
   constructor(webview: Webview) {
     this.optimizer = new WebviewOptimizer(webview);
@@ -20,6 +21,13 @@ export class MessageBus {
       50,
       { leading: false, trailing: true },
     );
+    this.debouncedEnvironmentStatus = this.debouncingService.debounce(
+      (command: string, payload?: any) => {
+        this.optimizer.postMessage(command, payload);
+      },
+      200,
+      { leading: false, trailing: true },
+    );
   }
 
   postMessage(command: string, payload?: any): void {
@@ -29,7 +37,11 @@ export class MessageBus {
         `[QWIKI] MessageBus: Queueing message to webview - command=${command}, size=${size}`,
       );
     } catch {}
-    this.optimizer.postMessage(command, payload);
+    if (command === "environmentStatus") {
+      this.debouncedEnvironmentStatus(command, payload);
+    } else {
+      this.optimizer.postMessage(command, payload);
+    }
   }
 
   postImmediate(command: string, payload?: any): void {
@@ -67,7 +79,11 @@ export class MessageBus {
 
   postSuccess(command: string, payload?: any): void {
     console.log(`[QWIKI] MessageBus: postSuccess called for command=${command}`);
-    this.postMessage(command, payload);
+    if (command === "environmentStatus") {
+      this.debouncedEnvironmentStatus(command, payload);
+    } else {
+      this.postMessage(command, payload);
+    }
   }
 
   postLoadingStep(step: LoadingStep): void {
@@ -75,6 +91,7 @@ export class MessageBus {
   }
 
   dispose(): void {
+    this.debouncingService.cancelAll();
     this.optimizer.dispose();
   }
 }

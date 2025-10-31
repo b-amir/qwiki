@@ -70,6 +70,7 @@ export class QwikiPanel {
   };
   private _latestEnvironmentStatus: EnvironmentStatusPayload | undefined;
   private _languageStatusInterval: NodeJS.Timeout | undefined;
+  private _lastBroadcastedStatus: string | undefined;
 
   constructor(
     extensionUri: Uri,
@@ -156,13 +157,6 @@ export class QwikiPanel {
         this.createFallbackCommandRegistry(webviewView.webview);
       });
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
-
-    try {
-      this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
-      console.log("[QWIKI] QwikiPanel: webviewReady message sent successfully");
-    } catch (error) {
-      console.error("[QWIKI] QwikiPanel: Failed to send webviewReady message:", error);
-    }
   }
 
   public showPage(page: Page) {
@@ -200,12 +194,7 @@ export class QwikiPanel {
       this.messageBus = undefined;
     }
 
-    if (this.commandRegistry) {
-      const messageBus = (this.commandRegistry as any).messageBus;
-      if (messageBus && messageBus.dispose) {
-        messageBus.dispose();
-      }
-    }
+    this.commandRegistry?.dispose?.();
 
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
@@ -279,13 +268,16 @@ export class QwikiPanel {
     try {
       const editor = window.activeTextEditor;
       if (!editor) {
-        this._languageStatus = {
+        const newStatus = {
           ready: true,
           languageId: undefined,
           message: "",
           reason: "no-active-editor",
         };
-        this._broadcastEnvironmentStatus();
+        if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
+          this._languageStatus = newStatus;
+          this._broadcastEnvironmentStatus();
+        }
         this._clearLanguageStatusInterval();
         return;
       }
@@ -300,13 +292,16 @@ export class QwikiPanel {
       });
 
       if (!relevantExtensions.length) {
-        this._languageStatus = {
+        const newStatus = {
           ready: true,
           languageId,
           message: `No dedicated language extension detected for ${languageId}.`,
           reason: "no-language-extension",
         };
-        this._broadcastEnvironmentStatus();
+        if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
+          this._languageStatus = newStatus;
+          this._broadcastEnvironmentStatus();
+        }
         this._clearLanguageStatusInterval();
         return;
       }
@@ -314,37 +309,46 @@ export class QwikiPanel {
       const inactiveExtensions = relevantExtensions.filter((ext) => !ext.isActive);
 
       if (inactiveExtensions.length === 0) {
-        this._languageStatus = {
+        const newStatus = {
           ready: true,
           languageId,
           message: `${languageId} language features ready.`,
           reason: "ready",
           extensions: relevantExtensions.map((ext) => ext.id),
         };
-        this._broadcastEnvironmentStatus();
+        if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
+          this._languageStatus = newStatus;
+          this._broadcastEnvironmentStatus();
+        }
         this._clearLanguageStatusInterval();
         return;
       }
 
-      this._languageStatus = {
+      const newStatus = {
         ready: false,
         languageId,
         message: `Waiting for ${languageId} language features to load...`,
         reason: "loading",
         extensions: relevantExtensions.map((ext) => ext.id),
       };
-      this._broadcastEnvironmentStatus();
+      if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
+        this._languageStatus = newStatus;
+        this._broadcastEnvironmentStatus();
+      }
       this._scheduleLanguageStatusInterval();
     } catch (error) {
       console.error("[QWIKI] QwikiPanel: Failed to determine language server status:", error);
-      this._languageStatus = {
+      const newStatus = {
         ready: false,
         languageId: this._languageStatus.languageId,
         message: "Unable to check language server status.",
         reason: "error",
         extensions: this._languageStatus.extensions,
       };
-      this._broadcastEnvironmentStatus();
+      if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
+        this._languageStatus = newStatus;
+        this._broadcastEnvironmentStatus();
+      }
       this._scheduleLanguageStatusInterval();
     }
   }
@@ -355,7 +359,7 @@ export class QwikiPanel {
     }
     this._languageStatusInterval = setInterval(() => {
       void this._updateLanguageServerStatus();
-    }, 1500);
+    }, 3000);
   }
 
   private _clearLanguageStatusInterval() {
@@ -396,7 +400,14 @@ export class QwikiPanel {
 
   private _broadcastEnvironmentStatus() {
     const payload = this._composeEnvironmentStatus();
+    const statusHash = JSON.stringify(payload);
+
+    if (this._lastBroadcastedStatus === statusHash) {
+      return;
+    }
+
     this._latestEnvironmentStatus = payload;
+    this._lastBroadcastedStatus = statusHash;
     this._postEnvironmentStatus(payload);
   }
 
@@ -446,17 +457,20 @@ export class QwikiPanel {
               return;
             }
             case Inbound.webviewReady: {
+              const wasReady = this._webviewReady;
               this._webviewReady = true;
               this._flushPendingNavigation();
               this._flushPendingSelection();
               this._flushEnvironmentStatus();
-              try {
-                this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
-              } catch (error) {
-                console.error(
-                  "[QWIKI] QwikiPanel: Exception in _setWebviewMessageListener:",
-                  error,
-                );
+              if (!wasReady) {
+                try {
+                  this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
+                } catch (error) {
+                  console.error(
+                    "[QWIKI] QwikiPanel: Exception in _setWebviewMessageListener:",
+                    error,
+                  );
+                }
               }
               return;
             }

@@ -38,19 +38,8 @@ export const OutboundEvents = {
   environmentStatus: "environmentStatus",
 } as const;
 
-export const LoadingSteps = {
-  validating: "validating",
-  analyzing: "analyzing",
-  finding: "finding",
-  preparing: "preparing",
-  buildingPrompt: "buildingPrompt",
-  sendingRequest: "sendingRequest",
-  waitingForResponse: "waitingForResponse",
-  processing: "processing",
-  finalizing: "finalizing",
-} as const;
-
-export type LoadingStep = (typeof LoadingSteps)[keyof typeof LoadingSteps];
+export { LoadingSteps } from "./loading";
+export type { LoadingStep } from "./loading";
 
 export const ErrorEvents = {
   occurred: "error.occurred",

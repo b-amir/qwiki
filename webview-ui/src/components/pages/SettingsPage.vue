@@ -5,11 +5,13 @@ import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { vscode } from "@/utilities/vscode";
+import { useLoading } from "@/loading/useLoading";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 const navigationStatus = useNavigationStatusStore();
 const settingsLoading = ref(false);
+const settingsLoadingContext = useLoading("settings");
 
 const centralizedProviderConfigs = ref<
   Array<{
@@ -38,6 +40,10 @@ const lastValidationValid = ref<boolean | null>(null);
 const showValidationErrors = ref(false);
 const validationErrors = ref<string[]>([]);
 const validationWarnings = ref<string[]>([]);
+
+const isSettingsLoading = computed(
+  () => settingsLoadingContext.isActive.value || settingsLoading.value || settings.loading,
+);
 
 const providerConfigs = computed(() => {
   if (centralizedProviderConfigs.value.length > 0) {
@@ -423,16 +429,8 @@ watch(
 </script>
 
 <template>
-  <div v-if="settingsLoading || settings.loading" class="flex h-full w-full">
-    <LoadingState
-      :steps="[
-        { text: 'Loading settings...', key: 'loading' },
-        { text: 'Fetching providers...', key: 'fetching' },
-        { text: 'Preparing configuration...', key: 'preparing' },
-      ]"
-      :current-step="'loading'"
-      density="low"
-    />
+  <div v-if="isSettingsLoading" class="flex h-full w-full">
+    <LoadingState context="settings" />
   </div>
 
   <div v-else class="settings-shell mx-auto max-w-3xl space-y-8 px-6 py-10">
@@ -478,15 +476,7 @@ watch(
           "
           class="flex h-full min-h-64 w-full"
         >
-          <LoadingState
-            :steps="[
-              { text: 'Loading settings...', key: 'loading' },
-              { text: 'Fetching providers...', key: 'fetching' },
-              { text: 'Preparing configuration...', key: 'preparing' },
-            ]"
-            :current-step="'fetching'"
-            density="low"
-          />
+          <LoadingState context="settings" />
         </div>
 
         <div v-else class="space-y-4">

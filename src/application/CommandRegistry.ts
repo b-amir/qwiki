@@ -3,6 +3,7 @@ import { ErrorCodes, ErrorMessages } from "../constants";
 
 export class CommandRegistry {
   private commands = new Map<string, Command>();
+  private disposers: Array<() => void> = [];
 
   register<T>(name: string, command: Command<T>): void {
     this.commands.set(name, command);
@@ -31,5 +32,20 @@ export class CommandRegistry {
 
   has(name: string): boolean {
     return this.commands.has(name);
+  }
+
+  addDisposer(dispose: () => void): void {
+    this.disposers.push(dispose);
+  }
+
+  dispose(): void {
+    for (const d of this.disposers.splice(0)) {
+      try {
+        d();
+      } catch (err) {
+        console.error("[QWIKI] CommandRegistry: Disposer threw:", err);
+      }
+    }
+    this.commands.clear();
   }
 }

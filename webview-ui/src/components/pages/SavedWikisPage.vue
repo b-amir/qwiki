@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import LoadingState from "@/components/features/LoadingState.vue";
+import { useLoading } from "@/loading/useLoading";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 
 interface SavedWiki {
@@ -21,6 +22,10 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const selectedWiki = ref<SavedWiki | null>(null);
 const searchQuery = ref("");
+const savedWikisLoadingContext = useLoading("savedWikis");
+const isSavedWikisLoading = computed(
+  () => loading.value || savedWikisLoadingContext.isActive.value,
+);
 
 const filteredWikis = computed(() => {
   if (!searchQuery.value.trim()) return savedWikis.value;
@@ -52,11 +57,13 @@ const loadSavedWikis = async () => {
   try {
     loading.value = true;
     error.value = null;
+    savedWikisLoadingContext.start("loading");
     vscode.postMessage({ command: "getSavedWikis" });
   } catch (err) {
     error.value = "Failed to load saved wikis";
     loading.value = false;
     navigationStatus.finish("savedWikis");
+    savedWikisLoadingContext.fail("Failed to load saved wikis");
   }
 };
 
@@ -89,6 +96,8 @@ const handleMessage = (event: MessageEvent) => {
       savedWikis.value = message.payload.wikis;
       loading.value = false;
       navigationStatus.finish("savedWikis");
+      savedWikisLoadingContext.advance("preparing");
+      savedWikisLoadingContext.complete();
       break;
     case "wikiDeleted":
       savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
@@ -101,6 +110,7 @@ const handleMessage = (event: MessageEvent) => {
         error.value = message.payload.message;
         loading.value = false;
         navigationStatus.finish("savedWikis");
+        savedWikisLoadingContext.fail(message.payload.message);
       }
       break;
   }
@@ -137,15 +147,8 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex-1 overflow-hidden">
-      <div v-if="loading" class="flex h-full w-full">
-        <LoadingState
-          :steps="[
-            { text: 'Loading saved wikis...', key: 'loading' },
-            { text: 'Preparing entries...', key: 'preparing' },
-          ]"
-          :current-step="'loading'"
-          density="low"
-        />
+      <div v-if="isSavedWikisLoading" class="flex h-full w-full">
+        <LoadingState context="savedWikis" />
       </div>
 
       <div

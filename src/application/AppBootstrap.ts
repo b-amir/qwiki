@@ -291,25 +291,38 @@ export class AppBootstrap {
 
     const messageBus = new MessageBus(webview);
 
-    eventBus.subscribe(OutboundEvents.selection, (payload) => {
+    commandRegistry.addDisposer(() => {
+      try {
+        messageBus.dispose();
+      } catch (err) {
+        console.error("[QWIKI] AppBootstrap: MessageBus dispose failed:", err);
+      }
+    });
+
+    const unsubSelection = eventBus.subscribe(OutboundEvents.selection, (payload) => {
       messageBus.postSuccess(OutboundEvents.selection, payload);
     });
+    commandRegistry.addDisposer(unsubSelection);
 
-    eventBus.subscribe(OutboundEvents.wikiResult, (payload) => {
+    const unsubWikiResult = eventBus.subscribe(OutboundEvents.wikiResult, (payload) => {
       messageBus.postSuccess(OutboundEvents.wikiResult, payload);
     });
+    commandRegistry.addDisposer(unsubWikiResult);
 
-    eventBus.subscribe(OutboundEvents.related, (payload) => {
+    const unsubRelated = eventBus.subscribe(OutboundEvents.related, (payload) => {
       messageBus.postSuccess(OutboundEvents.related, payload);
     });
+    commandRegistry.addDisposer(unsubRelated);
 
-    eventBus.subscribe(OutboundEvents.loadingStep, (payload) => {
+    const unsubLoading = eventBus.subscribe(OutboundEvents.loadingStep, (payload) => {
       messageBus.postSuccess(OutboundEvents.loadingStep, payload);
     });
+    commandRegistry.addDisposer(unsubLoading);
 
-    eventBus.subscribe(OutboundEvents.error, (payload: any) => {
+    const unsubError = eventBus.subscribe(OutboundEvents.error, (payload: any) => {
       messageBus.postError(payload.message, payload.code, payload.suggestion);
     });
+    commandRegistry.addDisposer(unsubError);
 
     return commandRegistry;
   }

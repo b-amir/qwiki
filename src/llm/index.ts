@@ -4,6 +4,7 @@ import type { ConfigurationManager } from "../application/services";
 import type { ProviderConfiguration } from "../domain/configuration";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
 import { loadProviders, type GetSetting } from "./providers/registry";
+import type { HealthCheckResult } from "./types/ProviderCapabilities";
 import { ErrorRecoveryService, ErrorLoggingService } from "../infrastructure/services";
 import { ProviderError, ErrorCodes } from "../errors";
 
@@ -163,5 +164,56 @@ export class LLMRegistry {
 
   private keyName(id: ProviderId) {
     return `qwiki:apikey:${id}`;
+  }
+
+  async healthCheckProvider(providerId: ProviderId): Promise<HealthCheckResult> {
+    const provider = this.providers.get(providerId);
+    if (!provider) {
+      const now = Date.now();
+      return {
+        isHealthy: false,
+        responseTime: 0,
+        error: `Provider ${providerId} not found`,
+        lastChecked: new Date(now),
+      };
+    }
+
+    const start = Date.now();
+    try {
+      let apiKey = await this.secrets.get(this.keyName(providerId));
+      if (!apiKey) {
+        const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+        apiKey = providerConfig?.apiKey;
+      }
+
+      const maybeWithKey = (provider as any).healthCheckWithKey as
+        | ((apiKey?: string) => Promise<HealthCheckResult>)
+        | undefined;
+
+      if (maybeWithKey) {
+        const res = await maybeWithKey.call(provider, apiKey || undefined);
+        // Ensure responseTime populated
+        if (typeof res.responseTime !== "number") {
+          res.responseTime = Date.now() - start;
+        }
+        if (!res.lastChecked) res.lastChecked = new Date();
+        return res;
+      }
+
+      const res = await provider.healthCheck();
+      if (typeof res.responseTime !== "number") {
+        res.responseTime = Date.now() - start;
+      }
+      if (!res.lastChecked) res.lastChecked = new Date();
+      return res;
+    } catch (error: any) {
+      const responseTime = Date.now() - start;
+      return {
+        isHealthy: false,
+        responseTime,
+        error: error?.message || String(error),
+        lastChecked: new Date(),
+      };
+    }
   }
 }
