@@ -291,13 +291,16 @@ const trackStyle = computed(() => {
 .step-wrapper {
   width: 100%;
   height: 100%;
+  overflow: visible;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .viewport {
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .step-track {
@@ -307,6 +310,7 @@ const trackStyle = computed(() => {
   will-change: transform;
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
   min-height: 100%;
+  padding: 8px 0;
 }
 
 .step-row {
@@ -394,9 +398,9 @@ const trackStyle = computed(() => {
 }
 
 .pending-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
   background: var(--border, var(--vscode-widget-border));
   opacity: 0.4;
 }
@@ -423,13 +427,12 @@ const trackStyle = computed(() => {
   animation: textPulse 1.4s ease-in-out infinite;
 }
 
-/* Left-to-right snappy shimmer */
 @keyframes skeletonShimmer {
   0% {
-    background-position: -110% 0;
+    background-position: 110% 0;
   }
   100% {
-    background-position: 110% 0;
+    background-position: -110% 0;
   }
 }
 
