@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import LoadingState from "@/components/features/LoadingState.vue";
 import { useLoading } from "@/loading/useLoading";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
+import { useNavigation } from "@/composables/useNavigation";
 
 interface SavedWiki {
   id: string;
@@ -26,6 +27,10 @@ const savedWikisLoadingContext = useLoading("savedWikis");
 const isSavedWikisLoading = computed(
   () => loading.value || savedWikisLoadingContext.isActive.value,
 );
+
+const isLoading = ref(false);
+const { currentPage } = useNavigation();
+let hasLoadedOnce = false;
 
 const filteredWikis = computed(() => {
   if (!searchQuery.value.trim()) return savedWikis.value;
@@ -53,15 +58,27 @@ const groupedWikis = computed(() => {
   return groups;
 });
 
-const loadSavedWikis = async () => {
+const loadSavedWikis = async (force: boolean = false) => {
+  if (isLoading.value || (hasLoadedOnce && !force)) {
+    console.log("[QWIKI] SavedWikisPage: Already loading or already loaded, skipping request", {
+      isLoading: isLoading.value,
+      hasLoadedOnce,
+      force,
+    });
+    return;
+  }
+
   try {
+    isLoading.value = true;
     loading.value = true;
     error.value = null;
     savedWikisLoadingContext.start("loading");
     vscode.postMessage({ command: "getSavedWikis" });
-  } catch (err) {
+    hasLoadedOnce = true;
+  } catch {
     error.value = "Failed to load saved wikis";
     loading.value = false;
+    isLoading.value = false;
     navigationStatus.finish("savedWikis");
     savedWikisLoadingContext.fail("Failed to load saved wikis");
   }
@@ -95,8 +112,8 @@ const handleMessage = (event: MessageEvent) => {
     case "savedWikisLoaded":
       savedWikis.value = message.payload.wikis;
       loading.value = false;
+      isLoading.value = false;
       navigationStatus.finish("savedWikis");
-      savedWikisLoadingContext.advance("preparing");
       savedWikisLoadingContext.complete();
       break;
     case "wikiDeleted":
@@ -109,6 +126,7 @@ const handleMessage = (event: MessageEvent) => {
       if (message.payload.type === "error") {
         error.value = message.payload.message;
         loading.value = false;
+        isLoading.value = false;
         navigationStatus.finish("savedWikis");
         savedWikisLoadingContext.fail(message.payload.message);
       }
@@ -116,8 +134,18 @@ const handleMessage = (event: MessageEvent) => {
   }
 };
 
+watch(
+  () => currentPage.value,
+  (newPage, oldPage) => {
+    if (newPage === "savedWikis" && oldPage !== "savedWikis" && !hasLoadedOnce) {
+      console.log("[QWIKI] SavedWikisPage: Page activated, loading wikis");
+      loadSavedWikis();
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
-  loadSavedWikis();
   window.addEventListener("message", handleMessage);
 });
 
@@ -131,7 +159,10 @@ onBeforeUnmount(() => {
     <div class="border-border flex-shrink-0 border-b p-4">
       <div class="flex items-center justify-between gap-4">
         <h1 class="text-lg font-semibold">Project Wiki Collection</h1>
-        <button class="text-muted-foreground hover:text-foreground text-sm" @click="loadSavedWikis">
+        <button
+          class="text-muted-foreground hover:text-foreground text-sm"
+          @click="() => loadSavedWikis(true)"
+        >
           Refresh
         </button>
       </div>

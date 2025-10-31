@@ -71,6 +71,8 @@ export class QwikiPanel {
   private _latestEnvironmentStatus: EnvironmentStatusPayload | undefined;
   private _languageStatusInterval: NodeJS.Timeout | undefined;
   private _lastBroadcastedStatus: string | undefined;
+  private _lastCommandExecutionTime = new Map<string, number>();
+  private readonly COMMAND_THROTTLE_DELAY = 1000; // 1 second throttle
 
   constructor(
     extensionUri: Uri,
@@ -441,6 +443,18 @@ export class QwikiPanel {
         try {
           const receiveTs = Date.now();
           console.log(`[QWIKI] QwikiPanel: Received webview message - command=${command}`);
+
+          if (command === "getSavedWikis") {
+            const lastTime = this._lastCommandExecutionTime.get(command) || 0;
+            if (receiveTs - lastTime < this.COMMAND_THROTTLE_DELAY) {
+              console.log(
+                `[QWIKI] QwikiPanel: Throttling getSavedWikis command, last executed ${receiveTs - lastTime}ms ago`,
+              );
+              return;
+            }
+            this._lastCommandExecutionTime.set(command, receiveTs);
+          }
+
           switch (command) {
             case "frontendLog": {
               try {

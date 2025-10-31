@@ -2,8 +2,11 @@ import { onMounted, onBeforeUnmount } from "vue";
 import { vscode } from "@/utilities/vscode";
 
 const lastPayloadByCommand = new Map<string, string>();
-const DEDUP_IN_BATCH = new Set<string>(["environmentStatus"]);
-const DEDUP_ACROSS_BATCHES = new Set<string>(["environmentStatus"]);
+const lastExecutionTime = new Map<string, number>();
+const DEDUP_IN_BATCH = new Set<string>(["environmentStatus", "getSavedWikis"]);
+const DEDUP_ACROSS_BATCHES = new Set<string>(["environmentStatus", "getSavedWikis"]);
+const THROTTLED_COMMANDS = new Set<string>(["getSavedWikis"]);
+const THROTTLE_DELAY = 1000;
 
 function stringifyPayload(payload: any): string {
   try {
@@ -48,8 +51,22 @@ export function useBatchMessageBridge() {
     coalesced.reverse();
 
     const toForward: Array<{ command: string; payload: any }> = [];
+    const now = Date.now();
+
     for (const m of coalesced) {
       if (!m || !m.command) continue;
+
+      if (THROTTLED_COMMANDS.has(m.command)) {
+        const lastTime = lastExecutionTime.get(m.command) || 0;
+        if (now - lastTime < THROTTLE_DELAY) {
+          console.log(
+            `[QWIKI] BatchBridge: Throttling command ${m.command}, last executed ${now - lastTime}ms ago`,
+          );
+          continue;
+        }
+        lastExecutionTime.set(m.command, now);
+      }
+
       if (DEDUP_ACROSS_BATCHES.has(m.command)) {
         const key = m.command;
         const snapshot = stringifyPayload(m.payload);

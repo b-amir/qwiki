@@ -32,7 +32,6 @@ const environmentLoadingContext = useLoading("environment");
 const navigationLoadingContext = useLoading("navigation");
 const wikiLoadingContext = useLoading("wiki");
 const settingsLoadingContext = useLoading("settings");
-const savedWikisLoadingContext = useLoading("savedWikis");
 const errorHistoryLoadingContext = useLoading("errorHistory");
 
 const currentModels = computed(
@@ -73,12 +72,6 @@ const settingsNavigationLoading = computed(
   () =>
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "settings" &&
-    navigationStatus.isBackNavigation,
-);
-const savedWikisNavigationLoading = computed(
-  () =>
-    navigationLoadingContext.isActive.value &&
-    navigationTarget.value === "savedWikis" &&
     navigationStatus.isBackNavigation,
 );
 const errorHistoryNavigationLoading = computed(
@@ -127,13 +120,7 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
       </div>
 
       <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
-        <LoadingState v-if="savedWikisNavigationLoading" class="flex-1" context="navigation" />
-        <LoadingState
-          v-else-if="savedWikisLoadingContext.isActive.value"
-          class="flex-1"
-          context="savedWikis"
-        />
-        <SavedWikisPage v-else class="flex-1" />
+        <SavedWikisPage class="flex-1" />
       </div>
     </div>
   </main>
