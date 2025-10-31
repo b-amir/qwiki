@@ -11,6 +11,7 @@
             item.state,
             { center: index === activeLocalIndex },
             item.completedDepth ? `depth-${item.completedDepth}` : '',
+            item.pendingDepth ? `depth-${item.pendingDepth}` : '',
           ]"
         >
           <div
@@ -194,21 +195,28 @@ const stepStates = computed(() => {
     if (index < activeIndex.value) state = "completed";
     else if (index === activeIndex.value) state = props.currentStep ? "active" : "pending";
 
-    const distanceFromActive = activeIndex.value - index; // positive for completed above
+    const distanceFromActive = activeIndex.value - index; // positive for completed above, negative for pending below
     const completedDepth =
       state === "completed" && distanceFromActive >= 1 && distanceFromActive <= 3
         ? distanceFromActive
+        : 0;
+
+    const pendingDepth =
+      state === "pending" && distanceFromActive <= -1 && distanceFromActive >= -3
+        ? Math.abs(distanceFromActive)
         : 0;
 
     return {
       step,
       state,
       completedDepth,
+      pendingDepth,
       skeletonStyle: generateSkeletonStyle(step.text),
     } as {
       step: LoadingStep;
       state: StepState;
       completedDepth: number;
+      pendingDepth: number;
       skeletonStyle: Record<string, string>;
     };
   });
@@ -347,6 +355,19 @@ const trackStyle = computed(() => {
 
 .step-row.pending {
   gap: 8px;
+}
+
+.step-row.pending.depth-1 {
+  opacity: 0.85;
+  filter: blur(0.2px);
+}
+.step-row.pending.depth-2 {
+  opacity: 0.7;
+  filter: blur(0.5px);
+}
+.step-row.pending.depth-3 {
+  opacity: 0.55;
+  filter: blur(0.8px);
 }
 
 .skeleton-line {
