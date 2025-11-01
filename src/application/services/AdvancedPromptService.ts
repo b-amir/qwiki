@@ -5,6 +5,9 @@ import {
   type Logger,
 } from "../../infrastructure/services/LoggingService";
 import { PromptQualityAnalyzer } from "./prompt/PromptQualityAnalyzer";
+import { AdaptivePromptHelpers } from "./prompt/AdaptivePromptHelpers";
+import { PromptSectionBuilder } from "./prompt/PromptSectionBuilder";
+import { ContextAnalysisService } from "./ContextAnalysisService";
 import type { GenerateParams } from "../../llm/types";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import type {
@@ -14,18 +17,28 @@ import type {
   ValidationResult,
   EffectivenessScore,
   TestCase,
+  ComplexityAnalysis,
+  WikiOutline,
+  WikiSection,
+  ProviderVariants,
+  DocumentationType,
 } from "../../domain/entities/PromptEngineering";
 
 export class AdvancedPromptService {
   private logger: Logger;
   private qualityAnalyzer: PromptQualityAnalyzer;
+  private adaptiveHelpers: AdaptivePromptHelpers;
+  private sectionBuilder: PromptSectionBuilder;
 
   constructor(
     private loggingService: LoggingService,
+    private contextAnalysisService?: ContextAnalysisService,
     private eventBus?: EventBus,
   ) {
     this.logger = createLogger("AdvancedPromptService", loggingService);
     this.qualityAnalyzer = new PromptQualityAnalyzer();
+    this.adaptiveHelpers = new AdaptivePromptHelpers();
+    this.sectionBuilder = new PromptSectionBuilder();
   }
 
   static buildWikiPrompt(params: GenerateParams): string {
@@ -126,9 +139,11 @@ FORMATTING RULES:
   async generateDynamicPrompt(config: DynamicPromptConfig): Promise<string> {
     const template = await this.selectOptimalTemplate(config.context);
     const customized = await this.customizePromptSections(template, config.context);
-    const contextSection = this.buildContextSection(config.context);
-    const instructionsSection = this.buildInstructionsSection(config);
-    const outputSection = this.buildOutputFormatSection(config.language || "javascript");
+    const contextSection = this.sectionBuilder.buildContextSection(config.context);
+    const instructionsSection = this.sectionBuilder.buildInstructionsSection(config);
+    const outputSection = this.sectionBuilder.buildOutputFormatSection(
+      config.language || "javascript",
+    );
 
     const sections: string[] = [];
 
@@ -261,67 +276,184 @@ FORMATTING RULES:
     return this.qualityAnalyzer.calculateEffectivenessScore(prompt);
   }
 
-  private buildContextSection(context: ProjectContext): string {
+  async analyzeCodeComplexity(content: string): Promise<ComplexityAnalysis> {
+    const lines = content.split("\n");
+    const functionMatches = content.match(/(?:function|const|let|var|async)\s+\w+\s*[=(]/g) || [];
+    const classMatches = content.match(/class\s+\w+/g) || [];
+    const interfaceMatches = content.match(/interface\s+\w+/g) || [];
+    const nestingDepth = this.calculateSimpleNesting(content);
+
+    const functions = functionMatches.length;
+    const classes = classMatches.length;
+    const interfaces = interfaceMatches.length;
+
+    const overall = Math.min(
+      1.0,
+      functions * 0.1 + classes * 0.2 + interfaces * 0.15 + nestingDepth * 0.1,
+    );
+
+    return {
+      overall,
+      cyclomatic: functions + nestingDepth,
+      cognitive: nestingDepth * 0.5,
+      functions,
+      classes,
+      interfaces,
+      lines: lines.length,
+    };
+  }
+
+  private calculateSimpleNesting(content: string): number {
+    let maxDepth = 0;
+    let currentDepth = 0;
+
+    for (const char of content) {
+      if (char === "{") {
+        currentDepth++;
+        maxDepth = Math.max(maxDepth, currentDepth);
+      } else if (char === "}") {
+        currentDepth--;
+      }
+    }
+
+    return maxDepth;
+  }
+
+  async determineOptimalOutline(context: ProjectContext): Promise<WikiOutline> {
+    const hasRelated = context.related && context.related.length > 0;
+    const hasOverview = Boolean(context.overview?.trim());
+
+    const sections: WikiSection[] = [
+      { name: "What It Is", required: true, priority: 10 },
+      { name: "What It Does", required: true, priority: 9 },
+      { name: "How It Works", required: true, priority: 8 },
+      { name: "Usage Examples", required: true, priority: 7 },
+      { name: "Important Considerations", required: false, priority: 6 },
+    ];
+
+    if (hasRelated) {
+      sections.push({ name: "Related Components", required: false, priority: 5 });
+    }
+
+    if (hasOverview) {
+      sections.push({ name: "Project Integration", required: false, priority: 4 });
+    }
+
+    return {
+      sections,
+      priority: hasRelated && hasOverview ? 10 : hasRelated || hasOverview ? 7 : 5,
+    };
+  }
+
+  async generateContextualInstructions(context: ProjectContext): Promise<string> {
     const parts: string[] = [];
 
-    if (context.rootName) {
-      parts.push(`Project Name: ${context.rootName}`);
-    }
-
     if (context.overview) {
-      parts.push(`Project Overview: ${context.overview}`);
-    }
-
-    if (context.filesSample && context.filesSample.length > 0) {
-      parts.push(`Project Structure:\n${context.filesSample.map((p) => `  - ${p}`).join("\n")}`);
+      parts.push(`Project Context: ${context.overview}`);
     }
 
     if (context.related && context.related.length > 0) {
+      parts.push(`Include references to ${context.related.length} related file(s) when relevant.`);
+    }
+
+    if (context.filesSample && context.filesSample.length > 0) {
       parts.push(
-        `Related Files:\n${context.related
-          .map(
-            (r) =>
-              `  - [${r.path}${r.line ? `:${r.line}` : ""}](openfile:${r.path}${r.line ? `:${r.line}` : ""})`,
-          )
-          .join("\n")}`,
+        `Project structure includes ${context.filesSample.length} file(s). Use this to understand project organization.`,
       );
     }
 
     return parts.length > 0 ? parts.join("\n") : "";
   }
 
-  private buildInstructionsSection(config: DynamicPromptConfig): string {
-    const complexity = config.complexity || 0.5;
-    let instructions = "OUTPUT REQUIREMENTS:\n\nReturn ONLY raw Markdown content.\n\n";
+  async createProviderSpecificVariants(basePrompt: string): Promise<ProviderVariants> {
+    const variants: ProviderVariants = {
+      default: basePrompt,
+    };
 
-    if (complexity > 0.7) {
-      instructions +=
-        "Include detailed implementation analysis and edge cases.\nFocus on architectural patterns and design decisions.\n";
-    } else if (complexity < 0.3) {
-      instructions +=
-        "Keep documentation simple and straightforward.\nFocus on basic functionality.\n";
-    }
+    variants.openrouter = basePrompt.replace(/NON-NEGOTIABLE/gi, "REQUIRED");
+    variants["google-ai-studio"] = basePrompt.replace(/NON-NEGOTIABLE/gi, "REQUIRED");
+    variants.cohere = basePrompt.replace(/```/g, "`");
+    variants.huggingface = basePrompt.replace(/OUTPUT REQUIREMENTS/i, "Generate documentation");
+    variants.zai = basePrompt;
 
-    instructions +=
-      "Sections: What It Is, What It Does, How It Works, Usage Examples, Important Considerations, Related Components.";
-
-    return instructions;
+    return variants;
   }
 
-  private buildOutputFormatSection(language: string): string {
-    return `FORMATTING:
-- Use fenced code blocks: \`\`\`${language}\`
-- Keep paragraphs concise
-- Use bullet points for lists
-- Link files: [name](openfile:path)`;
-  }
+  async adaptPromptToLanguage(prompt: string, language: string): Promise<string> {
+    let adapted = prompt;
 
-  private buildExamplesSection(context: ProjectContext): string {
-    if (!context.related || context.related.length === 0) {
-      return "";
+    const languagePatterns: Record<string, { terms: string[]; conventions: string }> = {
+      typescript: {
+        terms: ["TypeScript", "type definitions", "interfaces", "generics"],
+        conventions: "Use TypeScript-specific terminology. Mention types and interfaces.",
+      },
+      javascript: {
+        terms: ["JavaScript", "functions", "objects", "prototypes"],
+        conventions: "Use JavaScript conventions. Focus on functions and object patterns.",
+      },
+      python: {
+        terms: ["Python", "functions", "classes", "modules", "decorators"],
+        conventions: "Use Python conventions. Mention modules and decorators where relevant.",
+      },
+      java: {
+        terms: ["Java", "classes", "methods", "packages", "interfaces"],
+        conventions: "Use Java conventions. Focus on classes and packages.",
+      },
+    };
+
+    const langInfo = languagePatterns[language.toLowerCase()];
+    if (langInfo) {
+      adapted = `${adapted}\n\nLanguage-specific guidance: ${langInfo.conventions}`;
     }
 
-    const examples = context.related.slice(0, 3).map((r) => `- ${r.path}`);
-    return `Example related files:\n${examples.join("\n")}`;
+    return adapted;
+  }
+
+  async filterIrrelevantSections(
+    outline: WikiOutline,
+    context: ProjectContext,
+  ): Promise<WikiOutline> {
+    const hasRelated = context.related && context.related.length > 0;
+    const hasOverview = Boolean(context.overview?.trim());
+
+    const filtered: WikiSection[] = outline.sections.filter((section) => {
+      if (section.required) return true;
+      if (section.name === "Related Components" && !hasRelated) return false;
+      if (section.name === "Project Integration" && !hasOverview) return false;
+      return true;
+    });
+
+    return {
+      sections: filtered,
+      priority: outline.priority,
+    };
+  }
+
+  private detectDocumentationType(content: string): DocumentationType {
+    return this.adaptiveHelpers.detectDocumentationType(content);
+  }
+
+  private generateTechStackInfo(context: ProjectContext): string {
+    return this.adaptiveHelpers.generateTechStackInfo(context);
+  }
+
+  private createImprovementSuggestions(context: ProjectContext): string {
+    return this.adaptiveHelpers.createImprovementSuggestions(context);
+  }
+
+  private generateBestPracticesInfo(language: string, framework?: string): string {
+    return this.adaptiveHelpers.generateBestPracticesInfo(language, framework);
+  }
+
+  private createSyntaxSection(language: string, complexity: number): string {
+    return this.adaptiveHelpers.createSyntaxSection(language, complexity);
+  }
+
+  private generateSummaryRequirements(context: ProjectContext): string {
+    return this.adaptiveHelpers.generateSummaryRequirements(context);
+  }
+
+  private createInDepthRequirements(context: ProjectContext): string {
+    return this.adaptiveHelpers.createInDepthRequirements(context);
   }
 }

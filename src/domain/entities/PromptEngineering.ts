@@ -56,3 +56,31 @@ export interface TestCase {
   expectedOutput?: string;
   context?: ProjectContext;
 }
+
+export interface ComplexityAnalysis {
+  overall: number;
+  cyclomatic: number;
+  cognitive: number;
+  functions: number;
+  classes: number;
+  interfaces: number;
+  lines: number;
+}
+
+export interface WikiOutline {
+  sections: WikiSection[];
+  priority: number;
+}
+
+export interface WikiSection {
+  name: string;
+  required: boolean;
+  priority: number;
+  description?: string;
+}
+
+export interface ProviderVariants {
+  [provider: string]: string;
+}
+
+export type DocumentationType = "api" | "component" | "utility" | "service" | "config" | "unknown";
