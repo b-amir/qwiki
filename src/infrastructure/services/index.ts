@@ -22,3 +22,8 @@ export { RequestBatchingService } from "./RequestBatchingService";
 export { DebouncingService } from "./DebouncingService";
 export { BackgroundProcessingService } from "./BackgroundProcessingService";
 export { MemoryOptimizationService } from "./MemoryOptimizationService";
+export {
+  LoggingService,
+  type LogEntry,
+  type LoggerConfig,
+} from "./LoggingService";

@@ -31,6 +31,7 @@ import {
   DebouncingService,
   BackgroundProcessingService,
   MemoryOptimizationService,
+  LoggingService,
 } from "../infrastructure";
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
@@ -92,6 +93,15 @@ export class AppBootstrap {
       new BackgroundProcessingService(),
     );
     this.container.registerInstance("memoryOptimizationService", new MemoryOptimizationService());
+    this.container.registerInstance(
+      "loggingService",
+      new LoggingService({
+        enabled: false,
+        level: "error",
+        includeTimestamp: true,
+        includeService: true,
+      }),
+    );
 
     this.container.register(
       "apiKeyRepository",
