@@ -14,43 +14,14 @@ import {
   TaskPriority,
 } from "../../infrastructure/services/BackgroundProcessingService";
 import { MemoryOptimizationService } from "../../infrastructure/services/MemoryOptimizationService";
-
-type SnippetAnalysis = {
-  languageId?: string;
-  lineCount: number;
-  nonEmptyLineCount: number;
-  characterCount: number;
-  symbols: string[];
-};
-
-type ContextSummary = {
-  relatedCount: number;
-  relatedPaths: string[];
-  hasOverview: boolean;
-  hasRootName: boolean;
-  filesSample: string[];
-};
-
-type GenerationMetadata = {
-  analysis: SnippetAnalysis;
-  context: ContextSummary;
-};
-
-type GenerationInput = {
-  snippet: string;
-  project: ProjectContext;
-  metadata: GenerationMetadata;
-};
-
-type ProcessedGeneration = {
-  content: string;
-  metrics: {
-    headingCount: number;
-    listCount: number;
-    paragraphCount: number;
-    promptSeedLength: number;
-  };
-};
+import {
+  WikiTransformer,
+  type SnippetAnalysis,
+  type ContextSummary,
+  type GenerationInput,
+  type GenerationMetadata,
+  type ProcessedGeneration,
+} from "../transformers/WikiTransformer";
 
 export class WikiService {
   private debouncedGenerate: any;
@@ -178,15 +149,15 @@ export class WikiService {
     },
     onProgress?: (step: LoadingStep) => void,
   ): Promise<WikiGenerationResult> {
-    const analysis = this.analyzeSnippet(request.snippet, request.languageId);
+    const analysis = WikiTransformer.analyzeSnippet(request.snippet, request.languageId);
     onProgress?.(LoadingSteps.analyzing);
     await this.yieldForUi();
 
-    const contextSummary = this.summarizeContext(projectContext);
+    const contextSummary = WikiTransformer.summarizeContext(projectContext);
     onProgress?.(LoadingSteps.finding);
     await this.yieldForUi();
 
-    const generationInput = this.prepareGenerationInput(
+    const generationInput = WikiTransformer.prepareGenerationInput(
       request,
       projectContext,
       analysis,
@@ -195,7 +166,7 @@ export class WikiService {
     onProgress?.(LoadingSteps.preparing);
     await this.yieldForUi();
 
-    const promptSeed = this.buildPromptSeed(generationInput);
+    const promptSeed = WikiTransformer.buildPromptSeed(generationInput);
     onProgress?.(LoadingSteps.buildingPrompt);
     await this.yieldForUi();
 
@@ -211,7 +182,7 @@ export class WikiService {
     onProgress?.(LoadingSteps.waitingForResponse);
     const rawResult = await generationPromise;
 
-    const processed = this.processGenerationResult(
+    const processed = WikiTransformer.processGenerationResult(
       rawResult.content,
       generationInput.metadata,
       promptSeed,
@@ -219,7 +190,7 @@ export class WikiService {
     onProgress?.(LoadingSteps.processing);
     await this.yieldForUi();
 
-    const finalContent = this.finalizeContent(processed, generationInput.metadata);
+    const finalContent = WikiTransformer.finalizeContent(processed, generationInput.metadata);
     onProgress?.(LoadingSteps.finalizing);
     await this.yieldForUi();
 
@@ -231,179 +202,6 @@ export class WikiService {
     await this.generationCacheService.cacheGeneration(generateParams, finalResult);
 
     return finalResult;
-  }
-
-  private analyzeSnippet(snippet: string, languageId?: string): SnippetAnalysis {
-    const normalized = snippet.replace(/\r\n/g, "\n");
-    const lines = normalized.split("\n");
-    let nonEmptyLineCount = 0;
-    for (const line of lines) {
-      if (line.trim().length > 0) {
-        nonEmptyLineCount++;
-      }
-    }
-    const tokens = this.extractSymbolCandidates(lines);
-
-    return {
-      languageId,
-      lineCount: lines.length,
-      nonEmptyLineCount,
-      characterCount: normalized.length,
-      symbols: tokens,
-    };
-  }
-
-  private extractSymbolCandidates(lines: string[]) {
-    const candidates = new Set<string>();
-    const combinedPattern =
-      /(?:(?:function|class|interface|type|const|let|var)\s+([A-Za-z0-9_]+)|([A-Za-z0-9_]+)\s*\()/;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      const match = combinedPattern.exec(trimmed);
-      if (match) {
-        const identifier = match[1] || match[2];
-        if (identifier) {
-          candidates.add(identifier);
-          if (candidates.size >= ServiceLimits.symbolsPerSnippet) break;
-        }
-      }
-    }
-
-    return Array.from(candidates);
-  }
-
-  private summarizeContext(projectContext: ProjectContext): ContextSummary {
-    const related = projectContext.related ?? [];
-    const filesSample = projectContext.filesSample ?? [];
-    return {
-      relatedCount: related.length,
-      relatedPaths: related
-        .map((entry) => entry.path)
-        .slice(0, ServiceLimits.maxRelatedPathsPreview),
-      hasOverview: Boolean(projectContext.overview?.trim()),
-      hasRootName: Boolean(projectContext.rootName?.trim()),
-      filesSample: filesSample.slice(0, ServiceLimits.maxFilesSamplePreview),
-    };
-  }
-
-  private prepareGenerationInput(
-    request: WikiGenerationRequest,
-    projectContext: ProjectContext,
-    analysis: SnippetAnalysis,
-    contextSummary: ContextSummary,
-  ): GenerationInput {
-    const normalizedSnippet = request.snippet.trimEnd();
-
-    const prunedProject: ProjectContext = {
-      rootName: projectContext.rootName,
-      overview: projectContext.overview,
-      filesSample: projectContext.filesSample?.slice(0, ServiceLimits.maxFileSampleDefault),
-      related: projectContext.related?.slice(0, ServiceLimits.maxRelatedPaths),
-    };
-
-    return {
-      snippet: normalizedSnippet,
-      project: prunedProject,
-      metadata: {
-        analysis,
-        context: contextSummary,
-      },
-    };
-  }
-
-  private buildPromptSeed(generationInput: GenerationInput) {
-    const { analysis, context } = generationInput.metadata;
-    const topSymbols = analysis.symbols.slice(0, ServiceLimits.maxTopSymbols).join(", ");
-    const relatedPreview = context.relatedPaths
-      .slice(0, ServiceLimits.maxRelatedPreview)
-      .join(", ");
-
-    const segments = [
-      `Lines:${analysis.lineCount}`,
-      `NonEmpty:${analysis.nonEmptyLineCount}`,
-      topSymbols ? `Symbols:${topSymbols}` : null,
-      relatedPreview ? `Related:${relatedPreview}` : null,
-    ].filter(Boolean);
-
-    return segments.join(" | ");
-  }
-
-  private processGenerationResult(
-    content: string,
-    metadata: GenerationMetadata,
-    promptSeed: string,
-  ): ProcessedGeneration {
-    const normalized = content.replace(/\r\n/g, "\n").trim();
-    const collapsed = normalized.replace(/\n{3,}/g, "\n\n");
-
-    let headingCount = 0;
-    let listCount = 0;
-    const paragraphSet = new Set<number>();
-
-    const lines = collapsed.split("\n");
-    let currentParagraphStart = 0;
-    let inParagraph = false;
-
-    const headingPattern = /^#\s+/;
-    const listPattern = /^\s*[-*+]|\d+\.\s+/;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const trimmed = line.trim();
-
-      if (headingPattern.test(line)) {
-        headingCount++;
-      }
-
-      if (listPattern.test(line)) {
-        listCount++;
-      }
-
-      if (trimmed.length > 0) {
-        if (!inParagraph) {
-          currentParagraphStart = i;
-          inParagraph = true;
-        }
-      } else {
-        if (inParagraph) {
-          paragraphSet.add(currentParagraphStart);
-          inParagraph = false;
-        }
-      }
-    }
-
-    if (inParagraph) {
-      paragraphSet.add(currentParagraphStart);
-    }
-
-    const metrics = {
-      headingCount,
-      listCount,
-      paragraphCount: paragraphSet.size,
-      promptSeedLength: promptSeed.length,
-    };
-
-    return {
-      content: collapsed,
-      metrics,
-    };
-  }
-
-  private finalizeContent(processed: ProcessedGeneration, metadata: GenerationMetadata) {
-    const lines = processed.content.split("\n");
-    const hasHeading = /^#\s+/.test(lines[0] || "");
-    const titleFromSymbol = metadata.analysis.symbols[0];
-    const heading = hasHeading
-      ? lines[0]
-      : `# ${titleFromSymbol ? `${titleFromSymbol} Overview` : "Generated Wiki"}`;
-
-    const body = hasHeading ? lines.slice(1).join("\n") : lines.join("\n");
-    const ensuredSpacing = body.replace(/(#\s.+)/g, "\n$1").replace(/\n{3,}/g, "\n\n");
-    const trimmed = ensuredSpacing.trimEnd();
-    const rebuilt = `${heading}\n\n${trimmed}`.trimEnd();
-
-    return rebuilt.endsWith("\n") ? rebuilt : `${rebuilt}\n`;
   }
 
   private async yieldForUi(minDuration = ServiceLimits.uiYieldDuration) {
