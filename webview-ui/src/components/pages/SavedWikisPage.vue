@@ -2,10 +2,14 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
+import { useNavigation } from "@/composables/useNavigation";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ErrorDisplay from "@/components/features/ErrorDisplay.vue";
+import WikiBulkActions from "@/components/features/WikiBulkActions.vue";
+import WikiFilters from "@/components/features/WikiFilters.vue";
+import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
+import WikiListItem from "@/components/features/WikiListItem.vue";
 import { useLoading } from "@/loading/useLoading";
-import { useNavigation } from "@/composables/useNavigation";
 import { createLogger } from "@/utilities/logging";
 
 interface SavedWiki {
@@ -24,6 +28,14 @@ const savedWikis = ref<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
+const selectedWikis = ref<Set<string>>(new Set());
+const previewWiki = ref<SavedWiki | null>(null);
+const fileTypeFilter = ref("");
+const dateFilter = ref("");
+const relevanceFilter = ref("");
+const sortBy = ref<"title" | "date" | "size" | "relevance">("date");
+const sortOrder = ref<"asc" | "desc">("desc");
+
 const savedWikisLoadingContext = useLoading("savedWikis");
 const isSavedWikisLoading = computed(
   () => loading.value || savedWikisLoadingContext.isActive.value,
@@ -34,15 +46,64 @@ const { currentPage } = useNavigation();
 let hasLoadedOnce = false;
 
 const filteredWikis = computed(() => {
-  if (!searchQuery.value.trim()) return savedWikis.value;
+  let result = savedWikis.value;
 
-  const query = searchQuery.value.toLowerCase();
-  return savedWikis.value.filter(
-    (wiki) =>
-      wiki.title.toLowerCase().includes(query) ||
-      wiki.content.toLowerCase().includes(query) ||
-      wiki.tags.some((tag) => tag.toLowerCase().includes(query)),
-  );
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase();
+    result = result.filter(
+      (wiki) =>
+        wiki.title.toLowerCase().includes(query) ||
+        wiki.content.toLowerCase().includes(query) ||
+        wiki.tags.some((tag) => tag.toLowerCase().includes(query)),
+    );
+  }
+
+  if (fileTypeFilter.value) {
+    result = result.filter((wiki) => wiki.filePath.endsWith(fileTypeFilter.value));
+  }
+
+  if (dateFilter.value) {
+    const now = new Date();
+    result = result.filter((wiki) => {
+      const wikiDate = new Date(wiki.createdAt);
+      const diffTime = now.getTime() - wikiDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      switch (dateFilter.value) {
+        case "today":
+          return diffDays < 1;
+        case "week":
+          return diffDays < 7;
+        case "month":
+          return diffDays < 30;
+        default:
+          return true;
+      }
+    });
+  }
+
+  const sorted = [...result].sort((a, b) => {
+    let comparison = 0;
+
+    switch (sortBy.value) {
+      case "title":
+        comparison = a.title.localeCompare(b.title);
+        break;
+      case "date":
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        break;
+      case "size":
+        comparison = a.content.length - b.content.length;
+        break;
+      case "relevance":
+        comparison = 0;
+        break;
+    }
+
+    return sortOrder.value === "asc" ? comparison : -comparison;
+  });
+
+  return sorted;
 });
 
 const groupedWikis = computed(() => {
@@ -58,6 +119,51 @@ const groupedWikis = computed(() => {
 
   return groups;
 });
+
+const selectWiki = (wikiId: string, checked: boolean) => {
+  if (checked) {
+    selectedWikis.value.add(wikiId);
+  } else {
+    selectedWikis.value.delete(wikiId);
+  }
+};
+
+const selectAll = () => {
+  if (selectedWikis.value.size === filteredWikis.value.length) {
+    selectedWikis.value.clear();
+  } else {
+    filteredWikis.value.forEach((wiki) => selectedWikis.value.add(wiki.id));
+  }
+};
+
+const createAggregation = () => {
+  if (selectedWikis.value.size === 0) return;
+  vscode.postMessage({
+    command: "navigate",
+    payload: { page: "wikiAggregation", preselectedWikis: Array.from(selectedWikis.value) },
+  });
+};
+
+const updateReadme = () => {
+  if (selectedWikis.value.size === 0) return;
+  vscode.postMessage({
+    command: "navigate",
+    payload: { page: "readmeUpdate", preselectedWikis: Array.from(selectedWikis.value) },
+  });
+};
+
+const exportWikis = () => {
+  if (selectedWikis.value.size === 0) return;
+  vscode.postMessage({
+    command: "exportWikis",
+    payload: { wikiIds: Array.from(selectedWikis.value) },
+  });
+};
+
+const showPreview = (wiki: SavedWiki, event: Event) => {
+  event.stopPropagation();
+  previewWiki.value = wiki;
+};
 
 const loadSavedWikis = async (force: boolean = false) => {
   if (isLoading.value || (hasLoadedOnce && !force)) {
@@ -104,16 +210,6 @@ const deleteWiki = async (wikiId: string, event: Event) => {
   }
 };
 
-const formatCreatedAt = (date: Date) => {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(date));
-};
-
 const handleMessage = (event: MessageEvent) => {
   const message = event.data;
 
@@ -127,6 +223,7 @@ const handleMessage = (event: MessageEvent) => {
       break;
     case "wikiDeleted":
       savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
+      selectedWikis.value.delete(message.payload.wikiId);
       break;
     case "showNotification":
       if (message.payload.type === "error") {
@@ -173,15 +270,49 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <div class="mt-4">
+      <div class="mt-4 flex items-center gap-4">
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Search wikis..."
-          class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full max-w-md rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+          class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring max-w-md flex-1 rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
         />
+        <WikiFilters
+          :file-type-filter="fileTypeFilter"
+          :date-filter="dateFilter"
+          :relevance-filter="relevanceFilter"
+          @update:file-type-filter="fileTypeFilter = $event"
+          @update:date-filter="dateFilter = $event"
+          @update:relevance-filter="relevanceFilter = $event"
+        />
+        <div class="flex items-center gap-2">
+          <label class="text-muted-foreground text-xs">Sort:</label>
+          <select
+            v-model="sortBy"
+            class="border-input bg-muted text-foreground focus-visible:ring-ring rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1"
+          >
+            <option value="title">Title</option>
+            <option value="date">Date</option>
+            <option value="size">Size</option>
+            <option value="relevance">Relevance</option>
+          </select>
+          <button
+            class="border-input bg-muted text-foreground hover:bg-accent rounded-md border px-2 py-1 text-xs"
+            @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+          >
+            {{ sortOrder === "asc" ? "↑" : "↓" }}
+          </button>
+        </div>
       </div>
     </div>
+
+    <WikiBulkActions
+      v-if="selectedWikis.size > 0"
+      :selected-count="selectedWikis.size"
+      @create-aggregation="createAggregation"
+      @update-readme="updateReadme"
+      @export="exportWikis"
+    />
 
     <div class="flex-1 overflow-hidden">
       <div v-if="isSavedWikisLoading" class="flex h-full w-full">
@@ -211,87 +342,43 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-else class="h-full overflow-y-auto">
+        <div class="border-border bg-background sticky top-0 z-10 border-b px-4 py-2">
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              :checked="selectedWikis.size === filteredWikis.length && filteredWikis.length > 0"
+              :indeterminate="selectedWikis.size > 0 && selectedWikis.size < filteredWikis.length"
+              @change="selectAll()"
+            />
+            Select All
+          </label>
+        </div>
         <div
           v-for="(wikis, date) in groupedWikis"
           :key="date"
           class="border-border border-b last:border-b-0"
         >
           <div
-            class="bg-muted/30 text-muted-foreground sticky top-0 z-10 px-4 py-2 text-xs font-medium uppercase tracking-wider"
+            class="bg-muted/30 text-muted-foreground sticky top-[41px] z-10 px-4 py-2 text-xs font-medium uppercase tracking-wider"
           >
             {{ date }}
           </div>
           <div class="divide-border divide-y">
-            <div
+            <WikiListItem
               v-for="wiki in wikis"
               :key="wiki.id"
-              class="hover:bg-accent/50 group relative cursor-pointer transition-colors"
-              @click="openWiki(wiki)"
-            >
-              <div class="p-4">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0 flex-1">
-                    <div class="mb-1 truncate text-sm font-medium">{{ wiki.title }}</div>
-                    <div class="text-muted-foreground mb-2 text-xs">
-                      {{ formatCreatedAt(wiki.createdAt) }}
-                    </div>
-                    <div v-if="wiki.tags.length > 0" class="flex flex-wrap gap-1">
-                      <span
-                        v-for="tag in wiki.tags.slice(0, 3)"
-                        :key="tag"
-                        class="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-xs"
-                      >
-                        {{ tag }}
-                      </span>
-                      <span v-if="wiki.tags.length > 3" class="text-muted-foreground text-xs">
-                        +{{ wiki.tags.length - 3 }}
-                      </span>
-                    </div>
-                  </div>
-                  <div class="flex flex-shrink-0 items-center gap-2">
-                    <button
-                      class="text-muted-foreground hover:text-destructive p-1 transition-colors"
-                      title="Delete wiki"
-                      @click="deleteWiki(wiki.id, $event)"
-                    >
-                      <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                        />
-                      </svg>
-                    </button>
-                    <div
-                      class="text-muted-foreground group-hover:text-foreground translate-x-[-4px] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
-                    >
-                      <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M8.25 4.5l7.5 7.5-7.5 7.5"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              :wiki="wiki"
+              :selected="selectedWikis.has(wiki.id)"
+              @select="selectWiki"
+              @preview="showPreview"
+              @delete="deleteWiki"
+              @open="openWiki"
+            />
           </div>
         </div>
       </div>
     </div>
+
+    <WikiPreviewModal :wiki="previewWiki" @close="previewWiki = null" />
   </div>
 </template>
