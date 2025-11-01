@@ -31,7 +31,6 @@ export function useSettingsInitialization(
     try {
       vscode.postMessage({ command: "getProviders" });
       vscode.postMessage({ command: "getProviderConfigs" });
-      settings.getProviderCapabilities();
 
       const providersEndTime = Date.now();
       logger.debug(`Provider data requests sent in ${providersEndTime - providersStartTime}ms`);

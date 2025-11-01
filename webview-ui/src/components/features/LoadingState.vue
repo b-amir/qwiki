@@ -1,7 +1,11 @@
 <template>
-  <div class="flex h-full w-full items-center justify-center px-16">
-    <div class="w-full max-w-md">
-      <DynamicSkeleton :steps="resolvedSteps" :current-step="resolvedCurrentStep" :density="resolvedDensity" />
+  <div class="loading-container flex h-full w-full items-center justify-center">
+    <div :class="['loading-content', 'w-full', 'max-w-md', { 'single-step': isSingleStep }]">
+      <DynamicSkeleton
+        :steps="resolvedSteps"
+        :current-step="resolvedCurrentStep"
+        :density="resolvedDensity"
+      />
     </div>
   </div>
 </template>
@@ -27,7 +31,9 @@ const props = withDefaults(defineProps<Props>(), {
   density: "medium" as LoadingDensity,
 });
 
-const loading = props.context ? useLoading(props.context, { steps: props.steps, density: props.density }) : null;
+const loading = props.context
+  ? useLoading(props.context, { steps: props.steps, density: props.density })
+  : null;
 
 const resolvedSteps = computed<LoadingStepDefinition[]>(() => {
   if (loading) return loading.steps.value;
@@ -47,4 +53,25 @@ const resolvedDensity = computed<LoadingDensity>(() => {
   if (loading) return loading.density.value;
   return props.density ?? "medium";
 });
+
+const isSingleStep = computed(() => resolvedSteps.value.length === 1);
 </script>
+
+<style scoped>
+.loading-container {
+  padding-left: clamp(1rem, 4vw, 4rem);
+  padding-right: clamp(1rem, 4vw, 4rem);
+}
+
+.loading-content {
+  width: 100%;
+}
+
+.loading-content.single-step {
+  width: auto !important;
+  max-width: none !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+</style>

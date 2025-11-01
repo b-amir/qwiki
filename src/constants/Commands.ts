@@ -10,6 +10,7 @@ export const CommandIds = {
   deleteApiKey: "deleteApiKey",
   getApiKeys: "getApiKeys",
   getProviderConfigs: "getProviderConfigs",
+  getProviderCapabilities: "getProviderCapabilities",
   getConfiguration: "getConfiguration",
   updateConfiguration: "updateConfiguration",
   validateConfiguration: "validateConfiguration",

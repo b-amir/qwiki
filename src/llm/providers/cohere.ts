@@ -7,6 +7,8 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
+import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
+import { performHealthCheck } from "./helpers/healthCheckHelper";
 
 const COHERE_MODELS = ["command-a-03-2025", "command-r-plus-08-2024", "command-r-08-2024"];
 
@@ -42,12 +44,46 @@ export class CohereProvider implements LLMProvider {
       ProviderFeature.DOCUMENTATION_GENERATION,
       ProviderFeature.MULTI_LANGUAGE,
       ProviderFeature.CONTEXT_AWARENESS,
+      ProviderFeature.STREAMING_RESPONSE,
+      ProviderFeature.FUNCTION_CALLING,
     ],
-    streaming: false,
-    functionCalling: false,
-    contextWindowSize: 4096,
+    streaming: true,
+    functionCalling: true,
+    contextWindowSize: 131072, // 128k tokens for Command R Plus
     rateLimitPerMinute: 100,
   };
+
+  getModelCapabilities(model?: string): ProviderCapabilities {
+    const baseCapabilities = { ...this.capabilities };
+
+    if (model === "command-r-plus-08-2024") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 131072, // 128k tokens
+        streaming: true,
+        functionCalling: true,
+      };
+    } else if (model === "command-r-08-2024") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 100000, // 100k tokens
+        streaming: true,
+        functionCalling: true,
+      };
+    } else if (model === "command-a-03-2025") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 131072, // 128k tokens
+        streaming: true,
+        functionCalling: true,
+      };
+    }
+
+    return baseCapabilities;
+  }
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
@@ -80,44 +116,12 @@ export class CohereProvider implements LLMProvider {
       clearTimeout(timeoutId);
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new ProviderError(
-          ErrorCodes.NETWORK_ERROR,
-          "Cohere request timed out after 30 seconds",
-          this.id,
-          "Request timeout",
-        );
-      }
-      throw error;
+      handleTimeoutError(error, this.id, "Cohere");
     }
 
     if (!res.ok) {
       const text = await res.text();
-      if (res.status === 401) {
-        throw new ProviderError(
-          ErrorCodes.API_KEY_INVALID,
-          "Cohere API key is invalid",
-          this.id,
-          text,
-        );
-      }
-      if (res.status === 429) {
-        throw new ProviderError(
-          ErrorCodes.RATE_LIMIT_EXCEEDED,
-          "Cohere rate limit exceeded",
-          this.id,
-          text,
-        );
-      }
-      if (res.status >= 500) {
-        throw new ProviderError(ErrorCodes.NETWORK_ERROR, "Cohere server error", this.id, text);
-      }
-      throw new ProviderError(
-        ErrorCodes.GENERATION_FAILED,
-        `Cohere request failed: ${res.status}`,
-        this.id,
-        text,
-      );
+      handleHttpError(res, this.id, "Cohere", text);
     }
 
     const data: any = await res.json();
@@ -171,64 +175,14 @@ export class CohereProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    return this.healthCheckWithKey?.(undefined) ?? (async () => {
-      const startTime = Date.now();
-      try {
-        const response = await fetch("https://api.cohere.com/v1/models", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        const responseTime = Date.now() - startTime;
-        if (response.ok) {
-          return { isHealthy: true, responseTime, lastChecked: new Date() };
-        }
-        return {
-          isHealthy: false,
-          responseTime,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-          lastChecked: new Date(),
-        };
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        return {
-          isHealthy: false,
-          responseTime,
-          error: error instanceof Error ? error.message : "Unknown error",
-          lastChecked: new Date(),
-        };
-      }
-    })();
+    return (
+      this.healthCheckWithKey?.(undefined) ?? performHealthCheck("https://api.cohere.com/v1/models")
+    );
   }
 
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-      const response = await fetch("https://api.cohere.com/v1/models", {
-        method: "GET",
-        headers,
-      });
-      const responseTime = Date.now() - startTime;
-      if (response.ok) {
-        return { isHealthy: true, responseTime, lastChecked: new Date() };
-      }
-      return {
-        isHealthy: false,
-        responseTime,
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        lastChecked: new Date(),
-      };
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      return {
-        isHealthy: false,
-        responseTime,
-        error: error instanceof Error ? error.message : "Unknown error",
-        lastChecked: new Date(),
-      };
-    }
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    return performHealthCheck("https://api.cohere.com/v1/models", headers);
   }
 }

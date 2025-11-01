@@ -7,6 +7,8 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
+import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
+import { performHealthCheck } from "./helpers/healthCheckHelper";
 
 const HUGGINGFACE_MODELS = [
   "bigscience/bloomz-7b1",
@@ -47,12 +49,53 @@ export class HuggingFaceProvider implements LLMProvider {
       ProviderFeature.DOCUMENTATION_GENERATION,
       ProviderFeature.MULTI_LANGUAGE,
       ProviderFeature.CONTEXT_AWARENESS,
+      ProviderFeature.STREAMING_RESPONSE,
     ],
-    streaming: false,
+    streaming: true,
     functionCalling: false,
-    contextWindowSize: 2048,
+    contextWindowSize: 4096,
     rateLimitPerMinute: 30,
   };
+
+  getModelCapabilities(model?: string): ProviderCapabilities {
+    const baseCapabilities = { ...this.capabilities };
+
+    if (model === "codellama/CodeLlama-7b-Instruct-hf") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 16384,
+        streaming: true,
+        functionCalling: false,
+      };
+    } else if (model === "tiiuae/falcon-7b-instruct") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 2048,
+        contextWindowSize: 2048,
+        streaming: true,
+        functionCalling: false,
+      };
+    } else if (model === "bigscience/bloomz-7b1") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 512,
+        contextWindowSize: 2048,
+        streaming: false,
+        functionCalling: false,
+      };
+    } else if (model === "microsoft/CodeT5-base") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 512,
+        contextWindowSize: 512,
+        streaming: false,
+        functionCalling: false,
+      };
+    }
+
+    return baseCapabilities;
+  }
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
@@ -68,7 +111,7 @@ export class HuggingFaceProvider implements LLMProvider {
     const prompt = buildWikiPrompt(params);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     let res;
     try {
@@ -90,49 +133,12 @@ export class HuggingFaceProvider implements LLMProvider {
       clearTimeout(timeoutId);
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new ProviderError(
-          ErrorCodes.NETWORK_ERROR,
-          "Hugging Face request timed out after 30 seconds",
-          this.id,
-          "Request timeout",
-        );
-      }
-      throw error;
+      handleTimeoutError(error, this.id, "Hugging Face");
     }
 
     if (!res.ok) {
       const text = await res.text();
-      if (res.status === 401) {
-        throw new ProviderError(
-          ErrorCodes.API_KEY_INVALID,
-          "Hugging Face API key is invalid",
-          this.id,
-          text,
-        );
-      }
-      if (res.status === 429) {
-        throw new ProviderError(
-          ErrorCodes.RATE_LIMIT_EXCEEDED,
-          "Hugging Face rate limit exceeded",
-          this.id,
-          text,
-        );
-      }
-      if (res.status >= 500) {
-        throw new ProviderError(
-          ErrorCodes.NETWORK_ERROR,
-          "Hugging Face server error",
-          this.id,
-          text,
-        );
-      }
-      throw new ProviderError(
-        ErrorCodes.GENERATION_FAILED,
-        `Hugging Face request failed: ${res.status}`,
-        this.id,
-        text,
-      );
+      handleHttpError(res, this.id, "Hugging Face", text);
     }
 
     const data: any = await res.json();
@@ -196,62 +202,15 @@ export class HuggingFaceProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    return this.healthCheckWithKey?.(undefined) ?? (async () => {
-      const startTime = Date.now();
-      try {
-        const response = await fetch("https://huggingface.co/api/models", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-        const responseTime = Date.now() - startTime;
-        if (response.ok) {
-          return { isHealthy: true, responseTime, lastChecked: new Date() };
-        }
-        return {
-          isHealthy: false,
-          responseTime,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-          lastChecked: new Date(),
-        };
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        return {
-          isHealthy: false,
-          responseTime,
-          error: error instanceof Error ? error.message : "Unknown error",
-          lastChecked: new Date(),
-        };
-      }
-    })();
+    return (
+      this.healthCheckWithKey?.(undefined) ??
+      performHealthCheck("https://huggingface.co/api/models")
+    );
   }
 
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-      const response = await fetch("https://huggingface.co/api/models", {
-        method: "GET",
-        headers,
-      });
-      const responseTime = Date.now() - startTime;
-      if (response.ok) {
-        return { isHealthy: true, responseTime, lastChecked: new Date() };
-      }
-      return {
-        isHealthy: false,
-        responseTime,
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        lastChecked: new Date(),
-      };
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      return {
-        isHealthy: false,
-        responseTime,
-        error: error instanceof Error ? error.message : "Unknown error",
-        lastChecked: new Date(),
-      };
-    }
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    return performHealthCheck("https://huggingface.co/api/models", headers);
   }
 }

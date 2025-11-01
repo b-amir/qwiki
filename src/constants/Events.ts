@@ -29,6 +29,7 @@ export const OutboundEvents = {
   apiKeyDeleted: "apiKeyDeleted",
   providers: "providers",
   providerConfigs: "providerConfigs",
+  providerCapabilitiesRetrieved: "providerCapabilitiesRetrieved",
   apiKeys: "apiKeys",
   settingSaved: "settingSaved",
   wikiSaved: "wikiSaved",

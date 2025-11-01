@@ -7,6 +7,8 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
+import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
+import { performHealthCheck } from "./helpers/healthCheckHelper";
 
 const OPENROUTER_MODELS = [
   "openai/gpt-oss-20b",
@@ -46,12 +48,46 @@ export class OpenRouterProvider implements LLMProvider {
       ProviderFeature.DOCUMENTATION_GENERATION,
       ProviderFeature.MULTI_LANGUAGE,
       ProviderFeature.CONTEXT_AWARENESS,
+      ProviderFeature.STREAMING_RESPONSE,
+      ProviderFeature.FUNCTION_CALLING,
     ],
-    streaming: false,
-    functionCalling: false,
-    contextWindowSize: 4096,
+    streaming: true,
+    functionCalling: true,
+    contextWindowSize: 8192, // Varies by model, using conservative default
     rateLimitPerMinute: 100,
   };
+
+  getModelCapabilities(model?: string): ProviderCapabilities {
+    const baseCapabilities = { ...this.capabilities };
+
+    if (model === "meta-llama/llama-3-8b-instruct") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 8192,
+        contextWindowSize: 8192,
+        streaming: true,
+        functionCalling: true,
+      };
+    } else if (model === "microsoft/wizardlm-2-8x22b") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 16384,
+        contextWindowSize: 65536, // 64k tokens
+        streaming: true,
+        functionCalling: true,
+      };
+    } else if (model === "openai/gpt-oss-20b") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 8192,
+        streaming: true,
+        functionCalling: true,
+      };
+    }
+
+    return baseCapabilities;
+  }
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey) {
@@ -96,44 +132,12 @@ export class OpenRouterProvider implements LLMProvider {
       clearTimeout(timeoutId);
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new ProviderError(
-          ErrorCodes.NETWORK_ERROR,
-          "OpenRouter request timed out after 30 seconds",
-          this.id,
-          "Request timeout",
-        );
-      }
-      throw error;
+      handleTimeoutError(error, this.id, "OpenRouter");
     }
 
     if (!res.ok) {
       const text = await res.text();
-      if (res.status === 401) {
-        throw new ProviderError(
-          ErrorCodes.API_KEY_INVALID,
-          "OpenRouter API key is invalid",
-          this.id,
-          text,
-        );
-      }
-      if (res.status === 429) {
-        throw new ProviderError(
-          ErrorCodes.RATE_LIMIT_EXCEEDED,
-          "OpenRouter rate limit exceeded",
-          this.id,
-          text,
-        );
-      }
-      if (res.status >= 500) {
-        throw new ProviderError(ErrorCodes.NETWORK_ERROR, "OpenRouter server error", this.id, text);
-      }
-      throw new ProviderError(
-        ErrorCodes.GENERATION_FAILED,
-        `OpenRouter request failed: ${res.status}`,
-        this.id,
-        text,
-      );
+      handleHttpError(res, this.id, "OpenRouter", text);
     }
 
     const data: any = await res.json();
@@ -187,62 +191,15 @@ export class OpenRouterProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    return this.healthCheckWithKey?.(undefined) ?? (async () => {
-      const startTime = Date.now();
-      try {
-        const response = await fetch("https://openrouter.ai/api/v1/models", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-        const responseTime = Date.now() - startTime;
-        if (response.ok) {
-          return { isHealthy: true, responseTime, lastChecked: new Date() };
-        }
-        return {
-          isHealthy: false,
-          responseTime,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-          lastChecked: new Date(),
-        };
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        return {
-          isHealthy: false,
-          responseTime,
-          error: error instanceof Error ? error.message : "Unknown error",
-          lastChecked: new Date(),
-        };
-      }
-    })();
+    return (
+      this.healthCheckWithKey?.(undefined) ??
+      performHealthCheck("https://openrouter.ai/api/v1/models")
+    );
   }
 
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-    try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-      const response = await fetch("https://openrouter.ai/api/v1/models", {
-        method: "GET",
-        headers,
-      });
-      const responseTime = Date.now() - startTime;
-      if (response.ok) {
-        return { isHealthy: true, responseTime, lastChecked: new Date() };
-      }
-      return {
-        isHealthy: false,
-        responseTime,
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        lastChecked: new Date(),
-      };
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      return {
-        isHealthy: false,
-        responseTime,
-        error: error instanceof Error ? error.message : "Unknown error",
-        lastChecked: new Date(),
-      };
-    }
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    return performHealthCheck("https://openrouter.ai/api/v1/models", headers);
   }
 }

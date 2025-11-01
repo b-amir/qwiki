@@ -25,121 +25,17 @@
             ]"
           >
             <template v-if="item.state === 'active'">
-              <svg
-                class="spinner h-4 w-4"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <defs>
-                  <linearGradient id="starGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color: #8b5cf6">
-                      <animate
-                        attributeName="stop-color"
-                        values="#8B5CF6;#3B82F6;#8B5CF6"
-                        dur="6s"
-                        repeatCount="indefinite"
-                      />
-                    </stop>
-                    <stop offset="100%" style="stop-color: #3b82f6">
-                      <animate
-                        attributeName="stop-color"
-                        values="#3B82F6;#8B5CF6;#3B82F6"
-                        dur="2s"
-                        repeatCount="indefinite"
-                      />
-                    </stop>
-                  </linearGradient>
-                </defs>
-                <rect x="1" y="1" rx="1" width="10" height="10">
-                  <animate
-                    id="spinner_FFyM"
-                    begin="0;spinner_HDCY.end"
-                    attributeName="x"
-                    dur="0.2s"
-                    values="1;13"
-                    fill="freeze"
-                  />
-                  <animate
-                    id="spinner_AIvE"
-                    begin="spinner_1FwE.end"
-                    attributeName="y"
-                    dur="0.2s"
-                    values="1;13"
-                    fill="freeze"
-                  />
-                  <animate
-                    id="spinner_wWCL"
-                    begin="spinner_gH4o.end"
-                    attributeName="x"
-                    dur="0.2s"
-                    values="13;1"
-                    fill="freeze"
-                  />
-                  <animate
-                    id="spinner_S3Gg"
-                    begin="spinner_Q0bx.end"
-                    attributeName="y"
-                    dur="0.2s"
-                    values="13;1"
-                    fill="freeze"
-                  />
-                </rect>
-                <rect x="1" y="13" rx="1" width="10" height="10">
-                  <animate
-                    id="spinner_1FwE"
-                    begin="spinner_FFyM.end"
-                    attributeName="y"
-                    dur="0.2s"
-                    values="13;1"
-                    fill="freeze"
-                  />
-                  <animate
-                    id="spinner_gH4o"
-                    begin="spinner_AIvE.end"
-                    attributeName="x"
-                    dur="0.2s"
-                    values="1;13"
-                    fill="freeze"
-                  />
-                  <animate
-                    id="spinner_Q0bx"
-                    begin="spinner_wWCL.end"
-                    attributeName="y"
-                    dur="0.2s"
-                    values="1;13"
-                    fill="freeze"
-                  />
-                  <animate
-                    id="spinner_HDCY"
-                    begin="spinner_S3Gg.end"
-                    attributeName="x"
-                    dur="0.2s"
-                    values="13;1"
-                    fill="freeze"
-                  />
-                </rect>
-              </svg>
+              <StepSpinner />
             </template>
             <template v-else-if="item.state === 'completed'">
-              <svg class="check-icon h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M20 6L9 17l-5-5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <StepCheckIcon />
             </template>
             <template v-else>
               <span class="pending-dot" aria-hidden="true"></span>
             </template>
           </div>
 
-          <div class="flex-1">
+          <div class="step-text-container min-w-0 flex-1">
             <span
               v-if="item.state !== 'pending'"
               :class="[
@@ -160,14 +56,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from "vue";
+import { computed, watch } from "vue";
+import StepSpinner from "./StepSpinner.vue";
+import StepCheckIcon from "./StepCheckIcon.vue";
+import { useStepStates } from "@/composables/useStepStates";
+import { useStepTracking } from "@/composables/useStepTracking";
 
 interface LoadingStep {
   text: string;
   key: string;
 }
-
-type StepState = "completed" | "active" | "pending";
 
 const props = defineProps<{
   steps?: LoadingStep[];
@@ -183,102 +81,15 @@ const fallbackSteps: LoadingStep[] = [
 
 const steps = computed(() => (props.steps && props.steps.length ? props.steps : fallbackSteps));
 
-const activeIndex = computed(() => {
-  if (!props.currentStep) return 0;
-  const index = steps.value.findIndex((step) => step.key === props.currentStep);
-  return index === -1 ? 0 : index;
-});
-
-const stepStates = computed(() => {
-  return steps.value.map((step, index) => {
-    let state: StepState = "pending";
-    if (index < activeIndex.value) state = "completed";
-    else if (index === activeIndex.value) state = props.currentStep ? "active" : "pending";
-
-    const distanceFromActive = activeIndex.value - index; // positive for completed above, negative for pending below
-    const completedDepth =
-      state === "completed" && distanceFromActive >= 1 && distanceFromActive <= 3
-        ? distanceFromActive
-        : 0;
-
-    const pendingDepth =
-      state === "pending" && distanceFromActive <= -1 && distanceFromActive >= -3
-        ? Math.abs(distanceFromActive)
-        : 0;
-
-    return {
-      step,
-      state,
-      completedDepth,
-      pendingDepth,
-      skeletonStyle: generateSkeletonStyle(step.text),
-    } as {
-      step: LoadingStep;
-      state: StepState;
-      completedDepth: number;
-      pendingDepth: number;
-      skeletonStyle: Record<string, string>;
-    };
-  });
-});
-
-const visibleStart = computed(() => Math.max(0, activeIndex.value - 3));
-const visibleEnd = computed(() => Math.min(steps.value.length - 1, activeIndex.value + 3));
-const visibleStepStates = computed(() =>
-  stepStates.value.slice(visibleStart.value, visibleEnd.value + 1),
+const { visibleStepStates, activeLocalIndex, activeIndex } = useStepStates(
+  steps,
+  computed(() => props.currentStep),
 );
-const activeLocalIndex = computed(() => activeIndex.value - visibleStart.value);
 
-function generateSkeletonStyle(text: string) {
-  const trimmedLength = Math.max(4, text.replace(/\s+/g, " ").trim().length);
-  const offsetForPadding = 4;
-  const minChars = 12;
-  const maxChars = 68;
-  const estimatedChars = Math.round(trimmedLength * 0.9) + offsetForPadding;
-  const clamped = Math.min(maxChars, Math.max(minChars, estimatedChars));
+const { wrapperEl, viewportEl, rowRefs, viewportHeight, rowHeight, rowGap, triggerMeasure } =
+  useStepTracking();
 
-  return {
-    "--skeleton-ch": `${clamped}`,
-  } as Record<string, string>;
-}
-
-const wrapperEl = ref<HTMLElement | null>(null);
-const viewportEl = ref<HTMLElement | null>(null);
-const rowRefs = ref<HTMLElement[]>([]);
-const viewportHeight = ref(0);
-const rowHeight = ref(32); // default fallback
-const rowGap = 8; // keep in sync with CSS gap
-
-let resizeObserver: ResizeObserver | null = null;
-
-function measure() {
-  viewportHeight.value = viewportEl.value?.clientHeight ?? wrapperEl.value?.clientHeight ?? 0;
-  const firstRow = rowRefs.value[0];
-  if (firstRow) {
-    rowHeight.value = firstRow.offsetHeight || rowHeight.value;
-  }
-}
-
-onMounted(async () => {
-  await nextTick();
-  measure();
-  if (wrapperEl.value && "ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(() => measure());
-    resizeObserver.observe(wrapperEl.value);
-  }
-});
-
-onBeforeUnmount(() => {
-  if (resizeObserver && wrapperEl.value) {
-    resizeObserver.unobserve(wrapperEl.value);
-  }
-  resizeObserver = null;
-});
-
-watch([steps, activeIndex], async () => {
-  await nextTick();
-  measure();
-});
+watch([steps, activeIndex], triggerMeasure);
 
 const offsetY = computed(() => {
   const h = rowHeight.value;
@@ -300,7 +111,7 @@ const trackStyle = computed(() => {
   width: 100%;
   height: 100%;
   overflow: visible;
-  padding: 16px;
+  padding: clamp(0.75rem, 2vw, 1rem);
   box-sizing: border-box;
 }
 
@@ -314,25 +125,25 @@ const trackStyle = computed(() => {
 .step-track {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: clamp(0.375rem, 1vw, 0.5rem);
   will-change: transform;
   transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
   min-height: 100%;
-  padding: 8px 0;
+  padding: clamp(0.375rem, 1vw, 0.5rem) 0;
 }
 
 .step-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 32px;
+  gap: clamp(0.375rem, 1vw, 0.5rem);
+  min-height: clamp(28px, 8vw, 32px);
   transition:
     gap 180ms ease,
     opacity 180ms ease;
 }
 
 .step-row.completed {
-  gap: 6px;
+  gap: clamp(0.25rem, 0.75vw, 0.375rem);
   opacity: 0.85;
 }
 
@@ -350,11 +161,11 @@ const trackStyle = computed(() => {
 }
 
 .step-row.active {
-  gap: 10px;
+  gap: clamp(0.5rem, 1.25vw, 0.625rem);
 }
 
 .step-row.pending {
-  gap: 8px;
+  gap: clamp(0.375rem, 1vw, 0.5rem);
 }
 
 .step-row.pending.depth-1 {
@@ -371,9 +182,10 @@ const trackStyle = computed(() => {
 }
 
 .skeleton-line {
-  height: 1.25rem;
-  border-radius: 6px;
+  height: clamp(1rem, 3vw, 1.25rem);
+  border-radius: clamp(0.25rem, 0.5vw, 0.375rem);
   width: min(calc(var(--skeleton-ch) * 1ch), 100%);
+  max-width: 100%;
   --skeleton-base: color-mix(in oklab, var(--vscode-widget-border, var(--border)) 80%, transparent);
   --skeleton-highlight: color-mix(
     in oklab,
@@ -396,8 +208,9 @@ const trackStyle = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: clamp(16px, 4vw, 20px);
+  height: clamp(16px, 4vw, 20px);
+  flex-shrink: 0;
   transition: color 0.2s ease;
 }
 
@@ -414,36 +227,37 @@ const trackStyle = computed(() => {
   color: transparent;
 }
 
-.check-icon {
-  color: var(--muted-foreground, var(--vscode-descriptionForeground));
-}
-
 .pending-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 1.5px;
+  width: clamp(6px, 1.5vw, 7px);
+  height: clamp(6px, 1.5vw, 7px);
+  border-radius: clamp(1px, 0.25vw, 1.5px);
   background: var(--border, var(--vscode-widget-border));
   opacity: 0.4;
+  flex-shrink: 0;
 }
 
-.spinner rect {
-  fill: url(#starGradient);
+.step-text-container {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .step-text {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1.25rem;
+  display: inline-block;
+  line-height: clamp(1rem, 3vw, 1.25rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .completed-text {
-  font-size: 0.75rem;
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
   letter-spacing: -0.005em;
   font-weight: 500;
 }
 
 .active-text {
-  font-size: 0.875rem;
+  font-size: clamp(0.8125rem, 2.5vw, 0.875rem);
   font-weight: 600;
   animation: textPulse 1.4s ease-in-out infinite;
 }

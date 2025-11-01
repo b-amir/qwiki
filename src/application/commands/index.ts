@@ -3,6 +3,7 @@ export { DeleteApiKeyCommand } from "./DeleteApiKeyCommand";
 export { GenerateWikiCommand } from "./GenerateWikiCommand";
 export { GetApiKeysCommand } from "./GetApiKeysCommand";
 export { GetProviderConfigsCommand } from "./GetProviderConfigsCommand";
+export { GetProviderCapabilitiesCommand } from "./GetProviderCapabilitiesCommand";
 export { GetConfigurationCommand } from "./GetConfigurationCommand";
 export { UpdateConfigurationCommand } from "./UpdateConfigurationCommand";
 export { GetProvidersCommand } from "./GetProvidersCommand";

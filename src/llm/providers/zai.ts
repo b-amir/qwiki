@@ -9,6 +9,8 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
+import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
+import { performHealthCheck } from "./helpers/healthCheckHelper";
 
 const ZAI_MODELS = [
   "glm-4.5-flash",
@@ -52,12 +54,38 @@ export class ZAiProvider implements LLMProvider {
       ProviderFeature.DOCUMENTATION_GENERATION,
       ProviderFeature.MULTI_LANGUAGE,
       ProviderFeature.CONTEXT_AWARENESS,
+      ProviderFeature.STREAMING_RESPONSE,
+      ProviderFeature.FUNCTION_CALLING,
     ],
-    streaming: false,
-    functionCalling: false,
-    contextWindowSize: 128000,
+    streaming: true,
+    functionCalling: true,
+    contextWindowSize: 131072,
     rateLimitPerMinute: 200,
   };
+
+  getModelCapabilities(model?: string): ProviderCapabilities {
+    const baseCapabilities = { ...this.capabilities };
+
+    if (model === "glm-4-32b-0414-128k") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 131072,
+        streaming: true,
+        functionCalling: true,
+      };
+    } else if (model?.startsWith("glm-4.5") || model?.startsWith("glm-4.6")) {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 131072,
+        streaming: true,
+        functionCalling: true,
+      };
+    }
+
+    return baseCapabilities;
+  }
 
   constructor(private getSetting?: GetSetting) {}
 
@@ -108,15 +136,7 @@ export class ZAiProvider implements LLMProvider {
         return response;
       } catch (error) {
         clearTimeout(timeoutId);
-        if (error instanceof Error && error.name === "AbortError") {
-          throw new ProviderError(
-            ErrorCodes.NETWORK_ERROR,
-            "Z.ai request timed out after 30 seconds",
-            this.id,
-            "Request timeout",
-          );
-        }
-        throw error;
+        handleTimeoutError(error, this.id, "Z.ai");
       }
     };
 
@@ -145,24 +165,8 @@ export class ZAiProvider implements LLMProvider {
             );
           }
         }
-        if (res.status === 401) {
-          throw new ProviderError(
-            ErrorCodes.API_KEY_INVALID,
-            "Z.ai API key is invalid",
-            this.id,
-            text,
-          );
-        }
-        if (res.status === 429) {
-          throw new ProviderError(
-            ErrorCodes.RATE_LIMIT_EXCEEDED,
-            "Z.ai rate limit exceeded",
-            this.id,
-            text,
-          );
-        }
-        if (res.status >= 500) {
-          throw new ProviderError(ErrorCodes.NETWORK_ERROR, "Z.ai server error", this.id, text);
+        if (res.status === 401 || res.status === 429 || res.status >= 500) {
+          handleHttpError(res, this.id, "Z.ai", text);
         }
         throw new ProviderError(
           ErrorCodes.GENERATION_FAILED,
@@ -170,25 +174,10 @@ export class ZAiProvider implements LLMProvider {
           this.id,
           text,
         );
-      } catch {
-        if (res.status === 401) {
-          throw new ProviderError(
-            ErrorCodes.API_KEY_INVALID,
-            "Z.ai API key is invalid",
-            this.id,
-            text,
-          );
-        }
-        if (res.status === 429) {
-          throw new ProviderError(
-            ErrorCodes.RATE_LIMIT_EXCEEDED,
-            "Z.ai rate limit exceeded",
-            this.id,
-            text,
-          );
-        }
-        if (res.status >= 500) {
-          throw new ProviderError(ErrorCodes.NETWORK_ERROR, "Z.ai server error", this.id, text);
+      } catch (error) {
+        if (error instanceof ProviderError) throw error;
+        if (res.status === 401 || res.status === 429 || res.status >= 500) {
+          handleHttpError(res, this.id, "Z.ai", text);
         }
         throw new ProviderError(
           ErrorCodes.GENERATION_FAILED,
@@ -259,69 +248,27 @@ export class ZAiProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    return this.healthCheckWithKey?.(undefined) ?? (async () => {
-      const startTime = Date.now();
-      try {
-        const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
-          | string
-          | undefined;
+    return (
+      this.healthCheckWithKey?.(undefined) ??
+      (async () => {
+        const configuredBase = (
+          this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined
+        ) as string | undefined;
         const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
         const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
-        const response = await fetch(url, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
-        const responseTime = Date.now() - startTime;
-        if (response.ok) {
-          return { isHealthy: true, responseTime, lastChecked: new Date() };
-        }
-        return {
-          isHealthy: false,
-          responseTime,
-          error: `HTTP ${response.status}: ${response.statusText}`,
-          lastChecked: new Date(),
-        };
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        return {
-          isHealthy: false,
-          responseTime,
-          error: error instanceof Error ? error.message : "Unknown error",
-          lastChecked: new Date(),
-        };
-      }
-    })();
+        return performHealthCheck(url);
+      })()
+    );
   }
 
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-    try {
-      const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
-        | string
-        | undefined;
-      const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
-      const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-      const response = await fetch(url, { method: "GET", headers });
-      const responseTime = Date.now() - startTime;
-      if (response.ok) {
-        return { isHealthy: true, responseTime, lastChecked: new Date() };
-      }
-      return {
-        isHealthy: false,
-        responseTime,
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        lastChecked: new Date(),
-      };
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      return {
-        isHealthy: false,
-        responseTime,
-        error: error instanceof Error ? error.message : "Unknown error",
-        lastChecked: new Date(),
-      };
-    }
+    const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
+      | string
+      | undefined;
+    const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+    const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    return performHealthCheck(url, headers);
   }
 }

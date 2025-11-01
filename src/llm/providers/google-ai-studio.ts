@@ -8,6 +8,8 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
+import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
+import { performHealthCheck } from "./helpers/healthCheckHelper";
 
 const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
 
@@ -43,12 +45,37 @@ export class GoogleAIStudioProvider implements LLMProvider {
       ProviderFeature.DOCUMENTATION_GENERATION,
       ProviderFeature.MULTI_LANGUAGE,
       ProviderFeature.CONTEXT_AWARENESS,
+      ProviderFeature.STREAMING_RESPONSE,
+      ProviderFeature.FUNCTION_CALLING,
     ],
-    streaming: false,
-    functionCalling: false,
-    contextWindowSize: 32768,
+    streaming: true,
+    functionCalling: true,
+    contextWindowSize: 1048576,
     rateLimitPerMinute: 60,
   };
+
+  getModelCapabilities(model?: string): ProviderCapabilities {
+    const baseCapabilities = { ...this.capabilities };
+    if (model === "gemini-2.5-pro") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 8192,
+        contextWindowSize: 1048576,
+        streaming: true,
+        functionCalling: true,
+      };
+    } else if (model === "gemini-2.5-flash") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 8192,
+        contextWindowSize: 1048576,
+        streaming: true,
+        functionCalling: true,
+      };
+    }
+
+    return baseCapabilities;
+  }
 
   constructor(private getSetting?: GetSetting) {}
 
@@ -86,7 +113,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       let res;
       try {
@@ -101,49 +128,12 @@ export class GoogleAIStudioProvider implements LLMProvider {
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
-        if (error instanceof Error && error.name === "AbortError") {
-          throw new ProviderError(
-            ErrorCodes.NETWORK_ERROR,
-            "Google AI Studio request timed out after 30 seconds",
-            this.id,
-            "Request timeout",
-          );
-        }
-        throw error;
+        handleTimeoutError(error, this.id, "Google AI Studio");
       }
 
       if (!res.ok) {
         const text = await res.text();
-        if (res.status === 401) {
-          throw new ProviderError(
-            ErrorCodes.API_KEY_INVALID,
-            "Google AI Studio API key is invalid",
-            this.id,
-            text,
-          );
-        }
-        if (res.status === 429) {
-          throw new ProviderError(
-            ErrorCodes.RATE_LIMIT_EXCEEDED,
-            "Google AI Studio rate limit exceeded",
-            this.id,
-            text,
-          );
-        }
-        if (res.status >= 500) {
-          throw new ProviderError(
-            ErrorCodes.NETWORK_ERROR,
-            "Google AI Studio server error",
-            this.id,
-            text,
-          );
-        }
-        throw new ProviderError(
-          ErrorCodes.GENERATION_FAILED,
-          `Google AI Studio request failed: ${res.status}`,
-          this.id,
-          text,
-        );
+        handleHttpError(res, this.id, "Google AI Studio", text);
       }
 
       const data: any = await res.json();
@@ -162,7 +152,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       ];
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
       let res;
       try {
@@ -183,49 +173,12 @@ export class GoogleAIStudioProvider implements LLMProvider {
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
-        if (error instanceof Error && error.name === "AbortError") {
-          throw new ProviderError(
-            ErrorCodes.NETWORK_ERROR,
-            "Google AI Studio request timed out after 30 seconds",
-            this.id,
-            "Request timeout",
-          );
-        }
-        throw error;
+        handleTimeoutError(error, this.id, "Google AI Studio");
       }
 
       if (!res.ok) {
         const text = await res.text();
-        if (res.status === 401) {
-          throw new ProviderError(
-            ErrorCodes.API_KEY_INVALID,
-            "Google AI Studio API key is invalid",
-            this.id,
-            text,
-          );
-        }
-        if (res.status === 429) {
-          throw new ProviderError(
-            ErrorCodes.RATE_LIMIT_EXCEEDED,
-            "Google AI Studio rate limit exceeded",
-            this.id,
-            text,
-          );
-        }
-        if (res.status >= 500) {
-          throw new ProviderError(
-            ErrorCodes.NETWORK_ERROR,
-            "Google AI Studio server error",
-            this.id,
-            text,
-          );
-        }
-        throw new ProviderError(
-          ErrorCodes.GENERATION_FAILED,
-          `Google AI Studio request failed: ${res.status}`,
-          this.id,
-          text,
-        );
+        handleHttpError(res, this.id, "Google AI Studio", text);
       }
 
       const data: any = await res.json();
@@ -291,124 +244,31 @@ export class GoogleAIStudioProvider implements LLMProvider {
   async dispose(): Promise<void> {}
 
   async healthCheck(): Promise<HealthCheckResult> {
-    return this.healthCheckWithKey?.(undefined) ?? (async () => {
-      const startTime = Date.now();
-
-      try {
-        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        const responseTime = Date.now() - startTime;
-
-        if (response.ok) {
-          return {
-            isHealthy: true,
-            responseTime,
-            lastChecked: new Date(),
-          };
-        } else {
-          return {
-            isHealthy: false,
-            responseTime,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            lastChecked: new Date(),
-          };
-        }
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        return {
-          isHealthy: false,
-          responseTime,
-          error: error instanceof Error ? error.message : "Unknown error",
-          lastChecked: new Date(),
-        };
-      }
-    })();
+    return (
+      this.healthCheckWithKey?.(undefined) ??
+      performHealthCheck("https://generativelanguage.googleapis.com/v1beta/models")
+    );
   }
 
-  // Optional method used by registry to include API key if available
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const startTime = Date.now();
-    try {
-      const endpointType = (this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined) as
-        | "openai-compatible"
-        | "native"
-        | undefined;
+    const endpointType = (
+      this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined
+    ) as "openai-compatible" | "native" | undefined;
 
-      if (apiKey) {
-        if (endpointType === "openai-compatible") {
-          // Use OpenAI-compatible models endpoint with Bearer auth
-          const response = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/openai/models",
-            {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`,
-              },
-            },
-          );
-          const responseTime = Date.now() - startTime;
-          if (response.ok) {
-            return { isHealthy: true, responseTime, lastChecked: new Date() };
-          }
-          return {
-            isHealthy: false,
-            responseTime,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            lastChecked: new Date(),
-          };
-        } else {
-          // Native endpoint: try models with key param
-          const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
-            apiKey,
-          )}`;
-          const response = await fetch(url, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          });
-          const responseTime = Date.now() - startTime;
-          if (response.ok) {
-            return { isHealthy: true, responseTime, lastChecked: new Date() };
-          }
-          return {
-            isHealthy: false,
-            responseTime,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            lastChecked: new Date(),
-          };
-        }
+    if (apiKey) {
+      if (endpointType === "openai-compatible") {
+        return performHealthCheck(
+          "https://generativelanguage.googleapis.com/v1beta/openai/models",
+          { Authorization: `Bearer ${apiKey}` },
+        );
+      } else {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
+          apiKey,
+        )}`;
+        return performHealthCheck(url);
       }
-
-      // Fallback unauthenticated check
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const responseTime = Date.now() - startTime;
-      if (response.ok) {
-        return { isHealthy: true, responseTime, lastChecked: new Date() };
-      }
-      return {
-        isHealthy: false,
-        responseTime,
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        lastChecked: new Date(),
-      };
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      return {
-        isHealthy: false,
-        responseTime,
-        error: error instanceof Error ? error.message : "Unknown error",
-        lastChecked: new Date(),
-      };
     }
+
+    return performHealthCheck("https://generativelanguage.googleapis.com/v1beta/models");
   }
 }

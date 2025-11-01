@@ -99,7 +99,7 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
         </template>
       </div>
 
-      <div v-else-if="currentPage === 'settings'" class="flex h-full">
+      <div v-else-if="currentPage === 'settings'" class="settings-page-container flex h-full">
         <LoadingState v-if="settingsNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
           v-else-if="settingsLoadingContext.isActive.value"
@@ -132,5 +132,10 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.settings-page-container {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 </style>

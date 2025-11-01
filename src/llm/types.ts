@@ -40,6 +40,7 @@ export interface LLMProvider {
   initialize(): Promise<void>;
   dispose(): Promise<void>;
   healthCheck(): Promise<HealthCheckResult>;
+  getModelCapabilities?(model?: string): ProviderCapabilities;
 }
 
 export interface ProviderUiConfig {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { watch } from "vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
+import { vscode } from "@/utilities/vscode";
 
 interface ProviderConfig {
   id: string;
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   "custom-field-change": [fieldId: string, value: string];
   "open-url": [url: string];
   "calculate-height": [providerId: string];
+  "model-change": [providerId: string, model: string];
 }>();
 
 const wiki = useWikiStore();
@@ -65,8 +68,44 @@ const getApiKeyInput = (providerId: string) => {
 };
 
 const getProviderCapability = (capability: string) => {
-  return props.providerCapabilities?.[props.provider.id]?.[capability] || false;
+  return props.providerCapabilities?.[props.provider.id]?.[capability] ?? null;
 };
+
+watch(
+  () => wiki.model,
+  (newModel, oldModel) => {
+    if (
+      props.isSelected &&
+      props.provider.id === settings.selectedProvider &&
+      newModel &&
+      newModel !== oldModel
+    ) {
+      vscode.postMessage({
+        command: "getProviderCapabilities",
+        payload: {
+          providerId: props.provider.id,
+          model: newModel,
+        },
+      });
+      emit("model-change", props.provider.id, newModel);
+    }
+  },
+);
+
+watch(
+  () => settings.selectedProvider,
+  (newProviderId) => {
+    if (newProviderId === props.provider.id && wiki.model) {
+      vscode.postMessage({
+        command: "getProviderCapabilities",
+        payload: {
+          providerId: props.provider.id,
+          model: wiki.model,
+        },
+      });
+    }
+  },
+);
 
 const getCustomFieldValue = (fieldId: string) => {
   return settings.customSettings[fieldId] || "";
@@ -86,10 +125,10 @@ const getCustomFieldValue = (fieldId: string) => {
     }"
   >
     <div
-      class="flex cursor-pointer select-none items-center gap-3 px-4 py-3"
+      class="provider-header flex cursor-pointer select-none items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"
       @click="emit('provider-change', provider.id)"
     >
-      <div class="relative flex items-center">
+      <div class="relative flex flex-shrink-0 items-center">
         <input
           :id="`${provider.id}-provider`"
           v-model="settings.selectedProvider"
@@ -99,47 +138,23 @@ const getCustomFieldValue = (fieldId: string) => {
           @change="emit('provider-change', provider.id)"
         />
         <div
-          class="flex h-4 w-4 items-center justify-center rounded-full border-2"
+          class="provider-radio flex items-center justify-center rounded-full border-2"
           :class="
             isSelected
               ? 'border-primary bg-primary ring-primary/20 ring-2'
               : 'border-muted-foreground group-hover:border-primary'
           "
         >
-          <div v-if="isSelected" class="bg-background h-2 w-2 rounded-full" />
+          <div v-if="isSelected" class="bg-background rounded-full" />
         </div>
       </div>
       <label
         :for="`${provider.id}-provider`"
-        class="cursor-pointer text-sm font-medium"
+        class="provider-name min-w-0 flex-1 cursor-pointer font-medium"
         :class="isSelected ? 'text-background' : 'text-foreground'"
       >
         {{ provider.name }}
       </label>
-
-      <div v-if="providerCapabilities" class="ml-auto flex items-center gap-1">
-        <div
-          v-if="getProviderCapability('streaming')"
-          class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700"
-          title="Supports Streaming"
-        >
-          Streaming
-        </div>
-        <div
-          v-if="getProviderCapability('functionCalling')"
-          class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700"
-          title="Supports Function Calling"
-        >
-          Functions
-        </div>
-        <div
-          v-if="getProviderCapability('maxTokens')"
-          class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700"
-          :title="`Max Tokens: ${getProviderCapability('maxTokens')}`"
-        >
-          {{ getProviderCapability("maxTokens") }} tokens
-        </div>
-      </div>
     </div>
     <div
       class="overflow-hidden"
@@ -152,7 +167,7 @@ const getCustomFieldValue = (fieldId: string) => {
       <div
         v-show="isSelected"
         :id="`provider-content-${provider.id}`"
-        class="border-border bg-background border-t px-4 pb-5 pt-3 text-sm"
+        class="provider-content border-border bg-background border-t text-sm"
         :style="{
           opacity: isSelected ? 1 : 0,
           transition: 'opacity 0.15s ease-out 0.05s',
@@ -161,12 +176,14 @@ const getCustomFieldValue = (fieldId: string) => {
         }"
         @vue:mounted="emit('calculate-height', provider.id)"
       >
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <label class="text-muted-foreground text-xs font-medium tracking-wide"> Model </label>
+        <div class="provider-content-inner space-y-3 sm:space-y-4">
+          <div class="provider-field space-y-1.5 sm:space-y-2">
+            <label class="provider-label text-muted-foreground text-xs font-medium tracking-wide">
+              Model
+            </label>
             <select
               v-model="wiki.model"
-              class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              class="provider-input border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-2.5 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2"
             >
               <option
                 v-for="m in getModelsForProvider(provider.id, provider.modelFallbackIds)"
@@ -178,13 +195,15 @@ const getCustomFieldValue = (fieldId: string) => {
             </select>
           </div>
 
-          <div class="space-y-2">
-            <label class="text-muted-foreground text-xs font-medium tracking-wide"> API Key </label>
+          <div class="provider-field space-y-1.5 sm:space-y-2">
+            <label class="provider-label text-muted-foreground text-xs font-medium tracking-wide">
+              API Key
+            </label>
             <input
               :value="getApiKeyInput(provider.id)"
               type="password"
               placeholder="Enter your API key"
-              class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              class="provider-input border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-2.5 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2"
               @focus="emit('api-key-focus', provider.id)"
               @blur="emit('api-key-blur', provider.id)"
               @input="
@@ -193,8 +212,12 @@ const getCustomFieldValue = (fieldId: string) => {
             />
           </div>
 
-          <div v-for="field in provider.customFields" :key="field.id" class="space-y-2">
-            <label class="text-muted-foreground text-xs font-medium tracking-wide">
+          <div
+            v-for="field in provider.customFields"
+            :key="field.id"
+            class="provider-field space-y-1.5 sm:space-y-2"
+          >
+            <label class="provider-label text-muted-foreground text-xs font-medium tracking-wide">
               {{ field.label }}
             </label>
             <input
@@ -202,7 +225,7 @@ const getCustomFieldValue = (fieldId: string) => {
               :value="getCustomFieldValue(field.id)"
               type="text"
               :placeholder="field.placeholder"
-              class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              class="provider-input border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full rounded-lg border px-2.5 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2"
               @input="
                 emit('custom-field-change', field.id, ($event.target as HTMLInputElement).value)
               "
@@ -210,7 +233,7 @@ const getCustomFieldValue = (fieldId: string) => {
             <select
               v-else-if="field.type === 'select'"
               :value="getCustomFieldValue(field.id)"
-              class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              class="provider-input border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground w-full appearance-none rounded-lg border px-2.5 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2"
               @change="
                 emit('custom-field-change', field.id, ($event.target as HTMLSelectElement).value)
               "
@@ -221,18 +244,23 @@ const getCustomFieldValue = (fieldId: string) => {
             </select>
           </div>
 
-          <div class="pt-1">
+          <div class="provider-link pt-1">
             <button
-              class="text-primary hover:text-primary/80 text-xs font-medium underline underline-offset-4"
+              class="text-primary hover:text-primary/80 text-xs font-medium underline underline-offset-2 sm:underline-offset-4"
               @click="emit('open-url', provider.apiKeyUrl)"
             >
               Get API key ->
             </button>
           </div>
 
-          <div v-if="providerCapabilities" class="border-border space-y-2 border-t pt-2">
+          <div
+            v-if="providerCapabilities"
+            class="provider-capabilities border-border space-y-1.5 border-t pt-2 sm:space-y-2"
+          >
             <p class="text-muted-foreground text-xs font-medium">Provider Capabilities:</p>
-            <div class="grid grid-cols-2 gap-2 text-xs">
+            <div
+              class="provider-capabilities-grid grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2 sm:gap-x-6 sm:gap-y-2 md:grid-cols-4"
+            >
               <div class="flex items-center gap-1">
                 <svg
                   class="h-3 w-3"
@@ -275,16 +303,35 @@ const getCustomFieldValue = (fieldId: string) => {
               </div>
               <div class="flex items-center gap-1">
                 <span class="text-muted-foreground">Max Tokens:</span>
-                <span>{{ getProviderCapability("maxTokens") || "N/A" }}</span>
+                <span>
+                  {{
+                    getProviderCapability("maxTokens")
+                      ? typeof getProviderCapability("maxTokens") === "number"
+                        ? getProviderCapability("maxTokens").toLocaleString()
+                        : getProviderCapability("maxTokens")
+                      : "N/A"
+                  }}
+                </span>
               </div>
               <div class="flex items-center gap-1">
                 <span class="text-muted-foreground">Context:</span>
-                <span>{{ getProviderCapability("contextWindowSize") || "N/A" }}</span>
+                <span>
+                  {{
+                    getProviderCapability("contextWindowSize")
+                      ? typeof getProviderCapability("contextWindowSize") === "number"
+                        ? getProviderCapability("contextWindowSize").toLocaleString()
+                        : getProviderCapability("contextWindowSize")
+                      : "N/A"
+                  }}
+                </span>
               </div>
             </div>
           </div>
 
-          <p v-if="provider.additionalInfo" class="text-muted-foreground text-xs">
+          <p
+            v-if="provider.additionalInfo"
+            class="provider-additional-info text-muted-foreground text-xs leading-relaxed"
+          >
             {{ provider.additionalInfo }}
           </p>
         </div>
@@ -292,3 +339,87 @@ const getCustomFieldValue = (fieldId: string) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.provider-header {
+  min-width: 0;
+}
+
+.provider-radio {
+  width: clamp(14px, 3.5vw, 16px);
+  height: clamp(14px, 3.5vw, 16px);
+  flex-shrink: 0;
+}
+
+.provider-radio > div {
+  width: clamp(6px, 1.5vw, 8px);
+  height: clamp(6px, 1.5vw, 8px);
+}
+
+.provider-name {
+  font-size: clamp(0.8125rem, 2.5vw, 0.875rem);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-content {
+  padding-left: clamp(0.75rem, 2vw, 1rem);
+  padding-right: clamp(0.75rem, 2vw, 1rem);
+  padding-top: clamp(0.625rem, 1.5vw, 0.75rem);
+  padding-bottom: clamp(1rem, 3vw, 1.25rem);
+}
+
+.provider-content-inner {
+  min-width: 0;
+}
+
+.provider-field {
+  min-width: 0;
+}
+
+.provider-label {
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  line-height: 1.4;
+  display: block;
+}
+
+.provider-input {
+  font-size: clamp(0.8125rem, 2.5vw, 0.875rem);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.provider-link {
+  padding-top: clamp(0.25rem, 0.5vw, 0.5rem);
+}
+
+.provider-capabilities {
+  min-width: 0;
+  padding-top: clamp(0.5rem, 1vw, 0.75rem);
+}
+
+.provider-capabilities p {
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  line-height: 1.4;
+}
+
+.provider-capabilities-grid {
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  line-height: 1.5;
+}
+
+.provider-capabilities-grid svg {
+  width: clamp(12px, 3vw, 14px);
+  height: clamp(12px, 3vw, 14px);
+  flex-shrink: 0;
+}
+
+.provider-additional-info {
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  line-height: 1.6;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+</style>

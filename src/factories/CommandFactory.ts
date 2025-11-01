@@ -14,6 +14,7 @@ import {
   DeleteApiKeyCommand,
   GetApiKeysCommand,
   GetProviderConfigsCommand,
+  GetProviderCapabilitiesCommand,
   GetConfigurationCommand,
   UpdateConfigurationCommand,
   ValidateConfigurationCommand,
@@ -43,9 +44,7 @@ export class CommandFactory {
   constructor(dependencies: CommandFactoryDependencies) {
     this.dependencies = dependencies;
     try {
-      this.loggingService = this.dependencies.container.resolve(
-        "loggingService",
-      ) as LoggingService;
+      this.loggingService = this.dependencies.container.resolve("loggingService") as LoggingService;
     } catch {
       this.loggingService = new LoggingService({
         enabled: false,
@@ -114,6 +113,15 @@ export class CommandFactory {
       case CommandIds.getProviderConfigs:
         return new GetProviderConfigsCommand(
           await container.resolveLazy("llmRegistry"),
+          container.resolve("configurationManager"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
+      case CommandIds.getProviderCapabilities:
+        return new GetProviderCapabilitiesCommand(
+          await container.resolveLazy("llmRegistry"),
+          container.resolve("configurationManager"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
@@ -197,6 +205,7 @@ export class CommandFactory {
       CommandIds.deleteApiKey,
       CommandIds.getApiKeys,
       CommandIds.getProviderConfigs,
+      CommandIds.getProviderCapabilities,
       CommandIds.getConfiguration,
       CommandIds.updateConfiguration,
       CommandIds.validateConfiguration,

@@ -171,20 +171,17 @@ watch(
   <div v-if="isSettingsLoading" class="flex h-full w-full">
     <LoadingState context="settings" />
   </div>
-
-  <div v-else class="settings-shell mx-auto max-w-3xl space-y-8 px-6 py-10">
-    <section class="border-border bg-background rounded-2xl border shadow-sm">
-      <div class="space-y-6 px-6 py-6 sm:px-8">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+  <div v-else class="settings-shell mx-auto max-w-3xl space-y-8">
+    <section class="providers-section border-border bg-background rounded-2xl border shadow-sm">
+      <div class="space-y-6">
+        <div class="settings-header flex flex-col gap-2">
           <div class="space-y-1">
             <div class="flex items-center gap-2">
               <svg
-                width="20"
-                height="20"
+                class="settings-icon text-foreground"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                class="text-foreground"
               >
                 <path
                   d="M4 15.8294V15.75V8C4 7.69114 4.16659 7.40629 4.43579 7.25487L4.45131 7.24614L11.6182 3.21475L11.6727 3.18411C11.8759 3.06979 12.1241 3.06979 12.3273 3.18411L19.6105 7.28092C19.8511 7.41625 20 7.67083 20 7.94687V8V15.75V15.8294C20 16.1119 19.8506 16.3733 19.6073 16.5167L12.379 20.7766C12.1451 20.9144 11.8549 20.9144 11.621 20.7766L4.39267 16.5167C4.14935 16.3733 4 16.1119 4 15.8294Z"
@@ -195,9 +192,9 @@ watch(
                 <path d="M12 12L4 7.5" stroke="currentColor" stroke-width="2" />
                 <path d="M20 7.5L12 12" stroke="currentColor" stroke-width="2" />
               </svg>
-              <h2 class="text-foreground text-lg font-semibold">Providers</h2>
+              <h2 class="settings-title text-foreground font-semibold">Providers</h2>
             </div>
-            <p class="text-muted-foreground text-xs">
+            <p class="settings-description text-muted-foreground">
               Choose the models and credentials that power your wiki.
             </p>
           </div>
@@ -219,12 +216,14 @@ watch(
         </div>
 
         <div v-else class="space-y-4">
-          <div class="flex items-center justify-between">
+          <div
+            class="settings-actions flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+          >
             <h3 class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
               LLM Provider
             </h3>
             <button
-              class="text-primary hover:text-primary/80 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              class="validate-button text-primary hover:text-primary/80 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="validating"
               :aria-busy="validating ? 'true' : 'false'"
               @click="validateCurrentConfiguration"
@@ -260,9 +259,81 @@ watch(
         </div>
       </div>
 
-      <footer class="border-border bg-muted/10 text-muted-foreground border-t px-6 py-4 text-xs">
+      <footer
+        class="settings-footer border-border bg-muted/10 text-muted-foreground border-t text-xs"
+      >
         Keys are stored securely in VS Code Secret Storage.
       </footer>
     </section>
   </div>
 </template>
+
+<style scoped>
+.settings-shell {
+  padding-left: clamp(1rem, 3vw, 1.5rem);
+  padding-right: clamp(1rem, 3vw, 1.5rem);
+  padding-top: clamp(1.5rem, 4vw, 2.5rem);
+  padding-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  gap: clamp(1.5rem, 4vw, 2rem);
+}
+
+.providers-section {
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+section > div:not(.settings-header) {
+  padding-left: clamp(1rem, 3vw, 1.5rem);
+  padding-right: clamp(1rem, 3vw, 1.5rem);
+  padding-top: clamp(0.75rem, 2vw, 1rem);
+  padding-bottom: clamp(0.75rem, 2vw, 1rem);
+}
+
+.settings-header {
+  padding-left: clamp(1rem, 3vw, 1.5rem);
+  padding-right: clamp(1rem, 3vw, 1.5rem);
+  padding-top: clamp(1rem, 3vw, 1.5rem);
+  padding-bottom: clamp(0.75rem, 2vw, 1rem);
+}
+
+.settings-icon {
+  width: clamp(18px, 4vw, 20px);
+  height: clamp(18px, 4vw, 20px);
+  flex-shrink: 0;
+}
+
+.settings-title {
+  font-size: clamp(0.9375rem, 2.5vw, 1.125rem);
+  line-height: 1.4;
+}
+
+.settings-description {
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  line-height: 1.5;
+}
+
+.settings-actions {
+  min-width: 0;
+}
+
+.validate-button {
+  white-space: nowrap;
+  text-align: left;
+}
+
+@media (min-width: 640px) {
+  .validate-button {
+    text-align: right;
+  }
+}
+
+.settings-footer {
+  padding-left: clamp(1rem, 3vw, 1.5rem);
+  padding-right: clamp(1rem, 3vw, 1.5rem);
+  padding-top: clamp(0.75rem, 2vw, 1rem);
+  padding-bottom: clamp(0.75rem, 2vw, 1rem);
+  font-size: clamp(0.6875rem, 2vw, 0.75rem);
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+</style>

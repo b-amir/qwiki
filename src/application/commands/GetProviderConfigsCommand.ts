@@ -1,6 +1,8 @@
 import type { Command } from "./Command";
 import type { LLMRegistry } from "../../llm";
+import type { ProviderId } from "../../llm/types";
 import type { MessageBusService } from "../services/MessageBusService";
+import type { ConfigurationManagerService } from "../services/ConfigurationManagerService";
 import { OutboundEvents } from "../../constants/Events";
 import {
   LoggingService,
@@ -13,6 +15,7 @@ export class GetProviderConfigsCommand implements Command<void> {
 
   constructor(
     private llmRegistry: LLMRegistry,
+    private configurationManager: ConfigurationManagerService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
@@ -46,6 +49,53 @@ export class GetProviderConfigsCommand implements Command<void> {
       );
 
       this.messageBus.postSuccess(OutboundEvents.providerConfigs, configs);
+
+      // Also fetch and send capabilities together to avoid flash
+      const capabilitiesStartTime = Date.now();
+      const allCapabilities: Record<string, any> = {};
+      const providers = this.llmRegistry.list();
+
+      for (const providerInfo of providers) {
+        const provider = this.llmRegistry.getProvider(providerInfo.id as ProviderId);
+        if (!provider) continue;
+
+        try {
+          const providerConfig = await this.configurationManager.getProviderConfig(providerInfo.id);
+          const selectedModel = providerConfig?.model || provider.listModels()[0];
+
+          let capabilities;
+          if (provider.getModelCapabilities && selectedModel) {
+            capabilities = provider.getModelCapabilities(selectedModel);
+          } else {
+            capabilities = provider.capabilities;
+          }
+
+          allCapabilities[providerInfo.id] = {
+            streaming: capabilities.streaming,
+            functionCalling: capabilities.functionCalling,
+            maxTokens: capabilities.maxTokens,
+            contextWindowSize: capabilities.contextWindowSize,
+          };
+        } catch (error) {
+          this.logError(`Error getting capabilities for provider ${providerInfo.id}:`, error);
+          allCapabilities[providerInfo.id] = {
+            streaming: provider.capabilities.streaming,
+            functionCalling: provider.capabilities.functionCalling,
+            maxTokens: provider.capabilities.maxTokens,
+            contextWindowSize: provider.capabilities.contextWindowSize,
+          };
+        }
+      }
+
+      const capabilitiesEndTime = Date.now();
+      this.logDebug(
+        `Retrieved capabilities for ${Object.keys(allCapabilities).length} providers in ${capabilitiesEndTime - capabilitiesStartTime}ms`,
+      );
+
+      // Send capabilities immediately after configs
+      this.messageBus.postSuccess(OutboundEvents.providerCapabilitiesRetrieved, {
+        capabilities: allCapabilities,
+      });
 
       const executeEndTime = Date.now();
       this.logDebug(`Command completed successfully in ${executeEndTime - executeStartTime}ms`);
