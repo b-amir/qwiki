@@ -4,17 +4,30 @@ import type { ConfigurationRepository } from "../../domain/repositories/Configur
 import type { MessageBus } from "../services/MessageBus";
 import { OutboundEvents } from "../../constants/Events";
 import { getAllProviderConfigs } from "../../llm/provider-config";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export class GetApiKeysCommand implements Command<void> {
   constructor(
     private apiKeyRepository: ApiKeyRepository,
     private configurationRepository: ConfigurationRepository,
     private messageBus: MessageBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
+
+  private readonly serviceName = "GetApiKeysCommand";
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
 
   async execute(): Promise<void> {
     const start = Date.now();
-    console.log("[QWIKI] GetApiKeysCommand: Starting to gather API keys and settings");
+    this.logDebug("Starting to gather API keys and settings");
     const providerConfigs = getAllProviderConfigs();
 
     const providerIds = providerConfigs.map((p) => p.id);
@@ -48,8 +61,6 @@ export class GetApiKeysCommand implements Command<void> {
     const payload = { apiKeys, settings };
 
     this.messageBus.postSuccess(OutboundEvents.apiKeys, payload);
-    console.log(
-      `[QWIKI] GetApiKeysCommand: Sent apiKeys for ${Object.keys(apiKeys).length} providers in ${Date.now() - start}ms`,
-    );
+    this.logDebug(`Sent apiKeys for ${Object.keys(apiKeys).length} providers in ${Date.now() - start}ms`);
   }
 }

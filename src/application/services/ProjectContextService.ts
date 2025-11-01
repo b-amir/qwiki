@@ -8,8 +8,19 @@ import {
   MessageFormats,
 } from "../../constants";
 import type { Selection, ProjectContext } from "../../domain/entities/Selection";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export class ProjectContextService {
+  private readonly serviceName = "ProjectContextService";
+
+  constructor(
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {}
   async buildContext(
     snippet: string,
     filePath?: string,
@@ -142,7 +153,11 @@ export class ProjectContextService {
         return null;
       } catch (error: any) {
         if (!error.message?.includes("binary")) {
-          console.error("[QWIKI] ProjectContextService: Exception in findTextUsages:", error);
+          this.loggingService.error(
+            this.serviceName,
+            "Exception in findTextUsages",
+            error,
+          );
         }
         return null;
       }

@@ -1,6 +1,8 @@
 import type { Command } from "./Command";
 import type { WikiStorageService } from "../services/WikiStorageService";
 import type { MessageBus } from "../services/MessageBus";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 interface SaveWikiPayload {
   title: string;
@@ -12,11 +14,27 @@ export class SaveWikiCommand implements Command<SaveWikiPayload> {
   constructor(
     private wikiStorageService: WikiStorageService,
     private messageBus: MessageBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
+
+  private readonly serviceName = "SaveWikiCommand";
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   async execute(payload: SaveWikiPayload): Promise<void> {
     try {
-      console.log("[QWIKI] SaveWikiCommand: Starting to save wiki", {
+      this.logDebug("Starting to save wiki", {
         title: payload.title,
         contentLength: payload.content.length,
       });
@@ -25,7 +43,7 @@ export class SaveWikiCommand implements Command<SaveWikiPayload> {
         payload.content,
         payload.sourceFilePath,
       );
-      console.log("[QWIKI] SaveWikiCommand: Wiki saved successfully", {
+      this.logDebug("Wiki saved successfully", {
         id: savedWiki.id,
         filePath: savedWiki.filePath,
       });
@@ -36,15 +54,15 @@ export class SaveWikiCommand implements Command<SaveWikiPayload> {
         filePath: savedWiki.filePath,
         createdAt: savedWiki.createdAt,
       });
-      console.log("[QWIKI] SaveWikiCommand: Sent wikiSaved message");
+      this.logDebug("Sent wikiSaved message");
 
       await this.messageBus.postMessage("showNotification", {
         type: "success",
         message: `Wiki "${savedWiki.title}" saved successfully`,
       });
-      console.log("[QWIKI] SaveWikiCommand: Sent success notification");
+      this.logDebug("Sent success notification");
     } catch (error) {
-      console.error("[QWIKI] SaveWikiCommand: Failed to save wiki", error);
+      this.logError("Failed to save wiki", error);
       await this.messageBus.postMessage("showNotification", {
         type: "error",
         message: `Failed to save wiki: ${error instanceof Error ? error.message : "Unknown error"}`,

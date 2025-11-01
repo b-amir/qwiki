@@ -7,21 +7,32 @@ import { LLMRegistry as IndexRegistry } from "../../llm";
 import { ContextAnalysisService } from "./ContextAnalysisService";
 import { DeepContextAnalysis } from "./ContextAnalysisService";
 import { ProviderSelectionService } from "./ProviderSelectionService";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export class ProviderSelectionIntegrationService {
   private smartProviderSelectionService: SmartProviderSelectionService;
   private providerFallbackManager: ProviderFallbackManager;
   private providerSelectionService: ProviderSelectionService;
+  private readonly serviceName = "ProviderSelectionIntegrationService";
 
   constructor(
     private llmRegistry: IndexRegistry,
     private eventBus: EventBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {
     const providersRegistry = this.llmRegistry as any as ProvidersRegistry;
 
     const providerHealthService = new ProviderHealthService(this.llmRegistry, this.eventBus);
-    const contextAnalysisService = new ContextAnalysisService(this.eventBus);
-    this.providerSelectionService = new ProviderSelectionService(providersRegistry, this.eventBus);
+    const contextAnalysisService = new ContextAnalysisService(this.eventBus, this.loggingService);
+    this.providerSelectionService = new ProviderSelectionService(
+      providersRegistry,
+      this.eventBus,
+    );
     this.smartProviderSelectionService = new SmartProviderSelectionService(
       this.providerSelectionService,
       contextAnalysisService,
@@ -64,18 +75,21 @@ export class ProviderSelectionIntegrationService {
   }
 
   async getProviderRanking(providerId: string): Promise<any> {
-    console.log(
-      "[QWIKI] [ProviderSelectionIntegrationService] getProviderRanking called for provider:",
+    this.loggingService.debug(
+      this.serviceName,
+      "getProviderRanking called for provider",
       providerId,
     );
-    console.log(
-      "[QWIKI] [ProviderSelectionIntegrationService] Available methods on smartProviderSelectionService:",
+    this.loggingService.debug(
+      this.serviceName,
+      "Available methods on smartProviderSelectionService",
       Object.getOwnPropertyNames(Object.getPrototypeOf(this.smartProviderSelectionService)),
     );
 
     if (typeof this.smartProviderSelectionService["determineRequirements"] !== "function") {
-      console.error(
-        "[QWIKI] [ProviderSelectionIntegrationService] ERROR: determineRequirements method does not exist or is not accessible!",
+      this.loggingService.error(
+        this.serviceName,
+        "determineRequirements method does not exist or is not accessible",
       );
       return {
         providerId,

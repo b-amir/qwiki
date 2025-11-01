@@ -1,9 +1,28 @@
 import type { Command } from "./commands/Command";
 import { ErrorCodes, ErrorMessages } from "../constants";
+import { LoggingService } from "../infrastructure/services/LoggingService";
 
 export class CommandRegistry {
   private commands = new Map<string, Command>();
   private disposers: Array<() => void> = [];
+  private readonly serviceName = "CommandRegistry";
+
+  constructor(
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {}
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   register<T>(name: string, command: Command<T>): void {
     this.commands.set(name, command);
@@ -16,16 +35,13 @@ export class CommandRegistry {
     }
     const start = Date.now();
     try {
-      console.log(`[QWIKI] CommandRegistry: Executing command "${name}"`);
+      this.logDebug(`Executing command "${name}"`);
       await command.execute(payload);
       const duration = Date.now() - start;
-      console.log(`[QWIKI] CommandRegistry: Command "${name}" completed in ${duration}ms`);
+      this.logDebug(`Command "${name}" completed in ${duration}ms`);
     } catch (error) {
       const duration = Date.now() - start;
-      console.error(
-        `[QWIKI] CommandRegistry: Command "${name}" failed after ${duration}ms:`,
-        error,
-      );
+      this.logError(`Command "${name}" failed after ${duration}ms`, error);
       throw error;
     }
   }
@@ -43,7 +59,7 @@ export class CommandRegistry {
       try {
         d();
       } catch (err) {
-        console.error("[QWIKI] CommandRegistry: Disposer threw:", err);
+        this.logError("Disposer threw", err);
       }
     }
     this.commands.clear();

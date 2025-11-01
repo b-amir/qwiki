@@ -1,4 +1,5 @@
 import type { Webview } from "vscode";
+import { LoggingService } from "./LoggingService";
 
 interface QueuedMessage {
   command: string;
@@ -15,7 +16,25 @@ export class WebviewOptimizer {
   private messageId = 0;
   private lastEnvironmentStatusPayload: string | undefined;
 
-  constructor(private webview: Webview) {}
+  private readonly serviceName = "WebviewOptimizer";
+
+  constructor(
+    private webview: Webview,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {}
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   postMessage(command: string, payload?: any): void {
     if (command === "environmentStatus") {
@@ -70,8 +89,8 @@ export class WebviewOptimizer {
     } else {
       try {
         const cmds = batch.map((m) => m.command).filter(Boolean);
-        console.log(
-          `[QWIKI] WebviewOptimizer: Flushing batch of ${batch.length} -> [${cmds.join(", ")}]`,
+        this.logDebug(
+          `Flushing batch of ${batch.length} -> [${cmds.join(", ")}]`,
         );
       } catch {}
       this.safePostMessage({
@@ -93,10 +112,10 @@ export class WebviewOptimizer {
       try {
         const command = message?.command ?? "unknown";
         const size = message?.payload ? JSON.stringify(message.payload).length : 0;
-        console.log(`[QWIKI] WebviewOptimizer: Posted message - command=${command}, size=${size}`);
+        this.logDebug(`Posted message - command=${command}, size=${size}`);
       } catch {}
     } catch (error) {
-      console.error("[QWIKI] WebviewOptimizer: Channel closed, message discarded:", {
+      this.logError("Channel closed, message discarded:", {
         error: error instanceof Error ? error.message : String(error),
         message: message.command || "unknown",
         timestamp: new Date().toISOString(),

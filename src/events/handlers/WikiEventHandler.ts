@@ -13,7 +13,19 @@ export class WikiEventHandler {
     private projectContextService: any,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
+
+  private readonly serviceName = "WikiEventHandler";
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   register(): void {
     this.eventBus.subscribe(InboundEvents.generateWiki, this.handleGenerateWiki.bind(this));
@@ -48,7 +60,7 @@ export class WikiEventHandler {
           payload.providerId,
         );
 
-        console.error("[QWIKI]", `Wiki generation failed in handler`, {
+        this.logError("Wiki generation failed in handler", {
           code: error.code,
           message: error.message,
           providerId: payload.providerId,
@@ -76,7 +88,7 @@ export class WikiEventHandler {
     } catch (error: any) {
       const providerError = ProviderError.fromError(error, payload.providerId);
 
-      console.error("[QWIKI]", `Exception in handleGenerateWiki`, {
+      this.logError("Exception in handleGenerateWiki", {
         code: providerError.code,
         message: providerError.message,
         providerId: payload.providerId,
@@ -116,7 +128,7 @@ export class WikiEventHandler {
     } catch (error: any) {
       const providerError = ProviderError.fromError(error);
 
-      console.error("[QWIKI]", `Exception in handleGetRelated`, {
+      this.logError("Exception in handleGetRelated", {
         code: providerError.code,
         message: providerError.message,
         filePath: _payload?.filePath,

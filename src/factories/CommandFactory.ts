@@ -27,6 +27,7 @@ import {
 } from "../application/commands";
 import { MessageBus } from "../application/services/MessageBus";
 import { CommandIds } from "../constants";
+import { LoggingService } from "../infrastructure/services/LoggingService";
 
 export interface CommandFactoryDependencies {
   container: Container;
@@ -37,10 +38,23 @@ export interface CommandFactoryDependencies {
 export class CommandFactory {
   private dependencies: CommandFactoryDependencies;
   private messageBus: MessageBus;
+  private loggingService: LoggingService;
 
   constructor(dependencies: CommandFactoryDependencies) {
     this.dependencies = dependencies;
-    this.messageBus = new MessageBus(dependencies.webview);
+    try {
+      this.loggingService = this.dependencies.container.resolve(
+        "loggingService",
+      ) as LoggingService;
+    } catch {
+      this.loggingService = new LoggingService({
+        enabled: false,
+        level: "error",
+        includeTimestamp: true,
+        includeService: true,
+      });
+    }
+    this.messageBus = new MessageBus(dependencies.webview, this.loggingService);
   }
 
   async createCommand<T>(commandId: string): Promise<Command<T> | undefined> {
@@ -68,13 +82,14 @@ export class CommandFactory {
           container.resolve("apiKeyRepository"),
           container.resolve("configurationManager"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.openFile:
         return new OpenFileCommand() as Command<T>;
 
       case CommandIds.openExternal:
-        return new OpenExternalCommand(this.messageBus) as Command<T>;
+        return new OpenExternalCommand(this.messageBus, this.loggingService) as Command<T>;
 
       case CommandIds.saveSetting:
         return new SaveSettingCommand(
@@ -93,12 +108,14 @@ export class CommandFactory {
           container.resolve("apiKeyRepository"),
           container.resolve("configurationRepository"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.getProviderConfigs:
         return new GetProviderConfigsCommand(
           await container.resolveLazy("llmRegistry"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.getConfiguration:
@@ -143,18 +160,21 @@ export class CommandFactory {
         return new SaveWikiCommand(
           container.resolve("wikiStorageService"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.getSavedWikis:
         return new GetSavedWikisCommand(
           container.resolve("wikiStorageService"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.deleteWiki:
         return new DeleteWikiCommand(
           container.resolve("wikiStorageService"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       default:

@@ -15,6 +15,7 @@ import { ProviderFileSystemService } from "../../infrastructure/services/Provide
 import type { GenerateParams, GenerateResult } from "../types";
 import { ErrorRecoveryService } from "../../infrastructure/services/ErrorRecoveryService";
 import { ProviderError, ErrorCodes } from "../../errors";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export type GetSetting = (key: string) => Promise<any>;
 
@@ -23,24 +24,43 @@ export class LLMRegistry {
   private providerDiscoveryService: ProviderDiscoveryService;
   private providerLifecycleManager: ProviderLifecycleManager;
   private providerDependencyResolver: ProviderDependencyResolver;
-  private eventBus: EventBus;
   private providerDirectories: string[] = [];
   private cachingService: CachingService;
   private providerFileSystemService: ProviderFileSystemService;
+  private loggingService: LoggingService;
+  private readonly serviceName = "LegacyLLMRegistry";
 
-  constructor(eventBus: EventBus) {
-    this.eventBus = eventBus;
+  constructor(
+    private eventBus: EventBus,
+    loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {
+    this.loggingService = loggingService;
     this.cachingService = new CachingService({ maxSize: 50, defaultTtl: 300000 });
     this.providerFileSystemService = new ProviderFileSystemService();
     this.providerDiscoveryService = new ProviderDiscoveryService(
-      eventBus,
+      this.eventBus,
       this.providerFileSystemService,
+      this.loggingService,
     );
     this.providerLifecycleManager = new ProviderLifecycleManager(
       this.providerDiscoveryService,
-      eventBus,
+      this.eventBus,
+      this.loggingService,
     );
     this.providerDependencyResolver = new ProviderDependencyResolver();
+  }
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
   }
 
   async initialize(): Promise<void> {
@@ -140,7 +160,7 @@ export class LLMRegistry {
       await this.cachingService.set(cacheKey, result, { ttl: 300000 });
       return result;
     } catch (error) {
-      console.error(`[QWIKI] Provider ${providerId} generation failed after retries:`, error);
+      this.logError(`Provider ${providerId} generation failed after retries:`, error);
 
       await this.eventBus.publish("providerGenerationFailed", {
         providerId,
@@ -183,7 +203,7 @@ export class LLMRegistry {
           this.providers[providerId] = provider;
         }
       } catch (error) {
-        console.error(`[QWIKI] Failed to load provider ${providerId}:`, error);
+        this.logError(`Failed to load provider ${providerId}:`, error);
       }
     }
   }

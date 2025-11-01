@@ -1,6 +1,7 @@
 import type { BaseError } from "../../errors";
 import type { EventBus } from "../../events";
 import { ErrorEvents } from "../../constants/Events";
+import { LoggingService } from "./LoggingService";
 
 export interface ErrorHandler {
   handle(error: Error | BaseError, context?: Record<string, any>): Promise<void>;
@@ -8,12 +9,30 @@ export interface ErrorHandler {
 }
 
 export class ErrorHandlerImpl implements ErrorHandler {
-  constructor(private eventBus: EventBus) {}
+  private readonly serviceName = "ErrorHandler";
+
+  constructor(
+    private eventBus: EventBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {}
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   async handle(error: Error | BaseError, context?: Record<string, any>): Promise<void> {
     const errorInfo = this.normalizeError(error, context);
 
-    console.error("[QWIKI]", `Error occurred: ${errorInfo.name}`, {
+    this.logError(`Error occurred: ${errorInfo.name}`, {
       code: errorInfo.code,
       message: errorInfo.message,
       timestamp: errorInfo.timestamp,
@@ -25,7 +44,7 @@ export class ErrorHandlerImpl implements ErrorHandler {
     await this.eventBus.publish(ErrorEvents.occurred, errorInfo);
 
     if (errorInfo.isRecoverable) {
-      console.log("[QWIKI]", `Attempting recovery for error: ${errorInfo.code}`);
+      this.logDebug(`Attempting recovery for error: ${errorInfo.code}`);
       await this.eventBus.publish(ErrorEvents.recoveryAttempt, errorInfo);
     }
   }

@@ -17,6 +17,7 @@ import { WebviewPaths, VSCodeCommandIds, MessageStrings } from "../constants";
 import { BaseError } from "../errors";
 import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
 import { MessageBus } from "../application/services/MessageBus";
+import { LoggingService } from "../infrastructure/services/LoggingService";
 
 type SelectionPayload = {
   text: string;
@@ -52,6 +53,8 @@ export class QwikiPanel {
   private errorHandler: ErrorHandler | undefined;
   private _initPromise: Promise<void>;
   private messageBus: MessageBus | undefined;
+  private loggingService: LoggingService;
+  private readonly serviceName = "QwikiPanel";
   private _extensionStatus = {
     ready: false,
     message: "Preparing Qwiki services...",
@@ -80,17 +83,45 @@ export class QwikiPanel {
   ) {
     this._extensionUri = extensionUri;
     this.bootstrap = new AppBootstrap(ctx);
+    try {
+      this.loggingService = this.bootstrap
+        .getContainer()
+        .resolve("loggingService") as LoggingService;
+    } catch {
+      this.loggingService = new LoggingService({
+        enabled: false,
+        level: "error",
+        includeTimestamp: true,
+        includeService: true,
+      });
+    }
     this._initPromise = this.initializeAsync();
     this._broadcastEnvironmentStatus();
     this._startLanguageMonitoring();
   }
 
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logInfo(message: string, data?: unknown): void {
+    this.loggingService.info(this.serviceName, message, data);
+  }
+
+  private logWarn(message: string, data?: unknown): void {
+    this.loggingService.warn(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
+
   private async initializeAsync(): Promise<void> {
     try {
       await this.bootstrap.initialize();
-      console.log("[QWIKI] QwikiPanel: bootstrap.initialize completed successfully");
+      this.logInfo("bootstrap.initialize completed successfully");
     } catch (e) {
-      console.error("[QWIKI] QwikiPanel: bootstrap.initialize failed:", e);
+      this.logError("bootstrap.initialize failed", e);
       this._extensionStatus = {
         ready: false,
         message: "Failed to initialize Qwiki services.",
@@ -102,9 +133,9 @@ export class QwikiPanel {
 
     try {
       await this.bootstrap.initializeEventHandlers();
-      console.log("[QWIKI] QwikiPanel: initializeEventHandlers completed successfully");
+      this.logInfo("initializeEventHandlers completed successfully");
     } catch (e) {
-      console.error("[QWIKI] QwikiPanel: initializeEventHandlers failed:", e);
+      this.logError("initializeEventHandlers failed", e);
       this._extensionStatus = {
         ready: false,
         message: "Failed to initialize Qwiki event handlers.",
@@ -123,12 +154,12 @@ export class QwikiPanel {
 
     try {
       this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
-      console.log("[QWIKI] QwikiPanel: errorHandler retrieved successfully");
+      this.logInfo("errorHandler retrieved successfully");
     } catch (e) {
-      console.error("[QWIKI] QwikiPanel: getErrorHandler failed:", e);
+      this.logError("getErrorHandler failed", e);
       this.errorHandler = {
         handle: (error: any, context?: any) => {
-          console.error("[QWIKI] Fallback error handler:", error, context);
+          this.logError("Fallback error handler", { error, context });
         },
       } as ErrorHandler;
     }
@@ -147,15 +178,15 @@ export class QwikiPanel {
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this._webviewReady = false;
     this._setWebviewMessageListener(webviewView.webview);
-    this.messageBus = new MessageBus(webviewView.webview);
+    this.messageBus = new MessageBus(webviewView.webview, this.loggingService);
     this.bootstrap
       .createCommandRegistry(webviewView.webview)
       .then((registry) => {
         this.commandRegistry = registry;
-        console.log("[QWIKI] QwikiPanel: createCommandRegistry completed successfully");
+        this.logInfo("createCommandRegistry completed successfully");
       })
       .catch((e) => {
-        console.error("[QWIKI] QwikiPanel: createCommandRegistry failed:", e);
+        this.logError("createCommandRegistry failed", e);
         this.createFallbackCommandRegistry(webviewView.webview);
       });
     webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -339,7 +370,7 @@ export class QwikiPanel {
       }
       this._scheduleLanguageStatusInterval();
     } catch (error) {
-      console.error("[QWIKI] QwikiPanel: Failed to determine language server status:", error);
+      this.logError("Failed to determine language server status", error);
       const newStatus = {
         ready: false,
         languageId: this._languageStatus.languageId,
@@ -396,7 +427,7 @@ export class QwikiPanel {
     try {
       this.messageBus?.postMessage(Outbound.environmentStatus, payload);
     } catch (error) {
-      console.error("[QWIKI] QwikiPanel: Failed to post environment status:", error);
+      this.logError("Failed to post environment status", error);
     }
   }
 
@@ -442,14 +473,12 @@ export class QwikiPanel {
 
         try {
           const receiveTs = Date.now();
-          console.log(`[QWIKI] QwikiPanel: Received webview message - command=${command}`);
+          this.logDebug(`Received webview message - command=${command}`);
 
           if (command === "getSavedWikis") {
             const lastTime = this._lastCommandExecutionTime.get(command) || 0;
             if (receiveTs - lastTime < this.COMMAND_THROTTLE_DELAY) {
-              console.log(
-                `[QWIKI] QwikiPanel: Throttling getSavedWikis command, last executed ${receiveTs - lastTime}ms ago`,
-              );
+              this.logDebug(`Throttling getSavedWikis command, last executed ${receiveTs - lastTime}ms ago`);
               return;
             }
             this._lastCommandExecutionTime.set(command, receiveTs);
@@ -461,12 +490,12 @@ export class QwikiPanel {
                 const msg = payload?.message ?? "";
                 const data = payload?.data;
                 if (data !== undefined) {
-                  console.log(`[QWIKI] Frontend: ${msg}`, data);
+                  this.logDebug(`Frontend: ${msg}`, data);
                 } else {
-                  console.log(`[QWIKI] Frontend: ${msg}`);
+                  this.logDebug(`Frontend: ${msg}`);
                 }
               } catch (e) {
-                console.log(`[QWIKI] Frontend: <log formatting error>`);
+                this.logWarn("Frontend log formatting error");
               }
               return;
             }
@@ -480,10 +509,7 @@ export class QwikiPanel {
                 try {
                   this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
                 } catch (error) {
-                  console.error(
-                    "[QWIKI] QwikiPanel: Exception in _setWebviewMessageListener:",
-                    error,
-                  );
+                  this.logError("Exception in _setWebviewMessageListener", error);
                 }
               }
               return;
@@ -500,13 +526,11 @@ export class QwikiPanel {
             default: {
               if (this.commandRegistry?.has(command)) {
                 await this._initPromise.catch((e) => {
-                  console.error("[QWIKI] Initialization failed before command execution:", e);
+                  this.logError("Initialization failed before command execution", e);
                 });
                 await this.commandRegistry.execute(command, payload);
                 const doneTs = Date.now();
-                console.log(
-                  `[QWIKI] QwikiPanel: Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`,
-                );
+                this.logInfo(`Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`);
               }
               return;
             }
@@ -521,23 +545,19 @@ export class QwikiPanel {
   }
 
   private createFallbackCommandRegistry(webview: Webview): void {
-    console.warn(
-      "[QWIKI] QwikiPanel: Creating fallback command registry with limited functionality",
-    );
+    this.logWarn("Creating fallback command registry with limited functionality");
 
-    const fallbackRegistry = new CommandRegistry();
+    const fallbackRegistry = new CommandRegistry(this.loggingService);
 
     const originalExecute = fallbackRegistry.execute.bind(fallbackRegistry);
     const originalRegister = fallbackRegistry.register.bind(fallbackRegistry);
 
     fallbackRegistry.execute = async <T>(name: string, payload: T): Promise<void> => {
-      console.warn(
-        `[QWIKI] Fallback command registry: Attempting to execute command "${name}" - initialization may have failed`,
-      );
+      this.logWarn(`Fallback command registry attempting to execute command "${name}" - initialization may have failed`);
       try {
         return await originalExecute(name, payload);
       } catch (error) {
-        console.error(`[QWIKI] Fallback command registry: Command "${name}" failed:`, error);
+        this.logError(`Fallback command registry command "${name}" failed`, error);
         throw new Error(
           `Command "${name}" cannot be executed due to initialization failure: ${error instanceof Error ? error.message : String(error)}`,
         );
@@ -545,7 +565,7 @@ export class QwikiPanel {
     };
 
     fallbackRegistry.register = <T>(name: string, command: any): void => {
-      console.log(`[QWIKI] Fallback command registry: Registered command "${name}"`);
+      this.logInfo(`Fallback command registry registered command "${name}"`);
       return originalRegister(name, command);
     };
 

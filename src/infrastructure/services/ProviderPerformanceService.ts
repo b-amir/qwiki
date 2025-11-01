@@ -5,6 +5,7 @@ import { RequestBatchingService } from "./RequestBatchingService";
 import { DebouncingService } from "./DebouncingService";
 import { BackgroundProcessingService } from "./BackgroundProcessingService";
 import { MemoryOptimizationService } from "./MemoryOptimizationService";
+import { LoggingService } from "./LoggingService";
 
 export interface PerformanceMetric {
   providerId: string;
@@ -32,10 +33,11 @@ export interface ProviderRanking {
   stats: PerformanceStats;
 }
 
-export class ProviderPerformanceService {
+export class  {
   private performanceMetrics = new Map<string, PerformanceMetric[]>();
   private readonly MAX_METRICS_PER_PROVIDER = 100;
   private readonly PERFORMANCE_WINDOW_MS = 3600000; // 1 hour in milliseconds
+  private readonly serviceName = "ProviderPerformanceService";
 
   constructor(
     private llmRegistry: LLMRegistry,
@@ -45,12 +47,34 @@ export class ProviderPerformanceService {
     private debouncingService?: DebouncingService,
     private backgroundProcessingService?: BackgroundProcessingService,
     private memoryOptimizationService?: MemoryOptimizationService,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logInfo(message: string, data?: unknown): void {
+    this.loggingService.info(this.serviceName, message, data);
+  }
+
+  private logWarn(message: string, data?: unknown): void {
+    this.loggingService.warn(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   recordGenerationStart(providerId: string): string {
     const requestId = `${providerId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log(
-      `[QWIKI] ProviderPerformanceService: Recording generation start for provider ${providerId} with request ID ${requestId}`,
+    this.logDebug(
+      `Recording generation start for provider ${providerId} with request ID ${requestId}`,
     );
 
     const metric: PerformanceMetric = {
@@ -65,8 +89,8 @@ export class ProviderPerformanceService {
       this.addMetric(providerId, metric);
       return requestId;
     } catch (error) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error recording generation start for provider ${providerId}:`,
+      this.logError(
+        `Error recording generation start for provider ${providerId}:`,
         error,
       );
       throw error;
@@ -84,8 +108,8 @@ export class ProviderPerformanceService {
     const requestDate = new Date(requestTime);
     const duration = Date.now() - requestTime;
 
-    console.log(
-      `[QWIKI] ProviderPerformanceService: Recording generation end for provider ${providerId}, success: ${success}, duration: ${duration}ms, tokens: ${tokensUsed || "N/A"}`,
+    this.logDebug(
+      `Recording generation end for provider ${providerId}, success: ${success}, duration: ${duration}ms, tokens: ${tokensUsed || "N/A"}`,
     );
 
     try {
@@ -95,8 +119,8 @@ export class ProviderPerformanceService {
       );
 
       if (!startMetric) {
-        console.warn(
-          `[QWIKI] ProviderPerformanceService: No start metric found for request: ${requestId}`,
+        this.logWarn(
+          `No start metric found for request: ${requestId}`,
         );
         return;
       }
@@ -115,22 +139,22 @@ export class ProviderPerformanceService {
 
       if (success) {
         if (duration > 5000) {
-          console.warn(
-            `[QWIKI] ProviderPerformanceService: SLOW OPERATION - Provider ${providerId} generation took ${duration}ms (threshold: 5000ms)`,
+          this.logWarn(
+            `SLOW OPERATION - Provider ${providerId} generation took ${duration}ms (threshold: 5000ms)`,
           );
         } else {
-          console.log(
-            `[QWIKI] ProviderPerformanceService: Provider ${providerId} generation completed successfully in ${duration}ms`,
+          this.logDebug(
+            `Provider ${providerId} generation completed successfully in ${duration}ms`,
           );
         }
       } else {
-        console.error(
-          `[QWIKI] ProviderPerformanceService: Provider ${providerId} generation failed after ${duration}ms: ${error || "Unknown error"}`,
+        this.logError(
+          `Provider ${providerId} generation failed after ${duration}ms: ${error || "Unknown error"}`,
         );
       }
     } catch (recordError) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error recording generation end for provider ${providerId}:`,
+      this.logError(
+        `Error recording generation end for provider ${providerId}:`,
         recordError,
       );
     }
@@ -140,8 +164,8 @@ export class ProviderPerformanceService {
     try {
       if (!this.performanceMetrics.has(providerId)) {
         this.performanceMetrics.set(providerId, []);
-        console.log(
-          `[QWIKI] ProviderPerformanceService: Created metrics collection for provider ${providerId}`,
+        this.logDebug(
+          `Created metrics collection for provider ${providerId}`,
         );
       }
 
@@ -151,15 +175,15 @@ export class ProviderPerformanceService {
       if (metrics.length > this.MAX_METRICS_PER_PROVIDER) {
         const removedCount = metrics.length - this.MAX_METRICS_PER_PROVIDER;
         metrics.splice(0, removedCount);
-        console.log(
-          `[QWIKI] ProviderPerformanceService: Removed ${removedCount} old metrics for provider ${providerId} (max: ${this.MAX_METRICS_PER_PROVIDER})`,
+        this.logDebug(
+          `Removed ${removedCount} old metrics for provider ${providerId} (max: ${this.MAX_METRICS_PER_PROVIDER})`,
         );
       }
 
       this.cleanupOldMetrics(providerId);
     } catch (error) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error adding metric for provider ${providerId}:`,
+      this.logError(
+        `Error adding metric for provider ${providerId}:`,
         error,
       );
     }
@@ -176,13 +200,13 @@ export class ProviderPerformanceService {
       if (filteredMetrics.length < metrics.length) {
         const removedCount = metrics.length - filteredMetrics.length;
         this.performanceMetrics.set(providerId, filteredMetrics);
-        console.log(
-          `[QWIKI] ProviderPerformanceService: Cleaned up ${removedCount} old metrics for provider ${providerId} (older than ${this.PERFORMANCE_WINDOW_MS}ms)`,
+        this.logDebug(
+          `Cleaned up ${removedCount} old metrics for provider ${providerId} (older than ${this.PERFORMANCE_WINDOW_MS}ms)`,
         );
       }
     } catch (error) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error cleaning up old metrics for provider ${providerId}:`,
+      this.logError(
+        `Error cleaning up old metrics for provider ${providerId}:`,
         error,
       );
     }
@@ -261,13 +285,13 @@ export class ProviderPerformanceService {
   getProviderStats(providerId: string): PerformanceStats {
     try {
       const stats = this.calculateProviderStats(providerId);
-      console.log(
-        `[QWIKI] ProviderPerformanceService: Retrieved stats for provider ${providerId} - Total: ${stats.totalRequests}, Success Rate: ${stats.successRate.toFixed(2)}%, Avg Response: ${stats.averageResponseTime.toFixed(2)}ms`,
+      this.logDebug(
+        `Retrieved stats for provider ${providerId} - Total: ${stats.totalRequests}, Success Rate: ${stats.successRate.toFixed(2)}%, Avg Response: ${stats.averageResponseTime.toFixed(2)}ms`,
       );
       return stats;
     } catch (error) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error getting stats for provider ${providerId}:`,
+      this.logError(
+        `Error getting stats for provider ${providerId}:`,
         error,
       );
       return this.calculateProviderStats(providerId);
@@ -276,15 +300,15 @@ export class ProviderPerformanceService {
 
   getAllProviderStats(): Record<string, PerformanceStats> {
     const getAllStatsStartTime = Date.now();
-    console.log("[QWIKI] ProviderPerformanceService: Retrieving stats for all providers");
+    this.logDebug("Retrieving stats for all providers");
 
     try {
       const result: Record<string, PerformanceStats> = {};
       const providers = this.llmRegistry.list();
       const providerIds = providers.map((p: any) => p.id);
 
-      console.log(
-        `[QWIKI] ProviderPerformanceService: Processing stats for ${providerIds.length} providers`,
+      this.logDebug(
+        `Processing stats for ${providerIds.length} providers`,
       );
 
       for (const providerId of providerIds) {
@@ -292,15 +316,15 @@ export class ProviderPerformanceService {
       }
 
       const getAllStatsEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderPerformanceService: Retrieved all provider stats in ${getAllStatsEndTime - getAllStatsStartTime}ms`,
+      this.logDebug(
+        `Retrieved all provider stats in ${getAllStatsEndTime - getAllStatsStartTime}ms`,
       );
 
       return result;
     } catch (error) {
       const getAllStatsEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error getting all provider stats after ${getAllStatsEndTime - getAllStatsStartTime}ms:`,
+      this.logError(
+        `Error getting all provider stats after ${getAllStatsEndTime - getAllStatsStartTime}ms:`,
         error,
       );
       throw error;
@@ -388,15 +412,15 @@ export class ProviderPerformanceService {
   }
 
   recordSelection(providerId: string, context: any): void {
-    console.log(
-      `[QWIKI] ProviderPerformanceService: Recording provider selection for ${providerId}`,
+    this.logDebug(
+      `Recording provider selection for ${providerId}`,
     );
 
     try {
       const stats = this.getProviderStats(providerId);
       if (!stats) {
-        console.warn(
-          `[QWIKI] ProviderPerformanceService: No stats found for provider ${providerId} during selection recording`,
+        this.logWarn(
+          `No stats found for provider ${providerId} during selection recording`,
         );
         return;
       }
@@ -416,16 +440,16 @@ export class ProviderPerformanceService {
         timestamp: new Date(),
       });
     } catch (error) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error recording selection for provider ${providerId}:`,
+      this.logError(
+        `Error recording selection for provider ${providerId}:`,
         error,
       );
     }
   }
 
   recordFallback(fromProvider: string, toProvider: string, success: boolean): void {
-    console.log(
-      `[QWIKI] ProviderPerformanceService: Recording fallback from ${fromProvider} to ${toProvider}, success: ${success}`,
+    this.logDebug(
+      `Recording fallback from ${fromProvider} to ${toProvider}, success: ${success}`,
     );
 
     try {
@@ -451,8 +475,8 @@ export class ProviderPerformanceService {
         timestamp: new Date(),
       });
     } catch (error) {
-      console.error(
-        `[QWIKI] ProviderPerformanceService: Error recording fallback from ${fromProvider} to ${toProvider}:`,
+      this.logError(
+        `Error recording fallback from ${fromProvider} to ${toProvider}:`,
         error,
       );
     }

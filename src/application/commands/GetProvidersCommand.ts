@@ -5,6 +5,7 @@ import type { MessageBus } from "../services/MessageBus";
 import type { ConfigurationManager } from "../services/ConfigurationManager";
 import { OutboundEvents } from "../../constants/Events";
 import { ProviderId } from "../../llm/types";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export class GetProvidersCommand implements Command<void> {
   constructor(
@@ -12,7 +13,23 @@ export class GetProvidersCommand implements Command<void> {
     private apiKeyRepository: ApiKeyRepository,
     private configurationManager: ConfigurationManager,
     private messageBus: MessageBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
+
+  private readonly serviceName = "GetProvidersCommand";
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   private inFlight?: Promise<void>;
   private lastEmitAt = 0;
@@ -21,27 +38,25 @@ export class GetProvidersCommand implements Command<void> {
   async execute(): Promise<void> {
     const now = Date.now();
     if (this.inFlight) {
-      console.log("[QWIKI] GetProvidersCommand: Coalescing duplicate call (in-flight)");
+      this.logDebug("Coalescing duplicate call (in-flight)");
       return this.inFlight;
     }
     if (now - this.lastEmitAt < this.cooldownMs) {
-      console.log("[QWIKI] GetProvidersCommand: Debounced duplicate call within cooldown");
+      this.logDebug("Debounced duplicate call within cooldown");
       return;
     }
 
     const executeStartTime = now;
-    console.log("[QWIKI] GetProvidersCommand: Starting to get providers list");
+    this.logDebug("Starting to get providers list");
 
     this.inFlight = (async () => {
       const listStartTime = Date.now();
       const list = this.llmRegistry.list();
       const listEndTime = Date.now();
-      console.log(
-        `[QWIKI] GetProvidersCommand: Retrieved ${list.length} providers from registry in ${listEndTime - listStartTime}ms`,
-      );
+      this.logDebug(`Retrieved ${list.length} providers from registry in ${listEndTime - listStartTime}ms`);
 
       const statusesStartTime = Date.now();
-      console.log("[QWIKI] GetProvidersCommand: Processing provider statuses");
+      this.logDebug("Processing provider statuses");
 
       const statuses = await Promise.all(
         list.map(async (p) => {
@@ -58,9 +73,7 @@ export class GetProvidersCommand implements Command<void> {
             const models = provider?.listModels?.() || [];
 
             const providerProcessEndTime = Date.now();
-            console.log(
-              `[QWIKI] GetProvidersCommand: Processed provider ${p.id} in ${providerProcessEndTime - providerProcessStartTime}ms - Models: ${models.length}, HasKey: ${hasKey}`,
-            );
+            this.logDebug(`Processed provider ${p.id} in ${providerProcessEndTime - providerProcessStartTime}ms`, { models: models.length, hasKey });
 
             return {
               id: p.id,
@@ -70,10 +83,7 @@ export class GetProvidersCommand implements Command<void> {
             };
           } catch (error) {
             const providerProcessEndTime = Date.now();
-            console.error(
-              `[QWIKI] GetProvidersCommand: Error processing provider ${p.id} after ${providerProcessEndTime - providerProcessStartTime}ms:`,
-              error,
-            );
+            this.logError(`Error processing provider ${p.id} after ${providerProcessEndTime - providerProcessStartTime}ms`, error);
 
             return {
               id: p.id,
@@ -86,23 +96,16 @@ export class GetProvidersCommand implements Command<void> {
       );
 
       const statusesEndTime = Date.now();
-      console.log(
-        `[QWIKI] GetProvidersCommand: All provider statuses processed in ${statusesEndTime - statusesStartTime}ms`,
-      );
+      this.logDebug(`All provider statuses processed in ${statusesEndTime - statusesStartTime}ms`);
 
       this.messageBus.postSuccess(OutboundEvents.providers, statuses);
       this.lastEmitAt = Date.now();
       const executeEndTime = Date.now();
-      console.log(
-        `[QWIKI] GetProvidersCommand: Command completed successfully in ${executeEndTime - executeStartTime}ms`,
-      );
+      this.logDebug(`Command completed successfully in ${executeEndTime - executeStartTime}ms`);
     })()
       .catch((error) => {
         const executeEndTime = Date.now();
-        console.error(
-          `[QWIKI] GetProvidersCommand: Command failed after ${executeEndTime - executeStartTime}ms:`,
-          error,
-        );
+        this.logError(`Command failed after ${executeEndTime - executeStartTime}ms`, error);
         throw error;
       })
       .finally(() => {

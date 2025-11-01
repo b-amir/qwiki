@@ -1,7 +1,18 @@
 import type { EventBus, EventHandler } from "./EventBus";
+import { LoggingService } from "../infrastructure/services/LoggingService";
 
 export class EventBusImpl implements EventBus {
   private handlers = new Map<string, Set<EventHandler>>();
+  private readonly serviceName = "EventBus";
+
+  constructor(
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {}
 
   subscribe<T>(event: string, handler: EventHandler<T>): () => void {
     if (!this.handlers.has(event)) {
@@ -25,7 +36,7 @@ export class EventBusImpl implements EventBus {
       try {
         await handler(payload);
       } catch (error) {
-        console.error("[QWIKI] EventBusImpl: Exception in promises:", error);
+        this.loggingService.error(this.serviceName, "Exception in event handler", error);
       }
     });
 

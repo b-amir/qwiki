@@ -1,4 +1,5 @@
 import { EventBus } from "../../events/EventBus";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export interface CodeContext {
   snippet: string;
@@ -198,32 +199,46 @@ export enum RelationshipType {
 }
 
 export class ContextAnalysisService {
-  constructor(private eventBus: EventBus) {}
+  private readonly serviceName = "ContextAnalysisService";
+
+  constructor(
+    private eventBus: EventBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {}
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
 
   async analyzeDeepContext(
     snippet: string,
     filePath: string,
     projectContext?: any,
   ): Promise<DeepContextAnalysis> {
-    console.log("[QWIKI] [ContextAnalysisService]  Starting deep context analysis for:", filePath);
+    this.logDebug("Starting deep context analysis for:", filePath);
 
     const language = this.detectLanguage(filePath);
-    console.log("[QWIKI] [ContextAnalysisService]  Detected language:", language);
+    this.logDebug("Detected language:", language);
 
     const structure = this.analyzeCodeStructure(snippet, language);
-    console.log("[QWIKI] [ContextAnalysisService]  Analyzed structure:", structure);
+    this.logDebug("Analyzed structure:", structure);
 
     const patterns = this.extractCodePatterns(snippet, language);
-    console.log("[QWIKI] [ContextAnalysisService]  Extracted patterns:", patterns);
+    this.logDebug("Extracted patterns:", patterns);
 
     const relationships = this.analyzeCodeRelationships(snippet, structure);
-    console.log("[QWIKI] [ContextAnalysisService]  Analyzed relationships:", relationships);
+    this.logDebug("Analyzed relationships:", relationships);
 
     const complexity = this.estimateContextComplexity(snippet, structure);
-    console.log("[QWIKI] [ContextAnalysisService]  Estimated complexity:", complexity);
+    this.logDebug("Estimated complexity:", complexity);
 
     const framework = this.detectFramework(snippet, language);
-    console.log("[QWIKI] [ContextAnalysisService]  Detected framework:", framework);
+    this.logDebug("Detected framework:", framework);
 
     const analysis: DeepContextAnalysis = {
       structure,
@@ -234,7 +249,7 @@ export class ContextAnalysisService {
       framework,
     };
 
-    console.log("[QWIKI] [ContextAnalysisService]  Publishing context-analyzed event");
+    this.logDebug("Publishing context-analyzed event");
     this.eventBus.publish("context-analyzed", { snippet, filePath, analysis });
     return analysis;
   }
@@ -768,21 +783,21 @@ export class ContextAnalysisService {
   }
 
   private getFunctionRegex(language: string): RegExp {
-    console.log("[QWIKI] [ContextAnalysisService]  Getting function regex for language:", language);
+    this.logDebug("Getting function regex for language:", language);
     switch (language) {
       case "typescript":
       case "javascript":
         const tsJsRegex =
           /(?:function\s+(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*(?:=>|\{))|(?:const\s+(\w+)\s*=\s*(?:\([^)]*\))\s*(?::\s*\w+)?\s*(?:=>|\{))|(?:let\s+(\w+)\s*=\s*(?:\([^)]*\))\s*(?::\s*\w+)?\s*(?:=>|\{))|(?:var\s+(\w+)\s*=\s*(?:\([^)]*\))\s*(?::\s*\w+)?\s*(?:=>|\{))/g;
-        console.log(
-          "[QWIKI] [ContextAnalysisService]  TypeScript/JavaScript function regex:",
+        this.logDebug(
+          "TypeScript/JavaScript function regex:",
           tsJsRegex,
         );
         return tsJsRegex;
       case "python":
         const pythonRegex =
           /(?:def\s+(\w+)\s*\([^)]*\)\s*:)|(?:class\s+(\w+)\s*\([^)]*\)\s*:)|(?:async\s+def\s+(\w+)\s*\([^)]*\)\s*:)/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Python function regex:", pythonRegex);
+        this.logDebug("Python function regex:", pythonRegex);
         return pythonRegex;
       case "java":
       case "csharp":
@@ -805,65 +820,65 @@ export class ContextAnalysisService {
           "g",
         );
 
-        console.log("[QWIKI] [ContextAnalysisService]  Java/C# function regex:", javaCSharpRegex);
+        this.logDebug("Java/C# function regex:", javaCSharpRegex);
         return javaCSharpRegex;
       default:
         const defaultRegex = /function\s+(\w+)\s*\([^)]*\)/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Default function regex:", defaultRegex);
+        this.logDebug("Default function regex:", defaultRegex);
         return defaultRegex;
     }
   }
 
   private getClassRegex(language: string): RegExp {
-    console.log("[QWIKI] [ContextAnalysisService]  Getting class regex for language:", language);
+    this.logDebug("Getting class regex for language:", language);
     switch (language) {
       case "typescript":
       case "javascript":
         const tsClassRegex =
           /(?:class\s+(\w+)\s*(?:extends\s+(\w+))?\s*(?:implements\s+([^\{]+))?\s*\{)/g;
-        console.log("[QWIKI] [ContextAnalysisService]  TypeScript class regex:", tsClassRegex);
+        this.logDebug("TypeScript class regex:", tsClassRegex);
         return tsClassRegex;
       case "python":
         const pyClassRegex = /class\s+(\w+)\s*(?:\([^)]*\))?\s*(?::\s*([^\n]+))?/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Python class regex:", pyClassRegex);
+        this.logDebug("Python class regex:", pyClassRegex);
         return pyClassRegex;
       case "java":
       case "csharp":
         const javaClassRegex =
           /(?:public\s+|private\s+|protected\s+|static\s+)*(?:final\s+)?(?:class\s+(\w+)\s*(?:extends\s+(\w+))?\s*(?:implements\s+([^\{]+))?\s*\{)/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Java/C# class regex:", javaClassRegex);
+        this.logDebug("Java/C# class regex:", javaClassRegex);
         return javaClassRegex;
       default:
         const defaultClassRegex =
           /class\s+(\w+)\s*(?:extends\s+(\w+))?\s*(?:implements\s+([^\{]+))?\s*\{/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Default class regex:", defaultClassRegex);
+        this.logDebug("Default class regex:", defaultClassRegex);
         return defaultClassRegex;
     }
   }
 
   private getInterfaceRegex(language: string): RegExp {
-    console.log(
-      "[QWIKI] [ContextAnalysisService]  Getting interface regex for language:",
+    this.logDebug(
+      "Getting interface regex for language:",
       language,
     );
     switch (language) {
       case "typescript":
       case "javascript":
         const tsInterfaceRegex = /interface\s+(\w+)\s*(?:extends\s+([^\{]+))?\s*\{/g;
-        console.log(
-          "[QWIKI] [ContextAnalysisService]  TypeScript interface regex:",
+        this.logDebug(
+          "TypeScript interface regex:",
           tsInterfaceRegex,
         );
         return tsInterfaceRegex;
       case "python":
         const pyInterfaceRegex =
           /(?:class\s+(\w+)\s*(?:\([^)]*\))?\s*:)?\s*interface\s+(\w+)\s*(?:\([^)]*\))?\s*\{/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Python interface regex:", pyInterfaceRegex);
+        this.logDebug("Python interface regex:", pyInterfaceRegex);
         return pyInterfaceRegex;
       default:
         const defaultInterfaceRegex = /interface\s+(\w+)\s*(?:extends\s+([^\{]+))?\s*\{/g;
-        console.log(
-          "[QWIKI] [ContextAnalysisService]  Default interface regex:",
+        this.logDebug(
+          "Default interface regex:",
           defaultInterfaceRegex,
         );
         return defaultInterfaceRegex;
@@ -871,21 +886,21 @@ export class ContextAnalysisService {
   }
 
   private getImportRegex(language: string): RegExp {
-    console.log("[QWIKI] [ContextAnalysisService]  Getting import regex for language:", language);
+    this.logDebug("Getting import regex for language:", language);
     switch (language) {
       case "typescript":
       case "javascript":
         const tsImportRegex =
           /(?:import\s+(?:\*\s+as\s+)?([^\s]+)\s+from\s+['"]([^'"]+)['"]|import\s+(?:\*\s+as\s+)?([^\s]+)\s*from\s+([^\s]+)\s*;|import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"])/g;
-        console.log("[QWIKI] [ContextAnalysisService]  TypeScript import regex:", tsImportRegex);
+        this.logDebug("TypeScript import regex:", tsImportRegex);
         return tsImportRegex;
       case "python":
         const pyImportRegex = /(?:from\s+([^\s]+)\s+import\s+(.+)|import\s+([^\s]+))/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Python import regex:", pyImportRegex);
+        this.logDebug("Python import regex:", pyImportRegex);
         return pyImportRegex;
       default:
         const defaultImportRegex = /import\s+([^\s]+)/g;
-        console.log("[QWIKI] [ContextAnalysisService]  Default import regex:", defaultImportRegex);
+        this.logDebug("Default import regex:", defaultImportRegex);
         return defaultImportRegex;
     }
   }
@@ -1072,7 +1087,7 @@ export class ContextAnalysisService {
   }
 
   private detectFramework(snippet: string, language: string): string | undefined {
-    console.log("[QWIKI] [ContextAnalysisService]  Detecting framework for language:", language);
+    this.logDebug("Detecting framework for language:", language);
 
     if (language === "typescript" || language === "javascript") {
       if (
@@ -1080,7 +1095,7 @@ export class ContextAnalysisService {
         snippet.includes("from 'react'") ||
         snippet.includes('from "react"')
       ) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected React framework");
+        this.logDebug("Detected React framework");
         return "react";
       }
 
@@ -1089,7 +1104,7 @@ export class ContextAnalysisService {
         snippet.includes("from 'vue'") ||
         snippet.includes('from "vue"')
       ) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected Vue framework");
+        this.logDebug("Detected Vue framework");
         return "vue";
       }
 
@@ -1098,7 +1113,7 @@ export class ContextAnalysisService {
         snippet.includes("@NgModule") ||
         snippet.includes("from '@angular/core'")
       ) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected Angular framework");
+        this.logDebug("Detected Angular framework");
         return "angular";
       }
 
@@ -1107,7 +1122,7 @@ export class ContextAnalysisService {
         snippet.includes("from 'express'") ||
         snippet.includes('from "express"')
       ) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected Express framework");
+        this.logDebug("Detected Express framework");
         return "express";
       }
 
@@ -1116,29 +1131,29 @@ export class ContextAnalysisService {
         snippet.includes('from "next"') ||
         snippet.includes("import { NextApiRequest")
       ) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected Next.js framework");
+        this.logDebug("Detected Next.js framework");
         return "nextjs";
       }
     }
 
     if (language === "python") {
       if (snippet.includes("from django") || snippet.includes("import django")) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected Django framework");
+        this.logDebug("Detected Django framework");
         return "django";
       }
 
       if (snippet.includes("from flask") || snippet.includes("import flask")) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected Flask framework");
+        this.logDebug("Detected Flask framework");
         return "flask";
       }
 
       if (snippet.includes("from fastapi") || snippet.includes("import fastapi")) {
-        console.log("[QWIKI] [ContextAnalysisService]  Detected FastAPI framework");
+        this.logDebug("Detected FastAPI framework");
         return "fastapi";
       }
     }
 
-    console.log("[QWIKI] [ContextAnalysisService]  No specific framework detected");
+    this.logDebug("No specific framework detected");
     return undefined;
   }
 }

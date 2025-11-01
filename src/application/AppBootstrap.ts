@@ -42,6 +42,7 @@ import { WikiStorageService } from "./services/WikiStorageService";
 
 export class AppBootstrap {
   private container = new Container();
+  private loggingService!: LoggingService;
 
   constructor(private context: ExtensionContext) {
     this.registerServices();
@@ -77,7 +78,16 @@ export class AppBootstrap {
   }
 
   private registerServices(): void {
-    this.container.registerInstance("eventBus", new EventBusImpl());
+    const loggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    });
+    this.loggingService = loggingService;
+    this.container.registerInstance("loggingService", loggingService);
+
+    this.container.registerInstance("eventBus", new EventBusImpl(loggingService));
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
     this.container.registerInstance("cacheService", new CachingService());
@@ -93,15 +103,6 @@ export class AppBootstrap {
       new BackgroundProcessingService(),
     );
     this.container.registerInstance("memoryOptimizationService", new MemoryOptimizationService());
-    this.container.registerInstance(
-      "loggingService",
-      new LoggingService({
-        enabled: false,
-        level: "error",
-        includeTimestamp: true,
-        includeService: true,
-      }),
-    );
 
     this.container.register(
       "apiKeyRepository",
@@ -163,7 +164,7 @@ export class AppBootstrap {
 
     this.container.register("selectionService", () => new SelectionService());
 
-    this.container.register("projectContextService", () => new ProjectContextService());
+    this.container.register("projectContextService", () => new ProjectContextService(this.loggingService));
     this.container.register(
       "cachedProjectContextService",
       () =>
@@ -216,14 +217,14 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register("commandRegistry", () => new CommandRegistry());
+    this.container.register("commandRegistry", () => new CommandRegistry(this.loggingService));
 
     this.container.register(
       "errorHandler",
-      () => new ErrorHandlerImpl(this.container.resolve("eventBus")),
+      () => new ErrorHandlerImpl(this.container.resolve("eventBus"), this.loggingService),
     );
 
-    this.container.register("errorLoggingService", () => new ErrorLoggingService());
+    this.container.register("errorLoggingService", () => new ErrorLoggingService(this.loggingService));
 
     this.container.register("errorRecoveryService", () => new ErrorRecoveryService());
 
@@ -242,6 +243,7 @@ export class AppBootstrap {
         new ProviderHealthService(
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("eventBus"),
+          this.loggingService,
         ),
     );
 
@@ -251,6 +253,12 @@ export class AppBootstrap {
         new ProviderPerformanceService(
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("eventBus"),
+          this.container.resolve("generationCacheService") as GenerationCacheService,
+          this.container.resolve("requestBatchingService") as RequestBatchingService,
+          this.container.resolve("debouncingService") as DebouncingService,
+          this.container.resolve("backgroundProcessingService") as BackgroundProcessingService,
+          this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
+          this.loggingService,
         ),
     );
 
@@ -268,10 +276,11 @@ export class AppBootstrap {
           this.container.resolve("projectContextService"),
           this.container.resolve("errorRecoveryService"),
           this.container.resolve("errorLoggingService"),
+          this.loggingService,
         ),
     );
 
-    this.container.register("wikiStorageService", () => new WikiStorageService());
+    this.container.register("wikiStorageService", () => new WikiStorageService(this.loggingService));
   }
 
   async initializeEventHandlers(): Promise<void> {
@@ -284,7 +293,7 @@ export class AppBootstrap {
   }
 
   async createCommandRegistry(webview: Webview): Promise<CommandRegistry> {
-    const commandRegistry = new CommandRegistry();
+    const commandRegistry = new CommandRegistry(this.loggingService);
     const eventBus = this.container.resolve<EventBus>("eventBus");
 
     const commandFactory = new CommandFactory({
@@ -299,13 +308,13 @@ export class AppBootstrap {
       commandRegistry.register(commandId, command);
     }
 
-    const messageBus = new MessageBus(webview);
+    const messageBus = new MessageBus(webview, this.loggingService);
 
     commandRegistry.addDisposer(() => {
       try {
         messageBus.dispose();
       } catch (err) {
-        console.error("[QWIKI] AppBootstrap: MessageBus dispose failed:", err);
+        this.loggingService.error("AppBootstrap", "MessageBus dispose failed", err);
       }
     });
 

@@ -2,36 +2,53 @@ import type { Command } from "./Command";
 import type { LLMRegistry } from "../../llm";
 import type { MessageBus } from "../services/MessageBus";
 import { OutboundEvents } from "../../constants/Events";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export class GetProviderConfigsCommand implements Command<void> {
   constructor(
     private llmRegistry: LLMRegistry,
     private messageBus: MessageBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
+
+  private readonly serviceName = "GetProviderConfigsCommand";
+
+  private logDebug(message: string, data?: unknown): void {
+    this.loggingService.debug(this.serviceName, message, data);
+  }
+
+  private logError(message: string, data?: unknown): void {
+    this.loggingService.error(this.serviceName, message, data);
+  }
 
   async execute(): Promise<void> {
     const executeStartTime = Date.now();
-    console.log("[QWIKI] GetProviderConfigsCommand: Starting to get provider configs");
+    this.logDebug("Starting to get provider configs");
 
     try {
       const configsStartTime = Date.now();
       const configs = await this.llmRegistry.getProviderConfigs();
       const configsEndTime = Date.now();
 
-      console.log(
-        `[QWIKI] GetProviderConfigsCommand: Retrieved ${configs.length} provider configs in ${configsEndTime - configsStartTime}ms`,
+      this.logDebug(
+        `Retrieved ${configs.length} provider configs in ${configsEndTime - configsStartTime}ms`,
       );
 
       this.messageBus.postSuccess(OutboundEvents.providerConfigs, configs);
 
       const executeEndTime = Date.now();
-      console.log(
-        `[QWIKI] GetProviderConfigsCommand: Command completed successfully in ${executeEndTime - executeStartTime}ms`,
+      this.logDebug(
+        `Command completed successfully in ${executeEndTime - executeStartTime}ms`,
       );
     } catch (error) {
       const executeEndTime = Date.now();
-      console.error(
-        `[QWIKI] GetProviderConfigsCommand: Command failed after ${executeEndTime - executeStartTime}ms:`,
+      this.logError(
+        `Command failed after ${executeEndTime - executeStartTime}ms`,
         error,
       );
       throw error;

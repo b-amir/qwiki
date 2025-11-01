@@ -2,6 +2,7 @@ import { EventBus } from "../../events/EventBus";
 import { ProviderDiscoveryService } from "./ProviderDiscoveryService";
 import { LLMProvider } from "../../llm/types";
 import { HealthCheckResult } from "../../llm/types/ProviderCapabilities";
+import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 export enum ProviderState {
   UNLOADED = "unloaded",
@@ -17,21 +18,30 @@ export class ProviderLifecycleManager {
   private activeProviders = new Map<string, LLMProvider>();
   private providerStates = new Map<string, ProviderState>();
   private initializationPromises = new Map<string, Promise<void>>();
+  private readonly serviceName = "ProviderLifecycleManager";
 
   constructor(
     private providerDiscoveryService: ProviderDiscoveryService,
     private eventBus: EventBus,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
   ) {}
 
   async initializeProvider(providerId: string): Promise<void> {
     const initStartTime = Date.now();
-    console.log(
-      `[QWIKI] ProviderLifecycleManager: Starting initialization for provider ${providerId}`,
+    this.loggingService.debug(
+      this.serviceName,
+      `Starting initialization for provider ${providerId}`,
     );
 
     if (this.initializationPromises.has(providerId)) {
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Initialization already in progress for provider ${providerId}, returning existing promise`,
+      this.loggingService.debug(
+        this.serviceName,
+        `Initialization already in progress for provider ${providerId}, returning existing promise`,
       );
       return this.initializationPromises.get(providerId)!;
     }
@@ -42,13 +52,15 @@ export class ProviderLifecycleManager {
     try {
       await initializationPromise;
       const initEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider ${providerId} initialized successfully in ${initEndTime - initStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `Provider ${providerId} initialized successfully in ${initEndTime - initStartTime}ms`,
       );
     } catch (error) {
       const initEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Failed to initialize provider ${providerId} after ${initEndTime - initStartTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Failed to initialize provider ${providerId} after ${initEndTime - initStartTime}ms`,
         error,
       );
       throw error;
@@ -59,56 +71,69 @@ export class ProviderLifecycleManager {
 
   private async _initializeProviderInternal(providerId: string): Promise<void> {
     const initStartTime = Date.now();
-    console.log(
-      `[QWIKI] ProviderLifecycleManager: Starting internal initialization for provider ${providerId}`,
+    this.loggingService.debug(
+      this.serviceName,
+      `Starting internal initialization for provider ${providerId}`,
     );
 
     this.setProviderState(providerId, ProviderState.INITIALIZING);
 
     try {
       const discoveryStartTime = Date.now();
-      console.log(`[QWIKI] ProviderLifecycleManager: Discovering providers for ${providerId}`);
+      this.loggingService.debug(
+        this.serviceName,
+        `Discovering providers for ${providerId}`,
+      );
 
       const discoveredProviders = this.providerDiscoveryService.getDiscoveredProviders();
       const metadata = discoveredProviders.find((p) => p.id === providerId);
 
       const discoveryEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider discovery completed in ${discoveryEndTime - discoveryStartTime}ms`,
+      this.loggingService.debug(
+        this.serviceName,
+        `Provider discovery completed in ${discoveryEndTime - discoveryStartTime}ms`,
       );
 
       if (!metadata) {
         const error = new Error(`Provider ${providerId} not found in discovered providers`);
-        console.error(`[QWIKI] ProviderLifecycleManager: ${error.message}`);
+        this.loggingService.error(this.serviceName, error.message, error);
         throw error;
       }
 
       const loadStartTime = Date.now();
-      console.log(`[QWIKI] ProviderLifecycleManager: Loading provider ${providerId} from metadata`);
+      this.loggingService.debug(
+        this.serviceName,
+        `Loading provider ${providerId} from metadata`,
+      );
 
       const provider = await this.providerDiscoveryService.loadProviderFromMetadata(metadata);
       if (!provider) {
         const error = new Error(`Failed to load provider ${providerId}`);
-        console.error(`[QWIKI] ProviderLifecycleManager: ${error.message}`);
+        this.loggingService.error(this.serviceName, error.message, error);
         throw error;
       }
 
       const loadEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider ${providerId} loaded in ${loadEndTime - loadStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `Provider ${providerId} loaded in ${loadEndTime - loadStartTime}ms`,
       );
 
       this.activeProviders.set(providerId, provider);
       this.setProviderState(providerId, ProviderState.LOADED);
 
       const providerInitStartTime = Date.now();
-      console.log(`[QWIKI] ProviderLifecycleManager: Initializing provider ${providerId}`);
+      this.loggingService.debug(
+        this.serviceName,
+        `Initializing provider ${providerId}`,
+      );
 
       await provider.initialize();
 
       const providerInitEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider ${providerId} initialized in ${providerInitEndTime - providerInitStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `Provider ${providerId} initialized in ${providerInitEndTime - providerInitStartTime}ms`,
       );
 
       this.setProviderState(providerId, ProviderState.READY);
@@ -116,13 +141,15 @@ export class ProviderLifecycleManager {
       this.eventBus.publish("provider-initialized", { providerId, provider });
 
       const initEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider ${providerId} fully initialized in ${initEndTime - initStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `Provider ${providerId} fully initialized in ${initEndTime - initStartTime}ms`,
       );
     } catch (error) {
       const initEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Error initializing provider ${providerId} after ${initEndTime - initStartTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Error initializing provider ${providerId} after ${initEndTime - initStartTime}ms`,
         error,
       );
       this.setProviderState(providerId, ProviderState.ERROR);
@@ -133,19 +160,23 @@ export class ProviderLifecycleManager {
 
   async disposeProvider(providerId: string): Promise<void> {
     const disposeStartTime = Date.now();
-    console.log(`[QWIKI] ProviderLifecycleManager: Starting disposal of provider ${providerId}`);
+    this.loggingService.debug(
+      this.serviceName,
+      `Starting disposal of provider ${providerId}`,
+    );
 
     this.setProviderState(providerId, ProviderState.DISPOSING);
 
     try {
       const provider = this.activeProviders.get(providerId);
       if (provider) {
-        console.log(`[QWIKI] ProviderLifecycleManager: Disposing provider ${providerId}`);
+        this.loggingService.debug(this.serviceName, `Disposing provider ${providerId}`);
         await provider.dispose();
         this.activeProviders.delete(providerId);
       } else {
-        console.warn(
-          `[QWIKI] ProviderLifecycleManager: Provider ${providerId} not found in active providers during disposal`,
+        this.loggingService.warn(
+          this.serviceName,
+          `Provider ${providerId} not found in active providers during disposal`,
         );
       }
 
@@ -153,13 +184,15 @@ export class ProviderLifecycleManager {
       this.eventBus.publish("provider-disposed", { providerId });
 
       const disposeEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider ${providerId} disposed successfully in ${disposeEndTime - disposeStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `Provider ${providerId} disposed successfully in ${disposeEndTime - disposeStartTime}ms`,
       );
     } catch (error) {
       const disposeEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Error disposing provider ${providerId} after ${disposeEndTime - disposeStartTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Error disposing provider ${providerId} after ${disposeEndTime - disposeStartTime}ms`,
         error,
       );
       this.setProviderState(providerId, ProviderState.ERROR);
@@ -170,7 +203,10 @@ export class ProviderLifecycleManager {
 
   async restartProvider(providerId: string): Promise<void> {
     const restartStartTime = Date.now();
-    console.log(`[QWIKI] ProviderLifecycleManager: Starting restart of provider ${providerId}`);
+    this.loggingService.debug(
+      this.serviceName,
+      `Starting restart of provider ${providerId}`,
+    );
 
     try {
       await this.disposeProvider(providerId);
@@ -178,13 +214,15 @@ export class ProviderLifecycleManager {
       this.eventBus.publish("provider-restarted", { providerId });
 
       const restartEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Provider ${providerId} restarted successfully in ${restartEndTime - restartStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `Provider ${providerId} restarted successfully in ${restartEndTime - restartStartTime}ms`,
       );
     } catch (error) {
       const restartEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Failed to restart provider ${providerId} after ${restartEndTime - restartStartTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Failed to restart provider ${providerId} after ${restartEndTime - restartStartTime}ms`,
         error,
       );
       this.eventBus.publish("provider-error", { providerId, error });
@@ -206,8 +244,9 @@ export class ProviderLifecycleManager {
 
   async healthCheckProvider(providerId: string): Promise<HealthCheckResult> {
     const healthCheckStartTime = Date.now();
-    console.log(
-      `[QWIKI] ProviderLifecycleManager: Starting health check for provider ${providerId}`,
+    this.loggingService.debug(
+      this.serviceName,
+      `Starting health check for provider ${providerId}`,
     );
 
     const provider = this.activeProviders.get(providerId);
@@ -218,7 +257,11 @@ export class ProviderLifecycleManager {
         error: `Provider ${providerId} is not active`,
         lastChecked: new Date(),
       };
-      console.error(`[QWIKI] ProviderLifecycleManager: Health check failed - ${errorResult.error}`);
+      this.loggingService.error(
+        this.serviceName,
+        `Health check failed for provider ${providerId} - ${errorResult.error}`,
+        errorResult,
+      );
       return errorResult;
     }
 
@@ -228,12 +271,15 @@ export class ProviderLifecycleManager {
       const responseTime = healthCheckEndTime - healthCheckStartTime;
 
       if (result.isHealthy) {
-        console.log(
-          `[QWIKI] ProviderLifecycleManager: Health check passed for provider ${providerId} in ${responseTime}ms`,
+        this.loggingService.info(
+          this.serviceName,
+          `Health check passed for provider ${providerId} in ${responseTime}ms`,
         );
       } else {
-        console.warn(
-          `[QWIKI] ProviderLifecycleManager: Health check failed for provider ${providerId} in ${responseTime}ms: ${result.error}`,
+        this.loggingService.warn(
+          this.serviceName,
+          `Health check failed for provider ${providerId} in ${responseTime}ms: ${result.error}`,
+          result,
         );
       }
 
@@ -244,8 +290,9 @@ export class ProviderLifecycleManager {
       const responseTime = healthCheckEndTime - healthCheckStartTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Health check error for provider ${providerId} after ${responseTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Health check error for provider ${providerId} after ${responseTime}ms`,
         error,
       );
 
@@ -291,18 +338,20 @@ export class ProviderLifecycleManager {
 
   async initializeAllProviders(): Promise<void> {
     const initAllStartTime = Date.now();
-    console.log("[QWIKI] ProviderLifecycleManager: Starting initialization of all providers");
+    this.loggingService.debug(this.serviceName, "Starting initialization of all providers");
 
     try {
       const discoveredProviders = this.providerDiscoveryService.getDiscoveredProviders();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Found ${discoveredProviders.length} providers to initialize`,
+      this.loggingService.debug(
+        this.serviceName,
+        `Found ${discoveredProviders.length} providers to initialize`,
       );
 
       const initializationPromises = discoveredProviders.map((provider) =>
         this.initializeProvider(provider.id).catch((error) => {
-          console.error(
-            `[QWIKI] ProviderLifecycleManager: Failed to initialize provider ${provider.id}:`,
+          this.loggingService.error(
+            this.serviceName,
+            `Failed to initialize provider ${provider.id}`,
             error,
           );
         }),
@@ -311,13 +360,15 @@ export class ProviderLifecycleManager {
       await Promise.allSettled(initializationPromises);
 
       const initAllEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: All providers initialization completed in ${initAllEndTime - initAllStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `All providers initialization completed in ${initAllEndTime - initAllStartTime}ms`,
       );
     } catch (error) {
       const initAllEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Error initializing all providers after ${initAllEndTime - initAllStartTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Error initializing all providers after ${initAllEndTime - initAllStartTime}ms`,
         error,
       );
     }
@@ -325,18 +376,20 @@ export class ProviderLifecycleManager {
 
   async disposeAllProviders(): Promise<void> {
     const disposeAllStartTime = Date.now();
-    console.log("[QWIKI] ProviderLifecycleManager: Starting disposal of all providers");
+    this.loggingService.debug(this.serviceName, "Starting disposal of all providers");
 
     try {
       const activeProviderIds = Array.from(this.activeProviders.keys());
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: Disposing ${activeProviderIds.length} active providers`,
+      this.loggingService.debug(
+        this.serviceName,
+        `Disposing ${activeProviderIds.length} active providers`,
       );
 
       const disposePromises = activeProviderIds.map((providerId) =>
         this.disposeProvider(providerId).catch((error) => {
-          console.error(
-            `[QWIKI] ProviderLifecycleManager: Failed to dispose provider ${providerId}:`,
+          this.loggingService.error(
+            this.serviceName,
+            `Failed to dispose provider ${providerId}`,
             error,
           );
         }),
@@ -345,13 +398,15 @@ export class ProviderLifecycleManager {
       await Promise.allSettled(disposePromises);
 
       const disposeAllEndTime = Date.now();
-      console.log(
-        `[QWIKI] ProviderLifecycleManager: All providers disposed in ${disposeAllEndTime - disposeAllStartTime}ms`,
+      this.loggingService.info(
+        this.serviceName,
+        `All providers disposed in ${disposeAllEndTime - disposeAllStartTime}ms`,
       );
     } catch (error) {
       const disposeAllEndTime = Date.now();
-      console.error(
-        `[QWIKI] ProviderLifecycleManager: Error disposing all providers after ${disposeAllEndTime - disposeAllStartTime}ms:`,
+      this.loggingService.error(
+        this.serviceName,
+        `Error disposing all providers after ${disposeAllEndTime - disposeAllStartTime}ms`,
         error,
       );
     }
