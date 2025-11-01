@@ -44,6 +44,21 @@ export const ErrorMessages = {
     suggestion:
       "Please check your configuration settings and ensure all required fields are properly filled.",
   },
+  [ErrorCodes.PROVIDER_NOT_SELECTED]: {
+    message: "No provider selected. Please configure and select a provider in settings.",
+    suggestion:
+      "Go to Settings and select a provider from the available options. If no providers are available, you may need to configure one with an API key.",
+  },
+  [ErrorCodes.MISSING_SNIPPET]: {
+    message: "No selection. Select some code or text.",
+    suggestion:
+      "Select some code or text in your editor before generating documentation. You can select code blocks, functions, classes, or any text you want to document.",
+  },
+  [ErrorCodes.INIT_TIMEOUT]: {
+    message: "Initialization timeout. Please try again.",
+    suggestion:
+      "The extension is taking longer than expected to initialize. Try refreshing the webview or restarting VS Code. Check if there are any network connectivity issues.",
+  },
 };
 
 export function getErrorMessage(

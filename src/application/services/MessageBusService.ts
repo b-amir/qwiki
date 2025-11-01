@@ -72,10 +72,13 @@ export class MessageBusService {
     context?: any,
     originalError?: string,
   ): void {
+    const suggestions = suggestion ? [suggestion] : undefined;
+
     this.logger.error("Error posted to frontend", {
       code,
       message,
       suggestion,
+      suggestions,
       context,
       originalError,
       timestamp: new Date().toISOString(),
@@ -84,6 +87,7 @@ export class MessageBusService {
     this.postImmediate(OutboundEvents.error, {
       code,
       message,
+      suggestions,
       suggestion,
       originalError,
       timestamp: new Date().toISOString(),

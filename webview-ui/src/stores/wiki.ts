@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
 import { useErrorHistoryStore } from "./errorHistory";
 import { useLoadingStore } from "./loading";
+import { ErrorCodes, getErrorMessage } from "@/utilities/errorMessages";
 
 export type ProviderStatus = { id: string; name: string; hasKey: boolean; models: string[] };
 
@@ -77,6 +78,7 @@ export const useWikiStore = defineStore("wiki", {
             this.loading = false;
             this.loadingStep = "";
             this.error = "";
+            this.errorInfo = null;
             this.content = message.payload?.content || "";
             loadingStore.complete({ context: "wiki" });
             return;
@@ -93,10 +95,13 @@ export const useWikiStore = defineStore("wiki", {
             this.loading = false;
             this.loadingStep = "";
             this.error = message.payload?.message || "Unknown error";
+            const suggestions =
+              message.payload?.suggestions ||
+              (message.payload?.suggestion ? [message.payload.suggestion] : undefined);
             this.errorInfo = {
               message: message.payload?.message || "Unknown error",
               code: message.payload?.code,
-              suggestions: message.payload?.suggestions,
+              suggestions,
               retryable: message.payload?.retryable || false,
               timestamp: message.payload?.timestamp,
               context: message.payload?.context,
@@ -134,19 +139,43 @@ export const useWikiStore = defineStore("wiki", {
         if (this.loading) {
           this.loading = false;
           this.loadingStep = "";
-          this.error = "Initialization timeout. Please try again.";
+          const errorInfo = getErrorMessage(ErrorCodes.INIT_TIMEOUT);
+          this.error = errorInfo.message;
+          this.errorInfo = {
+            message: errorInfo.message,
+            code: ErrorCodes.INIT_TIMEOUT,
+            suggestions: errorInfo.suggestions,
+            retryable: true,
+            timestamp: new Date().toISOString(),
+          };
           useLoadingStore().fail({ context: "wiki", error: this.error });
         }
       }, 10000);
     },
     async generate() {
       if (!this.snippet?.trim()) {
-        this.error = "No selection. Select some code or text.";
+        const errorInfo = getErrorMessage(ErrorCodes.MISSING_SNIPPET);
+        this.error = errorInfo.message;
+        this.errorInfo = {
+          message: errorInfo.message,
+          code: ErrorCodes.MISSING_SNIPPET,
+          suggestions: errorInfo.suggestions,
+          retryable: false,
+          timestamp: new Date().toISOString(),
+        };
         return;
       }
 
       if (!this.providerId?.trim()) {
-        this.error = "No provider selected. Please configure and select a provider in settings.";
+        const errorInfo = getErrorMessage(ErrorCodes.PROVIDER_NOT_SELECTED);
+        this.error = errorInfo.message;
+        this.errorInfo = {
+          message: errorInfo.message,
+          code: ErrorCodes.PROVIDER_NOT_SELECTED,
+          suggestions: errorInfo.suggestions,
+          retryable: false,
+          timestamp: new Date().toISOString(),
+        };
         return;
       }
 
@@ -155,6 +184,7 @@ export const useWikiStore = defineStore("wiki", {
       const loadingStore = useLoadingStore();
       loadingStore.start({ context: "wiki", step: "validating" });
       this.error = "";
+      this.errorInfo = null;
       this.content = "";
 
       this.generateRequestId = Math.random().toString(36).substring(7);
