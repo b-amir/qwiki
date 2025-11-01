@@ -22,10 +22,22 @@ import {
   type GenerationMetadata,
   type ProcessedGeneration,
 } from "../transformers/WikiTransformer";
+import { ContextIntelligenceService } from "./ContextIntelligenceService";
+import { ContextCompressionService } from "./ContextCompressionService";
+import { AdvancedPromptService } from "./AdvancedPromptService";
+import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
+import { CachedProjectContextService } from "./CachedProjectContextService";
 
 export class WikiService {
   private debouncedGenerate: any;
   private generationCacheKeyPrefix = "wiki_generation";
+  private logger: Logger;
+  private intelligentContextEnabled = false;
 
   constructor(
     private llmRegistry: LLMRegistry,
@@ -34,11 +46,23 @@ export class WikiService {
     private debouncingService: DebouncingService,
     private backgroundProcessingService: BackgroundProcessingService,
     private memoryOptimizationService: MemoryOptimizationService,
+    private contextIntelligenceService?: ContextIntelligenceService,
+    private contextCompressionService?: ContextCompressionService,
+    private advancedPromptService?: AdvancedPromptService,
+    private performanceMonitor?: PerformanceMonitorService,
+    private cachedProjectContextService?: CachedProjectContextService,
+    private loggingService?: LoggingService,
   ) {
+    this.logger = loggingService
+      ? createLogger("WikiService", loggingService)
+      : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
     this.debouncedGenerate = this.debouncingService.debounce(
       this.performGeneration.bind(this),
       ServiceLimits.debounceDelay,
       { leading: false, trailing: true },
+    );
+    this.intelligentContextEnabled = Boolean(
+      contextIntelligenceService && advancedPromptService && cachedProjectContextService,
     );
   }
 
@@ -149,17 +173,74 @@ export class WikiService {
     },
     onProgress?: (step: LoadingStep) => void,
   ): Promise<WikiGenerationResult> {
+    let enhancedContext = projectContext;
+    const startTime = Date.now();
+
+    try {
+      if (this.intelligentContextEnabled && request.filePath) {
+        const contextTimer = this.performanceMonitor?.startTimer("selectOptimalContext", {
+          filePath: request.filePath,
+          providerId: request.providerId,
+          model: request.model,
+        });
+
+        try {
+          const optimalContext = await this.contextIntelligenceService!.selectOptimalContext(
+            request.filePath,
+            request.providerId || "",
+            request.model,
+          );
+
+          enhancedContext = {
+            rootName: projectContext.rootName,
+            overview: projectContext.overview,
+            filesSample: [
+              ...optimalContext.essentialFiles.map((f) => f.filePath),
+              ...optimalContext.selectedFiles.slice(0, 10).map((f) => f.filePath),
+            ],
+            related: optimalContext.selectedFiles.slice(0, 20).map((f) => ({
+              path: f.filePath,
+              reason: f.relevanceType,
+              preview: undefined,
+            })),
+          };
+
+          if (contextTimer) {
+            contextTimer();
+          }
+
+          this.logger.debug("Enhanced context using intelligent selection", {
+            selectedFiles: optimalContext.selectedFiles.length,
+            essentialFiles: optimalContext.essentialFiles.length,
+            tokenCost: optimalContext.totalTokenCost,
+          });
+        } catch (error) {
+          if (contextTimer) {
+            contextTimer();
+          }
+          this.logger.warn(
+            "Failed to use intelligent context, falling back to standard context",
+            error,
+          );
+          enhancedContext = projectContext;
+        }
+      }
+    } catch (error) {
+      this.logger.warn("Context intelligence failed, using fallback", error);
+      enhancedContext = projectContext;
+    }
+
     const analysis = WikiTransformer.analyzeSnippet(request.snippet, request.languageId);
     onProgress?.(LoadingSteps.analyzing);
     await this.yieldForUi();
 
-    const contextSummary = WikiTransformer.summarizeContext(projectContext);
+    const contextSummary = WikiTransformer.summarizeContext(enhancedContext);
     onProgress?.(LoadingSteps.finding);
     await this.yieldForUi();
 
     const generationInput = WikiTransformer.prepareGenerationInput(
       request,
-      projectContext,
+      enhancedContext,
       analysis,
       contextSummary,
     );
@@ -198,6 +279,15 @@ export class WikiService {
       content: finalContent,
       success: true,
     };
+
+    const generationTime = Date.now() - startTime;
+    if (this.performanceMonitor) {
+      this.performanceMonitor.startTimer("generateWiki", {
+        providerId: request.providerId,
+        model: request.model,
+        intelligentContext: this.intelligentContextEnabled,
+      })();
+    }
 
     await this.generationCacheService.cacheGeneration(generateParams, finalResult);
 

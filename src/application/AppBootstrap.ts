@@ -228,6 +228,12 @@ export class AppBootstrap {
           this.container.resolve("debouncingService") as DebouncingService,
           this.container.resolve("backgroundProcessingService") as BackgroundProcessingService,
           this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
+          this.container.resolve("contextIntelligenceService") as ContextIntelligenceService,
+          this.container.resolve("contextCompressionService") as ContextCompressionService,
+          this.container.resolve("advancedPromptService") as AdvancedPromptService,
+          this.container.resolve("performanceMonitor") as PerformanceMonitorService,
+          this.container.resolve("cachedProjectContextService") as CachedProjectContextService,
+          this.loggingService,
         ),
     );
 
