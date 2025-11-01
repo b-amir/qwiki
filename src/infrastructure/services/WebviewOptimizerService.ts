@@ -8,7 +8,7 @@ interface QueuedMessage {
   id: string;
 }
 
-export class WebviewOptimizer {
+export class WebviewOptimizerService {
   private messageQueue: QueuedMessage[] = [];
   private batchTimeout: NodeJS.Timeout | null = null;
   private readonly BATCH_DELAY = 50; // 50ms batch delay
@@ -26,7 +26,7 @@ export class WebviewOptimizer {
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("WebviewOptimizer", loggingService);
+    this.logger = createLogger("WebviewOptimizerService", loggingService);
   }
 
   private logDebug(message: string, data?: unknown): void {

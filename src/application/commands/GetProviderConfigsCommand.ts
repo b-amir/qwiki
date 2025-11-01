@@ -1,15 +1,19 @@
 import type { Command } from "./Command";
 import type { LLMRegistry } from "../../llm";
-import type { MessageBus } from "../services/MessageBus";
+import type { MessageBusService } from "../services/MessageBusService";
 import { OutboundEvents } from "../../constants/Events";
-import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class GetProviderConfigsCommand implements Command<void> {
   private logger: Logger;
 
   constructor(
     private llmRegistry: LLMRegistry,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",
@@ -44,15 +48,10 @@ export class GetProviderConfigsCommand implements Command<void> {
       this.messageBus.postSuccess(OutboundEvents.providerConfigs, configs);
 
       const executeEndTime = Date.now();
-      this.logDebug(
-        `Command completed successfully in ${executeEndTime - executeStartTime}ms`,
-      );
+      this.logDebug(`Command completed successfully in ${executeEndTime - executeStartTime}ms`);
     } catch (error) {
       const executeEndTime = Date.now();
-      this.logError(
-        `Command failed after ${executeEndTime - executeStartTime}ms`,
-        error,
-      );
+      this.logError(`Command failed after ${executeEndTime - executeStartTime}ms`, error);
       throw error;
     }
   }

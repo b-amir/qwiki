@@ -1,5 +1,5 @@
 import { CachingService } from "../../infrastructure/services/CachingService";
-import { PerformanceMonitor } from "../../infrastructure/services/PerformanceMonitor";
+import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import {
   GenerationCacheService,
   RequestBatchingService,
@@ -21,7 +21,7 @@ export class CachedWikiService {
   constructor(
     private llmRegistry: LLMRegistry,
     private cacheService: CachingService,
-    private performanceMonitor: PerformanceMonitor,
+    private performanceMonitor: PerformanceMonitorService,
     private generationCacheService: GenerationCacheService,
     private requestBatchingService: RequestBatchingService,
     private debouncingService: DebouncingService,

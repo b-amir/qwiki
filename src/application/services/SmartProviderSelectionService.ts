@@ -9,6 +9,11 @@ import {
 import { LLMRegistry } from "../../llm/providers/registry";
 import { ProviderCapabilities, ProviderFeature } from "../../llm/types/ProviderCapabilities";
 import { ServiceLimits } from "../../constants";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export interface SelectionCriteria {
   weights?: {
@@ -48,22 +53,33 @@ export interface ContextualRequirements {
 }
 
 export class SmartProviderSelectionService {
+  private logger: Logger;
+
   constructor(
     private providerSelectionService: ProviderSelectionService,
     private contextAnalysisService: ContextAnalysisService,
     private llmRegistry: LLMRegistry,
     private eventBus: EventBus,
-  ) {}
+    private loggingService: LoggingService,
+  ) {
+    this.logger = createLogger("SmartProviderSelectionService", loggingService);
+  }
 
   async selectOptimalProvider(
     context: DeepContextAnalysis,
     criteria?: SelectionCriteria,
   ): Promise<string> {
+    this.logger.debug("Selecting optimal provider", { complexity: context.complexity });
     const requirements = this.determineRequirements(context);
     const availableProviders = this.getAvailableProviders(criteria);
     const scoredProviders = await this.scoreProviders(availableProviders, requirements, context);
     const rankedProviders = this.rankProviders(scoredProviders);
     const selectedProvider = rankedProviders[0]?.providerId || "";
+
+    this.logger.debug("Provider selected", {
+      providerId: selectedProvider,
+      score: rankedProviders[0]?.score,
+    });
 
     this.eventBus.publish("provider-selected", {
       providerId: selectedProvider,

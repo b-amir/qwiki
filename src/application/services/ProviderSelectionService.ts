@@ -6,10 +6,15 @@ import {
 } from "../../llm/types/ProviderCapabilities";
 import { GenerateParams } from "../../llm/types";
 import { SmartProviderSelectionService } from "./SmartProviderSelectionService";
-import { ProviderFallbackManager } from "./ProviderFallbackManager";
+import { ProviderFallbackManagerService } from "./ProviderFallbackManagerService";
 import { DeepContextAnalysis, ContextAnalysisService } from "./ContextAnalysisService";
 import { EventBus } from "../../events/EventBus";
 import { ProviderHealthService } from "../../infrastructure/services/ProviderHealthService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export interface GenerationContext {
   snippet: string;
@@ -38,35 +43,46 @@ export interface ProviderRanking {
 
 export class ProviderSelectionService {
   private smartProviderSelectionService: SmartProviderSelectionService;
-  private providerFallbackManager: ProviderFallbackManager;
+  private providerFallbackManager: ProviderFallbackManagerService;
+  private logger: Logger;
 
   constructor(
     private llmRegistry: LLMRegistry,
     private eventBus: EventBus,
     private contextAnalysisService: ContextAnalysisService,
+    private providerHealthService: ProviderHealthService,
+    private loggingService: LoggingService,
   ) {
+    this.logger = createLogger("ProviderSelectionService", loggingService);
     this.smartProviderSelectionService = new SmartProviderSelectionService(
       this,
       this.contextAnalysisService,
       this.llmRegistry,
       this.eventBus,
+      this.loggingService,
     );
-    this.providerFallbackManager = new ProviderFallbackManager(
+    this.providerFallbackManager = new ProviderFallbackManagerService(
       this.smartProviderSelectionService,
-      new ProviderHealthService(this.llmRegistry as any, this.eventBus),
+      this.providerHealthService,
       this.llmRegistry,
       this.eventBus,
+      this.loggingService,
     );
   }
 
   selectProviderForContext(context: GenerationContext): string[] {
+    this.logger.debug("Selecting provider for context", {
+      languageId: context.languageId,
+      filePath: context.filePath,
+    });
     const providers = this.llmRegistry.getAllProviders();
     const providerIds = Object.keys(providers);
     const requirements = this.analyzeContextRequirements(context);
     const suitableProviders = this.filterProvidersByRequirements(providerIds, requirements);
     const rankedProviders = this.rankProvidersBySuitability(suitableProviders, context);
-
-    return rankedProviders.map((p) => p.providerId);
+    const selected = rankedProviders.map((p) => p.providerId);
+    this.logger.debug("Provider selection completed", { selectedProviders: selected });
+    return selected;
   }
 
   getBestProvider(requirements: CapabilityRequirement): string {

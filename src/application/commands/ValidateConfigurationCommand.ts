@@ -1,7 +1,7 @@
 import type { Command } from "./Command";
 import type { EventBus } from "../../events";
 import type { ValidationResult } from "../../domain/configuration";
-import { MessageBus } from "../services/MessageBus";
+import { MessageBusService } from "../services/MessageBusService";
 
 export interface ValidateConfigurationPayload {
   providerId?: string;
@@ -10,8 +10,8 @@ export interface ValidateConfigurationPayload {
 
 export class ValidateConfigurationCommand implements Command<ValidateConfigurationPayload> {
   constructor(
-    private configurationValidator: import("../services/ConfigurationValidator").ConfigurationValidator,
-    private messageBus: MessageBus,
+    private configurationValidator: import("../services/ConfigurationValidatorService").ConfigurationValidatorService,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: ValidateConfigurationPayload): Promise<void> {

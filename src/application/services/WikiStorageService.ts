@@ -19,14 +19,7 @@ export class WikiStorageService {
   private readonly qwikiFolderName = ".qwiki";
   private logger: Logger;
 
-  constructor(
-    private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
-      includeTimestamp: true,
-      includeService: true,
-    }),
-  ) {
+  constructor(private loggingService: LoggingService) {
     this.logger = createLogger("WikiStorageService", loggingService);
   }
 

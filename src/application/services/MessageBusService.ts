@@ -2,7 +2,7 @@ import type { Webview } from "vscode";
 import { OutboundEvents } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
 import { ErrorCodes } from "../../constants/ErrorCodes";
-import { WebviewOptimizer } from "../../infrastructure/services/WebviewOptimizer";
+import { WebviewOptimizerService } from "../../infrastructure/services/WebviewOptimizerService";
 import { DebouncingService } from "../../infrastructure/services/DebouncingService";
 import {
   LoggingService,
@@ -10,8 +10,8 @@ import {
   type Logger,
 } from "../../infrastructure/services/LoggingService";
 
-export class MessageBus {
-  private optimizer: WebviewOptimizer;
+export class MessageBusService {
+  private optimizer: WebviewOptimizerService;
   private debouncingService: DebouncingService;
   private debouncedPostMessage: any;
   private debouncedEnvironmentStatus: any;
@@ -26,8 +26,8 @@ export class MessageBus {
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("MessageBus", loggingService);
-    this.optimizer = new WebviewOptimizer(webview, this.loggingService);
+    this.logger = createLogger("MessageBusService", loggingService);
+    this.optimizer = new WebviewOptimizerService(webview, this.loggingService);
     this.debouncingService = new DebouncingService();
     this.debouncedPostMessage = this.debouncingService.debounce(
       (command: string, payload?: any) => {

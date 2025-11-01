@@ -21,12 +21,7 @@ export class ProviderHealthService {
   constructor(
     private llmRegistry: LLMRegistry,
     private eventBus: EventBus,
-    private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService,
   ) {
     this.logger = createLogger("ProviderHealthService", loggingService);
   }

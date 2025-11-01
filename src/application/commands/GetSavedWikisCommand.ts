@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
 import type { WikiStorageService } from "../services/WikiStorageService";
-import type { MessageBus } from "../services/MessageBus";
+import type { MessageBusService } from "../services/MessageBusService";
 import {
   LoggingService,
   createLogger,
@@ -14,7 +14,7 @@ export class GetSavedWikisCommand implements Command<GetSavedWikisPayload> {
 
   constructor(
     private wikiStorageService: WikiStorageService,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",

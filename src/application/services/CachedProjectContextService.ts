@@ -1,5 +1,5 @@
 import { CachingService } from "../../infrastructure/services/CachingService";
-import { PerformanceMonitor } from "../../infrastructure/services/PerformanceMonitor";
+import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import { ProjectContextService } from "./ProjectContextService";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import type { Webview } from "vscode";
@@ -9,7 +9,7 @@ export class CachedProjectContextService {
 
   constructor(
     private cacheService: CachingService,
-    private performanceMonitor: PerformanceMonitor,
+    private performanceMonitor: PerformanceMonitorService,
     private projectContextService: ProjectContextService,
   ) {}
 

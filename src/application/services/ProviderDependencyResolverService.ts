@@ -7,7 +7,7 @@ export interface DependencyGraph {
   resolved: boolean;
 }
 
-export class ProviderDependencyResolver {
+export class ProviderDependencyResolverService {
   resolveDependencies(providers: ProviderMetadata[]): DependencyGraph {
     const graph: DependencyGraph = {
       nodes: new Map(),

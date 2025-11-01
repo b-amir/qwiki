@@ -6,9 +6,9 @@ import type {
   ConfigurationBackup,
 } from "../../domain/configuration";
 import type {
-  ConfigurationValidationEngine,
+  ConfigurationValidationEngineService,
   ValidationContext,
-} from "./ConfigurationValidationEngine";
+} from "./ConfigurationValidationEngineService";
 
 export interface ExportOptions {
   includeApiKeys?: boolean;
@@ -67,7 +67,7 @@ export interface ImportConflict {
 }
 
 export class ConfigurationImportExportService {
-  constructor(private validationEngine: ConfigurationValidationEngine) {}
+  constructor(private validationEngine: ConfigurationValidationEngineService) {}
 
   async exportConfiguration(
     global: GlobalConfiguration,

@@ -1,4 +1,7 @@
-import type { ValidationRule, ValidationContext } from "../services/ConfigurationValidationEngine";
+import type {
+  ValidationRule,
+  ValidationContext,
+} from "../services/ConfigurationValidationEngineService";
 import type {
   ValidationResult,
   ValidationError,

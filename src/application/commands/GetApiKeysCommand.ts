@@ -1,7 +1,7 @@
 import type { Command } from "./Command";
 import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
 import type { ConfigurationRepository } from "../../domain/repositories/ConfigurationRepository";
-import type { MessageBus } from "../services/MessageBus";
+import type { MessageBusService } from "../services/MessageBusService";
 import { OutboundEvents } from "../../constants/Events";
 import { getAllProviderConfigs } from "../../llm/provider-config";
 import {
@@ -16,7 +16,7 @@ export class GetApiKeysCommand implements Command<void> {
   constructor(
     private apiKeyRepository: ApiKeyRepository,
     private configurationRepository: ConfigurationRepository,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",

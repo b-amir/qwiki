@@ -7,9 +7,9 @@ import type {
   ProviderConfiguration,
 } from "../../domain/configuration";
 import type {
-  ConfigurationValidationEngine,
+  ConfigurationValidationEngineService,
   ValidationContext,
-} from "./ConfigurationValidationEngine";
+} from "./ConfigurationValidationEngineService";
 
 export interface TemplateVariable {
   name: string;
@@ -41,7 +41,7 @@ export class ConfigurationTemplateService {
   private templateInheritance = new Map<string, TemplateInheritance>();
   private templateComposition = new Map<string, TemplateComposition>();
 
-  constructor(private validationEngine: ConfigurationValidationEngine) {
+  constructor(private validationEngine: ConfigurationValidationEngineService) {
     this.initializeBuiltinTemplates();
   }
 

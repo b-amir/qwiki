@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
 import type { EventBus } from "../../events";
-import { MessageBus } from "../services/MessageBus";
+import { MessageBusService } from "../services/MessageBusService";
 
 export interface CreateConfigurationBackupPayload {
   description?: string;
@@ -9,7 +9,7 @@ export interface CreateConfigurationBackupPayload {
 export class CreateConfigurationBackupCommand implements Command<CreateConfigurationBackupPayload> {
   constructor(
     private configurationBackupService: import("../../infrastructure/services/ConfigurationBackupService").ConfigurationBackupService,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: CreateConfigurationBackupPayload): Promise<void> {

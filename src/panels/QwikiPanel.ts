@@ -16,7 +16,7 @@ import { Inbound, Outbound, Page, Pages } from "./constants";
 import { WebviewPaths, VSCodeCommandIds, MessageStrings } from "../constants";
 import { BaseError } from "../errors";
 import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
-import { MessageBus } from "../application/services/MessageBus";
+import { MessageBusService } from "../application/services/MessageBusService";
 import {
   LoggingService,
   createLogger,
@@ -56,7 +56,7 @@ export class QwikiPanel {
   private commandRegistry: CommandRegistry | undefined;
   private errorHandler: ErrorHandler | undefined;
   private _initPromise: Promise<void>;
-  private messageBus: MessageBus | undefined;
+  private messageBus: MessageBusService | undefined;
   private loggingService: LoggingService;
   private logger: Logger;
   private _extensionStatus = {
@@ -183,7 +183,7 @@ export class QwikiPanel {
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this._webviewReady = false;
     this._setWebviewMessageListener(webviewView.webview);
-    this.messageBus = new MessageBus(webviewView.webview, this.loggingService);
+    this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
     this.bootstrap
       .createCommandRegistry(webviewView.webview)
       .then((registry) => {

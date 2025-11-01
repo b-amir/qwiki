@@ -18,12 +18,7 @@ export class ProjectContextService {
   private logger: Logger;
 
   constructor(
-    private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService,
   ) {
     this.logger = createLogger("ProjectContextService", loggingService);
   }

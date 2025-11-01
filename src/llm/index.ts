@@ -1,6 +1,6 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "./types";
 import type { SecretStorage } from "vscode";
-import type { ConfigurationManager } from "../application/services";
+import type { ConfigurationManagerService } from "../application/services";
 import type { ProviderConfiguration } from "../domain/configuration";
 import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
 import { loadProviders, type GetSetting } from "./providers/registry";
@@ -15,7 +15,7 @@ export class LLMRegistry {
     private secrets: SecretStorage,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
-    private configurationManager: ConfigurationManager,
+    private configurationManager: ConfigurationManagerService,
     getSetting?: GetSetting,
   ) {
     const allProviders = loadProviders(getSetting || (async () => undefined));

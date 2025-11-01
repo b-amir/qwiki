@@ -9,9 +9,9 @@ import type {
 import { EventBus } from "../../events";
 import { ConfigurationError } from "../../errors";
 import type {
-  ConfigurationValidationEngine,
+  ConfigurationValidationEngineService,
   ValidationContext,
-} from "./ConfigurationValidationEngine";
+} from "./ConfigurationValidationEngineService";
 import type { ConfigurationTemplateService } from "./ConfigurationTemplateService";
 import type {
   ConfigurationImportExportService,
@@ -19,13 +19,13 @@ import type {
   ImportOptions,
 } from "./ConfigurationImportExportService";
 
-export class ConfigurationManager {
+export class ConfigurationManagerService {
   private configCache = new Map<string, any>();
 
   constructor(
     private configurationRepository: ConfigurationRepository,
     private eventBus: EventBus,
-    private validationEngine: ConfigurationValidationEngine,
+    private validationEngine: ConfigurationValidationEngineService,
     private templateService: ConfigurationTemplateService,
     private importExportService: ConfigurationImportExportService,
   ) {}

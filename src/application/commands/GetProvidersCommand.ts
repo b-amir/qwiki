@@ -1,8 +1,8 @@
 import type { Command } from "./Command";
 import type { LLMRegistry } from "../../llm";
 import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
-import type { MessageBus } from "../services/MessageBus";
-import type { ConfigurationManager } from "../services/ConfigurationManager";
+import type { MessageBusService } from "../services/MessageBusService";
+import type { ConfigurationManagerService } from "../services/ConfigurationManagerService";
 import { OutboundEvents } from "../../constants/Events";
 import { ProviderId } from "../../llm/types";
 import {
@@ -17,8 +17,8 @@ export class GetProvidersCommand implements Command<void> {
   constructor(
     private llmRegistry: LLMRegistry,
     private apiKeyRepository: ApiKeyRepository,
-    private configurationManager: ConfigurationManager,
-    private messageBus: MessageBus,
+    private configurationManager: ConfigurationManagerService,
+    private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",

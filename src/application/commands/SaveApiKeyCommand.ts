@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
-import type { ConfigurationManager } from "../services";
-import type { MessageBus } from "../services/MessageBus";
+import type { ConfigurationManagerService } from "../services";
+import type { MessageBusService } from "../services/MessageBusService";
 import { OutboundEvents } from "../../constants/Events";
 
 interface SaveApiKeyPayload {
@@ -10,8 +10,8 @@ interface SaveApiKeyPayload {
 
 export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
   constructor(
-    private configManager: ConfigurationManager,
-    private messageBus: MessageBus,
+    private configManager: ConfigurationManagerService,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: SaveApiKeyPayload): Promise<void> {

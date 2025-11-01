@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
 import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
-import type { MessageBus } from "../services/MessageBus";
+import type { MessageBusService } from "../services/MessageBusService";
 import { OutboundEvents } from "../../constants/Events";
 
 interface DeleteApiKeyPayload {
@@ -10,7 +10,7 @@ interface DeleteApiKeyPayload {
 export class DeleteApiKeyCommand implements Command<DeleteApiKeyPayload> {
   constructor(
     private apiKeyRepository: ApiKeyRepository,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: DeleteApiKeyPayload): Promise<void> {

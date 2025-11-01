@@ -2,8 +2,8 @@ import type { LLMProvider } from "../types";
 import { ProviderCapabilities, ProviderFeature } from "../types/ProviderCapabilities";
 import { ProviderMetadata } from "../types/ProviderMetadata";
 import { ProviderDiscoveryService } from "../../application/services/ProviderDiscoveryService";
-import { ProviderLifecycleManager } from "../../application/services/ProviderLifecycleManager";
-import { ProviderDependencyResolver } from "../../application/services/ProviderDependencyResolver";
+import { ProviderLifecycleManagerService } from "../../application/services/ProviderLifecycleManagerService";
+import { ProviderDependencyResolverService } from "../../application/services/ProviderDependencyResolverService";
 import { EventBus } from "../../events/EventBus";
 import { ZAiProvider } from "./zai";
 import { OpenRouterProvider } from "./openrouter";
@@ -15,15 +15,19 @@ import { ProviderFileSystemService } from "../../infrastructure/services/Provide
 import type { GenerateParams, GenerateResult } from "../types";
 import { ErrorRecoveryService } from "../../infrastructure/services/ErrorRecoveryService";
 import { ProviderError, ErrorCodes } from "../../errors";
-import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export type GetSetting = (key: string) => Promise<any>;
 
 export class LLMRegistry {
   private providers: Record<string, LLMProvider> = {};
   private providerDiscoveryService: ProviderDiscoveryService;
-  private providerLifecycleManager: ProviderLifecycleManager;
-  private providerDependencyResolver: ProviderDependencyResolver;
+  private providerLifecycleManager: ProviderLifecycleManagerService;
+  private providerDependencyResolver: ProviderDependencyResolverService;
   private providerDirectories: string[] = [];
   private cachingService: CachingService;
   private providerFileSystemService: ProviderFileSystemService;
@@ -48,12 +52,12 @@ export class LLMRegistry {
       this.providerFileSystemService,
       this.loggingService,
     );
-    this.providerLifecycleManager = new ProviderLifecycleManager(
+    this.providerLifecycleManager = new ProviderLifecycleManagerService(
       this.providerDiscoveryService,
       this.eventBus,
       this.loggingService,
     );
-    this.providerDependencyResolver = new ProviderDependencyResolver();
+    this.providerDependencyResolver = new ProviderDependencyResolverService();
   }
 
   private logDebug(message: string, data?: unknown): void {

@@ -1,5 +1,5 @@
 import type { Command } from "./Command";
-import type { MessageBus } from "../services/MessageBus";
+import type { MessageBusService } from "../services/MessageBusService";
 import * as vscode from "vscode";
 import {
   LoggingService,
@@ -15,7 +15,7 @@ export class OpenExternalCommand implements Command<OpenExternalPayload> {
   private logger: Logger;
 
   constructor(
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",

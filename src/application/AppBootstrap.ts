@@ -6,12 +6,12 @@ import {
   CachedProjectContextService,
   WikiService,
   CachedWikiService,
-  MessageBus,
-  ConfigurationManager,
-  ConfigurationValidator,
+  MessageBusService,
+  ConfigurationManagerService,
+  ConfigurationValidatorService,
   ConfigurationMigrationService,
   ConfigurationTemplateService,
-  ConfigurationValidationEngine,
+  ConfigurationValidationEngineService,
   ConfigurationImportExportService,
   ProviderSelectionService,
   ContextAnalysisService,
@@ -25,7 +25,7 @@ import {
   ErrorLoggingService,
   ErrorRecoveryService,
   CachingService,
-  PerformanceMonitor,
+  PerformanceMonitorService,
   ConfigurationBackupService,
   ProviderHealthService,
   ProviderPerformanceService,
@@ -57,7 +57,9 @@ export class AppBootstrap {
   }
 
   async initialize(): Promise<void> {
-    const configManager = this.container.resolve("configurationManager") as ConfigurationManager;
+    const configManager = this.container.resolve(
+      "configurationManager",
+    ) as ConfigurationManagerService;
     await configManager.initialize();
 
     const migrationService = this.container.resolve(
@@ -100,7 +102,7 @@ export class AppBootstrap {
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
     this.container.registerInstance("cacheService", new CachingService());
-    this.container.registerInstance("performanceMonitor", new PerformanceMonitor());
+    this.container.registerInstance("performanceMonitor", new PerformanceMonitorService());
     this.container.registerInstance(
       "generationCacheService",
       new GenerationCacheService(this.container.resolve("cacheService") as CachingService),
@@ -123,7 +125,7 @@ export class AppBootstrap {
     this.container.register(
       "configurationManager",
       () =>
-        new ConfigurationManager(
+        new ConfigurationManagerService(
           this.container.resolve("configurationRepository"),
           this.container.resolve("eventBus"),
           this.container.resolve("configurationValidationEngine"),
@@ -132,11 +134,11 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register("configurationValidator", () => new ConfigurationValidator());
+    this.container.register("configurationValidator", () => new ConfigurationValidatorService());
 
     this.container.register(
       "configurationValidationEngine",
-      () => new ConfigurationValidationEngine(),
+      () => new ConfigurationValidationEngineService(),
     );
 
     this.container.register(
@@ -250,6 +252,8 @@ export class AppBootstrap {
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("eventBus"),
           this.container.resolve("contextAnalysisService") as ContextAnalysisService,
+          await this.container.resolveLazy("providerHealthService"),
+          this.loggingService,
         ),
     );
 
@@ -348,13 +352,13 @@ export class AppBootstrap {
       commandRegistry.register(commandId, command);
     }
 
-    const messageBus = new MessageBus(webview, this.loggingService);
+    const messageBus = new MessageBusService(webview, this.loggingService);
 
     commandRegistry.addDisposer(() => {
       try {
         messageBus.dispose();
       } catch (err) {
-        this.logger.error("MessageBus dispose failed", err);
+        this.logger.error("MessageBusService dispose failed", err);
       }
     });
 

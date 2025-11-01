@@ -5,6 +5,11 @@ import { LLMRegistry } from "../../llm/providers/registry";
 import { ProviderError } from "../../errors/ProviderError";
 import { DeepContextAnalysis } from "./ContextAnalysisService";
 import { ServiceLimits } from "../../constants";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export interface FallbackStrategy {
   type: "immediate" | "exponential" | "linear" | "adaptive";
@@ -39,7 +44,7 @@ export interface FallbackChain {
   context: DeepContextAnalysis;
 }
 
-export class ProviderFallbackManager {
+export class ProviderFallbackManagerService {
   private defaultStrategy: FallbackStrategy = {
     type: "exponential",
     maxAttempts: 3,
@@ -68,13 +73,17 @@ export class ProviderFallbackManager {
   private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
   private readonly CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT = 30000;
+  private logger: Logger;
 
   constructor(
     private smartProviderSelectionService: SmartProviderSelectionService,
     private providerHealthService: ProviderHealthService,
     private llmRegistry: LLMRegistry,
     private eventBus: EventBus,
-  ) {}
+    private loggingService: LoggingService,
+  ) {
+    this.logger = createLogger("ProviderFallbackManagerService", loggingService);
+  }
 
   async executeWithFallback<T>(
     operation: ProviderOperation<T>,
@@ -86,15 +95,25 @@ export class ProviderFallbackManager {
     let attempts = 0;
     let lastError: ProviderError | undefined;
 
+    this.logger.debug("Executing operation with fallback", {
+      strategy: strategy.type,
+      maxAttempts: strategy.maxAttempts,
+    });
+
     const fallbackChain = await this.createFallbackChain(operation);
     const providersToTry = [fallbackChain.primaryProvider, ...fallbackChain.fallbackProviders];
 
     for (const providerId of providersToTry) {
       if (attempts >= strategy.maxAttempts) {
+        this.logger.warn("Max attempts reached", { attempts, maxAttempts: strategy.maxAttempts });
         break;
       }
 
       if (!this.isProviderAvailable(providerId)) {
+        this.logger.debug("Provider skipped", {
+          providerId,
+          reason: "Circuit breaker is open or provider is unhealthy",
+        });
         this.eventBus.publish("provider-skipped", {
           providerId,
           reason: "Circuit breaker is open or provider is unhealthy",

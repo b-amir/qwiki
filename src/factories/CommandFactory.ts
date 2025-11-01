@@ -25,7 +25,7 @@ import {
   GetSavedWikisCommand,
   DeleteWikiCommand,
 } from "../application/commands";
-import { MessageBus } from "../application/services/MessageBus";
+import { MessageBusService } from "../application/services/MessageBusService";
 import { CommandIds } from "../constants";
 import { LoggingService } from "../infrastructure/services/LoggingService";
 
@@ -37,7 +37,7 @@ export interface CommandFactoryDependencies {
 
 export class CommandFactory {
   private dependencies: CommandFactoryDependencies;
-  private messageBus: MessageBus;
+  private messageBus: MessageBusService;
   private loggingService: LoggingService;
 
   constructor(dependencies: CommandFactoryDependencies) {
@@ -54,7 +54,7 @@ export class CommandFactory {
         includeService: true,
       });
     }
-    this.messageBus = new MessageBus(dependencies.webview, this.loggingService);
+    this.messageBus = new MessageBusService(dependencies.webview, this.loggingService);
   }
 
   async createCommand<T>(commandId: string): Promise<Command<T> | undefined> {

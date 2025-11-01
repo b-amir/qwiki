@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
 import type { EventBus } from "../../events";
-import { MessageBus } from "../services/MessageBus";
+import { MessageBusService } from "../services/MessageBusService";
 
 export interface GetProviderHealthPayload {
   providerId?: string;
@@ -9,7 +9,7 @@ export interface GetProviderHealthPayload {
 export class GetProviderHealthCommand implements Command<GetProviderHealthPayload> {
   constructor(
     private providerHealthService: import("../../infrastructure/services/ProviderHealthService").ProviderHealthService,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: GetProviderHealthPayload): Promise<void> {

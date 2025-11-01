@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
 import type { ConfigurationRepository } from "../../domain/repositories/ConfigurationRepository";
-import type { MessageBus } from "../services/MessageBus";
+import type { MessageBusService } from "../services/MessageBusService";
 import { OutboundEvents } from "../../constants/Events";
 
 interface SaveSettingPayload {
@@ -11,7 +11,7 @@ interface SaveSettingPayload {
 export class SaveSettingCommand implements Command<SaveSettingPayload> {
   constructor(
     private configurationRepository: ConfigurationRepository,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: SaveSettingPayload): Promise<void> {

@@ -3,12 +3,12 @@ export { ErrorRecoveryService } from "./ErrorRecoveryService";
 export { ErrorLoggingService } from "./ErrorLoggingService";
 export { ConfigurationBackupService } from "./ConfigurationBackupService";
 export { CachingService } from "./CachingService";
-export { WebviewOptimizer, Debouncer } from "./WebviewOptimizer";
+export { WebviewOptimizerService, Debouncer } from "./WebviewOptimizerService";
 export {
-  PerformanceMonitor,
+  PerformanceMonitorService,
   type PerformanceMetric,
   type PerformanceStats,
-} from "./PerformanceMonitor";
+} from "./PerformanceMonitorService";
 export { ProviderHealthService } from "./ProviderHealthService";
 export {
   ProviderPerformanceService,

@@ -1,9 +1,9 @@
 import { Command } from "./Command";
 import { ConfigurationError } from "../../errors";
-import type { ConfigurationManager } from "../services";
+import type { ConfigurationManagerService } from "../services";
 
 export class UpdateConfigurationCommand implements Command {
-  constructor(private configManager: ConfigurationManager) {}
+  constructor(private configManager: ConfigurationManagerService) {}
 
   async execute(payload: { key: string; value: any }): Promise<any> {
     const { key, value } = payload;

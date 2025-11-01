@@ -1,6 +1,6 @@
 import type { Command } from "./Command";
 import type { EventBus } from "../../events";
-import { MessageBus } from "../services/MessageBus";
+import { MessageBusService } from "../services/MessageBusService";
 
 export interface ApplyConfigurationTemplatePayload {
   templateId: string;
@@ -11,7 +11,7 @@ export class ApplyConfigurationTemplateCommand
 {
   constructor(
     private configurationTemplateService: import("../services/ConfigurationTemplateService").ConfigurationTemplateService,
-    private messageBus: MessageBus,
+    private messageBus: MessageBusService,
   ) {}
 
   async execute(payload: ApplyConfigurationTemplatePayload): Promise<void> {

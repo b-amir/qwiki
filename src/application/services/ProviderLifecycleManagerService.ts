@@ -18,7 +18,7 @@ export enum ProviderState {
   DISPOSING = "disposing",
 }
 
-export class ProviderLifecycleManager {
+export class ProviderLifecycleManagerService {
   private activeProviders = new Map<string, LLMProvider>();
   private providerStates = new Map<string, ProviderState>();
   private initializationPromises = new Map<string, Promise<void>>();
@@ -34,7 +34,7 @@ export class ProviderLifecycleManager {
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ProviderLifecycleManager", loggingService);
+    this.logger = createLogger("ProviderLifecycleManagerService", loggingService);
   }
 
   async initializeProvider(providerId: string): Promise<void> {
