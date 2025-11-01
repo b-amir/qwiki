@@ -10,7 +10,7 @@ export interface ValidateConfigurationPayload {
 
 export class ValidateConfigurationCommand implements Command<ValidateConfigurationPayload> {
   constructor(
-    private configurationValidator: import("../services/ConfigurationValidatorService").ConfigurationValidatorService,
+    private configurationValidator: import("../services/ConfigurationValidationEngineService").ConfigurationValidationEngineService,
     private messageBus: MessageBusService,
   ) {}
 

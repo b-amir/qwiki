@@ -8,7 +8,6 @@ import {
   CachedWikiService,
   MessageBusService,
   ConfigurationManagerService,
-  ConfigurationValidatorService,
   ConfigurationMigrationService,
   ConfigurationTemplateService,
   ConfigurationValidationEngineService,
@@ -138,8 +137,6 @@ export class AppBootstrap {
           this.container.resolve("configurationImportExportService"),
         ),
     );
-
-    this.container.register("configurationValidator", () => new ConfigurationValidatorService());
 
     this.container.register(
       "configurationValidationEngine",

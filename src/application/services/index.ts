@@ -5,7 +5,6 @@ export { SelectionService } from "./SelectionService";
 export { WikiService } from "./WikiService";
 export { CachedWikiService } from "./CachedWikiService";
 export { ConfigurationManagerService } from "./ConfigurationManagerService";
-export { ConfigurationValidatorService } from "./ConfigurationValidatorService";
 export { ConfigurationMigrationService } from "./ConfigurationMigrationService";
 export { ConfigurationTemplateService } from "./ConfigurationTemplateService";
 export { ConfigurationValidationEngineService } from "./ConfigurationValidationEngineService";

@@ -150,6 +150,37 @@ export class ConfigurationValidationEngineService {
     };
   }
 
+  validateProviderConfig(providerId: string, config: any): ValidationResult {
+    const context: ValidationContext = {
+      configuration: config,
+      providerId,
+      operation: "update",
+      timestamp: new Date(),
+    };
+
+    const emptySchema: ConfigurationSchema = {
+      fields: [],
+      dependencies: [],
+    };
+
+    return this.validateConfiguration(config, emptySchema, context);
+  }
+
+  validateGlobalConfig(config: any): ValidationResult {
+    const context: ValidationContext = {
+      configuration: config,
+      operation: "update",
+      timestamp: new Date(),
+    };
+
+    const emptySchema: ConfigurationSchema = {
+      fields: [],
+      dependencies: [],
+    };
+
+    return this.validateConfiguration(config, emptySchema, context);
+  }
+
   private hasField(config: any, fieldPath: string): boolean {
     const parts = fieldPath.split(".");
     let current = config;
