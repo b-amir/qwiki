@@ -14,7 +14,10 @@ import {
   ConfigurationValidationEngine,
   ConfigurationImportExportService,
   ProviderSelectionService,
+  ContextAnalysisService,
 } from "./";
+import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
+import { PatternExtractionService } from "./services/context/PatternExtractionService";
 import {
   VSCodeApiKeyRepository,
   VSCodeConfigurationRepository,
@@ -31,8 +34,12 @@ import {
   DebouncingService,
   BackgroundProcessingService,
   MemoryOptimizationService,
-  LoggingService,
 } from "../infrastructure";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../infrastructure/services/LoggingService";
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
@@ -43,6 +50,7 @@ import { WikiStorageService } from "./services/WikiStorageService";
 export class AppBootstrap {
   private container = new Container();
   private loggingService!: LoggingService;
+  private logger!: Logger;
 
   constructor(private context: ExtensionContext) {
     this.registerServices();
@@ -85,6 +93,7 @@ export class AppBootstrap {
       includeService: true,
     });
     this.loggingService = loggingService;
+    this.logger = createLogger("AppBootstrap", loggingService);
     this.container.registerInstance("loggingService", loggingService);
 
     this.container.registerInstance("eventBus", new EventBusImpl(loggingService));
@@ -164,7 +173,10 @@ export class AppBootstrap {
 
     this.container.register("selectionService", () => new SelectionService());
 
-    this.container.register("projectContextService", () => new ProjectContextService(this.loggingService));
+    this.container.register(
+      "projectContextService",
+      () => new ProjectContextService(this.loggingService),
+    );
     this.container.register(
       "cachedProjectContextService",
       () =>
@@ -224,7 +236,10 @@ export class AppBootstrap {
       () => new ErrorHandlerImpl(this.container.resolve("eventBus"), this.loggingService),
     );
 
-    this.container.register("errorLoggingService", () => new ErrorLoggingService(this.loggingService));
+    this.container.register(
+      "errorLoggingService",
+      () => new ErrorLoggingService(this.loggingService),
+    );
 
     this.container.register("errorRecoveryService", () => new ErrorRecoveryService());
 
@@ -234,6 +249,7 @@ export class AppBootstrap {
         new ProviderSelectionService(
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("eventBus"),
+          this.container.resolve("contextAnalysisService") as ContextAnalysisService,
         ),
     );
 
@@ -280,7 +296,31 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register("wikiStorageService", () => new WikiStorageService(this.loggingService));
+    this.container.register(
+      "wikiStorageService",
+      () => new WikiStorageService(this.loggingService),
+    );
+
+    this.container.register(
+      "complexityCalculationService",
+      () => new ComplexityCalculationService(this.loggingService),
+    );
+
+    this.container.register(
+      "patternExtractionService",
+      () => new PatternExtractionService(this.loggingService),
+    );
+
+    this.container.register(
+      "contextAnalysisService",
+      () =>
+        new ContextAnalysisService(
+          this.container.resolve("eventBus"),
+          this.loggingService,
+          this.container.resolve("complexityCalculationService") as ComplexityCalculationService,
+          this.container.resolve("patternExtractionService") as PatternExtractionService,
+        ),
+    );
   }
 
   async initializeEventHandlers(): Promise<void> {
@@ -314,7 +354,7 @@ export class AppBootstrap {
       try {
         messageBus.dispose();
       } catch (err) {
-        this.loggingService.error("AppBootstrap", "MessageBus dispose failed", err);
+        this.logger.error("MessageBus dispose failed", err);
       }
     });
 

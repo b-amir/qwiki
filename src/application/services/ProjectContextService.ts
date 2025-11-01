@@ -8,10 +8,14 @@ import {
   MessageFormats,
 } from "../../constants";
 import type { Selection, ProjectContext } from "../../domain/entities/Selection";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class ProjectContextService {
-  private readonly serviceName = "ProjectContextService";
+  private logger: Logger;
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
@@ -20,7 +24,9 @@ export class ProjectContextService {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("ProjectContextService", loggingService);
+  }
   async buildContext(
     snippet: string,
     filePath?: string,
@@ -153,11 +159,7 @@ export class ProjectContextService {
         return null;
       } catch (error: any) {
         if (!error.message?.includes("binary")) {
-          this.loggingService.error(
-            this.serviceName,
-            "Exception in findTextUsages",
-            error,
-          );
+          this.logger.error("Exception in findTextUsages", error);
         }
         return null;
       }

@@ -43,11 +43,11 @@ export class ProviderSelectionService {
   constructor(
     private llmRegistry: LLMRegistry,
     private eventBus: EventBus,
+    private contextAnalysisService: ContextAnalysisService,
   ) {
-    const contextAnalysisService = new ContextAnalysisService(this.eventBus);
     this.smartProviderSelectionService = new SmartProviderSelectionService(
       this,
-      contextAnalysisService,
+      this.contextAnalysisService,
       this.llmRegistry,
       this.eventBus,
     );

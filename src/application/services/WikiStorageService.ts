@@ -1,6 +1,10 @@
 import { workspace, Uri } from "vscode";
 import { join } from "path";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export interface SavedWiki {
   id: string;
@@ -13,7 +17,7 @@ export interface SavedWiki {
 
 export class WikiStorageService {
   private readonly qwikiFolderName = ".qwiki";
-  private readonly serviceName = "WikiStorageService";
+  private logger: Logger;
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
@@ -22,7 +26,9 @@ export class WikiStorageService {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("WikiStorageService", loggingService);
+  }
 
   async saveWiki(title: string, content: string, sourceFilePath?: string): Promise<SavedWiki> {
     const workspaceFolders = workspace.workspaceFolders;
@@ -86,11 +92,7 @@ export class WikiStorageService {
             const parsed = this.parseWikiContent(contentStr, fileUri.fsPath);
             wikis.push(parsed);
           } catch (error) {
-            this.loggingService.error(
-              this.serviceName,
-              `Failed to read wiki file ${name}`,
-              error,
-            );
+            this.logger.error(`Failed to read wiki file ${name}`, error);
           }
         }
       }

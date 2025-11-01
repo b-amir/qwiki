@@ -4,9 +4,15 @@ import type { ConfigurationRepository } from "../../domain/repositories/Configur
 import type { MessageBus } from "../services/MessageBus";
 import { OutboundEvents } from "../../constants/Events";
 import { getAllProviderConfigs } from "../../llm/provider-config";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class GetApiKeysCommand implements Command<void> {
+  private logger: Logger;
+
   constructor(
     private apiKeyRepository: ApiKeyRepository,
     private configurationRepository: ConfigurationRepository,
@@ -17,12 +23,12 @@ export class GetApiKeysCommand implements Command<void> {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
-
-  private readonly serviceName = "GetApiKeysCommand";
+  ) {
+    this.logger = createLogger("GetApiKeysCommand", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   async execute(): Promise<void> {
@@ -61,6 +67,8 @@ export class GetApiKeysCommand implements Command<void> {
     const payload = { apiKeys, settings };
 
     this.messageBus.postSuccess(OutboundEvents.apiKeys, payload);
-    this.logDebug(`Sent apiKeys for ${Object.keys(apiKeys).length} providers in ${Date.now() - start}ms`);
+    this.logDebug(
+      `Sent apiKeys for ${Object.keys(apiKeys).length} providers in ${Date.now() - start}ms`,
+    );
   }
 }

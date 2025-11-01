@@ -1,7 +1,7 @@
 import type { BaseError } from "../../errors";
 import type { EventBus } from "../../events";
 import { ErrorEvents } from "../../constants/Events";
-import { LoggingService } from "./LoggingService";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 export interface ErrorHandler {
   handle(error: Error | BaseError, context?: Record<string, any>): Promise<void>;
@@ -9,7 +9,7 @@ export interface ErrorHandler {
 }
 
 export class ErrorHandlerImpl implements ErrorHandler {
-  private readonly serviceName = "ErrorHandler";
+  private logger: Logger;
 
   constructor(
     private eventBus: EventBus,
@@ -19,14 +19,16 @@ export class ErrorHandlerImpl implements ErrorHandler {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("ErrorHandler", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   async handle(error: Error | BaseError, context?: Record<string, any>): Promise<void> {

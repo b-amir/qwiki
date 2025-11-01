@@ -1,5 +1,5 @@
 import { ProviderError } from "../../errors";
-import { LoggingService } from "./LoggingService";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 export interface ErrorStatistics {
   totalErrors: number;
@@ -14,7 +14,7 @@ export interface ErrorStatistics {
 }
 
 export class ErrorLoggingService {
-  private readonly serviceName = "ErrorLoggingService";
+  private logger: Logger;
   private readonly MAX_RECENT_ERRORS = 50;
   private readonly STORAGE_KEY = "qwiki-error-statistics";
 
@@ -33,19 +33,20 @@ export class ErrorLoggingService {
       includeService: true,
     }),
   ) {
+    this.logger = createLogger("ErrorLoggingService", loggingService);
     this.loadFromStorage();
   }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logErrorEntry(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   private logWarnEntry(message: string, data?: unknown): void {
-    this.loggingService.warn(this.serviceName, message, data);
+    this.logger.warn(message, data);
   }
 
   logError(error: ProviderError, context?: any): void {

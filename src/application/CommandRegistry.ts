@@ -1,11 +1,11 @@
 import type { Command } from "./commands/Command";
 import { ErrorCodes, ErrorMessages } from "../constants";
-import { LoggingService } from "../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "../infrastructure/services/LoggingService";
 
 export class CommandRegistry {
   private commands = new Map<string, Command>();
   private disposers: Array<() => void> = [];
-  private readonly serviceName = "CommandRegistry";
+  private logger: Logger;
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
@@ -14,14 +14,16 @@ export class CommandRegistry {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("CommandRegistry", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   register<T>(name: string, command: Command<T>): void {

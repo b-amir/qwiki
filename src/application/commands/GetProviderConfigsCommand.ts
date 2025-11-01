@@ -2,9 +2,11 @@ import type { Command } from "./Command";
 import type { LLMRegistry } from "../../llm";
 import type { MessageBus } from "../services/MessageBus";
 import { OutboundEvents } from "../../constants/Events";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
 
 export class GetProviderConfigsCommand implements Command<void> {
+  private logger: Logger;
+
   constructor(
     private llmRegistry: LLMRegistry,
     private messageBus: MessageBus,
@@ -14,16 +16,16 @@ export class GetProviderConfigsCommand implements Command<void> {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
-
-  private readonly serviceName = "GetProviderConfigsCommand";
+  ) {
+    this.logger = createLogger("GetProviderConfigsCommand", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   async execute(): Promise<void> {

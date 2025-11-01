@@ -15,7 +15,7 @@ import { ProviderFileSystemService } from "../../infrastructure/services/Provide
 import type { GenerateParams, GenerateResult } from "../types";
 import { ErrorRecoveryService } from "../../infrastructure/services/ErrorRecoveryService";
 import { ProviderError, ErrorCodes } from "../../errors";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
 
 export type GetSetting = (key: string) => Promise<any>;
 
@@ -28,7 +28,7 @@ export class LLMRegistry {
   private cachingService: CachingService;
   private providerFileSystemService: ProviderFileSystemService;
   private loggingService: LoggingService;
-  private readonly serviceName = "LegacyLLMRegistry";
+  private logger: Logger;
 
   constructor(
     private eventBus: EventBus,
@@ -40,6 +40,7 @@ export class LLMRegistry {
     }),
   ) {
     this.loggingService = loggingService;
+    this.logger = createLogger("LegacyLLMRegistry", loggingService);
     this.cachingService = new CachingService({ maxSize: 50, defaultTtl: 300000 });
     this.providerFileSystemService = new ProviderFileSystemService();
     this.providerDiscoveryService = new ProviderDiscoveryService(
@@ -56,11 +57,11 @@ export class LLMRegistry {
   }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   async initialize(): Promise<void> {

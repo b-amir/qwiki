@@ -1,9 +1,13 @@
 import type { EventBus, EventHandler } from "./EventBus";
-import { LoggingService } from "../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../infrastructure/services/LoggingService";
 
 export class EventBusImpl implements EventBus {
   private handlers = new Map<string, Set<EventHandler>>();
-  private readonly serviceName = "EventBus";
+  private logger: Logger;
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
@@ -12,7 +16,9 @@ export class EventBusImpl implements EventBus {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("EventBus", loggingService);
+  }
 
   subscribe<T>(event: string, handler: EventHandler<T>): () => void {
     if (!this.handlers.has(event)) {
@@ -36,7 +42,7 @@ export class EventBusImpl implements EventBus {
       try {
         await handler(payload);
       } catch (error) {
-        this.loggingService.error(this.serviceName, "Exception in event handler", error);
+        this.logger.error("Exception in event handler", error);
       }
     });
 

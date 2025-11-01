@@ -5,9 +5,15 @@ import type { MessageBus } from "../services/MessageBus";
 import type { ConfigurationManager } from "../services/ConfigurationManager";
 import { OutboundEvents } from "../../constants/Events";
 import { ProviderId } from "../../llm/types";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class GetProvidersCommand implements Command<void> {
+  private logger: Logger;
+
   constructor(
     private llmRegistry: LLMRegistry,
     private apiKeyRepository: ApiKeyRepository,
@@ -19,16 +25,16 @@ export class GetProvidersCommand implements Command<void> {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
-
-  private readonly serviceName = "GetProvidersCommand";
+  ) {
+    this.logger = createLogger("GetProvidersCommand", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   private inFlight?: Promise<void>;
@@ -53,7 +59,9 @@ export class GetProvidersCommand implements Command<void> {
       const listStartTime = Date.now();
       const list = this.llmRegistry.list();
       const listEndTime = Date.now();
-      this.logDebug(`Retrieved ${list.length} providers from registry in ${listEndTime - listStartTime}ms`);
+      this.logDebug(
+        `Retrieved ${list.length} providers from registry in ${listEndTime - listStartTime}ms`,
+      );
 
       const statusesStartTime = Date.now();
       this.logDebug("Processing provider statuses");
@@ -73,7 +81,10 @@ export class GetProvidersCommand implements Command<void> {
             const models = provider?.listModels?.() || [];
 
             const providerProcessEndTime = Date.now();
-            this.logDebug(`Processed provider ${p.id} in ${providerProcessEndTime - providerProcessStartTime}ms`, { models: models.length, hasKey });
+            this.logDebug(
+              `Processed provider ${p.id} in ${providerProcessEndTime - providerProcessStartTime}ms`,
+              { models: models.length, hasKey },
+            );
 
             return {
               id: p.id,
@@ -83,7 +94,10 @@ export class GetProvidersCommand implements Command<void> {
             };
           } catch (error) {
             const providerProcessEndTime = Date.now();
-            this.logError(`Error processing provider ${p.id} after ${providerProcessEndTime - providerProcessStartTime}ms`, error);
+            this.logError(
+              `Error processing provider ${p.id} after ${providerProcessEndTime - providerProcessStartTime}ms`,
+              error,
+            );
 
             return {
               id: p.id,

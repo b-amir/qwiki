@@ -4,14 +4,18 @@ import type { LoadingStep } from "../../constants/Events";
 import { ErrorCodes } from "../../constants/ErrorCodes";
 import { WebviewOptimizer } from "../../infrastructure/services/WebviewOptimizer";
 import { DebouncingService } from "../../infrastructure/services/DebouncingService";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class MessageBus {
   private optimizer: WebviewOptimizer;
   private debouncingService: DebouncingService;
   private debouncedPostMessage: any;
   private debouncedEnvironmentStatus: any;
-  private readonly serviceName = "MessageBus";
+  private logger: Logger;
 
   constructor(
     webview: Webview,
@@ -22,6 +26,7 @@ export class MessageBus {
       includeService: true,
     }),
   ) {
+    this.logger = createLogger("MessageBus", loggingService);
     this.optimizer = new WebviewOptimizer(webview, this.loggingService);
     this.debouncingService = new DebouncingService();
     this.debouncedPostMessage = this.debouncingService.debounce(
@@ -43,10 +48,7 @@ export class MessageBus {
   postMessage(command: string, payload?: any): void {
     try {
       const size = payload ? JSON.stringify(payload).length : 0;
-      this.loggingService.debug(
-        this.serviceName,
-        `Queueing message to webview - command=${command}, size=${size}`,
-      );
+      this.logger.debug(`Queueing message to webview - command=${command}, size=${size}`);
     } catch {}
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
@@ -58,10 +60,7 @@ export class MessageBus {
   postImmediate(command: string, payload?: any): void {
     try {
       const size = payload ? JSON.stringify(payload).length : 0;
-      this.loggingService.debug(
-        this.serviceName,
-        `Posting immediate message to webview - command=${command}, size=${size}`,
-      );
+      this.logger.debug(`Posting immediate message to webview - command=${command}, size=${size}`);
     } catch {}
     this.optimizer.postImmediate(command, payload);
   }
@@ -73,18 +72,14 @@ export class MessageBus {
     context?: any,
     originalError?: string,
   ): void {
-    this.loggingService.error(
-      this.serviceName,
-      "Error posted to frontend",
-      {
-        code,
-        message,
-        suggestion,
-        context,
-        originalError,
-        timestamp: new Date().toISOString(),
-      },
-    );
+    this.logger.error("Error posted to frontend", {
+      code,
+      message,
+      suggestion,
+      context,
+      originalError,
+      timestamp: new Date().toISOString(),
+    });
 
     this.postImmediate(OutboundEvents.error, {
       code,
@@ -97,10 +92,7 @@ export class MessageBus {
   }
 
   postSuccess(command: string, payload?: any): void {
-    this.loggingService.debug(
-      this.serviceName,
-      `postSuccess called for command=${command}`,
-    );
+    this.logger.debug(`postSuccess called for command=${command}`);
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
     } else {

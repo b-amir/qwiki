@@ -1,7 +1,7 @@
 import { LLMRegistry } from "../../llm";
 import { HealthCheckResult } from "../../llm/types/ProviderCapabilities";
 import { EventBus } from "../../events";
-import { LoggingService } from "./LoggingService";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 export interface HealthStatus {
   providerId: string;
@@ -16,7 +16,7 @@ export class ProviderHealthService {
   private healthStatus = new Map<string, HealthStatus>();
   private monitoringInterval?: NodeJS.Timeout;
   private readonly DEFAULT_CHECK_INTERVAL = 300000; // 5 minutes in milliseconds
-  private readonly serviceName = "";
+  private logger: Logger;
 
   constructor(
     private llmRegistry: LLMRegistry,
@@ -27,22 +27,24 @@ export class ProviderHealthService {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("ProviderHealthService", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logInfo(message: string, data?: unknown): void {
-    this.loggingService.info(this.serviceName, message, data);
+    this.logger.info(message, data);
   }
 
   private logWarn(message: string, data?: unknown): void {
-    this.loggingService.warn(this.serviceName, message, data);
+    this.logger.warn(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   async checkProviderHealth(providerId: string): Promise<HealthStatus> {
@@ -52,9 +54,7 @@ export class ProviderHealthService {
     const provider = this.llmRegistry.getProvider(providerId as any);
     if (!provider) {
       const error = "Provider not found";
-      this.logError(
-        `Health check failed for ${providerId} - ${error}`,
-      );
+      this.logError(`Health check failed for ${providerId} - ${error}`);
 
       const status: HealthStatus = {
         providerId,
@@ -71,9 +71,7 @@ export class ProviderHealthService {
     let healthResult: HealthCheckResult;
 
     try {
-      this.logDebug(
-        `Executing health check for provider ${providerId}`,
-      );
+      this.logDebug(`Executing health check for provider ${providerId}`);
 
       const reg: any = this.llmRegistry as any;
       if (typeof reg.healthCheckProvider === "function") {
@@ -86,9 +84,7 @@ export class ProviderHealthService {
       const responseTime = healthCheckEndTime - startTime;
 
       if (healthResult.isHealthy) {
-        this.logDebug(
-          `Health check passed for provider ${providerId} in ${responseTime}ms`,
-        );
+        this.logDebug(`Health check passed for provider ${providerId} in ${responseTime}ms`);
       } else {
         this.logWarn(
           `Health check failed for provider ${providerId} in ${responseTime}ms: ${healthResult.error}`,
@@ -129,9 +125,7 @@ export class ProviderHealthService {
 
     if (currentStatus?.isHealthy !== status.isHealthy) {
       const healthChange = status.isHealthy ? "healthy" : "unhealthy";
-      this.logDebug(
-        `Provider ${providerId} health changed to ${healthChange}`,
-      );
+      this.logDebug(`Provider ${providerId} health changed to ${healthChange}`);
 
       this.eventBus.publish("providerHealthChanged", {
         providerId,
@@ -149,9 +143,7 @@ export class ProviderHealthService {
   }
 
   startHealthMonitoring(interval: number = this.DEFAULT_CHECK_INTERVAL): void {
-    this.logDebug(
-      `Starting health monitoring with ${interval}ms interval`,
-    );
+    this.logDebug(`Starting health monitoring with ${interval}ms interval`);
     this.stopHealthMonitoring();
 
     this.monitoringInterval = setInterval(async () => {
@@ -161,18 +153,13 @@ export class ProviderHealthService {
       try {
         const providers = this.llmRegistry.list();
         const providerIds = providers.map((p) => p.id);
-        this.logDebug(
-          `Checking health for ${providerIds.length} providers`,
-        );
+        this.logDebug(`Checking health for ${providerIds.length} providers`);
 
         for (const providerId of providerIds) {
           try {
             await this.checkProviderHealth(providerId);
           } catch (error) {
-            this.logError(
-              `Health check failed for provider ${providerId}:`,
-              error,
-            );
+            this.logError(`Health check failed for provider ${providerId}:`, error);
           }
         }
 
@@ -181,10 +168,7 @@ export class ProviderHealthService {
           `Periodic health check completed in ${monitoringEndTime - monitoringStartTime}ms`,
         );
       } catch (error) {
-        this.logError(
-          `Error during periodic health monitoring:`,
-          error,
-        );
+        this.logError(`Error during periodic health monitoring:`, error);
       }
     }, interval);
   }
@@ -266,19 +250,14 @@ export class ProviderHealthService {
       const providerIds = providers.map((p) => p.id);
       const results: Record<string, HealthStatus> = {};
 
-      this.logDebug(
-        `Forcing health checks for ${providerIds.length} providers`,
-      );
+      this.logDebug(`Forcing health checks for ${providerIds.length} providers`);
 
       for (const providerId of providerIds) {
         try {
           results[providerId] = await this.checkProviderHealth(providerId);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
-          this.logError(
-            `Force health check failed for provider ${providerId}:`,
-            error,
-          );
+          this.logError(`Force health check failed for provider ${providerId}:`, error);
 
           results[providerId] = {
             providerId,

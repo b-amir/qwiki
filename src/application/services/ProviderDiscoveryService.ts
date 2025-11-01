@@ -5,12 +5,12 @@ import { ProviderMetadata, ProviderManifest } from "../../llm/types/ProviderMeta
 import { LLMProvider } from "../../llm/types";
 import { ValidationResult } from "../../llm/types/ProviderCapabilities";
 import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
 
 export class ProviderDiscoveryService {
   private discoveredProviders = new Map<string, ProviderMetadata>();
   private watchers: fs.FSWatcher[] = [];
-  private readonly serviceName = "";
+  private logger: Logger;
 
   constructor(
     private eventBus: EventBus,
@@ -21,22 +21,24 @@ export class ProviderDiscoveryService {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("ProviderDiscoveryService", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logInfo(message: string, data?: unknown): void {
-    this.loggingService.info(this.serviceName, message, data);
+    this.logger.info(message, data);
   }
 
   private logWarn(message: string, data?: unknown): void {
-    this.loggingService.warn(this.serviceName, message, data);
+    this.logger.warn(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   async discoverProviders(): Promise<ProviderMetadata[]> {

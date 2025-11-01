@@ -3,10 +3,12 @@ import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import { InboundEvents, OutboundEvents, LoadingSteps } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
-import { ErrorLoggingService, ErrorRecoveryService, LoggingService } from "../../infrastructure/services";
+import { ErrorLoggingService, ErrorRecoveryService, LoggingService, createLogger, type Logger } from "../../infrastructure/services";
 import { ProviderError, ErrorCodes, getErrorMessage } from "../../errors";
 
 export class WikiEventHandler {
+  private logger: Logger;
+
   constructor(
     private eventBus: EventBus,
     private wikiService: any,
@@ -19,12 +21,12 @@ export class WikiEventHandler {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
-
-  private readonly serviceName = "WikiEventHandler";
+  ) {
+    this.logger = createLogger("WikiEventHandler", loggingService);
+  }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   register(): void {

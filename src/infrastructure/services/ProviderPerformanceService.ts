@@ -5,7 +5,7 @@ import { RequestBatchingService } from "./RequestBatchingService";
 import { DebouncingService } from "./DebouncingService";
 import { BackgroundProcessingService } from "./BackgroundProcessingService";
 import { MemoryOptimizationService } from "./MemoryOptimizationService";
-import { LoggingService } from "./LoggingService";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 export interface PerformanceMetric {
   providerId: string;
@@ -37,7 +37,7 @@ export class ProviderPerformanceService {
   private performanceMetrics = new Map<string, PerformanceMetric[]>();
   private readonly MAX_METRICS_PER_PROVIDER = 100;
   private readonly PERFORMANCE_WINDOW_MS = 3600000; // 1 hour in milliseconds
-  private readonly serviceName = "ProviderPerformanceService";
+  private logger: Logger;
 
   constructor(
     private llmRegistry: LLMRegistry,
@@ -53,22 +53,24 @@ export class ProviderPerformanceService {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("ProviderPerformanceService", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logInfo(message: string, data?: unknown): void {
-    this.loggingService.info(this.serviceName, message, data);
+    this.logger.info(message, data);
   }
 
   private logWarn(message: string, data?: unknown): void {
-    this.loggingService.warn(this.serviceName, message, data);
+    this.logger.warn(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   recordGenerationStart(providerId: string): string {
@@ -89,10 +91,7 @@ export class ProviderPerformanceService {
       this.addMetric(providerId, metric);
       return requestId;
     } catch (error) {
-      this.logError(
-        `Error recording generation start for provider ${providerId}:`,
-        error,
-      );
+      this.logError(`Error recording generation start for provider ${providerId}:`, error);
       throw error;
     }
   }
@@ -119,9 +118,7 @@ export class ProviderPerformanceService {
       );
 
       if (!startMetric) {
-        this.logWarn(
-          `No start metric found for request: ${requestId}`,
-        );
+        this.logWarn(`No start metric found for request: ${requestId}`);
         return;
       }
 
@@ -153,10 +150,7 @@ export class ProviderPerformanceService {
         );
       }
     } catch (recordError) {
-      this.logError(
-        `Error recording generation end for provider ${providerId}:`,
-        recordError,
-      );
+      this.logError(`Error recording generation end for provider ${providerId}:`, recordError);
     }
   }
 
@@ -164,9 +158,7 @@ export class ProviderPerformanceService {
     try {
       if (!this.performanceMetrics.has(providerId)) {
         this.performanceMetrics.set(providerId, []);
-        this.logDebug(
-          `Created metrics collection for provider ${providerId}`,
-        );
+        this.logDebug(`Created metrics collection for provider ${providerId}`);
       }
 
       const metrics = this.performanceMetrics.get(providerId)!;
@@ -182,10 +174,7 @@ export class ProviderPerformanceService {
 
       this.cleanupOldMetrics(providerId);
     } catch (error) {
-      this.logError(
-        `Error adding metric for provider ${providerId}:`,
-        error,
-      );
+      this.logError(`Error adding metric for provider ${providerId}:`, error);
     }
   }
 
@@ -205,10 +194,7 @@ export class ProviderPerformanceService {
         );
       }
     } catch (error) {
-      this.logError(
-        `Error cleaning up old metrics for provider ${providerId}:`,
-        error,
-      );
+      this.logError(`Error cleaning up old metrics for provider ${providerId}:`, error);
     }
   }
 
@@ -290,10 +276,7 @@ export class ProviderPerformanceService {
       );
       return stats;
     } catch (error) {
-      this.logError(
-        `Error getting stats for provider ${providerId}:`,
-        error,
-      );
+      this.logError(`Error getting stats for provider ${providerId}:`, error);
       return this.calculateProviderStats(providerId);
     }
   }
@@ -307,9 +290,7 @@ export class ProviderPerformanceService {
       const providers = this.llmRegistry.list();
       const providerIds = providers.map((p: any) => p.id);
 
-      this.logDebug(
-        `Processing stats for ${providerIds.length} providers`,
-      );
+      this.logDebug(`Processing stats for ${providerIds.length} providers`);
 
       for (const providerId of providerIds) {
         result[providerId] = this.getProviderStats(providerId);
@@ -412,16 +393,12 @@ export class ProviderPerformanceService {
   }
 
   recordSelection(providerId: string, context: any): void {
-    this.logDebug(
-      `Recording provider selection for ${providerId}`,
-    );
+    this.logDebug(`Recording provider selection for ${providerId}`);
 
     try {
       const stats = this.getProviderStats(providerId);
       if (!stats) {
-        this.logWarn(
-          `No stats found for provider ${providerId} during selection recording`,
-        );
+        this.logWarn(`No stats found for provider ${providerId} during selection recording`);
         return;
       }
 
@@ -440,17 +417,12 @@ export class ProviderPerformanceService {
         timestamp: new Date(),
       });
     } catch (error) {
-      this.logError(
-        `Error recording selection for provider ${providerId}:`,
-        error,
-      );
+      this.logError(`Error recording selection for provider ${providerId}:`, error);
     }
   }
 
   recordFallback(fromProvider: string, toProvider: string, success: boolean): void {
-    this.logDebug(
-      `Recording fallback from ${fromProvider} to ${toProvider}, success: ${success}`,
-    );
+    this.logDebug(`Recording fallback from ${fromProvider} to ${toProvider}, success: ${success}`);
 
     try {
       const metric: PerformanceMetric = {
@@ -475,10 +447,7 @@ export class ProviderPerformanceService {
         timestamp: new Date(),
       });
     } catch (error) {
-      this.logError(
-        `Error recording fallback from ${fromProvider} to ${toProvider}:`,
-        error,
-      );
+      this.logError(`Error recording fallback from ${fromProvider} to ${toProvider}:`, error);
     }
   }
 

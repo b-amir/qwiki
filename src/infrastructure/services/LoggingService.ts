@@ -15,6 +15,14 @@ export interface LoggerConfig {
   includeService: boolean;
 }
 
+export interface LogOutput {
+  write(entry: LogEntry): void;
+}
+
+export interface LogFormatter {
+  format(entry: LogEntry): string;
+}
+
 const levelOrder: Record<LogLevel, number> = {
   debug: 10,
   info: 20,
@@ -22,30 +30,37 @@ const levelOrder: Record<LogLevel, number> = {
   error: 40,
 };
 
-export class LoggingService {
+class ConsoleOutput implements LogOutput {
+  constructor(private formatter: LogFormatter) {}
+
+  write(entry: LogEntry): void {
+    const message = this.formatter.format(entry);
+    if (entry.data === undefined) {
+      this.consoleMethod(entry.level)(message);
+    } else {
+      this.consoleMethod(entry.level)(message, entry.data);
+    }
+  }
+
+  private consoleMethod(level: LogLevel): typeof console.debug {
+    switch (level) {
+      case "debug":
+        return console.debug.bind(console);
+      case "info":
+        return console.info.bind(console);
+      case "warn":
+        return console.warn.bind(console);
+      case "error":
+      default:
+        return console.error.bind(console);
+    }
+  }
+}
+
+class DefaultFormatter implements LogFormatter {
   constructor(private config: LoggerConfig) {}
 
-  debug(service: string, message: string, data?: unknown): void {
-    this.log({ timestamp: new Date(), level: "debug", service, message, data });
-  }
-
-  info(service: string, message: string, data?: unknown): void {
-    this.log({ timestamp: new Date(), level: "info", service, message, data });
-  }
-
-  warn(service: string, message: string, data?: unknown): void {
-    this.log({ timestamp: new Date(), level: "warn", service, message, data });
-  }
-
-  error(service: string, message: string, data?: unknown): void {
-    this.log({ timestamp: new Date(), level: "error", service, message, data });
-  }
-
-  private log(entry: LogEntry): void {
-    if (!this.config.enabled || !this.shouldLog(entry.level)) {
-      return;
-    }
-
+  format(entry: LogEntry): string {
     const parts: string[] = [];
 
     if (this.config.includeTimestamp) {
@@ -58,35 +73,95 @@ export class LoggingService {
 
     parts.push(entry.message);
 
-    const payload = parts.join(" | ");
+    return parts.join(" | ");
+  }
+}
 
-    if (entry.data === undefined) {
-      this.output(entry.level, payload);
+export class LoggingService {
+  private outputs: LogOutput[] = [];
+  private formatter: LogFormatter;
+
+  constructor(
+    private config: LoggerConfig,
+    outputs?: LogOutput[],
+    formatter?: LogFormatter,
+  ) {
+    this.formatter = formatter || new DefaultFormatter(config);
+    this.outputs = outputs || [new ConsoleOutput(this.formatter)];
+  }
+
+  addOutput(output: LogOutput): void {
+    this.outputs.push(output);
+  }
+
+  debug(service: string, message: string, data?: unknown): void {
+    if (!this.shouldLog("debug")) {
+      return;
+    }
+    this.log({ timestamp: new Date(), level: "debug", service, message, data });
+  }
+
+  info(service: string, message: string, data?: unknown): void {
+    if (!this.shouldLog("info")) {
+      return;
+    }
+    this.log({ timestamp: new Date(), level: "info", service, message, data });
+  }
+
+  warn(service: string, message: string, data?: unknown): void {
+    if (!this.shouldLog("warn")) {
+      return;
+    }
+    this.log({ timestamp: new Date(), level: "warn", service, message, data });
+  }
+
+  error(service: string, message: string, data?: unknown): void {
+    if (!this.shouldLog("error")) {
+      return;
+    }
+    this.log({ timestamp: new Date(), level: "error", service, message, data });
+  }
+
+  updateConfig(config: Partial<LoggerConfig>): void {
+    this.config = { ...this.config, ...config };
+    if (this.formatter instanceof DefaultFormatter) {
+      this.formatter = new DefaultFormatter(this.config);
+    }
+  }
+
+  private log(entry: LogEntry): void {
+    if (!this.config.enabled) {
       return;
     }
 
-    this.output(entry.level, payload, entry.data);
+    for (const output of this.outputs) {
+      try {
+        output.write(entry);
+      } catch (error) {
+        console.error("Log output failed:", error);
+      }
+    }
   }
 
   private shouldLog(level: LogLevel): boolean {
+    if (!this.config.enabled) {
+      return false;
+    }
     return levelOrder[level] >= levelOrder[this.config.level];
   }
-
-  private output(level: LogLevel, message: string, data?: unknown): void {
-    switch (level) {
-      case "debug":
-        data === undefined ? console.debug(message) : console.debug(message, data);
-        break;
-      case "info":
-        data === undefined ? console.info(message) : console.info(message, data);
-        break;
-      case "warn":
-        data === undefined ? console.warn(message) : console.warn(message, data);
-        break;
-      case "error":
-      default:
-        data === undefined ? console.error(message) : console.error(message, data);
-        break;
-    }
-  }
 }
+
+export function createLogger(serviceName: string, loggingService: LoggingService) {
+  return {
+    debug: (message: string, data?: unknown) =>
+      loggingService.debug(serviceName, message, data),
+    info: (message: string, data?: unknown) =>
+      loggingService.info(serviceName, message, data),
+    warn: (message: string, data?: unknown) =>
+      loggingService.warn(serviceName, message, data),
+    error: (message: string, data?: unknown) =>
+      loggingService.error(serviceName, message, data),
+  };
+}
+
+export type Logger = ReturnType<typeof createLogger>;

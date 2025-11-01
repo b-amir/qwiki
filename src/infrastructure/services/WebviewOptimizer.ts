@@ -1,5 +1,5 @@
 import type { Webview } from "vscode";
-import { LoggingService } from "./LoggingService";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 interface QueuedMessage {
   command: string;
@@ -15,8 +15,7 @@ export class WebviewOptimizer {
   private readonly MAX_BATCH_SIZE = 10;
   private messageId = 0;
   private lastEnvironmentStatusPayload: string | undefined;
-
-  private readonly serviceName = "WebviewOptimizer";
+  private logger: Logger;
 
   constructor(
     private webview: Webview,
@@ -26,14 +25,16 @@ export class WebviewOptimizer {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
+  ) {
+    this.logger = createLogger("WebviewOptimizer", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   postMessage(command: string, payload?: any): void {
@@ -89,9 +90,7 @@ export class WebviewOptimizer {
     } else {
       try {
         const cmds = batch.map((m) => m.command).filter(Boolean);
-        this.logDebug(
-          `Flushing batch of ${batch.length} -> [${cmds.join(", ")}]`,
-        );
+        this.logDebug(`Flushing batch of ${batch.length} -> [${cmds.join(", ")}]`);
       } catch {}
       this.safePostMessage({
         command: "batch",

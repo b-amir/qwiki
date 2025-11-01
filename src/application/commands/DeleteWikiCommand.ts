@@ -1,13 +1,15 @@
 import type { Command } from "./Command";
 import type { WikiStorageService } from "../services/WikiStorageService";
 import type { MessageBus } from "../services/MessageBus";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
 
 interface DeleteWikiPayload {
   wikiId: string;
 }
 
 export class DeleteWikiCommand implements Command<DeleteWikiPayload> {
+  private logger: Logger;
+
   constructor(
     private wikiStorageService: WikiStorageService,
     private messageBus: MessageBus,
@@ -17,16 +19,16 @@ export class DeleteWikiCommand implements Command<DeleteWikiPayload> {
       includeTimestamp: true,
       includeService: true,
     }),
-  ) {}
-
-  private readonly serviceName = "DeleteWikiCommand";
+  ) {
+    this.logger = createLogger("DeleteWikiCommand", loggingService);
+  }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   async execute(payload: DeleteWikiPayload): Promise<void> {

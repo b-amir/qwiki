@@ -17,7 +17,11 @@ import { WebviewPaths, VSCodeCommandIds, MessageStrings } from "../constants";
 import { BaseError } from "../errors";
 import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
 import { MessageBus } from "../application/services/MessageBus";
-import { LoggingService } from "../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../infrastructure/services/LoggingService";
 
 type SelectionPayload = {
   text: string;
@@ -54,7 +58,7 @@ export class QwikiPanel {
   private _initPromise: Promise<void>;
   private messageBus: MessageBus | undefined;
   private loggingService: LoggingService;
-  private readonly serviceName = "QwikiPanel";
+  private logger: Logger;
   private _extensionStatus = {
     ready: false,
     message: "Preparing Qwiki services...",
@@ -95,25 +99,26 @@ export class QwikiPanel {
         includeService: true,
       });
     }
+    this.logger = createLogger("QwikiPanel", this.loggingService);
     this._initPromise = this.initializeAsync();
     this._broadcastEnvironmentStatus();
     this._startLanguageMonitoring();
   }
 
   private logDebug(message: string, data?: unknown): void {
-    this.loggingService.debug(this.serviceName, message, data);
+    this.logger.debug(message, data);
   }
 
   private logInfo(message: string, data?: unknown): void {
-    this.loggingService.info(this.serviceName, message, data);
+    this.logger.info(message, data);
   }
 
   private logWarn(message: string, data?: unknown): void {
-    this.loggingService.warn(this.serviceName, message, data);
+    this.logger.warn(message, data);
   }
 
   private logError(message: string, data?: unknown): void {
-    this.loggingService.error(this.serviceName, message, data);
+    this.logger.error(message, data);
   }
 
   private async initializeAsync(): Promise<void> {
@@ -478,7 +483,9 @@ export class QwikiPanel {
           if (command === "getSavedWikis") {
             const lastTime = this._lastCommandExecutionTime.get(command) || 0;
             if (receiveTs - lastTime < this.COMMAND_THROTTLE_DELAY) {
-              this.logDebug(`Throttling getSavedWikis command, last executed ${receiveTs - lastTime}ms ago`);
+              this.logDebug(
+                `Throttling getSavedWikis command, last executed ${receiveTs - lastTime}ms ago`,
+              );
               return;
             }
             this._lastCommandExecutionTime.set(command, receiveTs);
@@ -530,7 +537,9 @@ export class QwikiPanel {
                 });
                 await this.commandRegistry.execute(command, payload);
                 const doneTs = Date.now();
-                this.logInfo(`Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`);
+                this.logInfo(
+                  `Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`,
+                );
               }
               return;
             }
@@ -553,7 +562,9 @@ export class QwikiPanel {
     const originalRegister = fallbackRegistry.register.bind(fallbackRegistry);
 
     fallbackRegistry.execute = async <T>(name: string, payload: T): Promise<void> => {
-      this.logWarn(`Fallback command registry attempting to execute command "${name}" - initialization may have failed`);
+      this.logWarn(
+        `Fallback command registry attempting to execute command "${name}" - initialization may have failed`,
+      );
       try {
         return await originalExecute(name, payload);
       } catch (error) {

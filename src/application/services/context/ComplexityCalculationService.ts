@@ -1,10 +1,12 @@
-import { LoggingService } from "../../../infrastructure";
+import { LoggingService, createLogger, type Logger } from "../../../infrastructure";
 import type { CodeStructure, ComplexityScore } from "./shared-types";
 
 export class ComplexityCalculationService {
-  private readonly serviceName = "ComplexityCalculationService";
+  private logger: Logger;
 
-  constructor(private loggingService: LoggingService) {}
+  constructor(private loggingService: LoggingService) {
+    this.logger = createLogger("ComplexityCalculationService", loggingService);
+  }
 
   estimateContextComplexity(snippet: string, structure: CodeStructure): ComplexityScore {
     const lines = snippet.split("\n");
