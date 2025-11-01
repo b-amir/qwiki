@@ -1,82 +1,21 @@
 import { EventBus } from "../../events/EventBus";
 import { LoggingService } from "../../infrastructure/services/LoggingService";
-
-export interface CodeContext {
-  snippet: string;
-  language: string;
-  filePath: string;
-  projectRoot?: string;
-  dependencies?: string[];
-  imports?: string[];
-  exports?: string[];
-  functions?: FunctionInfo[];
-  classes?: ClassInfo[];
-  interfaces?: InterfaceInfo[];
-  types?: TypeAliasInfo[];
-}
-
-export interface FunctionInfo {
-  name: string;
-  parameters: ParameterInfo[];
-  returnType: string;
-  isAsync: boolean;
-  visibility: "public" | "private" | "protected";
-  decorators?: string[];
-}
-
-export interface ParameterInfo {
-  name: string;
-  type: string;
-  optional: boolean;
-  defaultValue?: any;
-  description?: string;
-}
-
-export interface ClassInfo {
-  name: string;
-  extends?: string;
-  implements?: string[];
-  properties: PropertyInfo[];
-  methods: MethodInfo[];
-  constructors?: ConstructorInfo[];
-  decorators?: string[];
-}
-
-export interface PropertyInfo {
-  name: string;
-  type: string;
-  optional: boolean;
-  visibility: "public" | "private" | "protected";
-  decorators?: string[];
-}
-
-export interface MethodInfo {
-  name: string;
-  parameters: ParameterInfo[];
-  returnType: string;
-  isAsync: boolean;
-  visibility: "public" | "private" | "protected";
-  decorators?: string[];
-}
-
-export interface ConstructorInfo {
-  parameters: ParameterInfo[];
-  visibility: "public" | "private" | "protected";
-}
-
-export interface InterfaceInfo {
-  name: string;
-  extends?: string[];
-  properties: PropertyInfo[];
-  methods: MethodInfo[];
-  decorators?: string[];
-}
-
-export interface TypeAliasInfo {
-  name: string;
-  type: string;
-  decorators?: string[];
-}
+import { ComplexityCalculationService } from "./context/ComplexityCalculationService";
+import type {
+  CodeContext,
+  FunctionInfo,
+  ParameterInfo,
+  ClassInfo,
+  PropertyInfo,
+  MethodInfo,
+  ConstructorInfo,
+  InterfaceInfo,
+  TypeAliasInfo,
+  CodeStructure,
+  ImportInfo,
+  ExportInfo,
+  ComplexityScore,
+} from "./context/shared-types";
 
 export interface DeepContextAnalysis {
   structure: CodeStructure;
@@ -85,15 +24,6 @@ export interface DeepContextAnalysis {
   complexity: ComplexityScore;
   language: string;
   framework?: string;
-}
-
-export interface CodeStructure {
-  functions: FunctionInfo[];
-  classes: ClassInfo[];
-  interfaces: InterfaceInfo[];
-  types: TypeAliasInfo[];
-  imports: ImportInfo[];
-  exports: ExportInfo[];
 }
 
 export interface CodePattern {
@@ -127,40 +57,6 @@ export interface CodeRelationship {
   };
   strength: number;
   description: string;
-}
-
-export interface ComplexityScore {
-  overall: number;
-  cyclomatic: number;
-  cognitive: number;
-  halstead: {
-    volume: number;
-    difficulty: number;
-    effort: number;
-  };
-  lines: number;
-  functions: number;
-  classes: number;
-  interfaces: number;
-}
-
-export interface ImportInfo {
-  module: string;
-  elements: string[];
-  isExternal: boolean;
-  location: {
-    line: number;
-    column: number;
-  };
-}
-
-export interface ExportInfo {
-  element: string;
-  type: "function" | "class" | "interface" | "type" | "const" | "let" | "var";
-  location: {
-    line: number;
-    column: number;
-  };
 }
 
 export enum PatternType {
@@ -595,30 +491,8 @@ export class ContextAnalysisService {
   }
 
   estimateContextComplexity(snippet: string, structure: CodeStructure): ComplexityScore {
-    const lines = snippet.split("\n");
-    const functionCount = structure.functions.length;
-    const classCount = structure.classes.length;
-    const interfaceCount = structure.interfaces.length;
-    const maxNestingDepth = this.calculateMaxNestingDepth(snippet);
-
-    const cyclomatic = this.calculateCyclomaticComplexity(structure);
-    const cognitive = this.calculateCognitiveComplexity(snippet, structure);
-    const halstead = this.calculateHalsteadComplexity(snippet, structure);
-
-    return {
-      overall: cyclomatic * 0.3 + cognitive * 0.4 + halstead.volume * 0.2 + maxNestingDepth * 0.1,
-      cyclomatic,
-      cognitive,
-      halstead: {
-        volume: halstead.volume,
-        difficulty: halstead.difficulty,
-        effort: halstead.effort,
-      },
-      lines: lines.length,
-      functions: functionCount,
-      classes: classCount,
-      interfaces: interfaceCount,
-    };
+    const complexityService = new ComplexityCalculationService(this.loggingService);
+    return complexityService.estimateContextComplexity(snippet, structure);
   }
 
   private findFunctionCalls(
@@ -789,10 +663,7 @@ export class ContextAnalysisService {
       case "javascript":
         const tsJsRegex =
           /(?:function\s+(\w+)\s*\([^)]*\)\s*(?::\s*\w+)?\s*(?:=>|\{))|(?:const\s+(\w+)\s*=\s*(?:\([^)]*\))\s*(?::\s*\w+)?\s*(?:=>|\{))|(?:let\s+(\w+)\s*=\s*(?:\([^)]*\))\s*(?::\s*\w+)?\s*(?:=>|\{))|(?:var\s+(\w+)\s*=\s*(?:\([^)]*\))\s*(?::\s*\w+)?\s*(?:=>|\{))/g;
-        this.logDebug(
-          "TypeScript/JavaScript function regex:",
-          tsJsRegex,
-        );
+        this.logDebug("TypeScript/JavaScript function regex:", tsJsRegex);
         return tsJsRegex;
       case "python":
         const pythonRegex =
@@ -857,18 +728,12 @@ export class ContextAnalysisService {
   }
 
   private getInterfaceRegex(language: string): RegExp {
-    this.logDebug(
-      "Getting interface regex for language:",
-      language,
-    );
+    this.logDebug("Getting interface regex for language:", language);
     switch (language) {
       case "typescript":
       case "javascript":
         const tsInterfaceRegex = /interface\s+(\w+)\s*(?:extends\s+([^\{]+))?\s*\{/g;
-        this.logDebug(
-          "TypeScript interface regex:",
-          tsInterfaceRegex,
-        );
+        this.logDebug("TypeScript interface regex:", tsInterfaceRegex);
         return tsInterfaceRegex;
       case "python":
         const pyInterfaceRegex =
@@ -877,10 +742,7 @@ export class ContextAnalysisService {
         return pyInterfaceRegex;
       default:
         const defaultInterfaceRegex = /interface\s+(\w+)\s*(?:extends\s+([^\{]+))?\s*\{/g;
-        this.logDebug(
-          "Default interface regex:",
-          defaultInterfaceRegex,
-        );
+        this.logDebug("Default interface regex:", defaultInterfaceRegex);
         return defaultInterfaceRegex;
     }
   }
