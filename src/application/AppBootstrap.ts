@@ -414,11 +414,7 @@ export class AppBootstrap {
 
     this.container.register(
       "contextCompressionService",
-      () =>
-        new ContextCompressionService(
-          this.container.resolve("codeExtractionService") as CodeExtractionService,
-          this.loggingService,
-        ),
+      () => new ContextCompressionService(this.loggingService),
     );
 
     this.container.register(
