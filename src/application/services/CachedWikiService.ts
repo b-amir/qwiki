@@ -11,10 +11,11 @@ import type { LLMRegistry } from "../../llm";
 import type { WikiGenerationRequest, WikiGenerationResult } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import type { LoadingStep } from "../../constants/Events";
+import { ServiceLimits } from "../../constants";
 import { WikiService } from "./WikiService";
 
 export class CachedWikiService {
-  private readonly CACHE_TTL = 30 * 60 * 1000;
+  private readonly CACHE_TTL = ServiceLimits.cacheDefaultTTL;
   private wikiService: WikiService;
 
   constructor(
@@ -77,9 +78,9 @@ export class CachedWikiService {
     const contextKey = [
       projectContext.rootName || "",
       projectContext.overview || "",
-      projectContext.filesSample?.slice(0, 10).join(",") || "",
+      projectContext.filesSample?.slice(0, ServiceLimits.maxCacheFileSample).join(",") || "",
       projectContext.related
-        ?.slice(0, 5)
+        ?.slice(0, ServiceLimits.maxCacheRelated)
         .map((r) => `${r.path}:${r.line}`)
         .join(",") || "",
     ].join("|");

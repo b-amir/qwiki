@@ -6,6 +6,7 @@ import type {
   ValidationError,
   ValidationWarning,
 } from "../../domain/configuration";
+import { ServiceLimits } from "../../constants";
 
 export class ConfigurationValidator {
   private providerSchemas = new Map<string, ConfigurationSchema>();
@@ -33,7 +34,7 @@ export class ConfigurationValidator {
     this.validateAgainstSchema(config, schema, errors, warnings);
 
     if (config.apiKey && typeof config.apiKey === "string") {
-      if (config.apiKey.length < 10) {
+      if (config.apiKey.length < ServiceLimits.apiKeyMinLength) {
         errors.push({
           field: "apiKey",
           code: "API_KEY_TOO_SHORT",

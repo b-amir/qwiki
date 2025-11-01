@@ -1,6 +1,7 @@
 import { CachingService, CacheOptions } from "./CachingService";
 import { GenerateParams, GenerateResult } from "../../llm/types";
 import { createHash } from "crypto";
+import { ServiceLimits } from "../../constants";
 
 export class GenerationCacheService {
   private readonly cacheKeyPrefix = "generation:";
@@ -74,8 +75,8 @@ export class GenerationCacheService {
         ? {
             rootName: params.project.rootName?.toLowerCase(),
             overview: params.project.overview?.substring(0, 500),
-            filesSample: params.project.filesSample?.slice(0, 5),
-            related: params.project.related?.slice(0, 3).map((r) => ({
+            filesSample: params.project.filesSample?.slice(0, ServiceLimits.maxCacheFileSample),
+            related: params.project.related?.slice(0, ServiceLimits.maxCacheRelated).map((r) => ({
               path: r.path.toLowerCase(),
               preview: r.preview?.substring(0, 200),
               line: r.line,

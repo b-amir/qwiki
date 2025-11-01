@@ -1,0 +1,17 @@
+export const ServiceLimits = {
+  uiYieldDuration: 12,
+  symbolsPerSnippet: 12,
+  maxFileSampleDefault: 50,
+  maxRelatedPaths: 25,
+  maxRelatedPathsPreview: 10,
+  maxFilesSamplePreview: 20,
+  maxTopSymbols: 5,
+  maxRelatedPreview: 3,
+  cacheDefaultTTL: 30 * 60 * 1000,
+  apiKeyMinLength: 10,
+  maxFallbackProviders: 4,
+  maxRankedProviders: 5,
+  maxCacheFileSample: 5,
+  maxCacheRelated: 3,
+  maxSlowOpsDisplay: 10,
+} as const;

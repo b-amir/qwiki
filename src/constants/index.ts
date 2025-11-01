@@ -6,3 +6,4 @@ export { FilePatterns, FileLimits } from "./FilePatterns";
 export { MessageTemplates, MessageStrings, MessageFormats } from "./MessageConstants";
 export { PathPatterns, PathStrings, VSCodeCommands } from "./PathConstants";
 export { WebviewPaths, WebviewHtml } from "./WebviewConstants";
+export { ServiceLimits } from "./ServiceLimits";

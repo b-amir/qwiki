@@ -3,7 +3,7 @@ import type { WikiGenerationRequest, WikiGenerationResult } from "../../domain/e
 import type { ProjectContext } from "../../domain/entities/Selection";
 import { LoadingSteps } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
-import { ErrorCodes, ErrorMessages } from "../../constants";
+import { ErrorCodes, ErrorMessages, ServiceLimits } from "../../constants";
 import type { ProviderId } from "../../llm/types";
 import { WikiError } from "../../errors";
 import { GenerationCacheService } from "../../infrastructure/services/GenerationCacheService";
@@ -265,7 +265,7 @@ export class WikiService {
         const identifier = match[1] || match[2];
         if (identifier) {
           candidates.add(identifier);
-          if (candidates.size >= 12) break;
+          if (candidates.size >= ServiceLimits.symbolsPerSnippet) break;
         }
       }
     }
@@ -278,10 +278,12 @@ export class WikiService {
     const filesSample = projectContext.filesSample ?? [];
     return {
       relatedCount: related.length,
-      relatedPaths: related.map((entry) => entry.path).slice(0, 10),
+      relatedPaths: related
+        .map((entry) => entry.path)
+        .slice(0, ServiceLimits.maxRelatedPathsPreview),
       hasOverview: Boolean(projectContext.overview?.trim()),
       hasRootName: Boolean(projectContext.rootName?.trim()),
-      filesSample: filesSample.slice(0, 20),
+      filesSample: filesSample.slice(0, ServiceLimits.maxFilesSamplePreview),
     };
   }
 
@@ -296,8 +298,8 @@ export class WikiService {
     const prunedProject: ProjectContext = {
       rootName: projectContext.rootName,
       overview: projectContext.overview,
-      filesSample: projectContext.filesSample?.slice(0, 50),
-      related: projectContext.related?.slice(0, 25),
+      filesSample: projectContext.filesSample?.slice(0, ServiceLimits.maxFileSampleDefault),
+      related: projectContext.related?.slice(0, ServiceLimits.maxRelatedPaths),
     };
 
     return {
@@ -312,8 +314,10 @@ export class WikiService {
 
   private buildPromptSeed(generationInput: GenerationInput) {
     const { analysis, context } = generationInput.metadata;
-    const topSymbols = analysis.symbols.slice(0, 5).join(", ");
-    const relatedPreview = context.relatedPaths.slice(0, 3).join(", ");
+    const topSymbols = analysis.symbols.slice(0, ServiceLimits.maxTopSymbols).join(", ");
+    const relatedPreview = context.relatedPaths
+      .slice(0, ServiceLimits.maxRelatedPreview)
+      .join(", ");
 
     const segments = [
       `Lines:${analysis.lineCount}`,
@@ -402,7 +406,7 @@ export class WikiService {
     return rebuilt.endsWith("\n") ? rebuilt : `${rebuilt}\n`;
   }
 
-  private async yieldForUi(minDuration = 12) {
+  private async yieldForUi(minDuration = ServiceLimits.uiYieldDuration) {
     await new Promise((resolve) => setTimeout(resolve, minDuration));
   }
 }

@@ -1,3 +1,5 @@
+import { ServiceLimits } from "../../constants";
+
 export interface PerformanceMetric {
   name: string;
   duration: number;
@@ -134,7 +136,7 @@ export class PerformanceMonitor {
     const slowOps = this.getSlowOperations();
     if (slowOps.length > 0) {
       report.push("\n=== Slow Operations (>1000ms) ===");
-      slowOps.slice(0, 10).forEach((op) => {
+      slowOps.slice(0, ServiceLimits.maxSlowOpsDisplay).forEach((op) => {
         report.push(
           `${op.name}: ${op.duration.toFixed(2)}ms at ${new Date(op.timestamp).toISOString()}`,
         );

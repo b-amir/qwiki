@@ -4,6 +4,7 @@ import { ProviderHealthService } from "../../infrastructure/services/ProviderHea
 import { LLMRegistry } from "../../llm/providers/registry";
 import { ProviderError } from "../../errors/ProviderError";
 import { DeepContextAnalysis } from "./ContextAnalysisService";
+import { ServiceLimits } from "../../constants";
 
 export interface FallbackStrategy {
   type: "immediate" | "exponential" | "linear" | "adaptive";
@@ -157,7 +158,7 @@ export class ProviderFallbackManager {
 
       return {
         primaryProvider: selectedProvider,
-        fallbackProviders: alternativeProviders.slice(0, 4),
+        fallbackProviders: alternativeProviders.slice(0, ServiceLimits.maxFallbackProviders),
         strategy: this.defaultStrategy,
         context: operation.context,
       };

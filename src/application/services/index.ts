@@ -12,7 +12,6 @@ export { ConfigurationValidationEngine } from "./ConfigurationValidationEngine";
 export { ConfigurationImportExportService } from "./ConfigurationImportExportService";
 export { ProviderSelectionService } from "./ProviderSelectionService";
 export { SmartProviderSelectionService } from "./SmartProviderSelectionService";
-export { ProviderSelectionIntegrationService } from "./ProviderSelectionIntegrationService";
 export { ContextAnalysisService } from "./ContextAnalysisService";
 export { ProviderDiscoveryService } from "./ProviderDiscoveryService";
 export { ProviderFallbackManager } from "./ProviderFallbackManager";

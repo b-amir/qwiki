@@ -8,6 +8,7 @@ import {
 } from "./ContextAnalysisService";
 import { LLMRegistry } from "../../llm/providers/registry";
 import { ProviderCapabilities, ProviderFeature } from "../../llm/types/ProviderCapabilities";
+import { ServiceLimits } from "../../constants";
 
 export interface SelectionCriteria {
   weights?: {
@@ -68,7 +69,7 @@ export class SmartProviderSelectionService {
       providerId: selectedProvider,
       requirements,
       context,
-      alternatives: rankedProviders.slice(0, 5).map((p) => ({
+      alternatives: rankedProviders.slice(0, ServiceLimits.maxRankedProviders).map((p) => ({
         providerId: p.providerId,
         score: p.score,
         reasoning: p.reasoning,
