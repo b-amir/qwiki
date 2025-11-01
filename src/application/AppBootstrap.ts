@@ -14,11 +14,21 @@ import {
   ConfigurationImportExportService,
   ProviderSelectionService,
   ContextAnalysisService,
+  WikiStorageService,
+  ContextIntelligenceService,
+  ContextCompressionService,
+  AdvancedPromptService,
+  PromptQualityService,
+  WikiAggregationService,
+  ReadmeUpdateService,
 } from "./";
 import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
 import { PatternExtractionService } from "./services/context/PatternExtractionService";
 import { StructureAnalysisService } from "./services/context/StructureAnalysisService";
 import { RelationshipAnalysisService } from "./services/context/RelationshipAnalysisService";
+import { ProjectTypeDetectionService } from "./services/context/ProjectTypeDetectionService";
+import { FileRelevanceAnalysisService } from "./services/context/FileRelevanceAnalysisService";
+import { CodeExtractionService } from "./services/context/CodeExtractionService";
 import {
   VSCodeApiKeyRepository,
   VSCodeConfigurationRepository,
@@ -49,7 +59,6 @@ import { CommandFactory } from "../factories";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
 import { OutboundEvents } from "../constants";
 import type { ExtensionContext, Webview } from "vscode";
-import { WikiStorageService } from "./services/WikiStorageService";
 
 export class AppBootstrap {
   private container = new Container();
@@ -354,6 +363,90 @@ export class AppBootstrap {
           this.container.resolve("patternExtractionService") as PatternExtractionService,
           this.container.resolve("structureAnalysisService") as StructureAnalysisService,
           this.container.resolve("relationshipAnalysisService") as RelationshipAnalysisService,
+        ),
+    );
+
+    this.container.register(
+      "projectTypeDetectionService",
+      () =>
+        new ProjectTypeDetectionService(
+          this.container.resolve("cacheService") as CachingService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "fileRelevanceAnalysisService",
+      () =>
+        new FileRelevanceAnalysisService(
+          this.container.resolve("cacheService") as CachingService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "codeExtractionService",
+      () => new CodeExtractionService(this.loggingService),
+    );
+
+    this.container.registerLazy(
+      "contextIntelligenceService",
+      async () =>
+        new ContextIntelligenceService(
+          this.container.resolve("contextAnalysisService") as ContextAnalysisService,
+          this.container.resolve("cachedProjectContextService") as CachedProjectContextService,
+          await this.container.resolveLazy("providerSelectionService"),
+          this.container.resolve("projectTypeDetectionService") as ProjectTypeDetectionService,
+          this.container.resolve("fileRelevanceAnalysisService") as FileRelevanceAnalysisService,
+          this.container.resolve("cacheService") as CachingService,
+          this.container.resolve("performanceMonitor") as PerformanceMonitorService,
+          this.container.resolve("eventBus"),
+          this.loggingService,
+          await this.container.resolveLazy("llmRegistry"),
+        ),
+    );
+
+    this.container.register(
+      "contextCompressionService",
+      () =>
+        new ContextCompressionService(
+          this.container.resolve("codeExtractionService") as CodeExtractionService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "advancedPromptService",
+      () =>
+        new AdvancedPromptService(
+          this.loggingService,
+          this.container.resolve("contextAnalysisService") as ContextAnalysisService,
+          this.container.resolve("eventBus"),
+        ),
+    );
+
+    this.container.register(
+      "promptQualityService",
+      () => new PromptQualityService(this.loggingService, this.container.resolve("eventBus")),
+    );
+
+    this.container.register(
+      "wikiAggregationService",
+      () =>
+        new WikiAggregationService(
+          this.container.resolve("wikiStorageService") as WikiStorageService,
+          this.loggingService,
+          this.container.resolve("eventBus"),
+        ),
+    );
+
+    this.container.register(
+      "readmeUpdateService",
+      () =>
+        new ReadmeUpdateService(
+          this.container.resolve("wikiStorageService") as WikiStorageService,
+          this.loggingService,
+          this.container.resolve("eventBus"),
         ),
     );
   }
