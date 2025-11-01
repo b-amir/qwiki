@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { createLogger } from "@/utilities/logging";
 
 export interface ErrorHistoryEntry {
   id?: string;
@@ -11,12 +12,13 @@ export interface ErrorHistoryEntry {
   originalError?: string;
 }
 
+const logger = createLogger("ErrorHistoryStore");
+
 export const useErrorHistoryStore = defineStore("errorHistory", {
   state: () => ({
     errors: [] as ErrorHistoryEntry[],
     maxErrors: 50,
   }),
-
   actions: {
     addError(error: ErrorHistoryEntry) {
       if (!error.id) {
@@ -29,19 +31,19 @@ export const useErrorHistoryStore = defineStore("errorHistory", {
         this.errors = this.errors.slice(0, this.maxErrors);
       }
 
-      console.error("[QWIKI]", `Error added to history: ${error.code}`, error);
+      logger.error(`Error added to history: ${error.code}`, error);
     },
 
     clearErrors() {
       this.errors = [];
-      console.log("[QWIKI]", "Error history cleared");
+      logger.debug("Error history cleared");
     },
 
     removeError(id: string) {
       const index = this.errors.findIndex((error) => error.id === id);
       if (index !== -1) {
         this.errors.splice(index, 1);
-        console.log("[QWIKI]", `Error removed from history: ${id}`);
+        logger.debug(`Error removed from history: ${id}`);
       }
     },
 

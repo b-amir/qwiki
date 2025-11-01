@@ -1,5 +1,6 @@
 import { ref, onMounted, onBeforeUnmount, type Ref } from "vue";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
+import { createLogger } from "@/utilities/logging";
 
 export type PageType =
   | "wiki"
@@ -11,6 +12,7 @@ export type PageType =
   | "wikiAggregator";
 
 const currentPage: Ref<PageType> = ref<PageType>("wiki");
+const logger = createLogger("useNavigation");
 
 export function useNavigation() {
   const navigationStatusStore = useNavigationStatusStore();
@@ -29,7 +31,7 @@ export function useNavigation() {
       }
       currentPage.value = newPage;
     } else {
-      console.error("[QWIKI]", "setPage - invalid page:", newPage);
+      logger.error("setPage received invalid page", newPage);
     }
   };
 

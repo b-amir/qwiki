@@ -6,12 +6,14 @@ import { useSettingsStore } from "@/stores/settings";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { vscode } from "@/utilities/vscode";
 import { useLoading } from "@/loading/useLoading";
+import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 const navigationStatus = useNavigationStatusStore();
 const settingsLoading = ref(false);
 const settingsLoadingContext = useLoading("settings");
+const logger = createLogger("SettingsPage");
 
 const centralizedProviderConfigs = ref<
   Array<{
@@ -113,8 +115,8 @@ const getProviderCapability = (providerId: string, capability: string) => {
 
 const validateCurrentConfiguration = () => {
   const validationStartTime = Date.now();
-  console.log(
-    `[QWIKI] Settings: Validating configuration for provider ${settings.selectedProvider}`,
+  logger.debug(
+    `Validating configuration for provider ${settings.selectedProvider}`,
   );
 
   try {
@@ -139,17 +141,17 @@ const validateCurrentConfiguration = () => {
       validationWarnings.value = settings.validationWarnings;
 
       const validationEndTime = Date.now();
-      console.log(
-        `[QWIKI] Settings: Configuration validation completed in ${validationEndTime - validationStartTime}ms`,
+      logger.debug(
+        `Configuration validation completed in ${validationEndTime - validationStartTime}ms`,
       );
     } else {
-      console.error(
-        `[QWIKI] Settings: Selected provider config not found for ${settings.selectedProvider}`,
+      logger.error(
+        `Selected provider config not found for ${settings.selectedProvider}`,
       );
     }
   } catch (error) {
-    console.error(
-      `[QWIKI] Settings: Error validating configuration for provider ${settings.selectedProvider}:`,
+    logger.error(
+      `Error validating configuration for provider ${settings.selectedProvider}:`,
       error,
     );
   }
@@ -161,24 +163,24 @@ const getCustomFieldValue = (fieldId: string) => {
 
 const handleProviderChange = (providerId: string) => {
   const changeStartTime = Date.now();
-  console.log(`[QWIKI] Settings: Changing provider to ${providerId}`);
+  logger.debug(`Changing provider to ${providerId}`);
 
   try {
     wiki.providerId = providerId;
     settings.autoSaveProviderSelection(providerId);
 
     const changeEndTime = Date.now();
-    console.log(
-      `[QWIKI] Settings: Provider change completed in ${changeEndTime - changeStartTime}ms`,
+    logger.debug(
+      `Provider change completed in ${changeEndTime - changeStartTime}ms`,
     );
   } catch (error) {
-    console.error(`[QWIKI] Settings: Error changing provider to ${providerId}:`, error);
+    logger.error(`Error changing provider to ${providerId}:`, error);
   }
 };
 
 const handleApiKeyChange = (providerId: string, newValue: string) => {
   const changeStartTime = Date.now();
-  console.log(`[QWIKI] Settings: Updating API key for provider ${providerId}`);
+  logger.debug(`Updating API key for provider ${providerId}`);
 
   try {
     const config = providerConfigs.value.find((p) => p.id === providerId);
@@ -188,14 +190,14 @@ const handleApiKeyChange = (providerId: string, newValue: string) => {
       settings.autoSaveApiKey(providerId, newValue);
 
       const changeEndTime = Date.now();
-      console.log(
-        `[QWIKI] Settings: API key update completed in ${changeEndTime - changeStartTime}ms`,
+      logger.debug(
+        `API key update completed in ${changeEndTime - changeStartTime}ms`,
       );
     } else {
-      console.error(`[QWIKI] Settings: Provider config not found for ${providerId}`);
+      logger.error(`Provider config not found for ${providerId}`);
     }
   } catch (error) {
-    console.error(`[QWIKI] Settings: Error updating API key for provider ${providerId}:`, error);
+    logger.error(`Error updating API key for provider ${providerId}:`, error);
   }
 };
 
@@ -232,27 +234,27 @@ const openExternalUrl = (url: string) => {
       payload: { url },
     });
   } catch (error) {
-    console.error("[QWIKI] Settings: Failed to open external URL:", error);
+    logger.error("Failed to open external URL:", error);
   }
 };
 
 const initSettings = async () => {
   const initStartTime = Date.now();
-  console.log("[QWIKI] Settings: Starting initialization");
+  logger.debug("Starting initialization");
 
   if (!settings.initialized) {
     settingsLoading.value = true;
     try {
       await settings.init();
-      console.log("[QWIKI] Settings: Initialization completed successfully");
+      logger.debug("Initialization completed successfully");
     } catch (error) {
-      console.error("[QWIKI] Settings: Failed to initialize settings:", error);
+      logger.error("Failed to initialize settings:", error);
     } finally {
       settingsLoading.value = false;
     }
   }
 
-  console.log("[QWIKI] Settings: Fetching provider data");
+  logger.debug("Fetching provider data");
   const providersStartTime = Date.now();
 
   try {
@@ -261,15 +263,15 @@ const initSettings = async () => {
     settings.getProviderCapabilities();
 
     const providersEndTime = Date.now();
-    console.log(
-      `[QWIKI] Settings: Provider data requests sent in ${providersEndTime - providersStartTime}ms`,
+    logger.debug(
+      `Provider data requests sent in ${providersEndTime - providersStartTime}ms`,
     );
   } catch (error) {
-    console.error("[QWIKI] Settings: Error fetching provider data:", error);
+    logger.error("Error fetching provider data:", error);
   }
 
   const initEndTime = Date.now();
-  console.log(`[QWIKI] Settings: Total initialization time: ${initEndTime - initStartTime}ms`);
+  logger.debug(`Total initialization time: ${initEndTime - initStartTime}ms`);
 };
 
 const setupMessageListener = () => {
@@ -280,8 +282,8 @@ const setupMessageListener = () => {
     try {
       switch (message.command) {
         case "providerConfigs": {
-          console.log(
-            `[QWIKI] Settings: Received ${message.payload?.length || 0} provider configs`,
+          logger.debug(
+            `Received ${message.payload?.length || 0} provider configs`,
           );
           centralizedProviderConfigs.value = message.payload || [];
           nextTick(() => {
@@ -295,14 +297,14 @@ const setupMessageListener = () => {
         }
         case "providerCapabilitiesRetrieved": {
           const capabilitiesCount = Object.keys(message.payload?.capabilities || {}).length;
-          console.log(`[QWIKI] Settings: Received capabilities for ${capabilitiesCount} providers`);
+          logger.debug(`Received capabilities for ${capabilitiesCount} providers`);
           providerCapabilities.value = message.payload.capabilities || {};
           break;
         }
         case "configurationValidated": {
           const { isValid, errors = [], warnings = [] } = message.payload || {};
-          console.log(
-            `[QWIKI] Settings: Configuration validation result - Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
+          logger.debug(
+            `Configuration validation result - Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
           );
           validating.value = false;
           lastValidationValid.value = !!isValid;
@@ -318,11 +320,11 @@ const setupMessageListener = () => {
       }
 
       const messageEndTime = Date.now();
-      console.log(
-        `[QWIKI] Settings: Message ${message.command} processed in ${messageEndTime - messageStartTime}ms`,
+      logger.debug(
+        `Message ${message.command} processed in ${messageEndTime - messageStartTime}ms`,
       );
     } catch (error) {
-      console.error(`[QWIKI] Settings: Error processing message ${message.command}:`, error);
+      logger.error(`Error processing message ${message.command}:`, error);
     }
   };
 
@@ -330,7 +332,7 @@ const setupMessageListener = () => {
 
   setTimeout(() => {
     if (centralizedProviderConfigs.value.length === 0) {
-      console.error("[QWIKI] Settings: Provider configs not received within timeout");
+      logger.error("Provider configs not received within timeout");
     }
   }, 5000);
 };

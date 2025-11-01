@@ -1,5 +1,6 @@
 import { onMounted, onBeforeUnmount } from "vue";
 import { vscode } from "@/utilities/vscode";
+import { createLogger } from "@/utilities/logging";
 
 const lastPayloadByCommand = new Map<string, string>();
 const lastExecutionTime = new Map<string, number>();
@@ -7,6 +8,7 @@ const DEDUP_IN_BATCH = new Set<string>(["environmentStatus", "getSavedWikis"]);
 const DEDUP_ACROSS_BATCHES = new Set<string>(["environmentStatus", "getSavedWikis"]);
 const THROTTLED_COMMANDS = new Set<string>(["getSavedWikis"]);
 const THROTTLE_DELAY = 1000;
+const logger = createLogger("BatchBridge");
 
 function stringifyPayload(payload: any): string {
   try {
@@ -24,8 +26,8 @@ export function useBatchMessageBridge() {
     if (!Array.isArray(messages)) return;
     try {
       const cmds = messages.map((m: any) => m?.command).filter(Boolean);
-      console.log(
-        `[QWIKI] BatchBridge: Received batch with ${messages.length} messages -> [${cmds.join(", ")}]`,
+      logger.debug(
+        `Received batch with ${messages.length} messages -> [${cmds.join(", ")}]`,
       );
       vscode.postMessage({
         command: "frontendLog",
@@ -59,8 +61,8 @@ export function useBatchMessageBridge() {
       if (THROTTLED_COMMANDS.has(m.command)) {
         const lastTime = lastExecutionTime.get(m.command) || 0;
         if (now - lastTime < THROTTLE_DELAY) {
-          console.log(
-            `[QWIKI] BatchBridge: Throttling command ${m.command}, last executed ${now - lastTime}ms ago`,
+          logger.debug(
+            `Throttling command ${m.command}, last executed ${now - lastTime}ms ago`,
           );
           continue;
         }
@@ -83,7 +85,7 @@ export function useBatchMessageBridge() {
 
     for (const m of toForward) {
       try {
-        console.log(`[QWIKI] BatchBridge: Forwarding command ${m?.command}`);
+        logger.debug(`Forwarding command ${m?.command}`);
         vscode.postMessage({
           command: "frontendLog",
           payload: { message: `BatchBridge: Forwarding command ${m?.command}` },

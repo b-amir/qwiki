@@ -1,7 +1,9 @@
 import type { WebviewApi } from "vscode-webview";
+import { createLogger } from "./logging";
 
 class VSCodeAPIWrapper {
   private readonly vsCodeApi: WebviewApi<unknown> | undefined;
+  private readonly logger = createLogger("VSCodeAPIWrapper");
 
   constructor() {
     if (typeof acquireVsCodeApi === "function") {
@@ -13,7 +15,7 @@ class VSCodeAPIWrapper {
     if (this.vsCodeApi) {
       this.vsCodeApi.postMessage(message);
     } else {
-      console.error("[QWIKI]", message);
+      this.logger.error("Post message attempted without VS Code API", message);
     }
   }
 

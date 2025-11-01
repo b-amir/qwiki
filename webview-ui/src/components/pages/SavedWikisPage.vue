@@ -6,6 +6,7 @@ import LoadingState from "@/components/features/LoadingState.vue";
 import { useLoading } from "@/loading/useLoading";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import { useNavigation } from "@/composables/useNavigation";
+import { createLogger } from "@/utilities/logging";
 
 interface SavedWiki {
   id: string;
@@ -17,6 +18,7 @@ interface SavedWiki {
 }
 
 const vscode = useVscode();
+const logger = createLogger("SavedWikisPage");
 const navigationStatus = useNavigationStatusStore();
 const savedWikis = ref<SavedWiki[]>([]);
 const loading = ref(true);
@@ -60,7 +62,7 @@ const groupedWikis = computed(() => {
 
 const loadSavedWikis = async (force: boolean = false) => {
   if (isLoading.value || (hasLoadedOnce && !force)) {
-    console.log("[QWIKI] SavedWikisPage: Already loading or already loaded, skipping request", {
+    logger.debug("Already loading or already loaded, skipping request", {
       isLoading: isLoading.value,
       hasLoadedOnce,
       force,
@@ -91,7 +93,7 @@ const deleteWiki = async (wikiId: string) => {
       payload: { wikiId },
     });
   } catch (err) {
-    console.error("[QWIKI] SavedWikisPage: Failed to delete wiki", err);
+    logger.error("Failed to delete wiki", err);
   }
 };
 
@@ -138,7 +140,7 @@ watch(
   () => currentPage.value,
   (newPage, oldPage) => {
     if (newPage === "savedWikis" && oldPage !== "savedWikis" && !hasLoadedOnce) {
-      console.log("[QWIKI] SavedWikisPage: Page activated, loading wikis");
+      logger.debug("Page activated, loading wikis");
       loadSavedWikis();
     }
   },

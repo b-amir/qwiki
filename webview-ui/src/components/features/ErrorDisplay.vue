@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { createLogger } from "@/utilities/logging";
 
 interface Props {
   error: string;
@@ -15,6 +16,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const copySuccess = ref(false);
+const logger = createLogger("ErrorDisplay");
 
 const errorCategory = computed(() => {
   if (!props.errorCode) return "general";
@@ -74,7 +76,7 @@ const copyErrorToClipboard = async () => {
       copySuccess.value = false;
     }, 2000);
   } catch (err) {
-    console.error("[QWIKI]", "Failed to copy error text:", err);
+    logger.error("Failed to copy error text", err);
   }
 };
 </script>

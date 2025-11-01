@@ -1,6 +1,9 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
+import { createLogger } from "@/utilities/logging";
 import { useLoadingStore } from "./loading";
+
+const logger = createLogger("SettingsStore");
 
 export const useSettingsStore = defineStore("settings", {
   state: () => ({
@@ -34,7 +37,7 @@ export const useSettingsStore = defineStore("settings", {
     async init() {
       if (this.initialized) return;
       const initStartTime = Date.now();
-      console.log("[QWIKI] Settings Store: Starting initialization");
+      logger.debug("Starting initialization");
       this.loadingPhase = {
         providersResolved: false,
         apiKeysResolved: false,
@@ -59,7 +62,7 @@ export const useSettingsStore = defineStore("settings", {
         try {
           switch (message.command) {
             case "apiKeys": {
-              console.log("[QWIKI] Settings Store: Received API keys data");
+              logger.debug("Received API keys data");
               try {
                 vscode.postMessage({
                   command: "frontendLog",
@@ -93,14 +96,14 @@ export const useSettingsStore = defineStore("settings", {
                 window.removeEventListener("message", handleMessage);
 
                 const initEndTime = Date.now();
-                console.log(
-                  `[QWIKI] Settings Store: Initialization completed in ${initEndTime - initStartTime}ms`,
+                logger.debug(
+                  `Initialization completed in ${initEndTime - initStartTime}ms`,
                 );
               }
               return;
             }
             case "apiKeySaved": {
-              console.log("[QWIKI] Settings Store: API key saved successfully");
+              logger.debug("API key saved successfully");
               this.savedMessage = "API key saved successfully";
               setTimeout(() => {
                 this.savedMessage = "";
@@ -113,7 +116,7 @@ export const useSettingsStore = defineStore("settings", {
               return;
             }
             case "settingSaved": {
-              console.log("[QWIKI] Settings Store: Setting saved successfully");
+              logger.debug("Setting saved successfully");
               this.savedMessage = "Setting saved successfully";
               setTimeout(() => {
                 this.savedMessage = "";
@@ -122,7 +125,7 @@ export const useSettingsStore = defineStore("settings", {
             }
             case "providers": {
               const providers = message.payload || [];
-              console.log(`[QWIKI] Settings Store: Received ${providers.length} providers`);
+              logger.debug(`Received ${providers.length} providers`);
               const withKey = providers.find((p: any) => p.hasKey);
               this.selectedProvider = withKey?.id || providers[0]?.id || "";
               this.loadingPhase.providersResolved = true;
@@ -131,16 +134,16 @@ export const useSettingsStore = defineStore("settings", {
               if (this.loadingPhase.completed) {
                 window.removeEventListener("message", handleMessage);
                 const initEndTime = Date.now();
-                console.log(
-                  `[QWIKI] Settings Store: Initialization completed in ${initEndTime - initStartTime}ms`,
+                logger.debug(
+                  `Initialization completed in ${initEndTime - initStartTime}ms`,
                 );
               }
               return;
             }
             case "configurationValidated": {
               const { isValid, errors = [], warnings = [] } = message.payload || {};
-              console.log(
-                `[QWIKI] Settings Store: Configuration validation - Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
+              logger.debug(
+                `Configuration validation - Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
               );
               this.savedMessage = isValid
                 ? "Configuration is valid"
@@ -155,7 +158,7 @@ export const useSettingsStore = defineStore("settings", {
               return;
             }
             case "configurationTemplateApplied": {
-              console.log("[QWIKI] Settings Store: Configuration template applied successfully");
+              logger.debug("Configuration template applied successfully");
               this.savedMessage = "Configuration template applied successfully";
               setTimeout(() => {
                 this.savedMessage = "";
@@ -163,7 +166,7 @@ export const useSettingsStore = defineStore("settings", {
               return;
             }
             case "configurationBackupCreated": {
-              console.log("[QWIKI] Settings Store: Configuration backup created successfully");
+              logger.debug("Configuration backup created successfully");
               this.savedMessage = "Configuration backup created successfully";
               setTimeout(() => {
                 this.savedMessage = "";
@@ -175,8 +178,8 @@ export const useSettingsStore = defineStore("settings", {
               const healthyCount = Object.values(healthStatus).filter(
                 (status: any) => status.isHealthy,
               ).length;
-              console.log(
-                `[QWIKI] Settings Store: Retrieved provider health - ${healthyCount} healthy providers`,
+              logger.debug(
+                `Retrieved provider health - ${healthyCount} healthy providers`,
               );
               this.providerHealthStatus = healthStatus;
               return;
@@ -184,8 +187,8 @@ export const useSettingsStore = defineStore("settings", {
             case "providerPerformanceRetrieved": {
               const performanceStats = message.payload.performanceStats;
               const providerCount = Object.keys(performanceStats).length;
-              console.log(
-                `[QWIKI] Settings Store: Retrieved performance stats for ${providerCount} providers`,
+              logger.debug(
+                `Retrieved performance stats for ${providerCount} providers`,
               );
               this.providerPerformanceStats = performanceStats;
               return;
@@ -193,14 +196,14 @@ export const useSettingsStore = defineStore("settings", {
             case "providerCapabilitiesRetrieved": {
               const capabilities = message.payload.capabilities || {};
               const providerCount = Object.keys(capabilities).length;
-              console.log(
-                `[QWIKI] Settings Store: Retrieved capabilities for ${providerCount} providers`,
+              logger.debug(
+                `Retrieved capabilities for ${providerCount} providers`,
               );
               this.providerCapabilities = capabilities;
               return;
             }
             case "configurationBackupRestored": {
-              console.log("[QWIKI] Settings Store: Configuration backup restored successfully");
+              logger.debug("Configuration backup restored successfully");
               this.savedMessage = "Configuration backup restored successfully";
               setTimeout(() => {
                 this.savedMessage = "";
@@ -210,19 +213,19 @@ export const useSettingsStore = defineStore("settings", {
           }
 
           const messageEndTime = Date.now();
-          console.log(
-            `[QWIKI] Settings Store: Message ${message.command} processed in ${messageEndTime - messageStartTime}ms`,
+          logger.debug(
+            `Message ${message.command} processed in ${messageEndTime - messageStartTime}ms`,
           );
         } catch (error) {
-          console.error(
-            `[QWIKI] Settings Store: Error processing message ${message.command}:`,
+          logger.error(
+            `Error processing message ${message.command}:`,
             error,
           );
         }
       };
 
       window.addEventListener("message", handleMessage);
-      console.log("[QWIKI] Settings Store: Message listener attached");
+      logger.debug("Message listener attached");
       try {
         vscode.postMessage({
           command: "frontendLog",
@@ -231,7 +234,7 @@ export const useSettingsStore = defineStore("settings", {
       } catch {}
 
       try {
-        console.log("[QWIKI] Settings Store: Sending initialization messages");
+        logger.debug("Sending initialization messages");
         vscode.postMessage({ command: "webviewReady" });
         vscode.postMessage({ command: "getApiKeys" });
         vscode.postMessage({ command: "getProviders" });
@@ -239,13 +242,13 @@ export const useSettingsStore = defineStore("settings", {
         vscode.postMessage({ command: "getConfigurationBackups" });
         loadingStore.advance({ context: "settings", step: "fetching" });
       } catch (error) {
-        console.error("[QWIKI] Settings Store: Error sending initialization messages:", error);
+        logger.error("Error sending initialization messages:", error);
       }
 
       setTimeout(() => {
         if (this.loading && !this.initialized) {
-          console.error(
-            "[QWIKI] Settings Store: Initialization timeout - settings not loaded within 5 seconds",
+          logger.error(
+            "Initialization timeout - settings not loaded within 5 seconds",
           );
           this.loading = false;
           window.removeEventListener("message", handleMessage);
@@ -295,7 +298,7 @@ export const useSettingsStore = defineStore("settings", {
     },
     async saveSetting(setting: string, value: string) {
       const saveStartTime = Date.now();
-      console.log(`[QWIKI] Settings Store: Saving setting ${setting}`);
+      logger.debug(`Saving setting ${setting}`);
 
       try {
         this.saving = true;
@@ -306,11 +309,11 @@ export const useSettingsStore = defineStore("settings", {
         this.customSettings[setting] = value;
 
         const saveEndTime = Date.now();
-        console.log(
-          `[QWIKI] Settings Store: Setting ${setting} saved in ${saveEndTime - saveStartTime}ms`,
+        logger.debug(
+          `Setting ${setting} saved in ${saveEndTime - saveStartTime}ms`,
         );
       } catch (error) {
-        console.error(`[QWIKI] Settings Store: Error saving setting ${setting}:`, error);
+        logger.error(`Error saving setting ${setting}:`, error);
       } finally {
         this.saving = false;
       }
@@ -327,14 +330,14 @@ export const useSettingsStore = defineStore("settings", {
     },
     async saveApiKey(providerId: string, apiKey: string) {
       if (!apiKey) {
-        console.warn(
-          `[QWIKI] Settings Store: Attempted to save empty API key for provider ${providerId}`,
+        logger.warn(
+          `Attempted to save empty API key for provider ${providerId}`,
         );
         return;
       }
 
       const saveStartTime = Date.now();
-      console.log(`[QWIKI] Settings Store: Saving API key for provider ${providerId}`);
+      logger.debug(`Saving API key for provider ${providerId}`);
 
       try {
         this.saving = true;
@@ -349,12 +352,12 @@ export const useSettingsStore = defineStore("settings", {
         this.unsavedProviders.delete(providerId);
 
         const saveEndTime = Date.now();
-        console.log(
-          `[QWIKI] Settings Store: API key for provider ${providerId} saved in ${saveEndTime - saveStartTime}ms`,
+        logger.debug(
+          `API key for provider ${providerId} saved in ${saveEndTime - saveStartTime}ms`,
         );
       } catch (error) {
-        console.error(
-          `[QWIKI] Settings Store: Error saving API key for provider ${providerId}:`,
+        logger.error(
+          `Error saving API key for provider ${providerId}:`,
           error,
         );
       } finally {
@@ -391,8 +394,8 @@ export const useSettingsStore = defineStore("settings", {
     },
     async validateConfiguration(config: any, providerId?: string) {
       const validationStartTime = Date.now();
-      console.log(
-        `[QWIKI] Settings Store: Validating configuration for provider ${providerId || "unknown"}`,
+      logger.debug(
+        `Validating configuration for provider ${providerId || "unknown"}`,
       );
 
       try {
@@ -402,12 +405,12 @@ export const useSettingsStore = defineStore("settings", {
         });
 
         const validationEndTime = Date.now();
-        console.log(
-          `[QWIKI] Settings Store: Configuration validation request sent in ${validationEndTime - validationStartTime}ms`,
+        logger.debug(
+          `Configuration validation request sent in ${validationEndTime - validationStartTime}ms`,
         );
       } catch (error) {
-        console.error(
-          `[QWIKI] Settings Store: Error validating configuration for provider ${providerId}:`,
+        logger.error(
+          `Error validating configuration for provider ${providerId}:`,
           error,
         );
       }
@@ -438,7 +441,7 @@ export const useSettingsStore = defineStore("settings", {
     },
     async getProviderCapabilities() {
       const capabilitiesStartTime = Date.now();
-      console.log("[QWIKI] Settings Store: Requesting provider capabilities");
+      logger.debug("Requesting provider capabilities");
 
       try {
         vscode.postMessage({
@@ -447,11 +450,11 @@ export const useSettingsStore = defineStore("settings", {
         });
 
         const capabilitiesEndTime = Date.now();
-        console.log(
-          `[QWIKI] Settings Store: Provider capabilities request sent in ${capabilitiesEndTime - capabilitiesStartTime}ms`,
+        logger.debug(
+          `Provider capabilities request sent in ${capabilitiesEndTime - capabilitiesStartTime}ms`,
         );
       } catch (error) {
-        console.error("[QWIKI] Settings Store: Error requesting provider capabilities:", error);
+        logger.error("Error requesting provider capabilities:", error);
       }
     },
     async restoreConfigurationBackup(backupId: string) {

@@ -2,9 +2,11 @@
 import { ref, computed } from "vue";
 import { useErrorHistoryStore, type ErrorHistoryEntry } from "@/stores/errorHistory";
 import Button from "@/components/ui/button.vue";
+import { createLogger } from "@/utilities/logging";
 
 const errorHistory = useErrorHistoryStore();
 const showDetails = ref<string[]>([]);
+const logger = createLogger("ErrorHistory");
 
 const sortedErrors = computed(() => {
   return [...errorHistory.errors].sort(
@@ -40,9 +42,9 @@ const copyErrorToClipboard = async (error: ErrorHistoryEntry) => {
     }
 
     await navigator.clipboard.writeText(errorText);
-    console.log("[QWIKI]", "Error copied to clipboard");
+    logger.debug("Error copied to clipboard");
   } catch (err) {
-    console.error("[QWIKI]", "Failed to copy error text:", err);
+    logger.error("Failed to copy error text", err);
   }
 };
 

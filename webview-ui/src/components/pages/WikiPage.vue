@@ -10,8 +10,10 @@ import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useVscode } from "@/composables/useVscode";
 import { useLoading } from "@/loading/useLoading";
+import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
+const logger = createLogger("WikiPage");
 const navigationStatus = useNavigationStatusStore();
 const { setPage } = useNavigation();
 const vscode = useVscode();
@@ -40,7 +42,7 @@ const wikiTitle = computed(() => {
 const saveWiki = async () => {
   if (!wiki.content || isSaving.value) return;
 
-  console.log("[QWIKI] WikiPage: Starting to save wiki", {
+  logger.debug("Starting to save wiki", {
     title: wikiTitle.value,
     hasContent: !!wiki.content,
   });
@@ -55,9 +57,9 @@ const saveWiki = async () => {
         sourceFilePath: wiki.filePath,
       },
     });
-    console.log("[QWIKI] WikiPage: Save wiki command sent successfully");
+    logger.debug("Save wiki command sent successfully");
   } catch (error) {
-    console.error("[QWIKI] WikiPage: Failed to save wiki", error);
+    logger.error("Failed to save wiki", error);
     isSaving.value = false;
     saveState.value = "error";
     setTimeout(() => (saveState.value = "idle"), 2000);

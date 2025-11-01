@@ -1,5 +1,8 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { vscode } from "@/utilities/vscode";
+import { createLogger } from "@/utilities/logging";
+
+const logger = createLogger("useVscodeMessaging");
 
 export function useVscodeMessaging() {
   const isLoading = ref(false);
@@ -9,7 +12,7 @@ export function useVscodeMessaging() {
     try {
       vscode.postMessage(message);
     } catch (err) {
-      console.error("[QWIKI] Failed to post message:", err);
+      logger.error("Failed to post message", err);
       error.value = "Failed to send message to extension";
     }
   };
