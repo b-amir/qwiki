@@ -79,8 +79,8 @@ export class AppBootstrap {
 
   private registerServices(): void {
     const loggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      enabled: true,
+      level: "debug",
       includeTimestamp: true,
       includeService: true,
     });

@@ -14,8 +14,8 @@ export class SaveWikiCommand implements Command<SaveWikiPayload> {
     private wikiStorageService: WikiStorageService,
     private messageBus: MessageBus,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      enabled: true,
+      level: "debug",
       includeTimestamp: true,
       includeService: true,
     }),
