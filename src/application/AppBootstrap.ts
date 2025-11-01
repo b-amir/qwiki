@@ -18,6 +18,8 @@ import {
 } from "./";
 import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
 import { PatternExtractionService } from "./services/context/PatternExtractionService";
+import { StructureAnalysisService } from "./services/context/StructureAnalysisService";
+import { RelationshipAnalysisService } from "./services/context/RelationshipAnalysisService";
 import {
   VSCodeApiKeyRepository,
   VSCodeConfigurationRepository,
@@ -306,13 +308,27 @@ export class AppBootstrap {
     );
 
     this.container.register(
-      "complexityCalculationService",
-      () => new ComplexityCalculationService(this.loggingService),
+      "patternExtractionService",
+      () => new PatternExtractionService(this.loggingService),
     );
 
     this.container.register(
-      "patternExtractionService",
-      () => new PatternExtractionService(this.loggingService),
+      "structureAnalysisService",
+      () =>
+        new StructureAnalysisService(
+          this.loggingService,
+          this.container.resolve("patternExtractionService") as PatternExtractionService,
+        ),
+    );
+
+    this.container.register(
+      "relationshipAnalysisService",
+      () => new RelationshipAnalysisService(this.loggingService),
+    );
+
+    this.container.register(
+      "complexityCalculationService",
+      () => new ComplexityCalculationService(this.loggingService),
     );
 
     this.container.register(
@@ -323,6 +339,8 @@ export class AppBootstrap {
           this.loggingService,
           this.container.resolve("complexityCalculationService") as ComplexityCalculationService,
           this.container.resolve("patternExtractionService") as PatternExtractionService,
+          this.container.resolve("structureAnalysisService") as StructureAnalysisService,
+          this.container.resolve("relationshipAnalysisService") as RelationshipAnalysisService,
         ),
     );
   }
