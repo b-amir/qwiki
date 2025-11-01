@@ -223,6 +223,14 @@ export class QwikiPanel {
     this.showPage(Pages.savedWikis);
   }
 
+  public showWikiAggregation() {
+    this.showPage(Pages.wikiAggregation);
+  }
+
+  public showReadmeUpdate() {
+    this.showPage(Pages.readmeUpdate);
+  }
+
   public dispose() {
     this.view = undefined;
     this._webviewReady = false;
