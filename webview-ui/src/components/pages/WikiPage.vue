@@ -108,6 +108,7 @@ onBeforeUnmount(() => {
         :on-retry="wiki.retryGeneration"
         :timestamp="wiki.errorInfo?.timestamp"
         :context="wiki.errorInfo?.context"
+        :original-error="wiki.errorInfo?.originalError"
       >
         <template #actions>
           <div class="flex justify-center gap-4 pt-6">

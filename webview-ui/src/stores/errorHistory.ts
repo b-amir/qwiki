@@ -8,6 +8,7 @@ export interface ErrorHistoryEntry {
   suggestions?: string[];
   retryable?: boolean;
   context?: string;
+  originalError?: string;
 }
 
 export const useErrorHistoryStore = defineStore("errorHistory", {

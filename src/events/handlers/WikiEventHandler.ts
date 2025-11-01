@@ -63,6 +63,14 @@ export class WikiEventHandler {
           code: error.code,
           message: this.errorRecoveryService.getUserFriendlyMessage(error),
           suggestion: this.errorRecoveryService.getActionableSuggestion(error),
+          originalError: error.message,
+          context: {
+            providerId: payload.providerId,
+            snippet:
+              payload.snippet?.substring(0, 100) + (payload.snippet?.length > 100 ? "..." : ""),
+            filePath: payload.filePath,
+            languageId: payload.languageId,
+          },
         });
       }
     } catch (error: any) {
@@ -83,6 +91,14 @@ export class WikiEventHandler {
         code: providerError.code,
         message: this.errorRecoveryService.getUserFriendlyMessage(providerError),
         suggestion: this.errorRecoveryService.getActionableSuggestion(providerError),
+        originalError: providerError.message,
+        context: {
+          providerId: payload.providerId,
+          snippet:
+            payload.snippet?.substring(0, 100) + (payload.snippet?.length > 100 ? "..." : ""),
+          filePath: payload.filePath,
+          languageId: payload.languageId,
+        },
       });
     }
   }

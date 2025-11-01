@@ -9,6 +9,7 @@ interface Props {
   onRetry?: () => void;
   timestamp?: string;
   context?: string;
+  originalError?: string;
 }
 
 const props = defineProps<Props>();
@@ -50,12 +51,20 @@ const copyErrorToClipboard = async () => {
       ? `Error Code: ${props.errorCode}\n\n${props.error}`
       : props.error;
 
+    if (props.originalError && props.originalError !== props.error) {
+      errorText = `${errorText}\n\nOriginal Error: ${props.originalError}`;
+    }
+
     if (props.timestamp) {
       errorText = `Timestamp: ${props.timestamp}\n\n${errorText}`;
     }
 
     if (props.context) {
       errorText = `${errorText}\n\nContext: ${props.context}`;
+    }
+
+    if (props.suggestions && props.suggestions.length > 0) {
+      errorText = `${errorText}\n\nSuggestions:\n${props.suggestions.map((s) => `- ${s}`).join("\n")}`;
     }
 
     await navigator.clipboard.writeText(errorText);
@@ -160,6 +169,15 @@ const copyErrorToClipboard = async () => {
               <p class="text-muted-foreground whitespace-pre-wrap break-words text-sm">
                 {{ error }}
               </p>
+
+              <div v-if="originalError && originalError !== error" class="mt-3">
+                <p class="text-muted-foreground mb-2 text-xs font-medium">Original Error:</p>
+                <div
+                  class="bg-destructive/10 border-destructive/20 break-words rounded border p-2 font-mono text-xs"
+                >
+                  {{ originalError }}
+                </div>
+              </div>
             </div>
 
             <div v-if="suggestions && suggestions.length > 0" class="mt-3 text-left">

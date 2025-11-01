@@ -27,6 +27,10 @@ const copyErrorToClipboard = async (error: ErrorHistoryEntry) => {
     errorText += `Timestamp: ${new Date(error.timestamp).toLocaleString()}\n`;
     errorText += `Message: ${error.message}\n`;
 
+    if (error.originalError && error.originalError !== error.message) {
+      errorText += `Original Error: ${error.originalError}\n`;
+    }
+
     if (error.context) {
       errorText += `Context: ${error.context}\n`;
     }
@@ -211,6 +215,14 @@ const getErrorColor = (code?: string) => {
           </div>
 
           <div v-if="error.id && showDetails.includes(error.id)" class="mt-3 space-y-3">
+            <div
+              v-if="error.originalError && error.originalError !== error.message"
+              class="bg-destructive/10 border-destructive/20 rounded border p-3"
+            >
+              <p class="mb-1 text-xs font-medium">Original Error:</p>
+              <p class="break-words font-mono text-xs">{{ error.originalError }}</p>
+            </div>
+
             <div v-if="error.context" class="bg-muted/50 rounded p-3">
               <p class="mb-1 text-xs font-medium">Context:</p>
               <p class="break-words font-mono text-xs">{{ error.context }}</p>

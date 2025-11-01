@@ -12,6 +12,7 @@ export interface ErrorInfo {
   retryable?: boolean;
   timestamp?: string;
   context?: string;
+  originalError?: string;
 }
 
 export const useWikiStore = defineStore("wiki", {
@@ -99,6 +100,7 @@ export const useWikiStore = defineStore("wiki", {
               retryable: message.payload?.retryable || false,
               timestamp: message.payload?.timestamp,
               context: message.payload?.context,
+              originalError: message.payload?.originalError,
             };
 
             const errorHistory = useErrorHistoryStore();

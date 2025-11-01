@@ -59,12 +59,14 @@ export class MessageBus {
     code: string = ErrorCodes.unknown,
     suggestion?: string,
     context?: any,
+    originalError?: string,
   ): void {
     console.error("[QWIKI]", `Error posted to frontend`, {
       code,
       message,
       suggestion,
       context,
+      originalError,
       timestamp: new Date().toISOString(),
     });
 
@@ -72,6 +74,7 @@ export class MessageBus {
       code,
       message,
       suggestion,
+      originalError,
       timestamp: new Date().toISOString(),
       context: context ? JSON.stringify(context).substring(0, 500) : undefined,
     });
