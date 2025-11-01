@@ -21,3 +21,7 @@ export { GetProviderPerformanceCommand } from "./GetProviderPerformanceCommand";
 export { SaveWikiCommand } from "./SaveWikiCommand";
 export { GetSavedWikisCommand } from "./GetSavedWikisCommand";
 export { DeleteWikiCommand } from "./DeleteWikiCommand";
+export { CreateAggregationCommand } from "./CreateAggregationCommand";
+export { UpdateReadmeCommand } from "./UpdateReadmeCommand";
+export { PreviewReadmeUpdateCommand } from "./PreviewReadmeUpdateCommand";
+export { GetAggregationsCommand } from "./GetAggregationsCommand";

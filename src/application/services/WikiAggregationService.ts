@@ -404,4 +404,8 @@ export class WikiAggregationService {
 
     return sections.join("\n");
   }
+
+  getAllAggregations(): WikiAggregation[] {
+    return Array.from(this.aggregations.values());
+  }
 }
