@@ -107,13 +107,14 @@ export class SmartProviderSelectionService {
       score += 15;
     }
 
-    if (requirements.preferredLanguages) {
-      const supportedLanguages = capabilities.supportedLanguages || [];
-      const matchingLanguages = supportedLanguages.filter(
-        (lang) => requirements.preferredLanguages?.includes(lang) || false,
-      );
-      if (matchingLanguages.length > 0) {
-        score += 10;
+    if (requirements.preferredLanguages && requirements.preferredLanguages.length > 0) {
+      const supportedLanguagesSet = new Set(capabilities.supportedLanguages || []);
+      const preferredLanguagesSet = new Set(requirements.preferredLanguages);
+      for (const lang of preferredLanguagesSet) {
+        if (supportedLanguagesSet.has(lang)) {
+          score += 10;
+          break;
+        }
       }
     }
 

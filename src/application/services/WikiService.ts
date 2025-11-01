@@ -236,13 +236,18 @@ export class WikiService {
   private analyzeSnippet(snippet: string, languageId?: string): SnippetAnalysis {
     const normalized = snippet.replace(/\r\n/g, "\n");
     const lines = normalized.split("\n");
-    const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+    let nonEmptyLineCount = 0;
+    for (const line of lines) {
+      if (line.trim().length > 0) {
+        nonEmptyLineCount++;
+      }
+    }
     const tokens = this.extractSymbolCandidates(lines);
 
     return {
       languageId,
       lineCount: lines.length,
-      nonEmptyLineCount: nonEmptyLines.length,
+      nonEmptyLineCount,
       characterCount: normalized.length,
       symbols: tokens,
     };
@@ -250,24 +255,22 @@ export class WikiService {
 
   private extractSymbolCandidates(lines: string[]) {
     const candidates = new Set<string>();
-    const identifierPattern = /(?:function|class|interface|type|const|let|var)\s+([A-Za-z0-9_]+)/;
-    const callPattern = /([A-Za-z0-9_]+)\s*\(/;
+    const combinedPattern =
+      /(?:(?:function|class|interface|type|const|let|var)\s+([A-Za-z0-9_]+)|([A-Za-z0-9_]+)\s*\()/;
 
     for (const line of lines) {
       const trimmed = line.trim();
-      const declMatch = identifierPattern.exec(trimmed);
-      if (declMatch?.[1]) {
-        candidates.add(declMatch[1]);
-        continue;
-      }
-
-      const callMatch = callPattern.exec(trimmed);
-      if (callMatch?.[1]) {
-        candidates.add(callMatch[1]);
+      const match = combinedPattern.exec(trimmed);
+      if (match) {
+        const identifier = match[1] || match[2];
+        if (identifier) {
+          candidates.add(identifier);
+          if (candidates.size >= 12) break;
+        }
       }
     }
 
-    return Array.from(candidates).slice(0, 12);
+    return Array.from(candidates);
   }
 
   private summarizeContext(projectContext: ProjectContext): ContextSummary {
@@ -307,9 +310,7 @@ export class WikiService {
     };
   }
 
-  private buildPromptSeed(
-    generationInput: GenerationInput,
-  ) {
+  private buildPromptSeed(generationInput: GenerationInput) {
     const { analysis, context } = generationInput.metadata;
     const topSymbols = analysis.symbols.slice(0, 5).join(", ");
     const relatedPreview = context.relatedPaths.slice(0, 3).join(", ");
@@ -331,14 +332,51 @@ export class WikiService {
   ): ProcessedGeneration {
     const normalized = content.replace(/\r\n/g, "\n").trim();
     const collapsed = normalized.replace(/\n{3,}/g, "\n\n");
-    const headingMatches = collapsed.match(/^#\s+/gm) || [];
-    const listMatches = collapsed.match(/^\s*[-*+]|\d+\.\s+/gm) || [];
-    const paragraphMatches = collapsed.split(/\n\s*\n/).filter((block) => block.trim().length > 0);
+
+    let headingCount = 0;
+    let listCount = 0;
+    const paragraphSet = new Set<number>();
+
+    const lines = collapsed.split("\n");
+    let currentParagraphStart = 0;
+    let inParagraph = false;
+
+    const headingPattern = /^#\s+/;
+    const listPattern = /^\s*[-*+]|\d+\.\s+/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      if (headingPattern.test(line)) {
+        headingCount++;
+      }
+
+      if (listPattern.test(line)) {
+        listCount++;
+      }
+
+      if (trimmed.length > 0) {
+        if (!inParagraph) {
+          currentParagraphStart = i;
+          inParagraph = true;
+        }
+      } else {
+        if (inParagraph) {
+          paragraphSet.add(currentParagraphStart);
+          inParagraph = false;
+        }
+      }
+    }
+
+    if (inParagraph) {
+      paragraphSet.add(currentParagraphStart);
+    }
 
     const metrics = {
-      headingCount: headingMatches.length,
-      listCount: listMatches.length,
-      paragraphCount: paragraphMatches.length,
+      headingCount,
+      listCount,
+      paragraphCount: paragraphSet.size,
       promptSeedLength: promptSeed.length,
     };
 
@@ -348,10 +386,7 @@ export class WikiService {
     };
   }
 
-  private finalizeContent(
-    processed: ProcessedGeneration,
-    metadata: GenerationMetadata,
-  ) {
+  private finalizeContent(processed: ProcessedGeneration, metadata: GenerationMetadata) {
     const lines = processed.content.split("\n");
     const hasHeading = /^#\s+/.test(lines[0] || "");
     const titleFromSymbol = metadata.analysis.symbols[0];

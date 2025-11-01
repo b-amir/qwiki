@@ -37,6 +37,9 @@ export class ProviderPerformanceService {
   private performanceMetrics = new Map<string, PerformanceMetric[]>();
   private readonly MAX_METRICS_PER_PROVIDER = 100;
   private readonly PERFORMANCE_WINDOW_MS = 3600000; // 1 hour in milliseconds
+  private statsCache: Record<string, PerformanceStats> | null = null;
+  private statsCacheTimestamp: number = 0;
+  private readonly STATS_CACHE_TTL_MS = 1000; // 1 second cache
   private logger: Logger;
 
   constructor(
@@ -163,6 +166,7 @@ export class ProviderPerformanceService {
 
       const metrics = this.performanceMetrics.get(providerId)!;
       metrics.push(metric);
+      this.statsCache = null;
 
       if (metrics.length > this.MAX_METRICS_PER_PROVIDER) {
         const removedCount = metrics.length - this.MAX_METRICS_PER_PROVIDER;
@@ -189,6 +193,7 @@ export class ProviderPerformanceService {
       if (filteredMetrics.length < metrics.length) {
         const removedCount = metrics.length - filteredMetrics.length;
         this.performanceMetrics.set(providerId, filteredMetrics);
+        this.statsCache = null;
         this.logDebug(
           `Cleaned up ${removedCount} old metrics for provider ${providerId} (older than ${this.PERFORMANCE_WINDOW_MS}ms)`,
         );
@@ -225,7 +230,13 @@ export class ProviderPerformanceService {
 
   private calculateProviderStats(providerId: string): PerformanceStats {
     const metrics = this.performanceMetrics.get(providerId) || [];
+    return this.calculateProviderStatsFromMetrics(providerId, metrics);
+  }
 
+  private calculateProviderStatsFromMetrics(
+    providerId: string,
+    metrics: PerformanceMetric[],
+  ): PerformanceStats {
     if (metrics.length === 0) {
       return {
         providerId,
@@ -240,21 +251,30 @@ export class ProviderPerformanceService {
     }
 
     const totalRequests = metrics.length / 2;
-    const successfulRequests = metrics.filter((m) => m.success).length;
+    let successfulRequests = 0;
+    let totalDuration = 0;
+    let tokenCount = 0;
+    let tokenSum = 0;
+
+    for (const metric of metrics) {
+      if (metric.success) {
+        successfulRequests++;
+      }
+      totalDuration += metric.duration;
+      if (metric.tokensUsed && metric.tokensUsed > 0) {
+        tokenCount++;
+        tokenSum += metric.tokensUsed;
+      }
+    }
+
     const failedRequests = totalRequests - successfulRequests;
     const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
-
-    const totalDuration = metrics.reduce((sum, m) => sum + m.duration, 0);
     const averageResponseTime = totalRequests > 0 ? totalDuration / totalRequests : 0;
 
     const lastRequest = metrics[metrics.length - 1];
     const lastRequestTime = lastRequest ? lastRequest.timestamp : new Date();
 
-    const tokenMetrics = metrics.filter((m) => m.tokensUsed && m.tokensUsed > 0);
-    const averageTokensPerRequest =
-      tokenMetrics.length > 0
-        ? tokenMetrics.reduce((sum, m) => sum + (m.tokensUsed || 0), 0) / tokenMetrics.length
-        : undefined;
+    const averageTokensPerRequest = tokenCount > 0 ? tokenSum / tokenCount : undefined;
 
     return {
       providerId,
@@ -282,19 +302,35 @@ export class ProviderPerformanceService {
   }
 
   getAllProviderStats(): Record<string, PerformanceStats> {
+    const now = Date.now();
+    if (this.statsCache && now - this.statsCacheTimestamp < this.STATS_CACHE_TTL_MS) {
+      return this.statsCache;
+    }
+
     const getAllStatsStartTime = Date.now();
     this.logDebug("Retrieving stats for all providers");
 
     try {
       const result: Record<string, PerformanceStats> = {};
       const providers = this.llmRegistry.list();
-      const providerIds = providers.map((p: any) => p.id);
+      const providerIdSet = new Set(providers.map((p: any) => p.id));
 
-      this.logDebug(`Processing stats for ${providerIds.length} providers`);
+      this.logDebug(`Processing stats for ${providerIdSet.size} providers`);
 
-      for (const providerId of providerIds) {
-        result[providerId] = this.getProviderStats(providerId);
+      for (const [providerId, metrics] of this.performanceMetrics.entries()) {
+        if (providerIdSet.has(providerId)) {
+          result[providerId] = this.calculateProviderStatsFromMetrics(providerId, metrics);
+        }
       }
+
+      for (const providerId of providerIdSet) {
+        if (!result[providerId]) {
+          result[providerId] = this.calculateProviderStats(providerId);
+        }
+      }
+
+      this.statsCache = result;
+      this.statsCacheTimestamp = Date.now();
 
       const getAllStatsEndTime = Date.now();
       this.logDebug(
@@ -313,12 +349,10 @@ export class ProviderPerformanceService {
   }
 
   getProviderRankings(): ProviderRanking[] {
+    const allStats = this.getAllProviderStats();
     const rankings: ProviderRanking[] = [];
-    const providers = this.llmRegistry.list();
-    const providerIds = providers.map((p: any) => p.id);
 
-    for (const providerId of providerIds) {
-      const stats = this.getProviderStats(providerId);
+    for (const [providerId, stats] of Object.entries(allStats)) {
       rankings.push({
         providerId,
         score: this.calculatePerformanceScore(stats),
@@ -453,11 +487,13 @@ export class ProviderPerformanceService {
 
   clearProviderMetrics(providerId: string): void {
     this.performanceMetrics.delete(providerId);
+    this.statsCache = null;
     this.eventBus.publish("providerMetricsCleared", { providerId });
   }
 
   clearAllMetrics(): void {
     this.performanceMetrics.clear();
+    this.statsCache = null;
     this.eventBus.publish("allProviderMetricsCleared", {});
   }
 

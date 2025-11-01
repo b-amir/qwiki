@@ -1,5 +1,9 @@
 import { EventBus } from "../../events/EventBus";
-import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 import { ComplexityCalculationService } from "./context/ComplexityCalculationService";
 import { PatternExtractionService } from "./context/PatternExtractionService";
 import type {
@@ -121,16 +125,17 @@ export class ContextAnalysisService {
     const language = this.detectLanguage(filePath);
     this.logDebug("Detected language:", language);
 
-    const structure = this.analyzeCodeStructure(snippet, language);
+    const lines = snippet.split("\n");
+    const structure = this.analyzeCodeStructure(snippet, language, lines);
     this.logDebug("Analyzed structure:", structure);
 
     const patterns = this.patternExtractionService.extractCodePatterns(snippet, language);
     this.logDebug("Extracted patterns:", patterns);
 
-    const relationships = this.analyzeCodeRelationships(snippet, structure);
+    const relationships = this.analyzeCodeRelationships(snippet, structure, lines);
     this.logDebug("Analyzed relationships:", relationships);
 
-    const complexity = this.estimateContextComplexity(snippet, structure);
+    const complexity = this.estimateContextComplexity(snippet, structure, lines);
     this.logDebug("Estimated complexity:", complexity);
 
     const framework = this.detectFramework(snippet, language);
@@ -150,7 +155,7 @@ export class ContextAnalysisService {
     return analysis;
   }
 
-  analyzeCodeStructure(snippet: string, language: string): CodeStructure {
+  analyzeCodeStructure(snippet: string, language: string, lines?: string[]): CodeStructure {
     const structure: CodeStructure = {
       functions: [],
       classes: [],
@@ -160,10 +165,10 @@ export class ContextAnalysisService {
       exports: [],
     };
 
-    const lines = snippet.split("\n");
+    const linesArray = lines || snippet.split("\n");
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    for (let i = 0; i < linesArray.length; i++) {
+      const line = linesArray[i].trim();
 
       const functionMatch = line.match(this.patternExtractionService.getFunctionRegex(language));
       if (functionMatch) {
@@ -175,6 +180,7 @@ export class ContextAnalysisService {
           visibility: this.getVisibility(line),
           decorators: this.extractDecorators(line),
         });
+        continue;
       }
 
       const classMatch = line.match(this.patternExtractionService.getClassRegex(language));
@@ -188,6 +194,7 @@ export class ContextAnalysisService {
           constructors: this.extractConstructors(line),
           decorators: this.extractDecorators(line),
         });
+        continue;
       }
 
       const interfaceMatch = line.match(this.patternExtractionService.getInterfaceRegex(language));
@@ -199,6 +206,7 @@ export class ContextAnalysisService {
           methods: this.extractMethods(line),
           decorators: this.extractDecorators(line),
         });
+        continue;
       }
 
       const typeMatch = line.match(this.patternExtractionService.getTypeRegex(language));
@@ -208,6 +216,7 @@ export class ContextAnalysisService {
           type: this.extractTypeDefinition(line),
           decorators: this.extractDecorators(line),
         });
+        continue;
       }
 
       const importMatch = line.match(this.patternExtractionService.getImportRegex(language));
@@ -218,6 +227,7 @@ export class ContextAnalysisService {
           isExternal: importMatch[0].startsWith("from"),
           location: { line: i, column: line.indexOf(importMatch[0]) },
         });
+        continue;
       }
 
       const exportMatch = line.match(this.patternExtractionService.getExportRegex(language));
@@ -233,38 +243,56 @@ export class ContextAnalysisService {
     return structure;
   }
 
-  analyzeCodeRelationships(snippet: string, structure: CodeStructure): CodeRelationship[] {
+  analyzeCodeRelationships(
+    snippet: string,
+    structure: CodeStructure,
+    lines?: string[],
+  ): CodeRelationship[] {
     const relationships: CodeRelationship[] = [];
-    const lines = snippet.split("\n");
+    const linesArray = lines || snippet.split("\n");
 
+    const functionMap = new Map<string, FunctionInfo>();
     for (const func of structure.functions) {
-      for (const otherFunc of structure.functions) {
-        if (func.name !== otherFunc.name) {
-          const calls = this.findFunctionCalls(func.name, lines);
-          for (const call of calls) {
-            relationships.push({
-              type: RelationshipType.CALLS,
-              source: {
-                element: func.name,
-                type: "function",
-                location: { line: 0, column: 0 },
-              },
-              target: {
-                element: otherFunc.name,
-                type: "function",
-                location: call.location,
-              },
-              strength: 0.6,
-              description: `${func.name} calls ${otherFunc.name}`,
-            });
-          }
+      functionMap.set(func.name, func);
+    }
+
+    const classMap = new Map<string, ClassInfo>();
+    for (const cls of structure.classes) {
+      classMap.set(cls.name, cls);
+    }
+
+    const interfaceMap = new Map<string, InterfaceInfo>();
+    for (const iface of structure.interfaces) {
+      interfaceMap.set(iface.name, iface);
+    }
+
+    const callGraph = this.buildCallGraph(linesArray, functionMap);
+
+    for (const [caller, callees] of callGraph.entries()) {
+      for (const { callee, location } of callees) {
+        if (functionMap.has(callee)) {
+          relationships.push({
+            type: RelationshipType.CALLS,
+            source: {
+              element: caller,
+              type: "function",
+              location: { line: 0, column: 0 },
+            },
+            target: {
+              element: callee,
+              type: "function",
+              location,
+            },
+            strength: 0.6,
+            description: `${caller} calls ${callee}`,
+          });
         }
       }
     }
 
     for (const cls of structure.classes) {
       if (cls.extends) {
-        const parentClass = structure.classes.find((c) => c.name === cls.extends);
+        const parentClass = classMap.get(cls.extends);
         if (parentClass) {
           relationships.push({
             type: RelationshipType.INHERITS,
@@ -285,8 +313,8 @@ export class ContextAnalysisService {
       }
 
       if (cls.implements) {
-        for (const iface of cls.implements) {
-          const interfaceDef = structure.interfaces.find((i) => i.name === iface);
+        for (const ifaceName of cls.implements) {
+          const interfaceDef = interfaceMap.get(ifaceName);
           if (interfaceDef) {
             relationships.push({
               type: RelationshipType.IMPLEMENTS,
@@ -311,30 +339,81 @@ export class ContextAnalysisService {
     return relationships;
   }
 
-  estimateContextComplexity(snippet: string, structure: CodeStructure): ComplexityScore {
-    return this.complexityCalculationService.estimateContextComplexity(snippet, structure);
-  }
-
-  private findFunctionCalls(
-    functionName: string,
+  private buildCallGraph(
     lines: string[],
-  ): Array<{ name: string; location: { line: number; column: number } }> {
-    const calls: Array<{ name: string; location: { line: number; column: number } }> = [];
+    functionMap: Map<string, FunctionInfo>,
+  ): Map<string, Array<{ callee: string; location: { line: number; column: number } }>> {
+    const callGraph = new Map<
+      string,
+      Array<{ callee: string; location: { line: number; column: number } }>
+    >();
+    const functionNames = Array.from(functionMap.keys());
+    const functionNameRegex = new RegExp(
+      `\\b(${functionNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*\\(`,
+      "g",
+    );
+    const functionDeclarationRegex = new RegExp(
+      `\\b(?:function|const|let|var|async)\\s+(${functionNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*[=(]`,
+      "g",
+    );
+
+    const functionContextStack: string[] = [];
+    let braceDepth = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const callRegex = new RegExp(`\\b${functionName}\\s*\\(`, "g");
-      const match = line.match(callRegex);
 
-      if (match) {
-        calls.push({
-          name: functionName,
-          location: { line: i, column: line.indexOf(match[0]) },
-        });
+      for (const char of line) {
+        if (char === "{") {
+          braceDepth++;
+        }
+        if (char === "}") {
+          braceDepth--;
+          if (braceDepth === 0 && functionContextStack.length > 0) {
+            functionContextStack.pop();
+          }
+        }
+      }
+
+      functionDeclarationRegex.lastIndex = 0;
+      const declMatch = functionDeclarationRegex.exec(line);
+      if (declMatch && braceDepth === 0) {
+        const funcName = declMatch[1];
+        if (functionMap.has(funcName)) {
+          functionContextStack.push(funcName);
+        }
+      }
+
+      functionNameRegex.lastIndex = 0;
+      let match;
+      while ((match = functionNameRegex.exec(line)) !== null) {
+        const calleeName = match[1];
+        const callerName =
+          functionContextStack.length > 0
+            ? functionContextStack[functionContextStack.length - 1]
+            : null;
+
+        if (callerName && callerName !== calleeName) {
+          if (!callGraph.has(callerName)) {
+            callGraph.set(callerName, []);
+          }
+          callGraph.get(callerName)!.push({
+            callee: calleeName,
+            location: { line: i, column: match.index },
+          });
+        }
       }
     }
 
-    return calls;
+    return callGraph;
+  }
+
+  estimateContextComplexity(
+    snippet: string,
+    structure: CodeStructure,
+    lines?: string[],
+  ): ComplexityScore {
+    return this.complexityCalculationService.estimateContextComplexity(snippet, structure, lines);
   }
 
   private detectLanguage(filePath: string): string {

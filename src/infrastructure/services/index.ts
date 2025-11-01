@@ -24,6 +24,8 @@ export { BackgroundProcessingService } from "./BackgroundProcessingService";
 export { MemoryOptimizationService } from "./MemoryOptimizationService";
 export {
   LoggingService,
+  createLogger,
   type LogEntry,
   type LoggerConfig,
+  type Logger,
 } from "./LoggingService";

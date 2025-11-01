@@ -137,9 +137,13 @@ export class ConfigurationValidationEngine {
   }
 
   resetStatistics(): void {
+    let enabledRulesCount = 0;
+    for (const rule of this.rules.values()) {
+      if (rule.enabled) enabledRulesCount++;
+    }
     this.statistics = {
       totalRules: this.rules.size,
-      enabledRules: Array.from(this.rules.values()).filter((rule) => rule.enabled).length,
+      enabledRules: enabledRulesCount,
       executedRules: 0,
       failedRules: 0,
       averageExecutionTime: 0,

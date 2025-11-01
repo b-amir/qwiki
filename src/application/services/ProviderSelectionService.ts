@@ -159,9 +159,11 @@ export class ProviderSelectionService {
   ): { isValid: boolean; reasons: string[] } {
     const reasons: string[] = [];
     const capabilities = provider.capabilities as ProviderCapabilities;
+    const featuresSet = new Set(capabilities.features);
+    const supportedLanguagesSet = new Set(capabilities.supportedLanguages || []);
 
     for (const feature of requirements.requiredFeatures) {
-      if (!capabilities.features.includes(feature)) {
+      if (!featuresSet.has(feature)) {
         reasons.push(`Missing required feature: ${feature}`);
       }
     }
@@ -190,8 +192,9 @@ export class ProviderSelectionService {
     }
 
     if (requirements.preferredLanguages && requirements.preferredLanguages.length > 0) {
-      const hasPreferredLanguage = requirements.preferredLanguages.some((lang) =>
-        capabilities.supportedLanguages.includes(lang),
+      const preferredLanguagesSet = new Set(requirements.preferredLanguages);
+      const hasPreferredLanguage = Array.from(preferredLanguagesSet).some((lang) =>
+        supportedLanguagesSet.has(lang),
       );
       if (!hasPreferredLanguage) {
         reasons.push("No preferred languages supported");
@@ -207,9 +210,11 @@ export class ProviderSelectionService {
   private calculateSuitabilityScore(provider: any, requirements: CapabilityRequirement): number {
     const capabilities = provider.capabilities as ProviderCapabilities;
     let score = 0;
+    const featuresSet = new Set(capabilities.features);
+    const supportedLanguagesSet = new Set(capabilities.supportedLanguages || []);
 
     for (const feature of requirements.requiredFeatures) {
-      if (capabilities.features.includes(feature)) {
+      if (featuresSet.has(feature)) {
         score += 20;
       }
     }
@@ -229,9 +234,13 @@ export class ProviderSelectionService {
     }
 
     if (requirements.preferredLanguages && requirements.preferredLanguages.length > 0) {
-      const supportedPreferredCount = requirements.preferredLanguages.filter((lang) =>
-        capabilities.supportedLanguages.includes(lang),
-      ).length;
+      const preferredLanguagesSet = new Set(requirements.preferredLanguages);
+      let supportedPreferredCount = 0;
+      for (const lang of preferredLanguagesSet) {
+        if (supportedLanguagesSet.has(lang)) {
+          supportedPreferredCount++;
+        }
+      }
       score += (supportedPreferredCount / requirements.preferredLanguages.length) * 15;
     }
 
@@ -268,11 +277,9 @@ export class ProviderSelectionService {
 
   private calculateContextualScore(provider: ProviderRanking, context: GenerationContext): number {
     let score = provider.score;
+    const supportedLanguagesSet = new Set(provider.capabilities.supportedLanguages || []);
 
-    if (
-      context.languageId &&
-      provider.capabilities.supportedLanguages.includes(context.languageId)
-    ) {
+    if (context.languageId && supportedLanguagesSet.has(context.languageId)) {
       score += 25;
     }
 

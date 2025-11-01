@@ -71,25 +71,18 @@ export class ProjectContextService {
 
     const lines = text.split("\n");
     const candidates: string[] = [];
+    const combinedPattern =
+      /(?:(?:function|const|let|var|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)|export\s+(?:default\s+)?(?:function|class|const|let|var)?\s*([a-zA-Z_][a-zA-Z0-9_]*)|import.*from\s+['"]([^'"]+)['"]|(?:interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*))/;
 
     for (const line of lines) {
       const trimmed = line.trim();
-
-      const functionMatch = trimmed.match(
-        /(?:function|const|let|var|class)\s+([a-zA-Z_][a-zA-Z0-9_]*)/,
-      );
-      if (functionMatch) candidates.push(functionMatch[1]);
-
-      const exportMatch = trimmed.match(
-        /export\s+(?:default\s+)?(?:function|class|const|let|var)?\s*([a-zA-Z_][a-zA-Z0-9_]*)/,
-      );
-      if (exportMatch) candidates.push(exportMatch[1]);
-
-      const importMatch = trimmed.match(/import.*from\s+['"]([^'"]+)['"]/);
-      if (importMatch) candidates.push(importMatch[1]);
-
-      const typeMatch = trimmed.match(/(?:interface|type)\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
-      if (typeMatch) candidates.push(typeMatch[1]);
+      const match = trimmed.match(combinedPattern);
+      if (match) {
+        const identifier = match[1] || match[2] || match[3] || match[4];
+        if (identifier) {
+          candidates.push(identifier);
+        }
+      }
     }
 
     if (candidates.length === 0) {
@@ -117,18 +110,10 @@ export class ProjectContextService {
       FileLimits.relatedFiles,
     );
 
-    const patterns = [
-      new RegExp(
-        `\\b(?:function|const|let|var|class|interface|type)\\s+${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-      ),
-      new RegExp(
-        `\\bexport\\s+(?:default\\s+)?(?:function|class|const|let|var)?\\s*${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
-      ),
-      new RegExp(
-        `\\bimport.*from\\s+['"]${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]`,
-      ),
-      new RegExp(`\\b${(token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\(`),
-    ];
+    const escapedToken = (token || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const combinedPattern = new RegExp(
+      `\\b(?:function|const|let|var|class|interface|type)\\s+${escapedToken}\\b|\\bexport\\s+(?:default\\s+)?(?:function|class|const|let|var)?\\s*${escapedToken}\\b|\\bimport.*from\\s+['"]${escapedToken}['"]|\\b${escapedToken}\\s*\\(`,
+    );
 
     const filePromises = files.map(async (uri) => {
       try {
@@ -140,20 +125,18 @@ export class ProjectContextService {
 
         const doc = await workspace.openTextDocument(uri);
         const text = doc.getText();
+        const m = combinedPattern.exec(text);
 
-        for (const pattern of patterns) {
-          const m = pattern.exec(text);
-          if (m) {
-            const pos = doc.positionAt(m.index);
-            const line = pos.line + 1;
-            const previewLine = doc.lineAt(pos.line).text.trim();
-            return {
-              path: this.relativePath(uri),
-              line,
-              preview: previewLine,
-              reason: "Code reference",
-            };
-          }
+        if (m) {
+          const pos = doc.positionAt(m.index);
+          const line = pos.line + 1;
+          const previewLine = doc.lineAt(pos.line).text.trim();
+          return {
+            path: this.relativePath(uri),
+            line,
+            preview: previewLine,
+            reason: "Code reference",
+          };
         }
 
         return null;

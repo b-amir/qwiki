@@ -1,4 +1,8 @@
-import { LoggingService, createLogger, type Logger } from "../../../infrastructure";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../../infrastructure/services/LoggingService";
 import type { CodeStructure, ComplexityScore } from "./shared-types";
 
 export class ComplexityCalculationService {
@@ -8,16 +12,20 @@ export class ComplexityCalculationService {
     this.logger = createLogger("ComplexityCalculationService", loggingService);
   }
 
-  estimateContextComplexity(snippet: string, structure: CodeStructure): ComplexityScore {
-    const lines = snippet.split("\n");
+  estimateContextComplexity(
+    snippet: string,
+    structure: CodeStructure,
+    lines?: string[],
+  ): ComplexityScore {
+    const linesArray = lines || snippet.split("\n");
     const functionCount = structure.functions.length;
     const classCount = structure.classes.length;
     const interfaceCount = structure.interfaces.length;
     const maxNestingDepth = this.calculateMaxNestingDepth(snippet);
 
     const cyclomatic = this.calculateCyclomaticComplexity(structure);
-    const cognitive = this.calculateCognitiveComplexity(snippet, structure);
-    const halstead = this.calculateHalsteadComplexity(snippet, structure);
+    const cognitive = this.calculateCognitiveComplexity(snippet, structure, linesArray);
+    const halstead = this.calculateHalsteadComplexity(snippet, structure, linesArray);
 
     return {
       overall: cyclomatic * 0.3 + cognitive * 0.4 + halstead.volume * 0.2 + maxNestingDepth * 0.1,
@@ -28,7 +36,7 @@ export class ComplexityCalculationService {
         difficulty: halstead.difficulty,
         effort: halstead.effort,
       },
-      lines: lines.length,
+      lines: linesArray.length,
       functions: functionCount,
       classes: classCount,
       interfaces: interfaceCount,
@@ -62,12 +70,16 @@ export class ComplexityCalculationService {
     return complexity;
   }
 
-  calculateCognitiveComplexity(snippet: string, structure: CodeStructure): number {
-    const lines = snippet.split("\n");
+  calculateCognitiveComplexity(
+    snippet: string,
+    structure: CodeStructure,
+    lines?: string[],
+  ): number {
+    const linesArray = lines || snippet.split("\n");
     let complexity = 0;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+    for (let i = 0; i < linesArray.length; i++) {
+      const line = linesArray[i];
 
       if (
         line.includes("if") ||
@@ -93,32 +105,31 @@ export class ComplexityCalculationService {
   calculateHalsteadComplexity(
     snippet: string,
     structure: CodeStructure,
+    lines?: string[],
   ): { volume: number; difficulty: number; effort: number } {
-    const lines = snippet.split("\n");
-    const operators = new Set<string>();
-    const operands = new Set<string>();
+    const linesArray = lines || snippet.split("\n");
+    const operatorCounts = new Map<string, number>();
+    const operandCounts = new Map<string, number>();
 
-    for (const line of lines) {
+    for (const line of linesArray) {
       const lineOperators = this.extractHalsteadOperators(line);
       const lineOperands = this.extractHalsteadOperands(line);
 
-      lineOperators.forEach((op) => operators.add(op));
-      lineOperands.forEach((op) => operands.add(op));
+      for (const op of lineOperators) {
+        operatorCounts.set(op, (operatorCounts.get(op) || 0) + 1);
+      }
+      for (const op of lineOperands) {
+        operandCounts.set(op, (operandCounts.get(op) || 0) + 1);
+      }
     }
 
-    const n1 = operators.size;
-    const n2 = operands.size;
-    const N1 = Array.from(operators).reduce(
-      (count, op) => count + (snippet.match(new RegExp(`\\b${op}\\b`, "g")) || []).length,
-      0,
-    );
-    const N2 = Array.from(operands).reduce(
-      (count, op) => count + (snippet.match(new RegExp(`\\b${op}\\b`, "g")) || []).length,
-      0,
-    );
+    const n1 = operatorCounts.size;
+    const n2 = operandCounts.size;
+    const N1 = Array.from(operatorCounts.values()).reduce((sum, count) => sum + count, 0);
+    const N2 = Array.from(operandCounts.values()).reduce((sum, count) => sum + count, 0);
 
     const volume = (N1 + N2) * Math.log2(n1 + n2 || 1);
-    const difficulty = (n1 / 2) * (N2 / n2);
+    const difficulty = n2 > 0 ? (n1 / 2) * (N2 / n2) : 0;
     const effort = volume * difficulty;
 
     return { volume, difficulty, effort };

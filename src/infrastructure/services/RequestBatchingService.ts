@@ -30,6 +30,7 @@ export interface BatchStatistics {
 export class RequestBatchingService extends EventEmitter {
   private batches = new Map<string, BatchedRequest[]>();
   private batchTimers = new Map<string, NodeJS.Timeout>();
+  private requestsByKey = new Map<string, BatchedRequest[]>();
   private statistics = {
     totalBatches: 0,
     totalRequests: 0,
@@ -85,6 +86,13 @@ export class RequestBatchingService extends EventEmitter {
       const batch = this.batches.get(key)!;
       batch.push(batchedRequest);
       batch.sort((a, b) => b.priority - a.priority);
+
+      if (deduplicationKey) {
+        if (!this.requestsByKey.has(deduplicationKey)) {
+          this.requestsByKey.set(deduplicationKey, []);
+        }
+        this.requestsByKey.get(deduplicationKey)!.push(batchedRequest);
+      }
 
       if (priority > 0) {
         this.statistics.priorityBatches++;
@@ -170,6 +178,12 @@ export class RequestBatchingService extends EventEmitter {
       }
     }
 
+    for (const request of batch) {
+      if (request.key) {
+        this.requestsByKey.delete(request.key);
+      }
+    }
+
     const processPromises = Array.from(deduplicatedGroups.entries()).map(
       async ([groupKey, requests]) => {
         try {
@@ -190,13 +204,8 @@ export class RequestBatchingService extends EventEmitter {
   }
 
   private findExistingRequest<T>(key: string): BatchedRequest<T>[] | null {
-    for (const batch of this.batches.values()) {
-      const existing = batch.find((req) => req.key === key);
-      if (existing) {
-        return batch.filter((req) => req.key === key);
-      }
-    }
-    return null;
+    const existing = this.requestsByKey.get(key);
+    return existing && existing.length > 0 ? (existing as BatchedRequest<T>[]) : null;
   }
 
   private generateId(): string {
