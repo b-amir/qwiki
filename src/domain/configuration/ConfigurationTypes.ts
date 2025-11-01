@@ -195,3 +195,73 @@ export interface GenerationContext {
   complexity: "low" | "medium" | "high";
   features: string[];
 }
+
+export interface TokenLimits {
+  maxTotalTokens: number;
+  reservedForPrompt: number;
+  reservedForOutput: number;
+  utilizationTarget: number;
+}
+
+export interface CompressionSettings {
+  enabled: boolean;
+  strategy: "none" | "light" | "moderate" | "aggressive";
+  ratio: number;
+  quality: number;
+  preserveEssentials: boolean;
+}
+
+export interface ContextIntelligenceConfig {
+  enableSmartContext: boolean;
+  tokenLimits: TokenLimits;
+  compressionSettings: CompressionSettings;
+  minRelevanceScore: number;
+  maxFilesToAnalyze: number;
+  essentialFilesPriority: boolean;
+}
+
+export interface QualityThresholds {
+  minQualityScore: number;
+  targetQualityScore: number;
+  qualityImprovementThreshold: number;
+}
+
+export interface ProviderOptimizations {
+  providerId: string;
+  customPromptTemplates?: Record<string, string>;
+  qualityThreshold?: number;
+  adaptiveStrategies?: string[];
+}
+
+export interface PromptEngineeringConfig {
+  enableAdaptivePrompts: boolean;
+  qualityThresholds: QualityThresholds;
+  providerOptimizations: ProviderOptimizations[];
+  enableA_BTesting: boolean;
+  enablePromptEvolution: boolean;
+}
+
+export interface ReadmeUpdateSettings {
+  enabled: boolean;
+  autoBackup: boolean;
+  preserveCustomSections: boolean;
+  defaultSections: string[];
+  mergeStrategy: "replace" | "merge" | "append";
+}
+
+export interface WikiManagementConfig {
+  enableAggregation: boolean;
+  readmeUpdateSettings: ReadmeUpdateSettings;
+  autoBackup: boolean;
+  backupRetentionDays: number;
+  aggregationDefaults: {
+    mergeStrategy: "append" | "merge" | "replace";
+    outputFormat: "markdown" | "html";
+  };
+}
+
+export interface Phase4Configuration {
+  contextIntelligence?: ContextIntelligenceConfig;
+  promptEngineering?: PromptEngineeringConfig;
+  wikiManagement?: WikiManagementConfig;
+}

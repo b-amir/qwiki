@@ -21,4 +21,13 @@ export type {
   HealthStatus,
   CapabilityRequirement,
   GenerationContext,
+  TokenLimits,
+  CompressionSettings,
+  ContextIntelligenceConfig,
+  QualityThresholds,
+  ProviderOptimizations,
+  PromptEngineeringConfig,
+  ReadmeUpdateSettings,
+  WikiManagementConfig,
+  Phase4Configuration,
 } from "./ConfigurationTypes";
