@@ -9,7 +9,9 @@ export type NavigationTarget =
   | "savedWikis"
   | "promptManager"
   | "qualityDashboard"
-  | "wikiAggregator";
+  | "wikiAggregator"
+  | "wikiAggregation"
+  | "readmeUpdate";
 
 type TimeoutHandle = ReturnType<typeof setTimeout> | null;
 

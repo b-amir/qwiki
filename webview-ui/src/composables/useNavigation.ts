@@ -9,7 +9,9 @@ export type PageType =
   | "savedWikis"
   | "promptManager"
   | "qualityDashboard"
-  | "wikiAggregator";
+  | "wikiAggregator"
+  | "wikiAggregation"
+  | "readmeUpdate";
 
 const currentPage: Ref<PageType> = ref<PageType>("wiki");
 const logger = createLogger("useNavigation");
@@ -24,7 +26,9 @@ export function useNavigation() {
       newPage === "savedWikis" ||
       newPage === "promptManager" ||
       newPage === "qualityDashboard" ||
-      newPage === "wikiAggregator"
+      newPage === "wikiAggregator" ||
+      newPage === "wikiAggregation" ||
+      newPage === "readmeUpdate"
     ) {
       if (currentPage.value !== newPage) {
         navigationStatusStore.start(newPage, isBack);
@@ -49,7 +53,9 @@ export function useNavigation() {
       nextPage === "savedWikis" ||
       nextPage === "promptManager" ||
       nextPage === "qualityDashboard" ||
-      nextPage === "wikiAggregator"
+      nextPage === "wikiAggregator" ||
+      nextPage === "wikiAggregation" ||
+      nextPage === "readmeUpdate"
     ) {
       if (currentPage.value !== nextPage) {
         navigationStatusStore.start(nextPage, isBack);

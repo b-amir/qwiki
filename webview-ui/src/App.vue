@@ -7,6 +7,8 @@ import {
   SettingsPage,
   ErrorHistoryPage,
   SavedWikisPage,
+  WikiAggregationPage,
+  ReadmeUpdatePage,
 } from "@/components/pages";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
@@ -121,6 +123,14 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
 
       <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
         <SavedWikisPage class="flex-1" />
+      </div>
+
+      <div v-else-if="currentPage === 'wikiAggregation'" class="flex h-full">
+        <WikiAggregationPage class="flex-1" />
+      </div>
+
+      <div v-else-if="currentPage === 'readmeUpdate'" class="flex h-full">
+        <ReadmeUpdatePage class="flex-1" />
       </div>
     </div>
   </main>
