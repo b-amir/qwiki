@@ -1,11 +1,12 @@
 import { EventBus } from "../../../events";
 import { LoggingService, createLogger, type Logger } from "../LoggingService";
 import type { PerformanceMetric } from "../ProviderPerformanceService";
+import { ServiceLimits } from "../../../constants";
 
 export class MetricsCollectionService {
   private performanceMetrics = new Map<string, PerformanceMetric[]>();
-  private readonly MAX_METRICS_PER_PROVIDER = 100;
-  private readonly PERFORMANCE_WINDOW_MS = 3600000;
+  private readonly MAX_METRICS_PER_PROVIDER = ServiceLimits.maxMetricsPerProvider;
+  private readonly PERFORMANCE_WINDOW_MS = ServiceLimits.performanceWindowMs;
   private logger: Logger;
 
   constructor(
@@ -88,9 +89,9 @@ export class MetricsCollectionService {
       this.addMetric(providerId, endMetric);
 
       if (success) {
-        if (duration > 5000) {
+        if (duration > ServiceLimits.slowOperationThreshold) {
           this.logWarn(
-            `SLOW OPERATION - Provider ${providerId} generation took ${duration}ms (threshold: 5000ms)`,
+            `SLOW OPERATION - Provider ${providerId} generation took ${duration}ms (threshold: ${ServiceLimits.slowOperationThreshold}ms)`,
           );
         } else {
           this.logDebug(

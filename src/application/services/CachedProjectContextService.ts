@@ -3,9 +3,10 @@ import { PerformanceMonitorService } from "../../infrastructure/services/Perform
 import { ProjectContextService } from "./ProjectContextService";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import type { Webview } from "vscode";
+import { ServiceLimits } from "../../constants";
 
 export class CachedProjectContextService {
-  private readonly CACHE_TTL = 10 * 60 * 1000;
+  private readonly CACHE_TTL = ServiceLimits.projectContextCacheTTL;
 
   constructor(
     private cacheService: CachingService,

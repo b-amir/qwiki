@@ -18,6 +18,7 @@ import type {
   ExportOptions,
   ImportOptions,
 } from "./ConfigurationImportExportService";
+import { ServiceLimits } from "../../constants";
 
 export class ConfigurationManagerService {
   private configCache = new Map<string, any>();
@@ -66,7 +67,7 @@ export class ConfigurationManagerService {
       defaultProviderId: undefined,
       autoGenerateWiki: false,
       wikiOutputFormat: "markdown",
-      maxContextLength: 10000,
+      maxContextLength: ServiceLimits.maxContextLength,
       enableCaching: true,
       cacheExpirationHours: 24,
       enablePerformanceMonitoring: true,

@@ -5,11 +5,12 @@ import type {
   PerformanceStats,
   ProviderRanking,
 } from "../ProviderPerformanceService";
+import { ServiceLimits } from "../../../constants";
 
 export class StatisticsCalculationService {
   private statsCache: Record<string, PerformanceStats> | null = null;
   private statsCacheTimestamp: number = 0;
-  private readonly STATS_CACHE_TTL_MS = 1000;
+  private readonly STATS_CACHE_TTL_MS = ServiceLimits.statsCacheTTL;
   private logger: Logger;
 
   constructor(

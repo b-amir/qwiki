@@ -66,7 +66,7 @@ export class WikiService {
   ) {
     this.debouncedGenerate = this.debouncingService.debounce(
       this.performGeneration.bind(this),
-      300,
+      ServiceLimits.debounceDelay,
       { leading: false, trailing: true },
     );
   }
@@ -101,7 +101,7 @@ export class WikiService {
         };
       }
 
-      if (request.snippet.length > 10000) {
+      if (request.snippet.length > ServiceLimits.largeSnippetThreshold) {
         return this.backgroundProcessingService.enqueueTask(
           `generate-wiki-${Date.now()}`,
           () => this.performLargeGeneration(request, projectContext, generateParams, onProgress),
@@ -136,9 +136,9 @@ export class WikiService {
         return this.executeGenerationFlow(request, projectContext, generateParams, onProgress);
       },
       {
-        maxBatchSize: 5,
-        maxWaitTime: 100,
-        deduplicationKey: `${this.generationCacheKeyPrefix}_${request.snippet.substring(0, 100)}`,
+        maxBatchSize: ServiceLimits.batchMaxSize,
+        maxWaitTime: ServiceLimits.batchMaxWaitTime,
+        deduplicationKey: `${this.generationCacheKeyPrefix}_${request.snippet.substring(0, ServiceLimits.deduplicationKeyPrefixLength)}`,
       },
     );
   }

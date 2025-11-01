@@ -48,8 +48,8 @@ export class ProviderFallbackManagerService {
   private defaultStrategy: FallbackStrategy = {
     type: "exponential",
     maxAttempts: 3,
-    baseDelay: 1000,
-    maxDelay: 10000,
+    baseDelay: ServiceLimits.baseRetryDelay,
+    maxDelay: ServiceLimits.maxRetryDelay,
     retryableErrors: ["NETWORK_ERROR", "RATE_LIMIT_EXCEEDED", "GENERATION_FAILED", "TIMEOUT"],
     nonRetryableErrors: [
       "API_KEY_MISSING",
@@ -72,7 +72,7 @@ export class ProviderFallbackManagerService {
 
   private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
-  private readonly CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT = 30000;
+  private readonly CIRCUIT_BREAKER_HALF_OPEN_TIMEOUT = ServiceLimits.circuitBreakerHalfOpenTimeout;
   private logger: Logger;
 
   constructor(
@@ -127,7 +127,7 @@ export class ProviderFallbackManagerService {
       try {
         const result = await this.executeWithTimeout(
           () => operation.execute(providerId),
-          operation.timeout || 30000,
+          operation.timeout || ServiceLimits.operationDefaultTimeout,
         );
 
         this.recordSuccess(providerId);
