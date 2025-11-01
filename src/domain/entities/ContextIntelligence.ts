@@ -52,3 +52,10 @@ export interface ProjectTypeDetection {
   confidence: number;
 }
 
+export interface DependencyMap {
+  imports: string[];
+  exports: string[];
+  dependencies: string[];
+  dependents: string[];
+}
+

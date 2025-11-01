@@ -5,16 +5,19 @@ import {
   type Logger,
 } from "../../../infrastructure/services/LoggingService";
 import { CachingService } from "../../../infrastructure/services/CachingService";
-import { ServiceLimits } from "../../../constants";
+import { ServiceLimits, FilePatterns } from "../../../constants";
 import type {
   FileRelevanceScore,
   FileRelevanceMetadata,
   ProjectTypeDetection,
+  DependencyMap,
 } from "../../../domain/entities/ContextIntelligence";
 
 export class FileRelevanceAnalysisService {
   private logger: Logger;
   private readonly FILE_RELEVANCE_PREFIX = "context-intelligence:file-relevance:";
+  private readonly DEPENDENCY_MAP_PREFIX = "context-intelligence:dependency-map:";
+  private readonly KEY_FILES_KEY = "context-intelligence:key-files";
 
   constructor(
     private cachingService: CachingService,
@@ -44,29 +47,44 @@ export class FileRelevanceAnalysisService {
     }
 
     let fileContent = "";
+    let lastModified = new Date();
     try {
       const fileUri = Uri.file(candidatePath);
       const content = await workspace.fs.readFile(fileUri);
       fileContent = Buffer.from(content).toString("utf8");
+      const stat = await workspace.fs.stat(fileUri);
+      lastModified = new Date(stat.mtime);
     } catch (error) {
       this.logDebug(`Failed to read file ${candidatePath}`, error);
     }
 
     const tokenCost = this.estimateTokenCount(fileContent);
     const pathSimilarity = this.calculatePathSimilarity(targetPath, candidatePath);
-    const semanticScore = pathSimilarity * 30;
+    const semanticSimilarity = await this.calculateSemanticSimilarity(targetPath, candidatePath);
     const isDependency = await this.isDependencyFile(candidatePath);
-    const dependencyScore = isDependency ? 40 : 0;
-    const isImportedBy = await this.findImportRelationships(candidatePath, targetPath);
-    const importScore = isImportedBy ? 30 : 0;
-    const totalScore = Math.min(100, semanticScore + dependencyScore + importScore);
+    const dependencyMap = await this.analyzeCodeDependencies(candidatePath);
+    const isImportedBy = dependencyMap.dependents.includes(targetPath);
+    const recencyScore = this.calculateRecencyScore(lastModified);
+    const fileSizeScore = this.calculateFileSizeScore(fileContent.length);
+
+    const semanticScore = semanticSimilarity * 25;
+    const pathScore = pathSimilarity * 15;
+    const dependencyScore = isDependency ? 30 : 0;
+    const importScore = isImportedBy ? 20 : 0;
+    const recencyFactor = recencyScore * 5;
+    const sizeFactor = fileSizeScore * 5;
+
+    const totalScore = Math.min(
+      100,
+      semanticScore + pathScore + dependencyScore + importScore + recencyFactor + sizeFactor,
+    );
 
     const metadata: FileRelevanceMetadata = {
       isDependency,
-      isImportedBy: isImportedBy ? [targetPath] : [],
-      importsFrom: [],
-      semanticSimilarity: pathSimilarity,
-      lastModified: new Date(),
+      isImportedBy: dependencyMap.dependents,
+      importsFrom: dependencyMap.imports,
+      semanticSimilarity: semanticSimilarity,
+      lastModified,
       complexity: 0,
       fileCategory: this.detectFileCategory(candidatePath),
     };
@@ -164,5 +182,249 @@ export class FileRelevanceAnalysisService {
       return "docs";
     }
     return "source";
+  }
+
+  async analyzeCodeDependencies(filePath: string): Promise<DependencyMap> {
+    const cacheKey = `${this.DEPENDENCY_MAP_PREFIX}${filePath}`;
+    const cached = await this.cachingService.get<DependencyMap>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    let fileContent = "";
+    try {
+      const fileUri = Uri.file(filePath);
+      const content = await workspace.fs.readFile(fileUri);
+      fileContent = Buffer.from(content).toString("utf8");
+    } catch (error) {
+      this.logDebug(`Failed to read file ${filePath}`, error);
+      return { imports: [], exports: [], dependencies: [], dependents: [] };
+    }
+
+    const imports = this.extractImportsExports(fileContent);
+    const exports: string[] = [];
+    const dependencies: string[] = [];
+
+    const workspaceFolders = workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+      const allFiles = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude, 200);
+
+      const candidateNames = new Set<string>();
+      for (const imp of imports) {
+        const normalized = imp.replace(/['"]/g, "").split("/").pop() || "";
+        if (normalized) {
+          candidateNames.add(normalized);
+        }
+      }
+
+      for (const fileUri of allFiles) {
+        const candidatePath = fileUri.fsPath;
+        if (candidatePath === filePath) continue;
+
+        const fileName = candidatePath
+          .split(/[/\\]/)
+          .pop()
+          ?.replace(/\.[^.]+$/, "");
+        if (fileName && candidateNames.has(fileName)) {
+          dependencies.push(candidatePath);
+        }
+      }
+    }
+
+    const dependents: string[] = [];
+    if (workspaceFolders && workspaceFolders.length > 0) {
+      const allFiles = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude, 200);
+      const targetFileName = filePath
+        .split(/[/\\]/)
+        .pop()
+        ?.replace(/\.[^.]+$/, "");
+
+      for (const fileUri of allFiles) {
+        const candidatePath = fileUri.fsPath;
+        if (candidatePath === filePath) continue;
+
+        try {
+          const content = await workspace.fs.readFile(fileUri);
+          const contentStr = Buffer.from(content).toString("utf8");
+          const candidateImports = this.extractImportsExports(contentStr);
+
+          if (targetFileName && candidateImports.some((imp) => imp.includes(targetFileName))) {
+            dependents.push(candidatePath);
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    const dependencyMap: DependencyMap = {
+      imports,
+      exports,
+      dependencies,
+      dependents,
+    };
+
+    await this.cachingService.set(cacheKey, dependencyMap, {
+      ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+    });
+
+    return dependencyMap;
+  }
+
+  async findRelatedFiles(filePath: string, maxDepth: number): Promise<string[]> {
+    const related = new Set<string>();
+    const visited = new Set<string>([filePath]);
+    const queue: Array<{ path: string; depth: number }> = [{ path: filePath, depth: 0 }];
+
+    while (queue.length > 0) {
+      const { path, depth } = queue.shift()!;
+      if (depth >= maxDepth) continue;
+
+      const dependencyMap = await this.analyzeCodeDependencies(path);
+      for (const dep of dependencyMap.dependencies) {
+        if (!visited.has(dep)) {
+          visited.add(dep);
+          related.add(dep);
+          queue.push({ path: dep, depth: depth + 1 });
+        }
+      }
+    }
+
+    return Array.from(related);
+  }
+
+  async calculateSemanticSimilarity(file1: string, file2: string): Promise<number> {
+    let content1 = "";
+    let content2 = "";
+
+    try {
+      const uri1 = Uri.file(file1);
+      const uri2 = Uri.file(file2);
+      const bytes1 = await workspace.fs.readFile(uri1);
+      const bytes2 = await workspace.fs.readFile(uri2);
+      content1 = Buffer.from(bytes1).toString("utf8");
+      content2 = Buffer.from(bytes2).toString("utf8");
+    } catch {
+      return 0;
+    }
+
+    const patterns1 = this.analyzeNamingPatterns(content1);
+    const patterns2 = this.analyzeNamingPatterns(content2);
+    const patterns1Set = new Set(patterns1);
+    const patterns2Set = new Set(patterns2);
+
+    let matches = 0;
+    for (const pattern of patterns1Set) {
+      if (patterns2Set.has(pattern)) {
+        matches++;
+      }
+    }
+
+    const total = Math.max(patterns1Set.size, patterns2Set.size);
+    return total > 0 ? matches / total : 0;
+  }
+
+  async identifyKeyProjectFiles(): Promise<string[]> {
+    const cached = await this.cachingService.get<string[]>(this.KEY_FILES_KEY);
+    if (cached) {
+      return cached;
+    }
+
+    const workspaceFolders = workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return [];
+    }
+
+    const keyFiles: string[] = [];
+    const keyPatterns = [
+      "package.json",
+      "tsconfig.json",
+      "README.md",
+      "index.ts",
+      "index.js",
+      "main.ts",
+      "main.js",
+      "app.ts",
+      "app.js",
+    ];
+
+    for (const pattern of keyPatterns) {
+      try {
+        const files = await workspace.findFiles(`**/${pattern}`, FilePatterns.exclude, 10);
+        for (const fileUri of files) {
+          keyFiles.push(fileUri.fsPath);
+        }
+      } catch (error) {
+        this.logDebug(`Failed to find key file ${pattern}`, error);
+      }
+    }
+
+    await this.cachingService.set(this.KEY_FILES_KEY, keyFiles, {
+      ttl: ServiceLimits.contextIntelligenceProjectTypeTTL,
+    });
+
+    return keyFiles;
+  }
+
+  private extractImportsExports(content: string): string[] {
+    const imports: string[] = [];
+    const combinedPattern =
+      /(?:import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\)|from\s+['"]([^'"]+)['"])/g;
+
+    let match;
+    while ((match = combinedPattern.exec(content)) !== null) {
+      const importPath = match[1] || match[2] || match[3];
+      if (importPath && !importPath.startsWith(".") && !importPath.startsWith("/")) {
+        continue;
+      }
+      if (importPath) {
+        imports.push(importPath);
+      }
+    }
+
+    return imports;
+  }
+
+  private analyzeNamingPatterns(content: string): string[] {
+    const patterns: string[] = [];
+    const identifierPattern = /\b[a-z][a-zA-Z0-9]*\b/g;
+    const matches = content.match(identifierPattern) || [];
+
+    const wordFreq = new Map<string, number>();
+    for (const word of matches) {
+      if (word.length >= 3) {
+        wordFreq.set(word, (wordFreq.get(word) || 0) + 1);
+      }
+    }
+
+    const sorted = Array.from(wordFreq.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+
+    for (const [word] of sorted) {
+      patterns.push(word);
+    }
+
+    return patterns;
+  }
+
+  private calculateRecencyScore(lastModified: Date): number {
+    const now = Date.now();
+    const modified = lastModified.getTime();
+    const daysSinceModified = (now - modified) / (1000 * 60 * 60 * 24);
+
+    if (daysSinceModified < 1) return 1.0;
+    if (daysSinceModified < 7) return 0.8;
+    if (daysSinceModified < 30) return 0.5;
+    if (daysSinceModified < 90) return 0.3;
+    return 0.1;
+  }
+
+  private calculateFileSizeScore(fileSize: number): number {
+    if (fileSize < 100) return 0.2;
+    if (fileSize < 1000) return 0.5;
+    if (fileSize < 10000) return 1.0;
+    if (fileSize < 50000) return 0.7;
+    return 0.3;
   }
 }
