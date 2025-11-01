@@ -25,7 +25,7 @@ const wikiTitle = computed(() => {
 const goToHomePage = () => {
   settings.cancelPendingActions();
   wiki.cancelPendingActions();
-  setPage("wiki", true);
+  setPage("wiki", false);
 };
 
 const hasWikiContent = computed(() => Boolean(wiki.content || wiki.loading || wiki.error));
