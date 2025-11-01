@@ -5,7 +5,6 @@ import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ErrorDisplay from "@/components/features/ErrorDisplay.vue";
 import { useLoading } from "@/loading/useLoading";
-import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import { useNavigation } from "@/composables/useNavigation";
 import { createLogger } from "@/utilities/logging";
 
@@ -24,7 +23,6 @@ const navigationStatus = useNavigationStatusStore();
 const savedWikis = ref<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const selectedWiki = ref<SavedWiki | null>(null);
 const searchQuery = ref("");
 const savedWikisLoadingContext = useLoading("savedWikis");
 const isSavedWikisLoading = computed(
@@ -87,7 +85,15 @@ const loadSavedWikis = async (force: boolean = false) => {
   }
 };
 
-const deleteWiki = async (wikiId: string) => {
+const openWiki = (wiki: SavedWiki) => {
+  vscode.postMessage({
+    command: "openFile",
+    payload: { path: wiki.filePath },
+  });
+};
+
+const deleteWiki = async (wikiId: string, event: Event) => {
+  event.stopPropagation();
   try {
     await vscode.postMessage({
       command: "deleteWiki",
@@ -121,9 +127,6 @@ const handleMessage = (event: MessageEvent) => {
       break;
     case "wikiDeleted":
       savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
-      if (selectedWiki.value?.id === message.payload.wikiId) {
-        selectedWiki.value = null;
-      }
       break;
     case "showNotification":
       if (message.payload.type === "error") {
@@ -222,8 +225,8 @@ onBeforeUnmount(() => {
             <div
               v-for="wiki in wikis"
               :key="wiki.id"
-              class="hover:bg-accent/50 cursor-pointer transition-colors"
-              @click="selectedWiki = selectedWiki?.id === wiki.id ? null : wiki"
+              class="hover:bg-accent/50 group relative cursor-pointer transition-colors"
+              @click="openWiki(wiki)"
             >
               <div class="p-4">
                 <div class="flex items-start justify-between gap-3">
@@ -247,33 +250,41 @@ onBeforeUnmount(() => {
                   </div>
                   <div class="flex flex-shrink-0 items-center gap-2">
                     <button
-                      class="text-destructive hover:text-destructive/80 text-xs"
-                      @click.stop="deleteWiki(wiki.id)"
+                      class="text-muted-foreground hover:text-destructive p-1 transition-colors"
+                      title="Delete wiki"
+                      @click="deleteWiki(wiki.id, $event)"
                     >
-                      Delete
-                    </button>
-                    <div class="text-muted-foreground">
                       <svg
-                        class="h-4 w-4 transition-transform"
-                        :class="{ 'rotate-180': selectedWiki?.id === wiki.id }"
+                        class="h-4 w-4"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
                         stroke-width="2"
-                        aria-hidden="true"
                       >
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                        />
+                      </svg>
+                    </button>
+                    <div
+                      class="text-muted-foreground group-hover:text-foreground translate-x-[-4px] opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
+                    >
+                      <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                        />
                       </svg>
                     </div>
-                  </div>
-                </div>
-
-                <div v-if="selectedWiki?.id === wiki.id" class="border-border mt-4 border-t pt-4">
-                  <div
-                    class="prose prose-sm max-w-none break-words"
-                    style="word-wrap: break-word; overflow-wrap: break-word"
-                  >
-                    <MarkdownRenderer :content="wiki.content" />
                   </div>
                 </div>
               </div>
