@@ -5,6 +5,10 @@ import type {
   ValidationResult,
   ConfigurationSchema,
   ExportedConfiguration,
+  ContextIntelligenceConfig,
+  PromptEngineeringConfig,
+  WikiManagementConfig,
+  Phase4Configuration,
 } from "../../domain/configuration";
 import { EventBus } from "../../events";
 import { ConfigurationError } from "../../errors";
