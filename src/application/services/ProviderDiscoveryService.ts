@@ -7,7 +7,7 @@ import { ValidationResult } from "../../llm/types/ProviderCapabilities";
 import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
 import { LoggingService } from "../../infrastructure/services/LoggingService";
 
-export class  {
+export class ProviderDiscoveryService {
   private discoveredProviders = new Map<string, ProviderMetadata>();
   private watchers: fs.FSWatcher[] = [];
   private readonly serviceName = "";

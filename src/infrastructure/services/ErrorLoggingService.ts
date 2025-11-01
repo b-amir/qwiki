@@ -1,4 +1,5 @@
 import { ProviderError } from "../../errors";
+import { LoggingService } from "./LoggingService";
 
 export interface ErrorStatistics {
   totalErrors: number;

@@ -12,7 +12,7 @@ export interface HealthStatus {
   consecutiveFailures: number;
 }
 
-export class  {
+export class ProviderHealthService {
   private healthStatus = new Map<string, HealthStatus>();
   private monitoringInterval?: NodeJS.Timeout;
   private readonly DEFAULT_CHECK_INTERVAL = 300000; // 5 minutes in milliseconds

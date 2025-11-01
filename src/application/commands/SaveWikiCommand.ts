@@ -2,7 +2,6 @@ import type { Command } from "./Command";
 import type { WikiStorageService } from "../services/WikiStorageService";
 import type { MessageBus } from "../services/MessageBus";
 import { LoggingService } from "../../infrastructure/services/LoggingService";
-import { LoggingService } from "../../infrastructure/services/LoggingService";
 
 interface SaveWikiPayload {
   title: string;

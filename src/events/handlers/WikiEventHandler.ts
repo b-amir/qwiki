@@ -3,7 +3,7 @@ import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
 import { InboundEvents, OutboundEvents, LoadingSteps } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
-import { ErrorLoggingService, ErrorRecoveryService } from "../../infrastructure/services";
+import { ErrorLoggingService, ErrorRecoveryService, LoggingService } from "../../infrastructure/services";
 import { ProviderError, ErrorCodes, getErrorMessage } from "../../errors";
 
 export class WikiEventHandler {

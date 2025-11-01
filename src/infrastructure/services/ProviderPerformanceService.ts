@@ -33,7 +33,7 @@ export interface ProviderRanking {
   stats: PerformanceStats;
 }
 
-export class  {
+export class ProviderPerformanceService {
   private performanceMetrics = new Map<string, PerformanceMetric[]>();
   private readonly MAX_METRICS_PER_PROVIDER = 100;
   private readonly PERFORMANCE_WINDOW_MS = 3600000; // 1 hour in milliseconds
