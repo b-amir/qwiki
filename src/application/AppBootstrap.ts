@@ -37,6 +37,9 @@ import {
   BackgroundProcessingService,
   MemoryOptimizationService,
 } from "../infrastructure";
+import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
+import { StatisticsCalculationService } from "../infrastructure/services/performance/StatisticsCalculationService";
+import { PerformanceMonitoringService } from "../infrastructure/services/performance/PerformanceMonitoringService";
 import {
   LoggingService,
   createLogger,
@@ -269,20 +272,29 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.registerLazy(
-      "providerPerformanceService",
-      async () =>
-        new ProviderPerformanceService(
-          await this.container.resolveLazy("llmRegistry"),
-          this.container.resolve("eventBus"),
-          this.container.resolve("generationCacheService") as GenerationCacheService,
-          this.container.resolve("requestBatchingService") as RequestBatchingService,
-          this.container.resolve("debouncingService") as DebouncingService,
-          this.container.resolve("backgroundProcessingService") as BackgroundProcessingService,
-          this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("providerPerformanceService", async () => {
+      const metricsCollectionService = new MetricsCollectionService(
+        this.container.resolve("eventBus"),
+        this.loggingService,
+      );
+      const statisticsCalculationService = new StatisticsCalculationService(
+        await this.container.resolveLazy("llmRegistry"),
+        this.loggingService,
+      );
+      const performanceMonitoringService = new PerformanceMonitoringService(
+        this.container.resolve("eventBus"),
+        this.loggingService,
+      );
+
+      return new ProviderPerformanceService(
+        await this.container.resolveLazy("llmRegistry"),
+        this.container.resolve("eventBus"),
+        metricsCollectionService,
+        statisticsCalculationService,
+        performanceMonitoringService,
+        this.loggingService,
+      );
+    });
 
     this.container.register(
       "selectionEventHandler",
