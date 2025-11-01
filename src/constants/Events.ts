@@ -14,6 +14,10 @@ export const InboundEvents = {
   getSavedWikis: "getSavedWikis",
   deleteWiki: "deleteWiki",
   getEnvironmentStatus: "getEnvironmentStatus",
+  createAggregation: "createAggregation",
+  updateReadme: "updateReadme",
+  previewReadmeUpdate: "previewReadmeUpdate",
+  getAggregations: "getAggregations",
 } as const;
 
 export const OutboundEvents = {
@@ -37,6 +41,13 @@ export const OutboundEvents = {
   wikiDeleted: "wikiDeleted",
   showNotification: "showNotification",
   environmentStatus: "environmentStatus",
+  aggregationCreated: "aggregationCreated",
+  readmeUpdated: "readmeUpdated",
+  readmePreviewGenerated: "readmePreviewGenerated",
+  aggregationsLoaded: "aggregationsLoaded",
+  currentReadmeLoaded: "currentReadmeLoaded",
+  readmeBackedUp: "readmeBackedUp",
+  readmeRestored: "readmeRestored",
 } as const;
 
 export { LoadingSteps } from "./loading";
@@ -54,6 +65,8 @@ export const Pages = {
   settings: "settings",
   savedWikis: "savedWikis",
   errorHistory: "errorHistory",
+  wikiAggregation: "wikiAggregation",
+  readmeUpdate: "readmeUpdate",
 } as const;
 
 export type Page = (typeof Pages)[keyof typeof Pages];
