@@ -59,3 +59,31 @@ export interface DependencyMap {
   dependents: string[];
 }
 
+export interface CompressionStrategyConfig {
+  name: CompressionStrategy;
+  ratio: number;
+  quality: number;
+}
+
+export interface CompressedContent {
+  original: string;
+  compressed: string;
+  metadata: {
+    originalSize: number;
+    compressedSize: number;
+    compressionRatio: number;
+    strategy: CompressionStrategy;
+    tokensSaved: number;
+  };
+}
+
+export interface KeyInfo {
+  type: "function" | "class" | "interface" | "variable" | "import" | "export" | "config";
+  name: string;
+  value: string;
+  importance: number;
+  location?: {
+    line: number;
+    column: number;
+  };
+}
