@@ -48,11 +48,42 @@ const isSettingsLoading = computed(
 );
 
 const providerConfigs = computed(() => {
-  if (centralizedProviderConfigs.value.length > 0) {
-    return centralizedProviderConfigs.value.map((config) => {
-      const wikiProvider = wiki.providers.find((p) => p.id === config.id);
+  const wikiMap = new Map(wiki.providers.map((p) => [p.id, p]));
+  const mergedProviders = new Map<string, any>();
 
-      return {
+  wiki.providers.forEach((p) => {
+    mergedProviders.set(p.id, {
+      id: p.id,
+      name: p.name,
+      apiKeyUrl: "",
+      apiKeyInput: "",
+      additionalInfo: undefined,
+      hasEndpointType: false,
+      modelFallbackIds: [],
+      defaultModel: p.models?.[0],
+      customFields: [],
+      hasKey: p.hasKey,
+      models: p.models || [],
+    });
+  });
+
+  centralizedProviderConfigs.value.forEach((config) => {
+    const existing = mergedProviders.get(config.id);
+    if (existing) {
+      mergedProviders.set(config.id, {
+        ...existing,
+        name: config.name || existing.name, // Prefer centralized name but keep wiki name as fallback
+        apiKeyUrl: config.apiKeyUrl,
+        apiKeyInput: config.apiKeyInput,
+        additionalInfo: config.additionalInfo,
+        hasEndpointType: config.hasEndpointType,
+        modelFallbackIds: config.modelFallbackIds,
+        defaultModel: config.defaultModel || existing.defaultModel,
+        customFields: config.customFields,
+      });
+    } else {
+      const wikiProvider = wikiMap.get(config.id);
+      mergedProviders.set(config.id, {
         id: config.id,
         name: config.name,
         apiKeyUrl: config.apiKeyUrl,
@@ -64,23 +95,11 @@ const providerConfigs = computed(() => {
         customFields: config.customFields,
         hasKey: wikiProvider?.hasKey || false,
         models: wikiProvider?.models || [],
-      };
-    });
-  }
+      });
+    }
+  });
 
-  return wiki.providers.map((p) => ({
-    id: p.id,
-    name: p.name,
-    apiKeyUrl: "",
-    apiKeyInput: "",
-    additionalInfo: undefined,
-    hasEndpointType: false,
-    modelFallbackIds: [],
-    defaultModel: p.models?.[0],
-    customFields: [],
-    hasKey: p.hasKey,
-    models: p.models || [],
-  }));
+  return Array.from(mergedProviders.values());
 });
 
 const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
@@ -115,9 +134,7 @@ const getProviderCapability = (providerId: string, capability: string) => {
 
 const validateCurrentConfiguration = () => {
   const validationStartTime = Date.now();
-  logger.debug(
-    `Validating configuration for provider ${settings.selectedProvider}`,
-  );
+  logger.debug(`Validating configuration for provider ${settings.selectedProvider}`);
 
   try {
     const selectedProviderConfig = providerConfigs.value.find(
@@ -145,9 +162,7 @@ const validateCurrentConfiguration = () => {
         `Configuration validation completed in ${validationEndTime - validationStartTime}ms`,
       );
     } else {
-      logger.error(
-        `Selected provider config not found for ${settings.selectedProvider}`,
-      );
+      logger.error(`Selected provider config not found for ${settings.selectedProvider}`);
     }
   } catch (error) {
     logger.error(
@@ -170,9 +185,7 @@ const handleProviderChange = (providerId: string) => {
     settings.autoSaveProviderSelection(providerId);
 
     const changeEndTime = Date.now();
-    logger.debug(
-      `Provider change completed in ${changeEndTime - changeStartTime}ms`,
-    );
+    logger.debug(`Provider change completed in ${changeEndTime - changeStartTime}ms`);
   } catch (error) {
     logger.error(`Error changing provider to ${providerId}:`, error);
   }
@@ -190,9 +203,7 @@ const handleApiKeyChange = (providerId: string, newValue: string) => {
       settings.autoSaveApiKey(providerId, newValue);
 
       const changeEndTime = Date.now();
-      logger.debug(
-        `API key update completed in ${changeEndTime - changeStartTime}ms`,
-      );
+      logger.debug(`API key update completed in ${changeEndTime - changeStartTime}ms`);
     } else {
       logger.error(`Provider config not found for ${providerId}`);
     }
@@ -263,9 +274,7 @@ const initSettings = async () => {
     settings.getProviderCapabilities();
 
     const providersEndTime = Date.now();
-    logger.debug(
-      `Provider data requests sent in ${providersEndTime - providersStartTime}ms`,
-    );
+    logger.debug(`Provider data requests sent in ${providersEndTime - providersStartTime}ms`);
   } catch (error) {
     logger.error("Error fetching provider data:", error);
   }
@@ -282,10 +291,11 @@ const setupMessageListener = () => {
     try {
       switch (message.command) {
         case "providerConfigs": {
-          logger.debug(
-            `Received ${message.payload?.length || 0} provider configs`,
-          );
-          centralizedProviderConfigs.value = message.payload || [];
+          const payload = message.payload || [];
+          logger.debug(`Received ${payload.length} provider configs`);
+          if (payload.length > 0 || centralizedProviderConfigs.value.length > 0) {
+            centralizedProviderConfigs.value = payload;
+          }
           nextTick(() => {
             setTimeout(() => {
               providerConfigs.value.forEach((provider) => {
@@ -407,12 +417,6 @@ onMounted(() => {
       calculateContentHeight(provider.id);
     });
   }, 100);
-
-  setTimeout(() => {
-    if (centralizedProviderConfigs.value.length === 0) {
-      centralizedProviderConfigs.value = [];
-    }
-  }, 5000);
 
   if (!settings.loading && !settingsLoading.value && settings.initialized) {
     navigationStatus.finish("settings");

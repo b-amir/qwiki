@@ -182,8 +182,9 @@ export class QwikiPanel {
     this.view = webviewView;
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this._webviewReady = false;
-    this._setWebviewMessageListener(webviewView.webview);
     this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
+    this._setWebviewMessageListener(webviewView.webview);
+    this._flushEnvironmentStatus();
     this.bootstrap
       .createCommandRegistry(webviewView.webview)
       .then((registry) => {
@@ -426,7 +427,7 @@ export class QwikiPanel {
   }
 
   private _postEnvironmentStatus(payload: EnvironmentStatusPayload) {
-    if (!this._webviewReady || !this.view?.webview) {
+    if (!this.view?.webview) {
       return;
     }
     try {

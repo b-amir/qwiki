@@ -159,6 +159,7 @@ export class ConfigurationValidationEngineService {
     };
 
     const emptySchema: ConfigurationSchema = {
+      version: "1.0.0",
       fields: [],
       dependencies: [],
     };
@@ -174,6 +175,7 @@ export class ConfigurationValidationEngineService {
     };
 
     const emptySchema: ConfigurationSchema = {
+      version: "1.0.0",
       fields: [],
       dependencies: [],
     };

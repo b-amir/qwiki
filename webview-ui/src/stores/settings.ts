@@ -36,6 +36,10 @@ export const useSettingsStore = defineStore("settings", {
   actions: {
     async init() {
       if (this.initialized) return;
+      if (this.loading) {
+        logger.debug("Initialization already in progress, skipping");
+        return;
+      }
       const initStartTime = Date.now();
       logger.debug("Starting initialization");
       this.loadingPhase = {
@@ -55,6 +59,7 @@ export const useSettingsStore = defineStore("settings", {
       const loadingStore = useLoadingStore();
       loadingStore.start({ context: "settings", step: "loading" });
 
+      let timeoutId: number | undefined;
       const handleMessage = (event: MessageEvent) => {
         const message = event.data;
         const messageStartTime = Date.now();
@@ -93,12 +98,13 @@ export const useSettingsStore = defineStore("settings", {
                 });
               } catch {}
               if (this.loadingPhase.completed) {
+                if ((handleMessage as any).timeoutId) {
+                  clearTimeout((handleMessage as any).timeoutId);
+                }
                 window.removeEventListener("message", handleMessage);
-
+                this.listenerAttached = false;
                 const initEndTime = Date.now();
-                logger.debug(
-                  `Initialization completed in ${initEndTime - initStartTime}ms`,
-                );
+                logger.debug(`Initialization completed in ${initEndTime - initStartTime}ms`);
               }
               return;
             }
@@ -132,11 +138,13 @@ export const useSettingsStore = defineStore("settings", {
               this.ensurePreparingPhase(loadingStore);
               this.tryCompleteLoading(loadingStore);
               if (this.loadingPhase.completed) {
+                if ((handleMessage as any).timeoutId) {
+                  clearTimeout((handleMessage as any).timeoutId);
+                }
                 window.removeEventListener("message", handleMessage);
+                this.listenerAttached = false;
                 const initEndTime = Date.now();
-                logger.debug(
-                  `Initialization completed in ${initEndTime - initStartTime}ms`,
-                );
+                logger.debug(`Initialization completed in ${initEndTime - initStartTime}ms`);
               }
               return;
             }
@@ -178,27 +186,21 @@ export const useSettingsStore = defineStore("settings", {
               const healthyCount = Object.values(healthStatus).filter(
                 (status: any) => status.isHealthy,
               ).length;
-              logger.debug(
-                `Retrieved provider health - ${healthyCount} healthy providers`,
-              );
+              logger.debug(`Retrieved provider health - ${healthyCount} healthy providers`);
               this.providerHealthStatus = healthStatus;
               return;
             }
             case "providerPerformanceRetrieved": {
               const performanceStats = message.payload.performanceStats;
               const providerCount = Object.keys(performanceStats).length;
-              logger.debug(
-                `Retrieved performance stats for ${providerCount} providers`,
-              );
+              logger.debug(`Retrieved performance stats for ${providerCount} providers`);
               this.providerPerformanceStats = performanceStats;
               return;
             }
             case "providerCapabilitiesRetrieved": {
               const capabilities = message.payload.capabilities || {};
               const providerCount = Object.keys(capabilities).length;
-              logger.debug(
-                `Retrieved capabilities for ${providerCount} providers`,
-              );
+              logger.debug(`Retrieved capabilities for ${providerCount} providers`);
               this.providerCapabilities = capabilities;
               return;
             }
@@ -217,14 +219,12 @@ export const useSettingsStore = defineStore("settings", {
             `Message ${message.command} processed in ${messageEndTime - messageStartTime}ms`,
           );
         } catch (error) {
-          logger.error(
-            `Error processing message ${message.command}:`,
-            error,
-          );
+          logger.error(`Error processing message ${message.command}:`, error);
         }
       };
 
       window.addEventListener("message", handleMessage);
+      this.listenerAttached = true;
       logger.debug("Message listener attached");
       try {
         vscode.postMessage({
@@ -245,16 +245,17 @@ export const useSettingsStore = defineStore("settings", {
         logger.error("Error sending initialization messages:", error);
       }
 
-      setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         if (this.loading && !this.initialized) {
-          logger.error(
-            "Initialization timeout - settings not loaded within 5 seconds",
-          );
+          logger.error("Initialization timeout - settings not loaded within 5 seconds");
           this.loading = false;
+          this.listenerAttached = false;
           window.removeEventListener("message", handleMessage);
           loadingStore.fail({ context: "settings", error: "Settings initialization timed out" });
         }
       }, 5000);
+
+      (handleMessage as any).timeoutId = timeoutId;
     },
     ensurePreparingPhase(loadingStore: ReturnType<typeof useLoadingStore>) {
       if (
@@ -309,9 +310,7 @@ export const useSettingsStore = defineStore("settings", {
         this.customSettings[setting] = value;
 
         const saveEndTime = Date.now();
-        logger.debug(
-          `Setting ${setting} saved in ${saveEndTime - saveStartTime}ms`,
-        );
+        logger.debug(`Setting ${setting} saved in ${saveEndTime - saveStartTime}ms`);
       } catch (error) {
         logger.error(`Error saving setting ${setting}:`, error);
       } finally {
@@ -330,9 +329,7 @@ export const useSettingsStore = defineStore("settings", {
     },
     async saveApiKey(providerId: string, apiKey: string) {
       if (!apiKey) {
-        logger.warn(
-          `Attempted to save empty API key for provider ${providerId}`,
-        );
+        logger.warn(`Attempted to save empty API key for provider ${providerId}`);
         return;
       }
 
@@ -356,10 +353,7 @@ export const useSettingsStore = defineStore("settings", {
           `API key for provider ${providerId} saved in ${saveEndTime - saveStartTime}ms`,
         );
       } catch (error) {
-        logger.error(
-          `Error saving API key for provider ${providerId}:`,
-          error,
-        );
+        logger.error(`Error saving API key for provider ${providerId}:`, error);
       } finally {
         this.saving = false;
       }
@@ -394,9 +388,7 @@ export const useSettingsStore = defineStore("settings", {
     },
     async validateConfiguration(config: any, providerId?: string) {
       const validationStartTime = Date.now();
-      logger.debug(
-        `Validating configuration for provider ${providerId || "unknown"}`,
-      );
+      logger.debug(`Validating configuration for provider ${providerId || "unknown"}`);
 
       try {
         vscode.postMessage({
@@ -409,10 +401,7 @@ export const useSettingsStore = defineStore("settings", {
           `Configuration validation request sent in ${validationEndTime - validationStartTime}ms`,
         );
       } catch (error) {
-        logger.error(
-          `Error validating configuration for provider ${providerId}:`,
-          error,
-        );
+        logger.error(`Error validating configuration for provider ${providerId}:`, error);
       }
     },
     async applyConfigurationTemplate(templateId: string) {

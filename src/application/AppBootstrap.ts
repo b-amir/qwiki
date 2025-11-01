@@ -143,6 +143,10 @@ export class AppBootstrap {
       () => new ConfigurationValidationEngineService(),
     );
 
+    this.container.register("configurationValidator", () =>
+      this.container.resolve("configurationValidationEngine"),
+    );
+
     this.container.register(
       "configurationImportExportService",
       () =>
