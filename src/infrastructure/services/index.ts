@@ -17,6 +17,7 @@ export {
   type ProviderRanking,
 } from "./ProviderPerformanceService";
 export { ProviderFileSystemService } from "./ProviderFileSystemService";
+export { VSCodeFileSystemService } from "./VSCodeFileSystemService";
 export { GenerationCacheService } from "./GenerationCacheService";
 export { RequestBatchingService } from "./RequestBatchingService";
 export { DebouncingService } from "./DebouncingService";

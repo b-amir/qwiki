@@ -2,11 +2,13 @@ import { ExtensionContext, window, commands } from "vscode";
 import { QwikiPanel } from "./panels/QwikiPanel";
 import { VSCodeCommandIds, Pages } from "./constants";
 
+let qwikiProvider: QwikiPanel | undefined;
+
 export function activate(context: ExtensionContext) {
-  const provider = new QwikiPanel(context.extensionUri, context);
+  qwikiProvider = new QwikiPanel(context.extensionUri, context);
 
   context.subscriptions.push(
-    window.registerWebviewViewProvider(VSCodeCommandIds.wikiViewId, provider),
+    window.registerWebviewViewProvider(VSCodeCommandIds.wikiViewId, qwikiProvider),
   );
 
   const showQwikiCommand = commands.registerCommand(VSCodeCommandIds.showPanel, () => {
@@ -14,22 +16,22 @@ export function activate(context: ExtensionContext) {
   });
 
   const showSettingsCommand = commands.registerCommand(VSCodeCommandIds.viewSettings, () => {
-    provider.showPage(Pages.settings);
+    qwikiProvider?.showPage(Pages.settings);
   });
 
   const showSavedWikisCommand = commands.registerCommand(VSCodeCommandIds.viewSavedWikis, () => {
-    provider.showPage(Pages.savedWikis);
+    qwikiProvider?.showPage(Pages.savedWikis);
   });
 
   const showErrorHistoryCommand = commands.registerCommand(
     VSCodeCommandIds.viewErrorHistory,
     () => {
-      provider.showPage(Pages.errorHistory);
+      qwikiProvider?.showPage(Pages.errorHistory);
     },
   );
 
   const createQuickWikiCommand = commands.registerCommand(VSCodeCommandIds.createQuickWiki, () => {
-    provider.createWikiFromEditorSelection();
+    qwikiProvider?.createWikiFromEditorSelection();
   });
 
   context.subscriptions.push(
@@ -41,4 +43,9 @@ export function activate(context: ExtensionContext) {
   );
 }
 
-export function deactivate() {}
+export async function deactivate(): Promise<void> {
+  if (qwikiProvider) {
+    await qwikiProvider.dispose();
+    qwikiProvider = undefined;
+  }
+}

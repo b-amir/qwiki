@@ -576,4 +576,19 @@ export class AppBootstrap {
   getErrorHandler() {
     return this.container.resolve("errorHandler");
   }
+
+  async dispose(): Promise<void> {
+    try {
+      const healthService = (await this.container.resolveLazy(
+        "providerHealthService",
+      )) as ProviderHealthService;
+      if (healthService && typeof healthService.stopHealthMonitoring === "function") {
+        healthService.stopHealthMonitoring();
+      }
+    } catch (error) {
+      this.logger.warn("Error stopping health monitoring during disposal", error);
+    }
+
+    await this.container.dispose();
+  }
 }

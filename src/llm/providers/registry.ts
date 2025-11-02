@@ -12,6 +12,7 @@ import { CohereProvider } from "./cohere";
 import { HuggingFaceProvider } from "./huggingface";
 import { CachingService } from "../../infrastructure/services/CachingService";
 import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
 import type { GenerateParams, GenerateResult } from "../types";
 import { ErrorRecoveryService } from "../../infrastructure/services/ErrorRecoveryService";
 import { ProviderError, ErrorCodes } from "../../errors";
@@ -46,10 +47,15 @@ export class LLMRegistry {
     this.loggingService = loggingService;
     this.logger = createLogger("LegacyLLMRegistry", loggingService);
     this.cachingService = new CachingService({ maxSize: 50, defaultTtl: 300000 });
-    this.providerFileSystemService = new ProviderFileSystemService();
+    const vscodeFileSystem = new VSCodeFileSystemService(loggingService);
+    this.providerFileSystemService = new ProviderFileSystemService(
+      vscodeFileSystem,
+      loggingService,
+    );
     this.providerDiscoveryService = new ProviderDiscoveryService(
       this.eventBus,
       this.providerFileSystemService,
+      vscodeFileSystem,
       this.loggingService,
     );
     this.providerLifecycleManager = new ProviderLifecycleManagerService(

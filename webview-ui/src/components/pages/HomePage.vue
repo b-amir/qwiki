@@ -1,17 +1,26 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useEnvironmentStore } from "@/stores/environment";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import Button from "@/components/ui/button.vue";
+import { stepCatalog } from "@/loading/stepCatalog";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 const environment = useEnvironmentStore();
 const navigationStatus = useNavigationStatusStore();
 const { setPage } = useNavigation();
+
+const buttonText = computed(() => {
+  if (wiki.loading && wiki.loadingStep) {
+    const step = stepCatalog.wiki.find((s) => s.key === wiki.loadingStep);
+    return step?.text || "Loading...";
+  }
+  return "Generate Wiki";
+});
 
 onMounted(() => {
   navigationStatus.finish("wiki");
@@ -94,11 +103,11 @@ onMounted(() => {
     <div class="mt-auto flex flex-col items-center gap-2 pb-4 pt-4 sm:gap-3 sm:pt-6">
       <div class="w-full max-w-md">
         <Button
-          :disabled="wiki.loading || !wiki.snippet?.trim() || !environment.isReady"
+          :disabled="wiki.loading"
           class="bg-foreground w-full text-sm sm:text-base"
           @click="wiki.generate"
         >
-          Generate Wiki
+          {{ buttonText }}
         </Button>
       </div>
 

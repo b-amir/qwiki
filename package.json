@@ -10,6 +10,12 @@
     "Other"
   ],
   "main": "./dist/extension.js",
+  "activationEvents": [
+    "onView:qwiki.wikiView",
+    "onCommand:qwiki.createQuickWiki",
+    "onCommand:qwiki.show",
+    "onStartupFinished"
+  ],
   "contributes": {
     "configuration": {
       "title": "Qwiki",

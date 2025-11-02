@@ -1,20 +1,26 @@
-import * as fs from "fs";
 import * as path from "path";
+import { FileType } from "vscode";
 import { EventBus } from "../../events/EventBus";
 import { ProviderMetadata, ProviderManifest } from "../../llm/types/ProviderMetadata";
 import { LLMProvider } from "../../llm/types";
 import { ValidationResult } from "../../llm/types/ProviderCapabilities";
 import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
-import { LoggingService, createLogger, type Logger } from "../../infrastructure/services/LoggingService";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class ProviderDiscoveryService {
   private discoveredProviders = new Map<string, ProviderMetadata>();
-  private watchers: fs.FSWatcher[] = [];
+  private watchers: { close: () => void }[] = [];
   private logger: Logger;
 
   constructor(
     private eventBus: EventBus,
     private providerFileSystemService: ProviderFileSystemService,
+    private vscodeFileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",
@@ -47,9 +53,7 @@ export class ProviderDiscoveryService {
 
     try {
       const providerDirs = await this.getProviderDirectories();
-      this.logDebug(
-        `Found ${providerDirs.length} provider directories to scan`,
-      );
+      this.logDebug(`Found ${providerDirs.length} provider directories to scan`);
 
       const allProviders: ProviderMetadata[] = [];
 
@@ -95,26 +99,27 @@ export class ProviderDiscoveryService {
     this.logDebug(`Scanning directory ${directoryPath}`);
 
     try {
-      if (!fs.existsSync(directoryPath)) {
+      const exists = await this.vscodeFileSystem.fileExists(directoryPath);
+      if (!exists) {
         this.logWarn(`Directory ${directoryPath} does not exist`);
         return [];
       }
 
-      const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+      const entries = await this.vscodeFileSystem.readDirectory(directoryPath);
       const providers: ProviderMetadata[] = [];
       let manifestCount = 0;
       let successCount = 0;
 
-      this.logDebug(
-        `Found ${entries.length} entries in directory ${directoryPath}`,
-      );
+      this.logDebug(`Found ${entries.length} entries in directory ${directoryPath}`);
 
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const providerPath = path.join(directoryPath, entry.name);
+      for (const [name, fileType] of entries) {
+        const isDirectory = (fileType & FileType.Directory) === FileType.Directory;
+        if (isDirectory) {
+          const providerPath = path.join(directoryPath, name);
           const manifestPath = path.join(providerPath, "manifest.json");
 
-          if (fs.existsSync(manifestPath)) {
+          const manifestExists = await this.vscodeFileSystem.fileExists(manifestPath);
+          if (manifestExists) {
             manifestCount++;
             this.logDebug(`Processing manifest ${manifestPath}`);
 
@@ -125,19 +130,12 @@ export class ProviderDiscoveryService {
                 providers.push(manifest);
                 this.discoveredProviders.set(manifest.id, manifest);
                 successCount++;
-                this.logDebug(
-                  `Successfully loaded provider ${manifest.id} from ${manifestPath}`,
-                );
+                this.logDebug(`Successfully loaded provider ${manifest.id} from ${manifestPath}`);
               } else {
-                this.logWarn(
-                  `No valid manifest returned from ${manifestPath}`,
-                );
+                this.logWarn(`No valid manifest returned from ${manifestPath}`);
               }
             } catch (error) {
-              this.logError(
-                `Failed to load manifest from ${manifestPath}:`,
-                error,
-              );
+              this.logError(`Failed to load manifest from ${manifestPath}:`, error);
             }
           }
         }
@@ -200,17 +198,13 @@ export class ProviderDiscoveryService {
 
   async loadProviderFromMetadata(metadata: ProviderMetadata): Promise<LLMProvider | null> {
     const loadStartTime = Date.now();
-    this.logDebug(
-      `Loading provider ${metadata.id} from ${metadata.entryPoint}`,
-    );
+    this.logDebug(`Loading provider ${metadata.id} from ${metadata.entryPoint}`);
 
     try {
       const importStartTime = Date.now();
       const providerModule = await import(metadata.entryPoint);
       const importEndTime = Date.now();
-      this.logDebug(
-        `Module import completed in ${importEndTime - importStartTime}ms`,
-      );
+      this.logDebug(`Module import completed in ${importEndTime - importStartTime}ms`);
 
       const ProviderClass = providerModule.default || providerModule[metadata.id];
 
@@ -240,20 +234,17 @@ export class ProviderDiscoveryService {
     }
   }
 
-  startWatching(directories: string[]): void {
-    this.logDebug(
-      `Starting to watch ${directories.length} directories for changes`,
-    );
+  async startWatching(directories: string[]): Promise<void> {
+    this.logDebug(`Starting to watch ${directories.length} directories for changes`);
     this.stopWatching();
 
     for (const directory of directories) {
-      if (fs.existsSync(directory)) {
-        this.logDebug(
-          `Setting up watcher for directory ${directory}`,
-        );
+      const exists = await this.vscodeFileSystem.fileExists(directory);
+      if (exists) {
+        this.logDebug(`Setting up watcher for directory ${directory}`);
 
         try {
-          const watcher = this.providerFileSystemService.watchProviderDirectory(
+          const watcher = await this.providerFileSystemService.watchProviderDirectory(
             directory,
             (change) => {
               if (change.filename.endsWith("manifest.json")) {
@@ -270,31 +261,20 @@ export class ProviderDiscoveryService {
           );
 
           this.watchers.push(watcher);
-          this.logDebug(
-            `Watcher established for directory ${directory}`,
-          );
+          this.logDebug(`Watcher established for directory ${directory}`);
         } catch (error) {
-          this.logError(
-            `Failed to set up watcher for directory ${directory}:`,
-            error,
-          );
+          this.logError(`Failed to set up watcher for directory ${directory}:`, error);
         }
       } else {
-        this.logWarn(
-          `Directory ${directory} does not exist, cannot set up watcher`,
-        );
+        this.logWarn(`Directory ${directory} does not exist, cannot set up watcher`);
       }
     }
 
-    this.logDebug(
-      `Watching set up with ${this.watchers.length} active watchers`,
-    );
+    this.logDebug(`Watching set up with ${this.watchers.length} active watchers`);
   }
 
   stopWatching(): void {
-    this.logDebug(
-      `Stopping ${this.watchers.length} directory watchers`,
-    );
+    this.logDebug(`Stopping ${this.watchers.length} directory watchers`);
 
     try {
       for (const watcher of this.watchers) {
@@ -315,7 +295,8 @@ export class ProviderDiscoveryService {
     const directories: string[] = [];
 
     const builtInProvidersPath = path.join(__dirname, "../../llm/providers");
-    if (fs.existsSync(builtInProvidersPath)) {
+    const exists = await this.vscodeFileSystem.fileExists(builtInProvidersPath);
+    if (exists) {
       directories.push(builtInProvidersPath);
     }
 

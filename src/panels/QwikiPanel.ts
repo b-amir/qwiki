@@ -195,7 +195,15 @@ export class QwikiPanel {
         this.logError("createCommandRegistry failed", e);
         this.createFallbackCommandRegistry(webviewView.webview);
       });
-    webviewView.onDidDispose(() => this.dispose(), null, this._disposables);
+    webviewView.onDidDispose(
+      () => {
+        this.dispose().catch((error) => {
+          this.logError("Error during disposal", error);
+        });
+      },
+      null,
+      this._disposables,
+    );
   }
 
   public showPage(page: Page) {
@@ -223,10 +231,15 @@ export class QwikiPanel {
     this.showPage(Pages.savedWikis);
   }
 
-  public dispose() {
-    this.view = undefined;
-    this._webviewReady = false;
+  public async dispose(): Promise<void> {
     this._clearLanguageStatusInterval();
+
+    while (this._disposables.length) {
+      const disposable = this._disposables.pop();
+      if (disposable) {
+        disposable.dispose();
+      }
+    }
 
     if (this.messageBus) {
       this.messageBus.dispose();
@@ -235,12 +248,14 @@ export class QwikiPanel {
 
     this.commandRegistry?.dispose?.();
 
-    while (this._disposables.length) {
-      const disposable = this._disposables.pop();
-      if (disposable) {
-        disposable.dispose();
-      }
+    await this.bootstrap.dispose();
+
+    if (this.view) {
+      this.view.webview.html = "";
     }
+
+    this.view = undefined;
+    this._webviewReady = false;
   }
 
   private _queueNavigation(page: Page) {

@@ -52,4 +52,25 @@ export class Container {
   isLoaded(key: string): boolean {
     return this.services.has(key);
   }
+
+  async dispose(): Promise<void> {
+    const disposePromises: Promise<void>[] = [];
+
+    for (const [key, service] of this.services.entries()) {
+      if (service && typeof service.dispose === "function") {
+        const disposeResult = service.dispose();
+        if (disposeResult instanceof Promise) {
+          disposePromises.push(disposeResult);
+        }
+      }
+    }
+
+    if (disposePromises.length > 0) {
+      await Promise.allSettled(disposePromises);
+    }
+
+    this.services.clear();
+    this.factories.clear();
+    this.lazyFactories.clear();
+  }
 }

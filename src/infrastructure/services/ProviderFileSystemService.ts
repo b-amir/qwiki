@@ -1,17 +1,33 @@
-import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import { FileType } from "vscode";
 import { ProviderManifest } from "../../llm/types/ProviderMetadata";
 import { ValidationResult } from "../../llm/types/ProviderCapabilities";
+import { VSCodeFileSystemService } from "./VSCodeFileSystemService";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 export class ProviderFileSystemService {
+  private logger: Logger;
+
+  constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {
+    this.logger = createLogger("ProviderFileSystemService", loggingService);
+  }
   async readProviderManifest(manifestPath: string): Promise<ProviderManifest> {
     try {
-      if (!fs.existsSync(manifestPath)) {
+      const exists = await this.vscodeFileSystem.fileExists(manifestPath);
+      if (!exists) {
         throw new Error(`Manifest file not found: ${manifestPath}`);
       }
 
-      const manifestContent = fs.readFileSync(manifestPath, "utf-8");
+      const manifestContent = await this.vscodeFileSystem.readFile(manifestPath);
       const manifest = JSON.parse(manifestContent);
 
       if (!this.isValidManifest(manifest)) {
@@ -34,18 +50,19 @@ export class ProviderFileSystemService {
     const warnings: string[] = [];
 
     try {
-      if (!fs.existsSync(filePath)) {
+      const exists = await this.vscodeFileSystem.fileExists(filePath);
+      if (!exists) {
         errors.push(`Provider file does not exist: ${filePath}`);
         return { isValid: false, errors, warnings };
       }
 
-      const stats = fs.statSync(filePath);
+      const stats = await this.vscodeFileSystem.stat(filePath);
       if (!stats.isFile()) {
         errors.push(`Path is not a file: ${filePath}`);
         return { isValid: false, errors, warnings };
       }
 
-      const fileContent = fs.readFileSync(filePath, "utf-8");
+      const fileContent = await this.vscodeFileSystem.readFile(filePath);
 
       if (filePath.endsWith(".js") || filePath.endsWith(".ts")) {
         if (fileContent.includes("eval(") || fileContent.includes("Function(")) {
@@ -58,7 +75,8 @@ export class ProviderFileSystemService {
       }
 
       const manifestPath = path.join(path.dirname(filePath), "manifest.json");
-      if (fs.existsSync(manifestPath)) {
+      const manifestExists = await this.vscodeFileSystem.fileExists(manifestPath);
+      if (manifestExists) {
         const manifestValidation = await this.validateManifestFile(manifestPath);
         errors.push(...manifestValidation.errors);
         warnings.push(...manifestValidation.warnings);
@@ -77,16 +95,18 @@ export class ProviderFileSystemService {
   }
 
   async getProviderFiles(directory: string): Promise<string[]> {
-    if (!fs.existsSync(directory)) {
+    const exists = await this.vscodeFileSystem.fileExists(directory);
+    if (!exists) {
       return [];
     }
 
-    const entries = fs.readdirSync(directory, { withFileTypes: true });
+    const entries = await this.vscodeFileSystem.readDirectory(directory);
     const providerFiles: string[] = [];
 
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        const filePath = path.join(directory, entry.name);
+    for (const [name, fileType] of entries) {
+      const isFile = (fileType & FileType.File) === FileType.File;
+      if (isFile) {
+        const filePath = path.join(directory, name);
         const ext = path.extname(filePath).toLowerCase();
 
         if (ext === ".js" || ext === ".ts" || ext === ".json") {
@@ -98,12 +118,11 @@ export class ProviderFileSystemService {
     return providerFiles;
   }
 
-  watchProviderDirectory(directory: string, callback: FileChangeCallback): fs.FSWatcher {
-    if (!fs.existsSync(directory)) {
-      throw new Error(`Directory does not exist: ${directory}`);
-    }
-
-    const watcher = fs.watch(directory, { recursive: true }, (eventType, filename) => {
+  async watchProviderDirectory(
+    directory: string,
+    callback: FileChangeCallback,
+  ): Promise<{ close: () => void }> {
+    return await this.vscodeFileSystem.watchDirectory(directory, (eventType, filename) => {
       if (filename) {
         const filePath = path.join(directory, filename);
         const ext = path.extname(filePath).toLowerCase();
@@ -118,13 +137,11 @@ export class ProviderFileSystemService {
         }
       }
     });
-
-    return watcher;
   }
 
   async calculateChecksum(filePath: string): Promise<string> {
     try {
-      const fileContent = fs.readFileSync(filePath, "utf-8");
+      const fileContent = await this.vscodeFileSystem.readFile(filePath);
       return crypto.createHash("sha256").update(fileContent).digest("hex");
     } catch (error) {
       throw new Error(`Failed to calculate checksum for ${filePath}: ${error}`);
@@ -133,7 +150,7 @@ export class ProviderFileSystemService {
 
   private async validateManifestFile(manifestPath: string): Promise<ValidationResult> {
     try {
-      const manifestContent = fs.readFileSync(manifestPath, "utf-8");
+      const manifestContent = await this.vscodeFileSystem.readFile(manifestPath);
       const manifest = JSON.parse(manifestContent);
 
       return this.validateManifestStructure(manifest);
@@ -199,8 +216,9 @@ export class ProviderFileSystemService {
   async createProviderDirectory(providerId: string, templatePath: string): Promise<string> {
     const providerDir = path.join(process.cwd(), "providers", providerId);
 
-    if (!fs.existsSync(providerDir)) {
-      fs.mkdirSync(providerDir, { recursive: true });
+    const exists = await this.vscodeFileSystem.fileExists(providerDir);
+    if (!exists) {
+      await this.vscodeFileSystem.createDirectory(providerDir);
     }
 
     const manifestTemplate = {
@@ -216,12 +234,15 @@ export class ProviderFileSystemService {
     };
 
     const manifestPath = path.join(providerDir, "manifest.json");
-    fs.writeFileSync(manifestPath, JSON.stringify(manifestTemplate, null, 2));
+    await this.vscodeFileSystem.writeFile(manifestPath, JSON.stringify(manifestTemplate, null, 2));
 
-    if (templatePath && fs.existsSync(templatePath)) {
-      const templateContent = fs.readFileSync(templatePath, "utf-8");
-      const indexPath = path.join(providerDir, "index.js");
-      fs.writeFileSync(indexPath, templateContent);
+    if (templatePath) {
+      const templateExists = await this.vscodeFileSystem.fileExists(templatePath);
+      if (templateExists) {
+        const templateContent = await this.vscodeFileSystem.readFile(templatePath);
+        const indexPath = path.join(providerDir, "index.js");
+        await this.vscodeFileSystem.writeFile(indexPath, templateContent);
+      }
     }
 
     return providerDir;
