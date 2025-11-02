@@ -190,6 +190,7 @@ export class QwikiPanel {
       .then((registry) => {
         this.commandRegistry = registry;
         this.logInfo("createCommandRegistry completed successfully");
+        this._setupWikiWatcherListener();
       })
       .catch((e) => {
         this.logError("createCommandRegistry failed", e);
@@ -204,6 +205,28 @@ export class QwikiPanel {
       null,
       this._disposables,
     );
+  }
+
+  private _setupWikiWatcherListener(): void {
+    try {
+      const eventBus = this.bootstrap.getContainer().resolve("eventBus") as any;
+      if (eventBus && typeof eventBus.subscribe === "function") {
+        const unsubscribe = eventBus.subscribe("savedWikisChanged", async () => {
+          this.logDebug("savedWikisChanged event received, refreshing saved wikis");
+          if (this.commandRegistry && this._webviewReady) {
+            try {
+              await this.commandRegistry.execute("getSavedWikis", {});
+            } catch (error) {
+              this.logError("Failed to refresh saved wikis after file change", error);
+            }
+          }
+        });
+        this._disposables.push({ dispose: unsubscribe });
+        this.logDebug("Wiki watcher listener setup completed");
+      }
+    } catch (error) {
+      this.logError("Failed to setup wiki watcher listener", error);
+    }
   }
 
   public showPage(page: Page) {
@@ -635,5 +658,9 @@ export class QwikiPanel {
     };
 
     this.commandRegistry = fallbackRegistry;
+  }
+
+  getContainer() {
+    return this.bootstrap.getContainer();
   }
 }

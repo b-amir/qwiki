@@ -56,6 +56,7 @@ import {
   ProjectContextValidationService,
   ProjectContextCacheInvalidationService,
   WorkspaceStructureCacheService,
+  WikiWatcherService,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
 import { StatisticsCalculationService } from "../infrastructure/services/performance/StatisticsCalculationService";
@@ -437,6 +438,16 @@ export class AppBootstrap {
     this.container.register(
       "wikiStorageService",
       () => new WikiStorageService(this.loggingService),
+    );
+
+    this.container.register(
+      "wikiWatcherService",
+      () =>
+        new WikiWatcherService(
+          this.container.resolve("eventBus"),
+          this.context,
+          this.loggingService,
+        ),
     );
 
     this.container.register(

@@ -55,3 +55,4 @@ export {
   type CachedFileRelevanceScores,
   type CachedDependencyMap,
 } from "./WorkspaceStructureCacheService";
+export { WikiWatcherService } from "./WikiWatcherService";

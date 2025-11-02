@@ -276,6 +276,10 @@
       {
         "command": "qwiki.createQuickWiki",
         "title": "Qwiki: Create a quick wiki!"
+      },
+      {
+        "command": "qwiki.selectProvider",
+        "title": "Qwiki: Select Provider"
       }
     ],
     "menus": {
@@ -296,12 +300,17 @@
         "when": "editorTextFocus"
       }
     ],
-    "views": {
+      "views": {
       "qwiki": [
         {
           "id": "qwiki.wikiView",
           "name": "Qwiki",
           "type": "webview"
+        },
+        {
+          "id": "qwiki.savedWikis",
+          "name": "Saved Wikis",
+          "when": "qwiki.hasSavedWikis"
         }
       ]
     },
