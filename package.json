@@ -270,14 +270,6 @@
       {
         "command": "qwiki.createQuickWiki",
         "title": "Qwiki: Create a quick wiki!"
-      },
-      {
-        "command": "qwiki.createWikiAggregation",
-        "title": "Qwiki: Create Wiki Aggregation"
-      },
-      {
-        "command": "qwiki.updateReadme",
-        "title": "Qwiki: Update README"
       }
     ],
     "menus": {
@@ -288,18 +280,7 @@
           "group": "navigation@9"
         }
       ],
-      "view/title": [
-        {
-          "command": "qwiki.createWikiAggregation",
-          "when": "view == qwiki.wikiView",
-          "group": "navigation@1"
-        },
-        {
-          "command": "qwiki.updateReadme",
-          "when": "view == qwiki.wikiView",
-          "group": "navigation@2"
-        }
-      ]
+      "view/title": []
     },
     "keybindings": [
       {
