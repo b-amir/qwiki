@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
+
 interface SavedWiki {
   id: string;
   title: string;
@@ -16,8 +19,15 @@ interface Emits {
   (e: "close"): void;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+const wikiContentWithoutTitle = computed(() => {
+  if (!props.wiki?.content) return "";
+  const content =
+    typeof props.wiki.content === "string" ? props.wiki.content : String(props.wiki.content);
+  return content.replace(/^#\s+.+$/m, "");
+});
 </script>
 
 <template>
@@ -52,9 +62,7 @@ const emit = defineEmits<Emits>();
         </div>
       </div>
       <div class="flex-1 overflow-y-auto p-6">
-        <div class="prose prose-sm max-w-none">
-          <div class="whitespace-pre-wrap text-sm">{{ wiki.content }}</div>
-        </div>
+        <MarkdownRenderer :content="wikiContentWithoutTitle" />
       </div>
     </div>
   </div>

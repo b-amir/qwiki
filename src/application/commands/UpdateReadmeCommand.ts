@@ -1,7 +1,8 @@
 import type { Command } from "./Command";
-import type { ReadmeUpdateService } from "../services/ReadmeUpdateService";
+import type { ReadmeUpdateService, ReadmeUpdateConfig } from "../services/ReadmeUpdateService";
 import type { MessageBusService } from "../services/MessageBusService";
-import type { ReadmeUpdateConfig } from "../../domain/entities/ReadmeUpdate";
+import type { ConfigurationManagerService } from "../services/ConfigurationManagerService";
+import type { ProviderId } from "../../llm/types";
 import {
   LoggingService,
   createLogger,
@@ -10,7 +11,7 @@ import {
 
 interface UpdateReadmePayload {
   wikiIds: string[];
-  config: ReadmeUpdateConfig;
+  config?: Partial<ReadmeUpdateConfig>;
 }
 
 export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
@@ -19,6 +20,7 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
   constructor(
     private readmeUpdateService: ReadmeUpdateService,
     private messageBus: MessageBusService,
+    private configurationManager: ConfigurationManagerService,
     private loggingService: LoggingService = new LoggingService({
       enabled: true,
       level: "debug",
@@ -45,13 +47,26 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
         throw new Error("At least one wiki ID is required");
       }
 
-      if (!payload.config) {
-        throw new Error("Readme update config is required");
+      const globalConfig = await this.configurationManager.getGlobalConfig();
+      const defaultProviderId = globalConfig.defaultProviderId || ("google-ai-studio" as ProviderId);
+      
+      let providerId = payload.config?.providerId || defaultProviderId;
+      if (!providerId) {
+        throw new Error("Provider ID is required. Please configure a default provider.");
       }
+
+      const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+      const model = payload.config?.model || providerConfig?.model;
+
+      const config: ReadmeUpdateConfig = {
+        providerId: providerId as ProviderId,
+        model,
+        backupOriginal: payload.config?.backupOriginal ?? true,
+      };
 
       const result = await this.readmeUpdateService.updateReadmeFromWikis(
         payload.wikiIds,
-        payload.config,
+        config,
       );
 
       if (result.success) {

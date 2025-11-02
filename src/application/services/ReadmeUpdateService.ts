@@ -7,35 +7,34 @@ import {
   type Logger,
 } from "../../infrastructure/services/LoggingService";
 import { WikiStorageService, type SavedWiki } from "./WikiStorageService";
-import { ReadmeSectionGenerator } from "./readme/ReadmeSectionGenerator";
-import { ReadmeParser } from "./readme/ReadmeParser";
-import type {
-  ReadmeUpdateConfig,
-  ReadmeSection,
-  UpdateResult,
-  ReadmeAnalysis,
-  CustomSection,
-  ReadmeStructure,
-  ReadmePreview,
-  SectionChange,
-  ReadmeStructureValidation,
-} from "../../domain/entities/ReadmeUpdate";
-import type { MergeStrategy } from "../../domain/entities/WikiAggregation";
+import type { LLMRegistry } from "../../llm";
+import type { ProviderId } from "../../llm/types";
+import type { UpdateResult } from "../../domain/entities/ReadmeUpdate";
+
+export interface ReadmeUpdateConfig {
+  providerId: ProviderId;
+  model?: string;
+  backupOriginal?: boolean;
+}
 
 export class ReadmeUpdateService {
   private logger: Logger;
   private readonly readmeFileName = "README.md";
-  private sectionGenerator: ReadmeSectionGenerator;
-  private parser: ReadmeParser;
+  private readonly boilerplatePatterns = [
+    /^#\s+\w+\s*$/m,
+    /getting.?started/i,
+    /contributing/i,
+    /license/i,
+    /^#{1,2}\s+(Installation|Usage|Contributing|License)\s*$/m,
+  ];
 
   constructor(
     private wikiStorageService: WikiStorageService,
+    private llmRegistry: LLMRegistry,
     private loggingService: LoggingService,
     private eventBus?: EventBus,
   ) {
     this.logger = createLogger("ReadmeUpdateService", loggingService);
-    this.sectionGenerator = new ReadmeSectionGenerator();
-    this.parser = new ReadmeParser();
   }
 
   async updateReadmeFromWikis(
@@ -44,161 +43,136 @@ export class ReadmeUpdateService {
   ): Promise<UpdateResult> {
     this.logger.debug(`Updating README from ${wikiIds.length} wikis`);
 
-    const allWikis = await this.wikiStorageService.getAllSavedWikis();
-    const wikis = allWikis.filter((w) => wikiIds.includes(w.id));
-
-    const currentReadme = await this.readCurrentReadme();
-    const analysis = await this.analyzeCurrentReadme();
-    const newSections = await this.generateReadmeSections(wikis, currentReadme);
-
-    let backupPath: string | undefined;
-    if (config.backupOriginal) {
-      backupPath = await this.createReadmeBackup();
-    }
-
-    const mergedSections = await this.mergeReadmeSections(
-      analysis.sections,
-      newSections,
-      "categorical",
-    );
-
-    const updatedContent = this.buildReadmeContent(mergedSections, analysis.customSections, config);
-    const validation = await this.validateReadmeStructure(updatedContent);
-
-    const changes: string[] = [];
-    const conflicts: string[] = [];
-
-    if (!validation.isValid) {
-      conflicts.push(...validation.errors);
-    }
-
-    if (validation.warnings.length > 0) {
-      changes.push(...validation.warnings);
-    }
-
     try {
-      await this.writeReadme(updatedContent);
-      changes.push("README updated successfully");
+      const allWikis = await this.wikiStorageService.getAllSavedWikis();
+      const wikis = allWikis.filter((w) => wikiIds.includes(w.id));
+
+      if (wikis.length === 0) {
+        throw new Error("No wikis found for the provided IDs");
+      }
+
+      const currentReadme = await this.readCurrentReadme();
+      const isBoilerplate = this.detectBoilerplateReadme(currentReadme);
+
+      let backupPath: string | undefined;
+      if (config.backupOriginal) {
+        backupPath = await this.createReadmeBackup();
+      }
+
+      const prompt = this.buildReadmeUpdatePrompt(currentReadme, wikis, isBoilerplate);
+      const result = await this.llmRegistry.generate(config.providerId, {
+        model: config.model,
+        snippet: prompt,
+        languageId: "markdown",
+        filePath: "README.md",
+      });
+
+      await this.writeReadme(result.content);
 
       if (this.eventBus) {
         this.eventBus.publish("readme-updated", {
           wikiCount: wikis.length,
-          sectionsUpdated: mergedSections.length,
         });
       }
 
       return {
         success: true,
-        changes,
+        changes: ["README updated successfully"],
         backupPath,
-        conflicts,
+        conflicts: [],
       };
     } catch (error) {
       this.logger.error("Failed to update README", error);
       return {
         success: false,
-        changes,
-        backupPath,
-        conflicts: [...conflicts, `Failed to write README: ${error}`],
+        changes: [],
+        conflicts: [
+          `Failed to update README: ${error instanceof Error ? error.message : "Unknown error"}`,
+        ],
       };
     }
   }
 
-  async analyzeCurrentReadme(): Promise<ReadmeAnalysis> {
-    const content = await this.readCurrentReadme();
-    const sections = this.parser.extractSections(content);
-    const customSections = this.parser.extractCustomSections(content);
-    const structure = this.parser.analyzeStructure(content);
+  private detectBoilerplateReadme(content: string): boolean {
+    if (!content || content.trim().length < 100) {
+      return true;
+    }
 
-    return {
-      sections,
-      customSections,
-      structure,
-      hasExistingContent: content.length > 0,
-    };
+    const lowerContent = content.toLowerCase();
+    const matchesPattern = this.boilerplatePatterns.some((pattern) => pattern.test(content));
+    const hasGenericContent =
+      lowerContent.includes("getting started") &&
+      lowerContent.includes("contributing") &&
+      lowerContent.includes("license");
+
+    return matchesPattern || hasGenericContent;
   }
 
-  async generateReadmeSections(
-    wikis: SavedWiki[],
+  private buildReadmeUpdatePrompt(
     currentReadme: string,
-  ): Promise<ReadmeSection[]> {
-    const sections: ReadmeSection[] = [];
+    wikis: SavedWiki[],
+    isBoilerplate: boolean,
+  ): string {
+    const systemPrompt = `You are an expert technical documentation specialist. Your task is to update a project README.md file by integrating documentation from saved wiki entries.
 
-    const overview = await this.sectionGenerator.generateProjectOverview(wikis);
-    if (overview) {
-      sections.push({
-        name: "Overview",
-        content: overview,
-        priority: 10,
-      });
-    }
+CRITICAL RULES:
+1. Return ONLY raw Markdown content - no explanations, no commentary
+2. Maintain professional documentation standards
+3. Use clear section headings and consistent formatting
+4. Preserve code examples from the wikis exactly as they appear
+5. Create logical flow and organization`;
 
-    const installation = await this.sectionGenerator.generateInstallationGuide(wikis);
-    if (installation) {
-      sections.push({
-        name: "Installation",
-        content: installation,
-        priority: 9,
-      });
-    }
+    const currentReadmeSection = currentReadme
+      ? `CURRENT README CONTENT:
+\`\`\`markdown
+${currentReadme}
+\`\`\``
+      : "";
 
-    const usage = await this.sectionGenerator.generateUsageSection(wikis);
-    if (usage) {
-      sections.push({
-        name: "Usage",
-        content: usage,
-        priority: 8,
-      });
-    }
+    const instructions = isBoilerplate
+      ? `The current README appears to be a boilerplate or template. Create a comprehensive, well-structured README from scratch using the wiki content below.
 
-    const apiDocs = await this.sectionGenerator.generateApiDocumentation(wikis);
-    if (apiDocs) {
-      sections.push({
-        name: "API Documentation",
-        content: apiDocs,
-        priority: 7,
-      });
-    }
+The README should include:
+- A clear project title and description
+- Installation instructions (if available in wikis)
+- Usage examples and key features
+- Code examples and API documentation (from wikis)
+- Any other relevant sections based on the wiki content
 
-    return sections;
-  }
+Make it professional, informative, and useful for developers.`
+      : `The current README has existing content with a specific style and structure. Your task is to:
 
-  async mergeReadmeSections(
-    current: ReadmeSection[],
-    newSections: ReadmeSection[],
-    strategy: MergeStrategy,
-  ): Promise<ReadmeSection[]> {
-    const merged: ReadmeSection[] = [];
-    const currentMap = new Map<string, ReadmeSection>();
+1. Analyze the existing README's style, tone, and structure
+2. Integrate the wiki content by appending or updating relevant sections
+3. Maintain the existing README's formatting style (markdown structure, heading levels, code block styles)
+4. Preserve all existing content that is still relevant
+5. Add new sections or update existing ones with information from the wikis
+6. Ensure the updated README flows naturally and maintains consistency
 
-    for (const section of current) {
-      currentMap.set(section.name.toLowerCase(), section);
-    }
+Follow the style and structure of the existing README. If a section already exists, update it with information from the wikis. If new information doesn't fit existing sections, add new sections that match the README's style.`;
 
-    const newMap = new Map<string, ReadmeSection>();
-    for (const section of newSections) {
-      newMap.set(section.name.toLowerCase(), section);
-    }
+    const wikisSection = `WIKI CONTENT TO INTEGRATE:
+${wikis
+  .map(
+    (wiki, index) => `## Wiki ${index + 1}: ${wiki.title}
+${wiki.content}
+---
+`,
+  )
+  .join("\n")}`;
 
-    const allSectionNames = new Set([...currentMap.keys(), ...newMap.keys()]);
+    const finalInstructions = `OUTPUT REQUIREMENTS:
+- Return ONLY the complete updated README.md content in Markdown format
+- Start with the H1 title (use existing title if updating, create appropriate title if creating new)
+- Use H2 for main sections (## Section Name)
+- Use H3 for subsections (### Subsection Name)
+- Include code blocks with appropriate language identifiers
+- Ensure all content is properly formatted and readable
+- Do not include any meta-commentary or explanations outside the markdown`;
 
-    for (const sectionName of allSectionNames) {
-      const currentSection = currentMap.get(sectionName);
-      const newSection = newMap.get(sectionName);
-
-      if (currentSection && newSection) {
-        merged.push({
-          ...newSection,
-          priority: Math.max(currentSection.priority, newSection.priority),
-        });
-      } else if (newSection) {
-        merged.push(newSection);
-      } else if (currentSection) {
-        merged.push(currentSection);
-      }
-    }
-
-    return merged.sort((a, b) => b.priority - a.priority);
+    return [systemPrompt, currentReadmeSection, instructions, wikisSection, finalInstructions]
+      .filter(Boolean)
+      .join("\n\n");
   }
 
   async createReadmeBackup(): Promise<string> {
@@ -216,178 +190,6 @@ export class ReadmeUpdateService {
     await workspace.fs.writeFile(backupUri, Buffer.from(content, "utf8"));
 
     return backupPath;
-  }
-
-  async validateReadmeStructure(content: string): Promise<ReadmeStructureValidation> {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    if (!content || content.trim().length === 0) {
-      errors.push("README is empty");
-    }
-
-    if (content.length < 100) {
-      warnings.push("README is very short");
-    }
-
-    if (!/^#\s/.test(content)) {
-      warnings.push("README may be missing a title (H1 heading)");
-    }
-
-    const hasLinks = /\[.*?\]\(.*?\)/.test(content);
-    if (!hasLinks) {
-      warnings.push("README may benefit from links to documentation or resources");
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-    };
-  }
-
-  async previewReadmeUpdate(wikiIds: string[], config: ReadmeUpdateConfig): Promise<ReadmePreview> {
-    const allWikis = await this.wikiStorageService.getAllSavedWikis();
-    const wikis = allWikis.filter((w) => wikiIds.includes(w.id));
-
-    const original = await this.readCurrentReadme();
-    const analysis = await this.analyzeCurrentReadme();
-    const newSections = await this.generateReadmeSections(wikis, original);
-
-    const mergedSections = await this.mergeReadmeSections(
-      analysis.sections,
-      newSections,
-      "categorical",
-    );
-
-    const updated = this.buildReadmeContent(mergedSections, analysis.customSections, config);
-
-    const changes: SectionChange[] = [];
-    const originalSectionNames = new Set(analysis.sections.map((s) => s.name.toLowerCase()));
-    const newSectionNames = new Set(newSections.map((s) => s.name.toLowerCase()));
-
-    for (const section of mergedSections) {
-      const sectionName = section.name.toLowerCase();
-      if (originalSectionNames.has(sectionName) && newSectionNames.has(sectionName)) {
-        changes.push({
-          section: section.name,
-          action: "updated",
-          content: section.content.substring(0, 200),
-        });
-      } else if (newSectionNames.has(sectionName)) {
-        changes.push({
-          section: section.name,
-          action: "added",
-          content: section.content.substring(0, 200),
-        });
-      } else {
-        changes.push({
-          section: section.name,
-          action: "preserved",
-          content: section.content.substring(0, 200),
-        });
-      }
-    }
-
-    const warnings: string[] = [];
-    if (mergedSections.length === 0) {
-      warnings.push("No sections generated from wikis");
-    }
-
-    return {
-      original,
-      updated,
-      changes,
-      warnings,
-    };
-  }
-
-  private async generateProjectOverview(wikis: SavedWiki[]): Promise<string> {
-    if (wikis.length === 0) return "";
-
-    const overview = wikis
-      .map((wiki) => {
-        const firstParagraph = wiki.content.split("\n\n")[0];
-        return firstParagraph.substring(0, 300);
-      })
-      .join("\n\n");
-
-    return overview || "";
-  }
-
-  private async generateInstallationGuide(wikis: SavedWiki[]): Promise<string> {
-    const installationWikis = wikis.filter(
-      (w) => /install|setup|getting.?started/i.test(w.title) || /install|setup/i.test(w.content),
-    );
-
-    if (installationWikis.length === 0) return "";
-
-    const content = installationWikis.map((wiki) => wiki.content).join("\n\n");
-    return content.substring(0, 1000);
-  }
-
-  private async generateUsageSection(wikis: SavedWiki[]): Promise<string> {
-    const usageWikis = wikis.filter(
-      (w) => /usage|example|how.?to|tutorial/i.test(w.title) || /usage|example/i.test(w.content),
-    );
-
-    if (usageWikis.length === 0) {
-      const codeExamples = wikis
-        .filter((w) => /```/.test(w.content))
-        .map((w) => w.content.match(/```[\s\S]*?```/)?.[0])
-        .filter(Boolean)
-        .slice(0, 3);
-
-      if (codeExamples.length > 0) {
-        return codeExamples.join("\n\n");
-      }
-      return "";
-    }
-
-    return usageWikis
-      .map((wiki) => wiki.content)
-      .join("\n\n")
-      .substring(0, 1000);
-  }
-
-  private async generateApiDocumentation(wikis: SavedWiki[]): Promise<string> {
-    const apiWikis = wikis.filter(
-      (w) =>
-        /api|endpoint|function|method|class|interface/i.test(w.title) ||
-        /api|endpoint|function/i.test(w.content),
-    );
-
-    if (apiWikis.length === 0) return "";
-
-    return apiWikis
-      .map((wiki) => {
-        const title = wiki.title;
-        const content = wiki.content.substring(0, 500);
-        return `### ${title}\n\n${content}`;
-      })
-      .join("\n\n");
-  }
-
-  private buildReadmeContent(
-    sections: ReadmeSection[],
-    customSections: CustomSection[],
-    config: ReadmeUpdateConfig,
-  ): string {
-    const parts: string[] = [];
-
-    for (const section of sections) {
-      if (config.sections.length === 0 || config.sections.includes(section.name)) {
-        parts.push(section.content);
-      }
-    }
-
-    if (config.preserveCustom) {
-      for (const customSection of customSections) {
-        parts.push(customSection.content);
-      }
-    }
-
-    return parts.join("\n\n");
   }
 
   private async readCurrentReadme(): Promise<string> {

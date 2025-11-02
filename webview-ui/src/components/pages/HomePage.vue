@@ -91,7 +91,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="mt-auto flex flex-col items-center gap-2 pt-4 sm:gap-3 sm:pt-6">
+    <div class="mt-auto flex flex-col items-center gap-2 pb-4 pt-4 sm:gap-3 sm:pt-6">
       <div class="w-full max-w-md">
         <Button
           :disabled="wiki.loading || !wiki.snippet?.trim() || !environment.isReady"
@@ -104,7 +104,7 @@ onMounted(() => {
 
       <div class="flex justify-center">
         <button
-          class="text-muted-foreground hover:text-muted-foreground/80 text-xs sm:text-sm"
+          class="text-muted-foreground hover:text-muted-foreground/80 py-2 text-xs sm:text-sm"
           @click="setPage('settings')"
         >
           Change model

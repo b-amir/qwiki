@@ -278,7 +278,7 @@ watch(
 }
 
 .providers-section {
-  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  margin-bottom: clamp(2rem, 5vw, 3rem);
 }
 
 section > div:not(.settings-header) {

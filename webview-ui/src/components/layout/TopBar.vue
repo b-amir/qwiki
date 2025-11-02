@@ -32,19 +32,12 @@ const hasWikiContent = computed(() => Boolean(wiki.content || wiki.loading || wi
 const isWikiDetail = computed(() => currentPage.value === "wiki" && hasWikiContent.value);
 const isHomePage = computed(() => currentPage.value === "wiki" && !hasWikiContent.value);
 
-const showBorder = computed(
-  () =>
-    !isHomePage.value &&
-    currentPage.value !== "wikiAggregation" &&
-    currentPage.value !== "readmeUpdate",
-);
+const showBorder = computed(() => !isHomePage.value);
 
 const pageTitle = computed(() => {
   if (currentPage.value === "settings") return "Settings";
   if (currentPage.value === "savedWikis") return "Project Wiki Collection";
   if (currentPage.value === "errorHistory") return "Error History";
-  if (currentPage.value === "wikiAggregation") return "Wiki Aggregations";
-  if (currentPage.value === "readmeUpdate") return "Update README";
   if (isWikiDetail.value) return wikiTitle.value;
   return "";
 });
@@ -58,10 +51,7 @@ const buttonClass =
     class="bg-background flex items-center px-2 py-3"
     :class="[isHomePage ? 'justify-end' : 'justify-between pl-3', showBorder ? 'border-b' : '']"
   >
-    <div
-      v-if="!isHomePage && currentPage !== 'wikiAggregation' && currentPage !== 'readmeUpdate'"
-      class="flex items-center gap-2"
-    >
+    <div v-if="!isHomePage" class="flex items-center gap-2">
       <a :class="buttonClass" title="Back to homepage" @click="goToHomePage">
         <svg class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
           <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" fill="currentColor" />
@@ -75,36 +65,6 @@ const buttonClass =
     </div>
 
     <div class="flex items-center gap-1">
-      <button
-        v-if="currentPage === 'savedWikis'"
-        :class="buttonClass"
-        title="Wiki Aggregation"
-        @click="() => setPage('wikiAggregation')"
-      >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-          />
-        </svg>
-      </button>
-      <button
-        v-if="currentPage === 'savedWikis'"
-        :class="buttonClass"
-        title="Update README"
-        @click="() => setPage('readmeUpdate')"
-      >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-          />
-        </svg>
-      </button>
       <button :class="buttonClass" title="Settings" @click="() => setPage('settings')">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path

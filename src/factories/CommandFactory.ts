@@ -25,10 +25,7 @@ import {
   SaveWikiCommand,
   GetSavedWikisCommand,
   DeleteWikiCommand,
-  CreateAggregationCommand,
   UpdateReadmeCommand,
-  PreviewReadmeUpdateCommand,
-  GetAggregationsCommand,
 } from "../application/commands";
 import { MessageBusService } from "../application/services/MessageBusService";
 import { CommandIds } from "../constants";
@@ -189,31 +186,11 @@ export class CommandFactory {
           this.loggingService,
         ) as Command<T>;
 
-      case CommandIds.createAggregation:
-        return new CreateAggregationCommand(
-          container.resolve("wikiAggregationService"),
-          this.messageBus,
-          this.loggingService,
-        ) as Command<T>;
-
       case CommandIds.updateReadme:
         return new UpdateReadmeCommand(
-          container.resolve("readmeUpdateService"),
+          await container.resolveLazy("readmeUpdateService"),
           this.messageBus,
-          this.loggingService,
-        ) as Command<T>;
-
-      case CommandIds.previewReadmeUpdate:
-        return new PreviewReadmeUpdateCommand(
-          container.resolve("readmeUpdateService"),
-          this.messageBus,
-          this.loggingService,
-        ) as Command<T>;
-
-      case CommandIds.getAggregations:
-        return new GetAggregationsCommand(
-          container.resolve("wikiAggregationService"),
-          this.messageBus,
+          container.resolve("configurationManager"),
           this.loggingService,
         ) as Command<T>;
 
@@ -248,10 +225,7 @@ export class CommandFactory {
       CommandIds.saveWiki,
       CommandIds.getSavedWikis,
       CommandIds.deleteWiki,
-      CommandIds.createAggregation,
       CommandIds.updateReadme,
-      CommandIds.previewReadmeUpdate,
-      CommandIds.getAggregations,
     ];
 
     for (const commandId of commandIds) {

@@ -21,5 +21,4 @@ export { ContextIntelligenceService } from "./ContextIntelligenceService";
 export { ContextCompressionService } from "./ContextCompressionService";
 export { AdvancedPromptService } from "./AdvancedPromptService";
 export { PromptQualityService } from "./PromptQualityService";
-export { WikiAggregationService } from "./WikiAggregationService";
 export { ReadmeUpdateService } from "./ReadmeUpdateService";

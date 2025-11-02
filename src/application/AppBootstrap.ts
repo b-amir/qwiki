@@ -19,7 +19,6 @@ import {
   ContextCompressionService,
   AdvancedPromptService,
   PromptQualityService,
-  WikiAggregationService,
   ReadmeUpdateService,
 } from "./";
 import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
@@ -228,7 +227,9 @@ export class AppBootstrap {
           this.container.resolve("debouncingService") as DebouncingService,
           this.container.resolve("backgroundProcessingService") as BackgroundProcessingService,
           this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
-          this.container.resolve("contextIntelligenceService") as ContextIntelligenceService,
+          (await this.container.resolveLazy(
+            "contextIntelligenceService",
+          )) as ContextIntelligenceService,
           this.container.resolve("contextCompressionService") as ContextCompressionService,
           this.container.resolve("advancedPromptService") as AdvancedPromptService,
           this.container.resolve("performanceMonitor") as PerformanceMonitorService,
@@ -432,21 +433,12 @@ export class AppBootstrap {
       () => new PromptQualityService(this.loggingService, this.container.resolve("eventBus")),
     );
 
-    this.container.register(
-      "wikiAggregationService",
-      () =>
-        new WikiAggregationService(
-          this.container.resolve("wikiStorageService") as WikiStorageService,
-          this.loggingService,
-          this.container.resolve("eventBus"),
-        ),
-    );
-
-    this.container.register(
+    this.container.registerLazy(
       "readmeUpdateService",
-      () =>
+      async () =>
         new ReadmeUpdateService(
           this.container.resolve("wikiStorageService") as WikiStorageService,
+          await this.container.resolveLazy("llmRegistry"),
           this.loggingService,
           this.container.resolve("eventBus"),
         ),

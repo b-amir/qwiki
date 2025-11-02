@@ -4,7 +4,6 @@ interface Props {
 }
 
 interface Emits {
-  (e: "createAggregation"): void;
   (e: "updateReadme"): void;
   (e: "export"): void;
 }
@@ -21,15 +20,9 @@ const emit = defineEmits<Emits>();
     <div class="flex gap-2">
       <button
         class="border-border hover:bg-accent rounded-md border px-3 py-1.5 text-sm"
-        @click="emit('createAggregation')"
-      >
-        Create Aggregation
-      </button>
-      <button
-        class="border-border hover:bg-accent rounded-md border px-3 py-1.5 text-sm"
         @click="emit('updateReadme')"
       >
-        Update README
+        Update README.md
       </button>
       <button
         class="border-border hover:bg-accent rounded-md border px-3 py-1.5 text-sm"

@@ -3,12 +3,12 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
+import { useWikiStore } from "@/stores/wiki";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ErrorDisplay from "@/components/features/ErrorDisplay.vue";
-import WikiBulkActions from "@/components/features/WikiBulkActions.vue";
-import WikiFilters from "@/components/features/WikiFilters.vue";
 import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
+import Button from "@/components/ui/button.vue";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
 
@@ -24,17 +24,13 @@ interface SavedWiki {
 const vscode = useVscode();
 const logger = createLogger("SavedWikisPage");
 const navigationStatus = useNavigationStatusStore();
+const wikiStore = useWikiStore();
 const savedWikis = ref<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
-const selectedWikis = ref<Set<string>>(new Set());
 const previewWiki = ref<SavedWiki | null>(null);
-const fileTypeFilter = ref("");
-const dateFilter = ref("");
-const relevanceFilter = ref("");
-const sortBy = ref<"title" | "date" | "size" | "relevance">("date");
-const sortOrder = ref<"asc" | "desc">("desc");
+const updateReadmeState = ref<"idle" | "loading" | "done">("idle");
 
 const savedWikisLoadingContext = useLoading("savedWikis");
 const isSavedWikisLoading = computed(
@@ -46,64 +42,17 @@ const { currentPage } = useNavigation();
 let hasLoadedOnce = false;
 
 const filteredWikis = computed(() => {
-  let result = savedWikis.value;
-
-  if (searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(
-      (wiki) =>
-        wiki.title.toLowerCase().includes(query) ||
-        wiki.content.toLowerCase().includes(query) ||
-        wiki.tags.some((tag) => tag.toLowerCase().includes(query)),
-    );
+  if (!searchQuery.value.trim()) {
+    return savedWikis.value;
   }
 
-  if (fileTypeFilter.value) {
-    result = result.filter((wiki) => wiki.filePath.endsWith(fileTypeFilter.value));
-  }
-
-  if (dateFilter.value) {
-    const now = new Date();
-    result = result.filter((wiki) => {
-      const wikiDate = new Date(wiki.createdAt);
-      const diffTime = now.getTime() - wikiDate.getTime();
-      const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-      switch (dateFilter.value) {
-        case "today":
-          return diffDays < 1;
-        case "week":
-          return diffDays < 7;
-        case "month":
-          return diffDays < 30;
-        default:
-          return true;
-      }
-    });
-  }
-
-  const sorted = [...result].sort((a, b) => {
-    let comparison = 0;
-
-    switch (sortBy.value) {
-      case "title":
-        comparison = a.title.localeCompare(b.title);
-        break;
-      case "date":
-        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        break;
-      case "size":
-        comparison = a.content.length - b.content.length;
-        break;
-      case "relevance":
-        comparison = 0;
-        break;
-    }
-
-    return sortOrder.value === "asc" ? comparison : -comparison;
-  });
-
-  return sorted;
+  const query = searchQuery.value.toLowerCase();
+  return savedWikis.value.filter(
+    (wiki) =>
+      wiki.title.toLowerCase().includes(query) ||
+      wiki.content.toLowerCase().includes(query) ||
+      wiki.tags.some((tag) => tag.toLowerCase().includes(query)),
+  );
 });
 
 const groupedWikis = computed(() => {
@@ -120,44 +69,26 @@ const groupedWikis = computed(() => {
   return groups;
 });
 
-const selectWiki = (wikiId: string, checked: boolean) => {
-  if (checked) {
-    selectedWikis.value.add(wikiId);
-  } else {
-    selectedWikis.value.delete(wikiId);
+const updateReadme = async () => {
+  if (filteredWikis.value.length === 0 || updateReadmeState.value === "loading") return;
+
+  updateReadmeState.value = "loading";
+  try {
+    vscode.postMessage({
+      command: "updateReadme",
+      payload: {
+        wikiIds: filteredWikis.value.map((w) => w.id),
+        config: {
+          providerId: wikiStore.providerId,
+          model: wikiStore.model,
+          backupOriginal: true,
+        },
+      },
+    });
+  } catch (err) {
+    logger.error("Failed to update README", err);
+    updateReadmeState.value = "idle";
   }
-};
-
-const selectAll = () => {
-  if (selectedWikis.value.size === filteredWikis.value.length) {
-    selectedWikis.value.clear();
-  } else {
-    filteredWikis.value.forEach((wiki) => selectedWikis.value.add(wiki.id));
-  }
-};
-
-const createAggregation = () => {
-  if (selectedWikis.value.size === 0) return;
-  vscode.postMessage({
-    command: "navigate",
-    payload: { page: "wikiAggregation", preselectedWikis: Array.from(selectedWikis.value) },
-  });
-};
-
-const updateReadme = () => {
-  if (selectedWikis.value.size === 0) return;
-  vscode.postMessage({
-    command: "navigate",
-    payload: { page: "readmeUpdate", preselectedWikis: Array.from(selectedWikis.value) },
-  });
-};
-
-const exportWikis = () => {
-  if (selectedWikis.value.size === 0) return;
-  vscode.postMessage({
-    command: "exportWikis",
-    payload: { wikiIds: Array.from(selectedWikis.value) },
-  });
 };
 
 const showPreview = (wiki: SavedWiki, event: Event) => {
@@ -223,7 +154,16 @@ const handleMessage = (event: MessageEvent) => {
       break;
     case "wikiDeleted":
       savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
-      selectedWikis.value.delete(message.payload.wikiId);
+      break;
+    case "readmeUpdated":
+      if (message.payload.success) {
+        updateReadmeState.value = "done";
+        setTimeout(() => {
+          updateReadmeState.value = "idle";
+        }, 2000);
+      } else {
+        updateReadmeState.value = "idle";
+      }
       break;
     case "showNotification":
       if (message.payload.type === "error") {
@@ -260,59 +200,13 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full flex-col">
     <div class="border-border flex-shrink-0 border-b px-4 py-4">
-      <div class="flex items-center justify-between gap-3">
-        <h1 class="text-lg font-semibold">Project Wiki Collection</h1>
-        <button
-          class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
-          @click="() => loadSavedWikis(true)"
-        >
-          Refresh
-        </button>
-      </div>
-
-      <div class="mt-4 flex items-center gap-4">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search wikis..."
-          class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring max-w-md flex-1 rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-        />
-        <WikiFilters
-          :file-type-filter="fileTypeFilter"
-          :date-filter="dateFilter"
-          :relevance-filter="relevanceFilter"
-          @update:file-type-filter="fileTypeFilter = $event"
-          @update:date-filter="dateFilter = $event"
-          @update:relevance-filter="relevanceFilter = $event"
-        />
-        <div class="flex items-center gap-2">
-          <label class="text-muted-foreground text-xs">Sort:</label>
-          <select
-            v-model="sortBy"
-            class="border-input bg-muted text-foreground focus-visible:ring-ring rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1"
-          >
-            <option value="title">Title</option>
-            <option value="date">Date</option>
-            <option value="size">Size</option>
-            <option value="relevance">Relevance</option>
-          </select>
-          <button
-            class="border-input bg-muted text-foreground hover:bg-accent rounded-md border px-2 py-1 text-xs"
-            @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-          >
-            {{ sortOrder === "asc" ? "↑" : "↓" }}
-          </button>
-        </div>
-      </div>
+      <input
+        v-model="searchQuery"
+        type="text"
+        placeholder="Search wikis..."
+        class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+      />
     </div>
-
-    <WikiBulkActions
-      v-if="selectedWikis.size > 0"
-      :selected-count="selectedWikis.size"
-      @create-aggregation="createAggregation"
-      @update-readme="updateReadme"
-      @export="exportWikis"
-    />
 
     <div class="flex-1 overflow-hidden">
       <div v-if="isSavedWikisLoading" class="flex h-full w-full">
@@ -325,41 +219,36 @@ onBeforeUnmount(() => {
 
       <div
         v-else-if="filteredWikis.length === 0"
-        class="flex h-full w-full items-center justify-center px-4 py-6"
+        class="flex h-full w-full flex-col items-center justify-center px-4 py-6"
       >
         <div class="text-center">
           <div class="text-foreground mb-2 text-lg font-medium">
             {{ searchQuery ? "No wikis found" : "No saved wikis yet" }}
           </div>
-          <div class="text-muted-foreground text-sm">
+          <div class="text-muted-foreground mb-4 text-sm">
             {{
               searchQuery
                 ? "Try a different search term."
                 : "Generate and save some wikis to see them here."
             }}
           </div>
+          <button
+            class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
+            @click="() => loadSavedWikis(true)"
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
       <div v-else class="h-full overflow-y-auto">
-        <div class="border-border bg-background sticky top-0 z-10 border-b px-4 py-2">
-          <label class="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              :checked="selectedWikis.size === filteredWikis.length && filteredWikis.length > 0"
-              :indeterminate="selectedWikis.size > 0 && selectedWikis.size < filteredWikis.length"
-              @change="selectAll()"
-            />
-            Select All
-          </label>
-        </div>
         <div
           v-for="(wikis, date) in groupedWikis"
           :key="date"
           class="border-border border-b last:border-b-0"
         >
           <div
-            class="bg-muted/30 text-muted-foreground sticky top-[41px] z-10 px-4 py-2 text-xs font-medium uppercase tracking-wider"
+            class="bg-muted/50 text-muted-foreground sticky top-0 z-10 px-4 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-lg"
           >
             {{ date }}
           </div>
@@ -368,8 +257,7 @@ onBeforeUnmount(() => {
               v-for="wiki in wikis"
               :key="wiki.id"
               :wiki="wiki"
-              :selected="selectedWikis.has(wiki.id)"
-              @select="selectWiki"
+              :selected="false"
               @preview="showPreview"
               @delete="deleteWiki"
               @open="openWiki"
@@ -377,6 +265,55 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+    </div>
+
+    <div
+      v-if="filteredWikis.length > 0"
+      class="border-border bg-background flex-shrink-0 border-t px-4 py-4"
+    >
+      <Button
+        :disabled="updateReadmeState === 'loading'"
+        class="bg-foreground w-full text-sm"
+        @click="updateReadme"
+      >
+        <svg
+          v-if="updateReadmeState === 'loading'"
+          class="mr-2 h-4 w-4 animate-spin"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+        <svg
+          v-else-if="updateReadmeState === 'done'"
+          class="mr-2 h-4 w-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        {{
+          updateReadmeState === "loading"
+            ? "Updating..."
+            : updateReadmeState === "done"
+              ? "Done"
+              : "Update README.md"
+        }}
+      </Button>
     </div>
 
     <WikiPreviewModal :wiki="previewWiki" @close="previewWiki = null" />

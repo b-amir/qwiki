@@ -10,17 +10,16 @@ interface SavedWiki {
 
 interface Props {
   wiki: SavedWiki;
-  selected: boolean;
+  selected?: boolean;
 }
 
 interface Emits {
-  (e: "select", wikiId: string, checked: boolean): void;
   (e: "preview", wiki: SavedWiki, event: Event): void;
   (e: "delete", wikiId: string, event: Event): void;
   (e: "open", wiki: SavedWiki): void;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const formatCreatedAt = (date: Date) => {
@@ -41,31 +40,22 @@ const formatCreatedAt = (date: Date) => {
   >
     <div class="p-4">
       <div class="flex items-start justify-between gap-3">
-        <div class="flex min-w-0 flex-1 items-start gap-3">
-          <input
-            type="checkbox"
-            :checked="selected"
-            class="mt-1"
-            @click.stop
-            @change="emit('select', wiki.id, ($event.target as HTMLInputElement).checked)"
-          />
-          <div class="min-w-0 flex-1">
-            <div class="mb-1 truncate text-sm font-medium">{{ wiki.title }}</div>
-            <div class="text-muted-foreground mb-2 text-xs">
-              {{ formatCreatedAt(wiki.createdAt) }}
-            </div>
-            <div v-if="wiki.tags.length > 0" class="flex flex-wrap gap-1">
-              <span
-                v-for="tag in wiki.tags.slice(0, 3)"
-                :key="tag"
-                class="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-xs"
-              >
-                {{ tag }}
-              </span>
-              <span v-if="wiki.tags.length > 3" class="text-muted-foreground text-xs">
-                +{{ wiki.tags.length - 3 }}
-              </span>
-            </div>
+        <div class="min-w-0 flex-1">
+          <div class="mb-1 truncate text-sm font-medium">{{ wiki.title }}</div>
+          <div class="text-muted-foreground mb-2 text-xs">
+            {{ formatCreatedAt(wiki.createdAt) }}
+          </div>
+          <div v-if="wiki.tags.length > 0" class="flex flex-wrap gap-1">
+            <span
+              v-for="tag in wiki.tags.slice(0, 3)"
+              :key="tag"
+              class="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-xs"
+            >
+              {{ tag }}
+            </span>
+            <span v-if="wiki.tags.length > 3" class="text-muted-foreground text-xs">
+              +{{ wiki.tags.length - 3 }}
+            </span>
           </div>
         </div>
         <div class="flex flex-shrink-0 items-center gap-2">

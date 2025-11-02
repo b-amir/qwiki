@@ -7,8 +7,6 @@ import {
   SettingsPage,
   ErrorHistoryPage,
   SavedWikisPage,
-  WikiAggregationPage,
-  ReadmeUpdatePage,
 } from "@/components/pages";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
@@ -90,7 +88,7 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
   <main class="bg-background flex h-full w-full flex-col">
     <TopBar />
 
-    <div class="flex-1 overflow-auto py-3">
+    <div class="flex-1 overflow-auto">
       <div v-if="currentPage === 'wiki'" class="flex h-full flex-col">
         <LoadingState v-if="environmentLoading" class="flex-1" context="environment" />
         <LoadingState v-else-if="wikiNavigationLoading" class="flex-1" context="navigation" />
@@ -101,7 +99,7 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
         </template>
       </div>
 
-      <div v-else-if="currentPage === 'settings'" class="settings-page-container flex h-full">
+      <div v-else-if="currentPage === 'settings'" class="settings-page-container flex h-full pb-4">
         <LoadingState v-if="settingsNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
           v-else-if="settingsLoadingContext.isActive.value"
@@ -123,14 +121,6 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
 
       <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
         <SavedWikisPage class="flex-1" />
-      </div>
-
-      <div v-else-if="currentPage === 'wikiAggregation'" class="flex h-full">
-        <WikiAggregationPage class="flex-1" />
-      </div>
-
-      <div v-else-if="currentPage === 'readmeUpdate'" class="flex h-full">
-        <ReadmeUpdatePage class="flex-1" />
       </div>
     </div>
   </main>

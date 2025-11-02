@@ -21,10 +21,7 @@ export const CommandIds = {
   saveWiki: "saveWiki",
   getSavedWikis: "getSavedWikis",
   deleteWiki: "deleteWiki",
-  createAggregation: "createAggregation",
   updateReadme: "updateReadme",
-  previewReadmeUpdate: "previewReadmeUpdate",
-  getAggregations: "getAggregations",
 } as const;
 
 export const VSCodeCommandIds = {
@@ -33,8 +30,6 @@ export const VSCodeCommandIds = {
   viewSavedWikis: "qwiki.viewSavedWikis",
   viewErrorHistory: "qwiki.viewErrorHistory",
   createQuickWiki: "qwiki.createQuickWiki",
-  createWikiAggregation: "qwiki.createWikiAggregation",
-  updateReadme: "qwiki.updateReadme",
   openPanelView: "workbench.view.extension.qwiki",
   wikiViewId: "qwiki.wikiView",
 } as const;

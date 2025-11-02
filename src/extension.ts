@@ -32,25 +32,12 @@ export function activate(context: ExtensionContext) {
     provider.createWikiFromEditorSelection();
   });
 
-  const createWikiAggregationCommand = commands.registerCommand(
-    VSCodeCommandIds.createWikiAggregation,
-    () => {
-      provider.showWikiAggregation();
-    },
-  );
-
-  const updateReadmeCommand = commands.registerCommand(VSCodeCommandIds.updateReadme, () => {
-    provider.showReadmeUpdate();
-  });
-
   context.subscriptions.push(
     showQwikiCommand,
     showSettingsCommand,
     showSavedWikisCommand,
     showErrorHistoryCommand,
     createQuickWikiCommand,
-    createWikiAggregationCommand,
-    updateReadmeCommand,
   );
 }
 
