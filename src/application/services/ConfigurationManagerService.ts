@@ -1,3 +1,4 @@
+import { workspace, type ExtensionContext } from "vscode";
 import type { ConfigurationRepository } from "../../domain/repositories/ConfigurationRepository";
 import type {
   ProviderConfiguration,
@@ -23,9 +24,16 @@ import type {
   ImportOptions,
 } from "./ConfigurationImportExportService";
 import { ServiceLimits } from "../../constants";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 export class ConfigurationManagerService {
   private configCache = new Map<string, any>();
+  private logger: Logger;
+  private disposables: Array<{ dispose(): void }> = [];
 
   constructor(
     private configurationRepository: ConfigurationRepository,
@@ -33,10 +41,49 @@ export class ConfigurationManagerService {
     private validationEngine: ConfigurationValidationEngineService,
     private templateService: ConfigurationTemplateService,
     private importExportService: ConfigurationImportExportService,
-  ) {}
+    private ctx?: ExtensionContext,
+    private loggingService?: LoggingService,
+  ) {
+    this.logger = loggingService
+      ? createLogger("ConfigurationManagerService", loggingService)
+      : {
+          debug: () => {},
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+        };
+  }
 
   async initialize(): Promise<void> {
     await this.refreshCache();
+    this.setupConfigurationChangeListener();
+  }
+
+  private setupConfigurationChangeListener(): void {
+    if (!this.ctx) {
+      return;
+    }
+
+    const configurationChangeListener = workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration("qwiki")) {
+        this.logger.info("Qwiki configuration changed, reloading...");
+        try {
+          await this.reloadConfiguration();
+          this.logger.info("Configuration reloaded successfully");
+        } catch (error) {
+          this.logger.error("Failed to reload configuration after change", error);
+        }
+      }
+    });
+
+    this.disposables.push(configurationChangeListener);
+    this.ctx.subscriptions.push(configurationChangeListener);
+  }
+
+  async reloadConfiguration(): Promise<void> {
+    this.configCache.clear();
+    await this.refreshCache();
+    await this.eventBus.publish("configurationReloaded", {});
   }
 
   async getProviderConfig(providerId: string): Promise<ProviderConfiguration | undefined> {

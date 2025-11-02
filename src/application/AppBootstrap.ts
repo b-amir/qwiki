@@ -170,6 +170,8 @@ export class AppBootstrap {
           this.container.resolve("configurationValidationEngine"),
           this.container.resolve("configurationTemplateService"),
           this.container.resolve("configurationImportExportService"),
+          this.context,
+          this.loggingService,
         ),
     );
 
@@ -689,6 +691,10 @@ export class AppBootstrap {
       }
     } catch (error) {
       this.logger.warn("Error stopping health monitoring during disposal", error);
+    }
+
+    if (this.loggingService && typeof this.loggingService.dispose === "function") {
+      this.loggingService.dispose();
     }
 
     await this.container.dispose();

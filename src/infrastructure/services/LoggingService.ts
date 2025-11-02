@@ -1,3 +1,5 @@
+import { window, OutputChannel } from "vscode";
+
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LogEntry {
@@ -57,6 +59,34 @@ class ConsoleOutput implements LogOutput {
   }
 }
 
+class OutputChannelOutput implements LogOutput {
+  private outputChannel: OutputChannel;
+
+  constructor(
+    private formatter: LogFormatter,
+    channelName: string = "Qwiki",
+  ) {
+    this.outputChannel = window.createOutputChannel(channelName);
+  }
+
+  write(entry: LogEntry): void {
+    const formatted = this.formatter.format(entry);
+    this.outputChannel.appendLine(formatted);
+
+    if (entry.data !== undefined) {
+      this.outputChannel.appendLine(`  Data: ${JSON.stringify(entry.data, null, 2)}`);
+    }
+
+    if (entry.level === "error") {
+      this.outputChannel.show(true);
+    }
+  }
+
+  dispose(): void {
+    this.outputChannel.dispose();
+  }
+}
+
 class DefaultFormatter implements LogFormatter {
   constructor(private config: LoggerConfig) {}
 
@@ -82,14 +112,21 @@ class DefaultFormatter implements LogFormatter {
 export class LoggingService {
   private outputs: LogOutput[] = [];
   private formatter: LogFormatter;
+  private outputChannelOutput?: OutputChannelOutput;
 
   constructor(
     private config: LoggerConfig,
     outputs?: LogOutput[],
     formatter?: LogFormatter,
+    enableOutputChannel: boolean = true,
   ) {
     this.formatter = formatter || new DefaultFormatter(config);
     this.outputs = outputs || [new ConsoleOutput(this.formatter)];
+
+    if (enableOutputChannel) {
+      this.outputChannelOutput = new OutputChannelOutput(this.formatter);
+      this.outputs.push(this.outputChannelOutput);
+    }
   }
 
   addOutput(output: LogOutput): void {
@@ -140,7 +177,9 @@ export class LoggingService {
       try {
         output.write(entry);
       } catch (error) {
-        console.error("Log output failed:", error);
+        try {
+          console.error("Log output failed:", error);
+        } catch {}
       }
     }
   }
@@ -151,18 +190,21 @@ export class LoggingService {
     }
     return levelOrder[level] >= levelOrder[this.config.level];
   }
+
+  dispose(): void {
+    if (this.outputChannelOutput) {
+      this.outputChannelOutput.dispose();
+      this.outputChannelOutput = undefined;
+    }
+  }
 }
 
 export function createLogger(serviceName: string, loggingService: LoggingService) {
   return {
-    debug: (message: string, data?: unknown) =>
-      loggingService.debug(serviceName, message, data),
-    info: (message: string, data?: unknown) =>
-      loggingService.info(serviceName, message, data),
-    warn: (message: string, data?: unknown) =>
-      loggingService.warn(serviceName, message, data),
-    error: (message: string, data?: unknown) =>
-      loggingService.error(serviceName, message, data),
+    debug: (message: string, data?: unknown) => loggingService.debug(serviceName, message, data),
+    info: (message: string, data?: unknown) => loggingService.info(serviceName, message, data),
+    warn: (message: string, data?: unknown) => loggingService.warn(serviceName, message, data),
+    error: (message: string, data?: unknown) => loggingService.error(serviceName, message, data),
   };
 }
 
