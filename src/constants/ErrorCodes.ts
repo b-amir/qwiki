@@ -6,6 +6,13 @@ export const ErrorCodes = {
   missingProvider: "error.missingProvider",
   invalidConfiguration: "error.invalidConfiguration",
   missingCommand: "error.missingCommand",
+  apiKeyMissing: "error.apiKeyMissing",
+  apiKeyInvalid: "error.apiKeyInvalid",
+  invalidModel: "error.invalidModel",
+  providerDisabled: "error.providerDisabled",
+  customFieldMissing: "error.customFieldMissing",
+  providerNotConfigured: "error.providerNotConfigured",
+  validationFailed: "error.validationFailed",
 } as const;
 
 export const ErrorMessages = {
@@ -16,4 +23,11 @@ export const ErrorMessages = {
   [ErrorCodes.missingProvider]: "Provider not available",
   [ErrorCodes.invalidConfiguration]: "Invalid configuration",
   [ErrorCodes.missingCommand]: "Command not found",
+  [ErrorCodes.apiKeyMissing]: "API key is required",
+  [ErrorCodes.apiKeyInvalid]: "API key is invalid",
+  [ErrorCodes.invalidModel]: "Model is not available",
+  [ErrorCodes.providerDisabled]: "Provider is disabled",
+  [ErrorCodes.customFieldMissing]: "Custom field is missing",
+  [ErrorCodes.providerNotConfigured]: "Provider is not configured",
+  [ErrorCodes.validationFailed]: "Validation failed",
 } as const;

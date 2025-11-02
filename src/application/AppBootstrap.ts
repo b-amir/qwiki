@@ -44,6 +44,8 @@ import {
   DebouncingService,
   BackgroundProcessingService,
   MemoryOptimizationService,
+  ProviderValidationService,
+  type ValidationResult,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
 import { StatisticsCalculationService } from "../infrastructure/services/performance/StatisticsCalculationService";
@@ -293,6 +295,17 @@ export class AppBootstrap {
         ),
     );
 
+    this.container.registerLazy(
+      "providerValidationService",
+      async () =>
+        new ProviderValidationService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("configurationManager"),
+          this.container.resolve("apiKeyRepository"),
+          this.loggingService,
+        ),
+    );
+
     this.container.registerLazy("providerPerformanceService", async () => {
       const metricsCollectionService = new MetricsCollectionService(
         this.container.resolve("eventBus"),
@@ -331,6 +344,7 @@ export class AppBootstrap {
           this.container.resolve("projectContextService"),
           this.container.resolve("errorRecoveryService"),
           this.container.resolve("errorLoggingService"),
+          await this.container.resolveLazy("providerValidationService"),
           this.loggingService,
         ),
     );

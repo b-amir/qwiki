@@ -9,8 +9,10 @@ import {
   LoggingService,
   createLogger,
   type Logger,
+  type ProviderValidationService,
 } from "../../infrastructure/services";
-import { ProviderError, ErrorCodes, getErrorMessage } from "../../errors";
+import { ProviderError, ErrorCodes } from "../../errors";
+import { publishValidationError } from "./ErrorHandlingHelpers";
 
 export class WikiEventHandler {
   private logger: Logger;
@@ -21,6 +23,7 @@ export class WikiEventHandler {
     private projectContextService: any,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
+    private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
       level: "error",
@@ -54,6 +57,22 @@ export class WikiEventHandler {
     });
 
     try {
+      this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.validating });
+
+      const validationResult = await this.providerValidationService.validateBeforeGeneration(
+        payload.providerId,
+        payload.model,
+      );
+
+      if (!validationResult.isValid) {
+        this.logger.error("Validation failed before generation", {
+          errors: validationResult.errors,
+          warnings: validationResult.warnings,
+        });
+        await publishValidationError(validationResult, this.eventBus, this.logger);
+        return;
+      }
+
       const buildContextStart = Date.now();
       this.logger.info("Starting project context build", {
         filePath: payload.filePath,

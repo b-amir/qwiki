@@ -29,3 +29,4 @@ export {
   type LoggerConfig,
   type Logger,
 } from "./LoggingService";
+export { ProviderValidationService, type ValidationResult } from "./ProviderValidationService";
