@@ -112,7 +112,14 @@ export class WebviewMessageHandler {
   }
 
   private async handleCommand(command: string, payload: any, receiveTs: number): Promise<void> {
-    if (!this.commandRegistry?.has(command)) {
+    if (!this.commandRegistry) {
+      this.logger.debug(
+        `Command ${command} received but command registry not yet initialized, ignoring`,
+      );
+      return;
+    }
+
+    if (!this.commandRegistry.has(command)) {
       this.logger.warn(`Command ${command} not found in registry`);
       return;
     }
