@@ -50,4 +50,11 @@ export const ServiceLimits = {
   contextIntelligenceMaxFileAnalysis: 200,
   contextIntelligenceSlowAnalysisThreshold: 1000,
   contextIntelligenceKeyFilesLimit: 10,
+  statusBarItemPriority: 100,
+  treeViewInitializationDelay: 1000,
+  commandThrottleDelay: 1000,
+  messageBusDebounceDelay: 50,
+  environmentStatusDebounceDelay: 200,
+  errorContextMaxLength: 500,
+  languageStatusCheckInterval: 3000,
 } as const;

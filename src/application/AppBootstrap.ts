@@ -681,6 +681,11 @@ export class AppBootstrap {
     });
     commandRegistry.addDisposer(unsubError);
 
+    const unsubGenerationCancelled = eventBus.subscribe(OutboundEvents.generationCancelled, () => {
+      messageBus.postImmediate(OutboundEvents.generationCancelled, {});
+    });
+    commandRegistry.addDisposer(unsubGenerationCancelled);
+
     return commandRegistry;
   }
 

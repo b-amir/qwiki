@@ -34,3 +34,24 @@ export interface LoadingProgressMessage {
   step: string;
   percent?: number;
 }
+
+export function getProgressMessageForStep(step: LoadingStep): string {
+  const messageMap: Record<LoadingStep, string> = {
+    [LoadingSteps.validating]: "Validating provider configuration...",
+    [LoadingSteps.buildingContext]: "Building project context...",
+    [LoadingSteps.selectingContext]: "Selecting optimal context...",
+    [LoadingSteps.analyzingProject]: "Analyzing project structure...",
+    [LoadingSteps.analyzing]: "Analyzing code structure...",
+    [LoadingSteps.finding]: "Finding related files...",
+    [LoadingSteps.preparing]: "Preparing LLM request...",
+    [LoadingSteps.buildingPrompt]: "Building documentation prompt...",
+    [LoadingSteps.sendingRequest]: "Sending request to LLM...",
+    [LoadingSteps.waitingForResponse]: "Waiting for LLM response...",
+    [LoadingSteps.processing]: "Processing response...",
+    [LoadingSteps.finalizing]: "Finalizing documentation...",
+    [LoadingSteps.extensionLoading]: "Preparing Qwiki services...",
+    [LoadingSteps.languageServerLoading]: "Waiting for language features...",
+    [LoadingSteps.loading]: "Loading...",
+  };
+  return messageMap[step] || "Processing...";
+}

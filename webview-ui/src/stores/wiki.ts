@@ -131,7 +131,29 @@ export const useWikiStore = defineStore("wiki", {
             this.related = Array.isArray(related) ? related : [];
             return;
           }
+          case "generationCancelled": {
+            this.loading = false;
+            this.loadingStep = "";
+            this.error = "";
+            this.errorInfo = null;
+            this.content = "";
+            loadingStore.cancel({ context: "wiki", reason: "Generation cancelled" });
+            return;
+          }
           case "error": {
+            const errorCode = message.payload?.code;
+            const isCancellation = errorCode === "GENERATION_CANCELLED";
+
+            if (isCancellation) {
+              this.loading = false;
+              this.loadingStep = "";
+              this.error = "";
+              this.errorInfo = null;
+              this.content = "";
+              loadingStore.cancel({ context: "wiki", reason: "Generation cancelled" });
+              return;
+            }
+
             this.loading = false;
             this.loadingStep = "";
             this.error = message.payload?.message || "Unknown error";
@@ -159,6 +181,9 @@ export const useWikiStore = defineStore("wiki", {
             return;
           }
           case "loadingStep": {
+            if (!this.loading) {
+              return;
+            }
             this.loadingStep = message.payload?.step || "";
             if (this.loadingStep) {
               loadingStore.advance({ context: "wiki", step: this.loadingStep });
@@ -316,19 +341,26 @@ export const useWikiStore = defineStore("wiki", {
       useLoadingStore().reset("wiki");
     },
     cancelPendingActions() {
-      if (this.generateRequestId) {
-        vscode.postMessage({
-          command: "cancelWikiGeneration",
-          payload: { requestId: this.generateRequestId },
-        });
-      }
+      const requestId = this.generateRequestId;
 
       this.loading = false;
       this.loadingStep = "";
       this.pendingAutoGenerate = false;
       this.generateRequestId = null;
 
+      const loadingStore = useLoadingStore();
+      if (loadingStore.isActive("wiki")) {
+        loadingStore.cancel({ context: "wiki", reason: "User cancelled" });
+      }
+
       this.clearContent();
+
+      if (requestId) {
+        vscode.postMessage({
+          command: "cancelWikiGeneration",
+          payload: { requestId },
+        });
+      }
     },
     retryGeneration() {
       if (this.errorInfo?.retryable) {

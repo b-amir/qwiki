@@ -2,6 +2,7 @@ import type { Webview } from "vscode";
 import { OutboundEvents } from "../../constants/Events";
 import type { LoadingStep } from "../../constants/Events";
 import { ErrorCodes } from "../../constants/ErrorCodes";
+import { ServiceLimits } from "../../constants";
 import { WebviewOptimizerService } from "../../infrastructure/services/WebviewOptimizerService";
 import { DebouncingService } from "../../infrastructure/services/DebouncingService";
 import {
@@ -33,14 +34,14 @@ export class MessageBusService {
       (command: string, payload?: any) => {
         this.optimizer.postMessage(command, payload);
       },
-      50,
+      ServiceLimits.messageBusDebounceDelay,
       { leading: false, trailing: true },
     );
     this.debouncedEnvironmentStatus = this.debouncingService.debounce(
       (command: string, payload?: any) => {
         this.optimizer.postMessage(command, payload);
       },
-      200,
+      ServiceLimits.environmentStatusDebounceDelay,
       { leading: false, trailing: true },
     );
   }
@@ -91,7 +92,9 @@ export class MessageBusService {
       suggestion,
       originalError,
       timestamp: new Date().toISOString(),
-      context: context ? JSON.stringify(context).substring(0, 500) : undefined,
+      context: context
+        ? JSON.stringify(context).substring(0, ServiceLimits.errorContextMaxLength)
+        : undefined,
     });
   }
 

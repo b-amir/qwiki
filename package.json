@@ -280,9 +280,19 @@
       {
         "command": "qwiki.selectProvider",
         "title": "Qwiki: Select Provider"
+      },
+      {
+        "command": "qwiki.cancelActiveRequest",
+        "title": "Qwiki: Cancel Active Request"
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "qwiki.cancelActiveRequest",
+          "when": "qwiki.hasActiveGeneration"
+        }
+      ],
       "editor/context": [
         {
           "command": "qwiki.createQuickWiki",
@@ -300,7 +310,7 @@
         "when": "editorTextFocus"
       }
     ],
-      "views": {
+    "views": {
       "qwiki": [
         {
           "id": "qwiki.wikiView",

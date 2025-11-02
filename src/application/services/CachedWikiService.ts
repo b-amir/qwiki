@@ -1,3 +1,4 @@
+import { CancellationToken } from "vscode";
 import { CachingService } from "../../infrastructure/services/CachingService";
 import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import {
@@ -42,6 +43,7 @@ export class CachedWikiService {
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
     onProgress?: (step: LoadingStep) => void,
+    cancellationToken?: CancellationToken,
   ): Promise<WikiGenerationResult> {
     const endTimer = this.performanceMonitor.startTimer("generateWiki", {
       providerId: request.providerId,
@@ -58,7 +60,12 @@ export class CachedWikiService {
       return cached;
     }
 
-    const result = await this.wikiService.generateWiki(request, projectContext, onProgress);
+    const result = await this.wikiService.generateWiki(
+      request,
+      projectContext,
+      onProgress,
+      cancellationToken,
+    );
 
     if (result.success) {
       await this.cacheService.set(cacheKey, result, { ttl: this.CACHE_TTL });

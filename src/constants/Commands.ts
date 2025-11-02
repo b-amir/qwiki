@@ -33,6 +33,9 @@ export const VSCodeCommandIds = {
   viewErrorHistory: "qwiki.viewErrorHistory",
   createQuickWiki: "qwiki.createQuickWiki",
   selectProvider: "qwiki.selectProvider",
+  showCommands: "qwiki.showCommands",
+  cancelGeneration: "qwiki.cancelGeneration",
+  cancelActiveRequest: "qwiki.cancelActiveRequest",
   openPanelView: "workbench.view.extension.qwiki",
   wikiViewId: "qwiki.wikiView",
 } as const;

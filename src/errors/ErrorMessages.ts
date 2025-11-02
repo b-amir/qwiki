@@ -34,6 +34,10 @@ export const ErrorMessages = {
     suggestion:
       "Please try again with a different provider or check if your code selection is valid. You can also try with a smaller code snippet.",
   },
+  [ErrorCodes.GENERATION_CANCELLED]: {
+    message: "Documentation generation was cancelled.",
+    suggestion: "You can start a new generation when ready.",
+  },
   [ErrorCodes.VALIDATION_ERROR]: {
     message: "Invalid configuration detected for {providerName}.",
     suggestion:

@@ -1,14 +1,28 @@
-import { ExtensionContext, window, commands, StatusBarAlignment, TreeView } from "vscode";
+import {
+  ExtensionContext,
+  window,
+  commands,
+  StatusBarAlignment,
+  TreeView,
+  StatusBarItem,
+} from "vscode";
 import { QwikiPanel } from "./panels/QwikiPanel";
-import { VSCodeCommandIds, Pages } from "./constants";
+import { VSCodeCommandIds, Pages, ServiceLimits } from "./constants";
 import { SelectProviderCommand } from "./application/commands/SelectProviderCommand";
 import { SavedWikisTreeDataProvider } from "./views/SavedWikisTreeView";
+import { WikiEventHandler } from "./events/handlers/WikiEventHandler";
 
 let qwikiProvider: QwikiPanel | undefined;
 let savedWikisTreeProvider: SavedWikisTreeDataProvider | undefined;
 let savedWikisTreeView: TreeView<any> | undefined;
 
+export let qwikiStatusBarItem: StatusBarItem | null = null;
+
+export const HAS_ACTIVE_GENERATION_CONTEXT = "qwiki.hasActiveGeneration";
+
 export function activate(context: ExtensionContext) {
+  commands.executeCommand("setContext", HAS_ACTIVE_GENERATION_CONTEXT, false);
+
   qwikiProvider = new QwikiPanel(context.extensionUri, context);
 
   context.subscriptions.push(
@@ -38,7 +52,7 @@ export function activate(context: ExtensionContext) {
 
   setTimeout(() => {
     initializeTreeView().catch(() => {});
-  }, 1000);
+  }, ServiceLimits.treeViewInitializationDelay);
 
   const showQwikiCommand = commands.registerCommand(VSCodeCommandIds.showPanel, () => {
     commands.executeCommand(VSCodeCommandIds.openPanelView);
@@ -99,12 +113,87 @@ export function activate(context: ExtensionContext) {
     },
   );
 
-  const statusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
-  statusBarItem.command = VSCodeCommandIds.showPanel;
-  statusBarItem.text = "$(book) Qwiki";
-  statusBarItem.tooltip = "Open Qwiki";
-  statusBarItem.show();
-  context.subscriptions.push(statusBarItem);
+  qwikiStatusBarItem = window.createStatusBarItem(
+    StatusBarAlignment.Right,
+    ServiceLimits.statusBarItemPriority,
+  );
+  qwikiStatusBarItem.command = VSCodeCommandIds.showCommands;
+  qwikiStatusBarItem.text = "Qwiki";
+  qwikiStatusBarItem.tooltip = "Click to open Qwiki commands";
+  qwikiStatusBarItem.show();
+  context.subscriptions.push(qwikiStatusBarItem);
+
+  const showCommandsCommand = commands.registerCommand(VSCodeCommandIds.showCommands, async () => {
+    const qwikiCommands: Array<{ label: string; command: string; description: string }> = [
+      {
+        label: "Show Panel",
+        command: VSCodeCommandIds.showPanel,
+        description: "Open Qwiki panel",
+      },
+      {
+        label: "Create a quick wiki!",
+        command: VSCodeCommandIds.createQuickWiki,
+        description: "Generate wiki from selected code",
+      },
+      {
+        label: "Saved Wikis",
+        command: VSCodeCommandIds.viewSavedWikis,
+        description: "View saved wikis",
+      },
+      {
+        label: "Select Provider",
+        command: VSCodeCommandIds.selectProvider,
+        description: "Select LLM provider",
+      },
+      {
+        label: "Error History",
+        command: VSCodeCommandIds.viewErrorHistory,
+        description: "View error history",
+      },
+      {
+        label: "Settings",
+        command: VSCodeCommandIds.viewSettings,
+        description: "Open Qwiki settings",
+      },
+    ];
+
+    if (WikiEventHandler.instance?.hasActiveGeneration()) {
+      qwikiCommands.push({
+        label: "Cancel Active Request",
+        command: VSCodeCommandIds.cancelActiveRequest,
+        description: "Cancel active wiki generation",
+      });
+    }
+
+    const selected = await window.showQuickPick(qwikiCommands, {
+      placeHolder: "Select a Qwiki command...",
+    });
+
+    if (selected) {
+      commands.executeCommand(selected.command);
+    }
+  });
+
+  const cancelGenerationCommand = commands.registerCommand(
+    VSCodeCommandIds.cancelGeneration,
+    () => {
+      if (WikiEventHandler.instance) {
+        WikiEventHandler.instance.cancelActiveGeneration();
+      }
+    },
+  );
+
+  const cancelActiveRequestCommand = commands.registerCommand(
+    VSCodeCommandIds.cancelActiveRequest,
+    () => {
+      if (WikiEventHandler.instance) {
+        WikiEventHandler.instance.cancelActiveGeneration();
+        window.showInformationMessage("Qwiki: Generation cancelled");
+      } else {
+        window.showInformationMessage("Qwiki: No active generation to cancel");
+      }
+    },
+  );
 
   context.subscriptions.push(
     showQwikiCommand,
@@ -113,6 +202,9 @@ export function activate(context: ExtensionContext) {
     showErrorHistoryCommand,
     createQuickWikiCommand,
     selectProviderCommand,
+    showCommandsCommand,
+    cancelGenerationCommand,
+    cancelActiveRequestCommand,
   );
 }
 

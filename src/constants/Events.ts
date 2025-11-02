@@ -39,6 +39,7 @@ export const OutboundEvents = {
   showNotification: "showNotification",
   environmentStatus: "environmentStatus",
   readmeUpdated: "readmeUpdated",
+  generationCancelled: "generationCancelled",
 } as const;
 
 export { LoadingSteps } from "./loading";

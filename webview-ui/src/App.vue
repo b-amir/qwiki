@@ -116,7 +116,17 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
       <div v-if="currentPage === 'wiki'" class="flex h-full flex-col">
         <LoadingState v-if="environmentLoading" class="flex-1" context="environment" />
         <LoadingState v-else-if="wikiNavigationLoading" class="flex-1" context="navigation" />
-        <LoadingState v-else-if="showWikiLoading" class="flex-1" context="wiki" />
+        <template v-else-if="showWikiLoading">
+          <LoadingState class="flex-1" context="wiki" />
+          <div class="flex justify-center pb-4">
+            <button
+              class="text-muted-foreground hover:text-muted-foreground/80 py-2 text-xs sm:text-sm"
+              @click="wiki.cancelPendingActions"
+            >
+              Cancel
+            </button>
+          </div>
+        </template>
         <template v-else>
           <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
           <WikiPage v-else />

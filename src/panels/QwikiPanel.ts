@@ -1,20 +1,8 @@
-import {
-  Disposable,
-  WebviewView,
-  Uri,
-  window,
-  workspace,
-  extensions,
-  ExtensionContext,
-  commands,
-  Webview,
-} from "vscode";
+import { Disposable, WebviewView, Uri, window, ExtensionContext, commands } from "vscode";
 import { AppBootstrap, CommandRegistry } from "../application";
 import { getWebviewHtml } from "./webviewContent";
-import { tryOpenFile } from "./fileOps";
-import { Inbound, Outbound, Page, Pages } from "./constants";
+import { Pages } from "./constants";
 import { WebviewPaths, VSCodeCommandIds, MessageStrings } from "../constants";
-import { BaseError } from "../errors";
 import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
 import { MessageBusService } from "../application/services/MessageBusService";
 import {
@@ -22,36 +10,15 @@ import {
   createLogger,
   type Logger,
 } from "../infrastructure/services/LoggingService";
-
-type SelectionPayload = {
-  text: string;
-  languageId?: string;
-  filePath?: string;
-};
-
-type EnvironmentStatusPayload = {
-  extension: {
-    ready: boolean;
-    message: string;
-    reason?: string;
-  };
-  languageServer: {
-    ready: boolean;
-    languageId?: string;
-    message: string;
-    reason?: string;
-    extensions?: string[];
-  };
-};
+import { LanguageStatusMonitor } from "./LanguageStatusMonitor";
+import { EnvironmentStatusManager } from "./EnvironmentStatusManager";
+import { WebviewMessageHandler } from "./WebviewMessageHandler";
+import { NavigationManager, type SelectionPayload } from "./NavigationManager";
 
 export class QwikiPanel {
   private readonly _extensionUri: Uri;
   private view?: WebviewView;
-  private _webviewReady = false;
-  private _pendingPage: Page | undefined;
   private _disposables: Disposable[] = [];
-  private _pendingSelection: { payload: SelectionPayload; autoGenerate: boolean } | undefined;
-  private _lastSelection: SelectionPayload | undefined;
   private bootstrap: AppBootstrap;
   private commandRegistry: CommandRegistry | undefined;
   private errorHandler: ErrorHandler | undefined;
@@ -59,27 +26,10 @@ export class QwikiPanel {
   private messageBus: MessageBusService | undefined;
   private loggingService: LoggingService;
   private logger: Logger;
-  private _extensionStatus = {
-    ready: false,
-    message: "Preparing Qwiki services...",
-    reason: "initializing",
-  };
-  private _languageStatus: {
-    ready: boolean;
-    languageId?: string;
-    message: string;
-    reason?: string;
-    extensions?: string[];
-  } = {
-    ready: true,
-    message: "",
-    reason: "unknown",
-  };
-  private _latestEnvironmentStatus: EnvironmentStatusPayload | undefined;
-  private _languageStatusInterval: NodeJS.Timeout | undefined;
-  private _lastBroadcastedStatus: string | undefined;
-  private _lastCommandExecutionTime = new Map<string, number>();
-  private readonly COMMAND_THROTTLE_DELAY = 1000; // 1 second throttle
+  private languageStatusMonitor: LanguageStatusMonitor | undefined;
+  private environmentStatusManager: EnvironmentStatusManager | undefined;
+  private webviewMessageHandler: WebviewMessageHandler | undefined;
+  private navigationManager: NavigationManager | undefined;
 
   constructor(
     extensionUri: Uri,
@@ -101,8 +51,6 @@ export class QwikiPanel {
     }
     this.logger = createLogger("QwikiPanel", this.loggingService);
     this._initPromise = this.initializeAsync();
-    this._broadcastEnvironmentStatus();
-    this._startLanguageMonitoring();
   }
 
   private logDebug(message: string, data?: unknown): void {
@@ -127,12 +75,11 @@ export class QwikiPanel {
       this.logInfo("bootstrap.initialize completed successfully");
     } catch (e) {
       this.logError("bootstrap.initialize failed", e);
-      this._extensionStatus = {
+      this.environmentStatusManager?.setExtensionStatus({
         ready: false,
         message: "Failed to initialize Qwiki services.",
         reason: "error",
-      };
-      this._broadcastEnvironmentStatus();
+      });
       return;
     }
 
@@ -141,21 +88,19 @@ export class QwikiPanel {
       this.logInfo("initializeEventHandlers completed successfully");
     } catch (e) {
       this.logError("initializeEventHandlers failed", e);
-      this._extensionStatus = {
+      this.environmentStatusManager?.setExtensionStatus({
         ready: false,
         message: "Failed to initialize Qwiki event handlers.",
         reason: "error",
-      };
-      this._broadcastEnvironmentStatus();
+      });
       return;
     }
 
-    this._extensionStatus = {
+    this.environmentStatusManager?.setExtensionStatus({
       ready: true,
       message: "Qwiki services ready.",
       reason: "ready",
-    };
-    this._broadcastEnvironmentStatus();
+    });
 
     try {
       this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
@@ -181,16 +126,15 @@ export class QwikiPanel {
 
     this.view = webviewView;
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
-    this._webviewReady = false;
     this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
-    this._setWebviewMessageListener(webviewView.webview);
-    this._flushEnvironmentStatus();
+    this.initializeManagers(webviewView.webview);
     this.bootstrap
       .createCommandRegistry(webviewView.webview)
       .then((registry) => {
         this.commandRegistry = registry;
         this.logInfo("createCommandRegistry completed successfully");
-        this._setupWikiWatcherListener();
+        this.setupWikiWatcherListener();
+        this.updateWebviewMessageHandler();
       })
       .catch((e) => {
         this.logError("createCommandRegistry failed", e);
@@ -207,13 +151,66 @@ export class QwikiPanel {
     );
   }
 
-  private _setupWikiWatcherListener(): void {
+  private initializeManagers(webview: any): void {
+    this.environmentStatusManager = new EnvironmentStatusManager(
+      this.messageBus,
+      this.view,
+      {
+        getLanguageStatus: () =>
+          this.languageStatusMonitor?.getLanguageStatus() || {
+            ready: true,
+            message: "",
+            reason: "unknown",
+          },
+      },
+      this.loggingService,
+    );
+
+    this.languageStatusMonitor = new LanguageStatusMonitor(this.loggingService, () => {
+      this.environmentStatusManager?.broadcastEnvironmentStatus();
+    });
+    this.languageStatusMonitor.startMonitoring();
+
+    this.navigationManager = new NavigationManager(this.messageBus, this.view);
+
+    this.webviewMessageHandler = new WebviewMessageHandler(
+      webview,
+      this.messageBus,
+      this.commandRegistry,
+      this.errorHandler,
+      this._initPromise,
+      this.loggingService,
+      () => this.cancelActiveGeneration(),
+      this.navigationManager,
+    );
+    this.webviewMessageHandler.setupMessageListener();
+
+    this.environmentStatusManager.flushEnvironmentStatus();
+  }
+
+  private updateWebviewMessageHandler(): void {
+    if (this.webviewMessageHandler && this.view?.webview) {
+      this.webviewMessageHandler = new WebviewMessageHandler(
+        this.view.webview,
+        this.messageBus,
+        this.commandRegistry,
+        this.errorHandler,
+        this._initPromise,
+        this.loggingService,
+        () => this.cancelActiveGeneration(),
+        this.navigationManager,
+      );
+      this.webviewMessageHandler.setupMessageListener();
+    }
+  }
+
+  private setupWikiWatcherListener(): void {
     try {
       const eventBus = this.bootstrap.getContainer().resolve("eventBus") as any;
       if (eventBus && typeof eventBus.subscribe === "function") {
         const unsubscribe = eventBus.subscribe("savedWikisChanged", async () => {
           this.logDebug("savedWikisChanged event received, refreshing saved wikis");
-          if (this.commandRegistry && this._webviewReady) {
+          if (this.commandRegistry && this.navigationManager) {
             try {
               await this.commandRegistry.execute("getSavedWikis", {});
             } catch (error) {
@@ -229,14 +226,15 @@ export class QwikiPanel {
     }
   }
 
-  public showPage(page: Page) {
-    this._queueNavigation(page);
+  public showPage(page: (typeof Pages)[keyof typeof Pages]) {
+    this.cancelActiveGeneration();
+    this.navigationManager?.queueNavigation(page);
     commands.executeCommand(VSCodeCommandIds.openPanelView);
     this.view?.show?.(true);
   }
 
   public createWikiFromEditorSelection() {
-    const payload = this._readSelectionFromEditor(false);
+    const payload = this.readSelectionFromEditor(false);
     if (!payload) {
       window.showInformationMessage(MessageStrings.openFileToCreate);
       return;
@@ -245,9 +243,9 @@ export class QwikiPanel {
       window.showInformationMessage(MessageStrings.selectCodeToBuild);
       return;
     }
-    this._queueSelection(payload, { autoGenerate: true });
+    this.navigationManager?.queueSelection(payload, { autoGenerate: true });
     this.showPage(Pages.wiki);
-    this._flushPendingSelection();
+    this.navigationManager?.flushPendingSelection();
   }
 
   public showSavedWikis() {
@@ -255,7 +253,7 @@ export class QwikiPanel {
   }
 
   public async dispose(): Promise<void> {
-    this._clearLanguageStatusInterval();
+    this.languageStatusMonitor?.clearInterval();
 
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
@@ -278,226 +276,25 @@ export class QwikiPanel {
     }
 
     this.view = undefined;
-    this._webviewReady = false;
   }
 
-  private _queueNavigation(page: Page) {
-    this._pendingPage = page;
-    this._flushPendingNavigation();
-  }
-
-  private _flushPendingNavigation() {
-    if (!this._pendingPage || !this._webviewReady || !this.view?.webview) {
-      return;
-    }
-    this.messageBus?.postMessage(Outbound.navigate, { page: this._pendingPage });
-    this._pendingPage = undefined;
-  }
-
-  private _queueSelection(payload: SelectionPayload, options?: { autoGenerate?: boolean }) {
-    this._lastSelection = payload;
-    this._pendingSelection = { payload, autoGenerate: !!options?.autoGenerate };
-    this._flushPendingSelection();
-  }
-
-  private _flushPendingSelection() {
-    if (!this._pendingSelection || !this._webviewReady || !this.view?.webview) {
-      return;
-    }
-    const { payload, autoGenerate } = this._pendingSelection;
-    this.messageBus?.postMessage(Outbound.selection, payload);
-    if (autoGenerate) {
-      this.messageBus?.postMessage(Outbound.triggerGenerate);
-    }
-    this._pendingSelection = undefined;
-  }
-
-  private _startLanguageMonitoring() {
-    const update = () => {
-      void this._updateLanguageServerStatus();
-    };
-
-    this._disposables.push(
-      window.onDidChangeActiveTextEditor(() => {
-        update();
-      }),
-    );
-    this._disposables.push(
-      workspace.onDidOpenTextDocument(() => {
-        update();
-      }),
-    );
-    this._disposables.push(
-      workspace.onDidCloseTextDocument(() => {
-        update();
-      }),
-    );
-    this._disposables.push(
-      extensions.onDidChange(() => {
-        update();
-      }),
-    );
-
-    update();
-  }
-
-  private async _updateLanguageServerStatus(): Promise<void> {
+  private cancelActiveGeneration(): void {
     try {
-      const editor = window.activeTextEditor;
-      if (!editor) {
-        const newStatus = {
-          ready: true,
-          languageId: undefined,
-          message: "",
-          reason: "no-active-editor",
-        };
-        if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
-          this._languageStatus = newStatus;
-          this._broadcastEnvironmentStatus();
+      const container = this.bootstrap.getContainer();
+      container.resolveLazy("wikiEventHandler").then((handler: any) => {
+        if (handler && typeof handler.cancelActiveGeneration === "function") {
+          handler.cancelActiveGeneration();
         }
-        this._clearLanguageStatusInterval();
-        return;
-      }
-
-      const languageId = editor.document.languageId;
-      const relevantExtensions = extensions.all.filter((ext) => {
-        const activationEvents = (ext.packageJSON as any)?.activationEvents;
-        if (!Array.isArray(activationEvents)) {
-          return false;
-        }
-        return activationEvents.some((event: string) => event === `onLanguage:${languageId}`);
       });
-
-      if (!relevantExtensions.length) {
-        const newStatus = {
-          ready: true,
-          languageId,
-          message: `No dedicated language extension detected for ${languageId}.`,
-          reason: "no-language-extension",
-        };
-        if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
-          this._languageStatus = newStatus;
-          this._broadcastEnvironmentStatus();
-        }
-        this._clearLanguageStatusInterval();
-        return;
-      }
-
-      const inactiveExtensions = relevantExtensions.filter((ext) => !ext.isActive);
-
-      if (inactiveExtensions.length === 0) {
-        const newStatus = {
-          ready: true,
-          languageId,
-          message: `${languageId} language features ready.`,
-          reason: "ready",
-          extensions: relevantExtensions.map((ext) => ext.id),
-        };
-        if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
-          this._languageStatus = newStatus;
-          this._broadcastEnvironmentStatus();
-        }
-        this._clearLanguageStatusInterval();
-        return;
-      }
-
-      const newStatus = {
-        ready: false,
-        languageId,
-        message: `Waiting for ${languageId} language features to load...`,
-        reason: "loading",
-        extensions: relevantExtensions.map((ext) => ext.id),
-      };
-      if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
-        this._languageStatus = newStatus;
-        this._broadcastEnvironmentStatus();
-      }
-      this._scheduleLanguageStatusInterval();
     } catch (error) {
-      this.logError("Failed to determine language server status", error);
-      const newStatus = {
-        ready: false,
-        languageId: this._languageStatus.languageId,
-        message: "Unable to check language server status.",
-        reason: "error",
-        extensions: this._languageStatus.extensions,
-      };
-      if (JSON.stringify(this._languageStatus) !== JSON.stringify(newStatus)) {
-        this._languageStatus = newStatus;
-        this._broadcastEnvironmentStatus();
-      }
-      this._scheduleLanguageStatusInterval();
+      this.logDebug("Failed to cancel active generation", error);
     }
   }
 
-  private _scheduleLanguageStatusInterval() {
-    if (this._languageStatusInterval) {
-      return;
-    }
-    this._languageStatusInterval = setInterval(() => {
-      void this._updateLanguageServerStatus();
-    }, 3000);
-  }
-
-  private _clearLanguageStatusInterval() {
-    if (!this._languageStatusInterval) {
-      return;
-    }
-    clearInterval(this._languageStatusInterval);
-    this._languageStatusInterval = undefined;
-  }
-
-  private _composeEnvironmentStatus(): EnvironmentStatusPayload {
-    return {
-      extension: {
-        ready: this._extensionStatus.ready,
-        message: this._extensionStatus.message,
-        reason: this._extensionStatus.reason,
-      },
-      languageServer: {
-        ready: this._languageStatus.ready,
-        languageId: this._languageStatus.languageId,
-        message: this._languageStatus.message,
-        reason: this._languageStatus.reason,
-        extensions: this._languageStatus.extensions,
-      },
-    };
-  }
-
-  private _postEnvironmentStatus(payload: EnvironmentStatusPayload) {
-    if (!this.view?.webview) {
-      return;
-    }
-    try {
-      this.messageBus?.postMessage(Outbound.environmentStatus, payload);
-    } catch (error) {
-      this.logError("Failed to post environment status", error);
-    }
-  }
-
-  private _broadcastEnvironmentStatus() {
-    const payload = this._composeEnvironmentStatus();
-    const statusHash = JSON.stringify(payload);
-
-    if (this._lastBroadcastedStatus === statusHash) {
-      return;
-    }
-
-    this._latestEnvironmentStatus = payload;
-    this._lastBroadcastedStatus = statusHash;
-    this._postEnvironmentStatus(payload);
-  }
-
-  private _flushEnvironmentStatus() {
-    const payload = this._composeEnvironmentStatus();
-    this._latestEnvironmentStatus = payload;
-    this._postEnvironmentStatus(payload);
-  }
-
-  private _readSelectionFromEditor(allowFallback = true): SelectionPayload | undefined {
+  private readSelectionFromEditor(allowFallback = true): SelectionPayload | undefined {
     const editor = window.activeTextEditor;
     if (!editor) {
-      return allowFallback ? this._lastSelection : undefined;
+      return allowFallback ? this.navigationManager?.getLastSelection() : undefined;
     }
     const { document, selection } = editor;
     const hasSelection = selection && !selection.isEmpty;
@@ -509,128 +306,7 @@ export class QwikiPanel {
     };
   }
 
-  private _setWebviewMessageListener(webview: Webview) {
-    webview.onDidReceiveMessage(
-      async (message: any) => {
-        const command = message.command as string;
-        const payload = message.payload;
-
-        try {
-          const receiveTs = Date.now();
-          this.logDebug(`Received webview message - command=${command}`);
-
-          if (command === "getSavedWikis") {
-            const lastTime = this._lastCommandExecutionTime.get(command) || 0;
-            if (receiveTs - lastTime < this.COMMAND_THROTTLE_DELAY) {
-              this.logDebug(
-                `Throttling getSavedWikis command, last executed ${receiveTs - lastTime}ms ago`,
-              );
-              return;
-            }
-            this._lastCommandExecutionTime.set(command, receiveTs);
-          }
-
-          switch (command) {
-            case "frontendLog": {
-              try {
-                const msg = payload?.message ?? "";
-                const data = payload?.data;
-                if (data !== undefined) {
-                  this.logDebug(`Frontend: ${msg}`, data);
-                } else {
-                  this.logDebug(`Frontend: ${msg}`);
-                }
-              } catch (e) {
-                this.logWarn("Frontend log formatting error");
-              }
-              return;
-            }
-            case Inbound.webviewReady: {
-              const wasReady = this._webviewReady;
-              this._webviewReady = true;
-              this._flushPendingNavigation();
-              this._flushPendingSelection();
-              this._flushEnvironmentStatus();
-              if (!wasReady) {
-                try {
-                  this.messageBus?.postSuccess(Outbound.webviewReady, { ready: true });
-                } catch (error) {
-                  this.logError("Exception in _setWebviewMessageListener", error);
-                }
-              }
-              return;
-            }
-            case Inbound.openFile: {
-              const { path, line } = payload as { path: string; line?: number };
-              await tryOpenFile(path, line);
-              return;
-            }
-            case Inbound.getEnvironmentStatus: {
-              this._flushEnvironmentStatus();
-              return;
-            }
-            default: {
-              if (this.commandRegistry?.has(command)) {
-                this.logDebug(`Command ${command} found in registry, executing...`);
-                const initWaitStart = Date.now();
-                this.logDebug("Waiting for initialization promise", { command });
-                await this._initPromise.catch((e) => {
-                  this.logError("Initialization failed before command execution", {
-                    command,
-                    duration: Date.now() - initWaitStart,
-                    error: e,
-                  });
-                });
-                this.logDebug("Initialization promise resolved/errored", {
-                  command,
-                  waitDuration: Date.now() - initWaitStart,
-                });
-                this.logDebug(`Executing command ${command} with payload`, {
-                  command,
-                  hasPayload: !!payload,
-                });
-                const executeStart = Date.now();
-                this.logDebug("About to call commandRegistry.execute", {
-                  command,
-                  hasRegistry: !!this.commandRegistry,
-                });
-                try {
-                  await this.commandRegistry.execute(command, payload);
-                } catch (err: any) {
-                  this.logError("Error in commandRegistry.execute", {
-                    command,
-                    error: err?.message,
-                    stack: err?.stack,
-                    duration: Date.now() - executeStart,
-                  });
-                  throw err;
-                }
-                const executeDuration = Date.now() - executeStart;
-                const doneTs = Date.now();
-                this.logInfo(
-                  `Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`,
-                );
-                this.logDebug("Command execution finished", {
-                  command,
-                  executeDuration,
-                  totalDuration: doneTs - receiveTs,
-                });
-              } else {
-                this.logWarn(`Command ${command} not found in registry`);
-              }
-              return;
-            }
-          }
-        } catch (err: any) {
-          this.errorHandler?.handle(err, { source: "webviewMessage", command });
-        }
-      },
-      undefined,
-      this._disposables,
-    );
-  }
-
-  private createFallbackCommandRegistry(webview: Webview): void {
+  private createFallbackCommandRegistry(webview: any): void {
     this.logWarn("Creating fallback command registry with limited functionality");
 
     const fallbackRegistry = new CommandRegistry(this.loggingService);
