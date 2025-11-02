@@ -94,7 +94,11 @@ export class ProviderValidationService {
       return { isValid: true, errors, warnings };
     }
 
-    const hasApiKey = await this.apiKeyRepository.has(providerId);
+    const hasSecretKey = await this.apiKeyRepository.has(providerId);
+    const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+    const hasConfigKey = Boolean(providerConfig?.apiKey);
+    const hasApiKey = hasSecretKey || hasConfigKey;
+
     if (!hasApiKey) {
       errors.push({
         code: ErrorCodes.apiKeyMissing,
@@ -104,7 +108,11 @@ export class ProviderValidationService {
       return { isValid: false, errors, warnings };
     }
 
-    const apiKey = await this.apiKeyRepository.get(providerId);
+    let apiKey = await this.apiKeyRepository.get(providerId);
+    if (!apiKey && providerConfig?.apiKey) {
+      apiKey = providerConfig.apiKey;
+    }
+
     if (!apiKey || apiKey.trim().length === 0) {
       errors.push({
         code: ErrorCodes.apiKeyInvalid,
