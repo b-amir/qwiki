@@ -27,6 +27,11 @@ import { StructureAnalysisService } from "./services/context/StructureAnalysisSe
 import { RelationshipAnalysisService } from "./services/context/RelationshipAnalysisService";
 import { ProjectTypeDetectionService } from "./services/context/ProjectTypeDetectionService";
 import { FileRelevanceAnalysisService } from "./services/context/FileRelevanceAnalysisService";
+import { FileRelevanceBatchService } from "./services/context/FileRelevanceBatchService";
+import { DependencyAnalysisService } from "./services/context/DependencyAnalysisService";
+import { TextUsageSearchService } from "./services/context/TextUsageSearchService";
+import { ProjectOverviewService } from "./services/context/ProjectOverviewService";
+import { FileSelectionService } from "./services/context/FileSelectionService";
 import { CodeExtractionService } from "./services/context/CodeExtractionService";
 import {
   VSCodeApiKeyRepository,
@@ -47,6 +52,10 @@ import {
   ProviderValidationService,
   ProjectIndexService,
   type ValidationResult,
+  ProjectContextCacheService,
+  ProjectContextValidationService,
+  ProjectContextCacheInvalidationService,
+  WorkspaceStructureCacheService,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
 import { StatisticsCalculationService } from "../infrastructure/services/performance/StatisticsCalculationService";
@@ -107,6 +116,11 @@ export class AppBootstrap {
     projectIndexService.initialize().catch((err) => {
       this.logger.error("Failed to initialize project index", err);
     });
+
+    const cacheInvalidationService = this.container.resolve(
+      "projectContextCacheInvalidationService",
+    ) as ProjectContextCacheInvalidationService;
+    cacheInvalidationService.startWatching();
   }
 
   private registerServices(): void {
@@ -203,18 +217,65 @@ export class AppBootstrap {
     this.container.register("selectionService", () => new SelectionService());
 
     this.container.register(
+      "textUsageSearchService",
+      () => new TextUsageSearchService(this.loggingService),
+    );
+
+    this.container.register(
+      "projectOverviewService",
+      () => new ProjectOverviewService(this.loggingService),
+    );
+
+    this.container.register(
       "projectContextService",
       () =>
         new ProjectContextService(
           this.loggingService,
           this.container.resolve("projectIndexService") as ProjectIndexService,
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
+          this.container.resolve("textUsageSearchService") as TextUsageSearchService,
+          this.container.resolve("projectOverviewService") as ProjectOverviewService,
         ),
     );
+    this.container.register(
+      "projectContextCacheService",
+      () => new ProjectContextCacheService(this.context, this.loggingService, false),
+    );
+
+    this.container.register(
+      "workspaceStructureCacheService",
+      () => new WorkspaceStructureCacheService(this.context, this.loggingService, false),
+    );
+
+    this.container.register(
+      "projectContextValidationService",
+      () => new ProjectContextValidationService(this.loggingService),
+    );
+
+    this.container.register(
+      "projectContextCacheInvalidationService",
+      () =>
+        new ProjectContextCacheInvalidationService(
+          this.container.resolve("projectContextCacheService") as ProjectContextCacheService,
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
+          this.loggingService,
+          this.container.resolve("debouncingService") as DebouncingService,
+        ),
+    );
+
     this.container.register(
       "cachedProjectContextService",
       () =>
         new CachedProjectContextService(
           this.container.resolve("cacheService"),
+          this.container.resolve("projectContextCacheService") as ProjectContextCacheService,
+          this.container.resolve(
+            "projectContextValidationService",
+          ) as ProjectContextValidationService,
           this.container.resolve("performanceMonitor"),
           this.container.resolve("projectContextService"),
           this.loggingService,
@@ -418,6 +479,21 @@ export class AppBootstrap {
       () =>
         new ProjectTypeDetectionService(
           this.container.resolve("cacheService") as CachingService,
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "dependencyAnalysisService",
+      () =>
+        new DependencyAnalysisService(
+          this.container.resolve("cacheService") as CachingService,
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
           this.loggingService,
         ),
     );
@@ -427,8 +503,29 @@ export class AppBootstrap {
       () =>
         new FileRelevanceAnalysisService(
           this.container.resolve("cacheService") as CachingService,
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
+          this.container.resolve("dependencyAnalysisService") as DependencyAnalysisService,
           this.loggingService,
         ),
+    );
+
+    this.container.register(
+      "fileRelevanceBatchService",
+      () =>
+        new FileRelevanceBatchService(
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
+          this.container.resolve("fileRelevanceAnalysisService") as FileRelevanceAnalysisService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "fileSelectionService",
+      () => new FileSelectionService(this.loggingService),
     );
 
     this.container.register(
@@ -445,7 +542,12 @@ export class AppBootstrap {
           await this.container.resolveLazy("providerSelectionService"),
           this.container.resolve("projectTypeDetectionService") as ProjectTypeDetectionService,
           this.container.resolve("fileRelevanceAnalysisService") as FileRelevanceAnalysisService,
+          this.container.resolve("fileRelevanceBatchService") as FileRelevanceBatchService,
+          this.container.resolve("fileSelectionService") as FileSelectionService,
           this.container.resolve("cacheService") as CachingService,
+          this.container.resolve(
+            "workspaceStructureCacheService",
+          ) as WorkspaceStructureCacheService,
           this.container.resolve("performanceMonitor") as PerformanceMonitorService,
           this.container.resolve("eventBus"),
           this.loggingService,

@@ -37,3 +37,21 @@ export {
   type ProjectIndexCache,
   type SymbolInfo,
 } from "./ProjectIndexService";
+export {
+  ProjectContextCacheService,
+  type CachedProjectContextEntry,
+  type ProjectContextCacheMetadata,
+} from "./ProjectContextCacheService";
+export {
+  ProjectContextValidationService,
+  type ProjectContextValidationResult,
+} from "./ProjectContextValidationService";
+export { ProjectContextCacheInvalidationService } from "./ProjectContextCacheInvalidationService";
+export {
+  WorkspaceStructureCacheService,
+  type CachedWorkspaceStructure,
+  type CachedProjectType,
+  type CachedEssentialFiles,
+  type CachedFileRelevanceScores,
+  type CachedDependencyMap,
+} from "./WorkspaceStructureCacheService";

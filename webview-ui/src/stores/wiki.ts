@@ -239,6 +239,28 @@ export const useWikiStore = defineStore("wiki", {
         return;
       }
 
+      const loadingStore = useLoadingStore();
+      const isLoadingActive = loadingStore.isActive("wiki");
+
+      if (isLoadingActive) {
+        vscode.postMessage({
+          command: "frontendLog",
+          payload: {
+            message: "WikiStore: generate() - loading already active, cancelling previous request",
+            data: { existingRequestId: this.generateRequestId },
+          },
+        });
+
+        if (this.generateRequestId) {
+          vscode.postMessage({
+            command: "cancelWikiGeneration",
+            payload: { requestId: this.generateRequestId },
+          });
+        }
+
+        loadingStore.cancel({ context: "wiki", reason: "New generation requested" });
+      }
+
       vscode.postMessage({
         command: "frontendLog",
         payload: { message: "WikiStore: generate() setting loading state" },
@@ -246,7 +268,6 @@ export const useWikiStore = defineStore("wiki", {
 
       this.loading = true;
       this.loadingStep = "validating";
-      const loadingStore = useLoadingStore();
       loadingStore.start({ context: "wiki", step: "validating" });
       this.error = "";
       this.errorInfo = null;

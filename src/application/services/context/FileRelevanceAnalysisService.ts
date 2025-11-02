@@ -5,22 +5,24 @@ import {
   type Logger,
 } from "../../../infrastructure/services/LoggingService";
 import { CachingService } from "../../../infrastructure/services/CachingService";
+import { WorkspaceStructureCacheService } from "../../../infrastructure/services/WorkspaceStructureCacheService";
+import { DependencyAnalysisService } from "./DependencyAnalysisService";
 import { ServiceLimits, FilePatterns } from "../../../constants";
 import type {
   FileRelevanceScore,
   FileRelevanceMetadata,
   ProjectTypeDetection,
-  DependencyMap,
 } from "../../../domain/entities/ContextIntelligence";
 
 export class FileRelevanceAnalysisService {
   private logger: Logger;
   private readonly FILE_RELEVANCE_PREFIX = "context-intelligence:file-relevance:";
-  private readonly DEPENDENCY_MAP_PREFIX = "context-intelligence:dependency-map:";
   private readonly KEY_FILES_KEY = "context-intelligence:key-files";
 
   constructor(
     private cachingService: CachingService,
+    private workspaceStructureCache: WorkspaceStructureCacheService,
+    private dependencyAnalysisService: DependencyAnalysisService,
     private loggingService: LoggingService,
   ) {
     this.logger = createLogger("FileRelevanceAnalysisService", loggingService);
@@ -62,7 +64,8 @@ export class FileRelevanceAnalysisService {
     const pathSimilarity = this.calculatePathSimilarity(targetPath, candidatePath);
     const semanticSimilarity = await this.calculateSemanticSimilarity(targetPath, candidatePath);
     const isDependency = await this.isDependencyFile(candidatePath);
-    const dependencyMap = await this.analyzeCodeDependencies(candidatePath);
+    const dependencyMap =
+      await this.dependencyAnalysisService.analyzeCodeDependencies(candidatePath);
     const isImportedBy = dependencyMap.dependents.includes(targetPath);
     const recencyScore = this.calculateRecencyScore(lastModified);
     const fileSizeScore = this.calculateFileSizeScore(fileContent.length);
@@ -142,35 +145,6 @@ export class FileRelevanceAnalysisService {
     return dependencyPatterns.some((pattern) => pattern.test(filePath));
   }
 
-  private async findImportRelationships(
-    candidatePath: string,
-    targetPath: string,
-  ): Promise<boolean> {
-    try {
-      const candidateUri = Uri.file(candidatePath);
-      const content = await workspace.fs.readFile(candidateUri);
-      const contentStr = Buffer.from(content).toString("utf8");
-
-      const targetFileName = targetPath
-        .split(/[/\\]/)
-        .pop()
-        ?.replace(/\.[^.]+$/, "");
-      if (!targetFileName) {
-        return false;
-      }
-
-      const importPatterns = [
-        new RegExp(`import.*from\\s+['"].*${targetFileName}['"]`, "i"),
-        new RegExp(`require\\(['"].*${targetFileName}['"]\\)`, "i"),
-        new RegExp(`from\\s+['"].*${targetFileName}['"]`, "i"),
-      ];
-
-      return importPatterns.some((pattern) => pattern.test(contentStr));
-    } catch {
-      return false;
-    }
-  }
-
   private detectFileCategory(filePath: string): "config" | "source" | "test" | "docs" {
     if (/\.config\.|config\/|\.json$|\.toml$|\.yaml$|\.yml$/.test(filePath)) {
       return "config";
@@ -182,115 +156,6 @@ export class FileRelevanceAnalysisService {
       return "docs";
     }
     return "source";
-  }
-
-  async analyzeCodeDependencies(filePath: string): Promise<DependencyMap> {
-    const cacheKey = `${this.DEPENDENCY_MAP_PREFIX}${filePath}`;
-    const cached = await this.cachingService.get<DependencyMap>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    let fileContent = "";
-    try {
-      const fileUri = Uri.file(filePath);
-      const content = await workspace.fs.readFile(fileUri);
-      fileContent = Buffer.from(content).toString("utf8");
-    } catch (error) {
-      this.logDebug(`Failed to read file ${filePath}`, error);
-      return { imports: [], exports: [], dependencies: [], dependents: [] };
-    }
-
-    const imports = this.extractImportsExports(fileContent);
-    const exports: string[] = [];
-    const dependencies: string[] = [];
-
-    const workspaceFolders = workspace.workspaceFolders;
-    if (workspaceFolders && workspaceFolders.length > 0) {
-      const allFiles = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude, 200);
-
-      const candidateNames = new Set<string>();
-      for (const imp of imports) {
-        const normalized = imp.replace(/['"]/g, "").split("/").pop() || "";
-        if (normalized) {
-          candidateNames.add(normalized);
-        }
-      }
-
-      for (const fileUri of allFiles) {
-        const candidatePath = fileUri.fsPath;
-        if (candidatePath === filePath) continue;
-
-        const fileName = candidatePath
-          .split(/[/\\]/)
-          .pop()
-          ?.replace(/\.[^.]+$/, "");
-        if (fileName && candidateNames.has(fileName)) {
-          dependencies.push(candidatePath);
-        }
-      }
-    }
-
-    const dependents: string[] = [];
-    if (workspaceFolders && workspaceFolders.length > 0) {
-      const allFiles = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude, 200);
-      const targetFileName = filePath
-        .split(/[/\\]/)
-        .pop()
-        ?.replace(/\.[^.]+$/, "");
-
-      for (const fileUri of allFiles) {
-        const candidatePath = fileUri.fsPath;
-        if (candidatePath === filePath) continue;
-
-        try {
-          const content = await workspace.fs.readFile(fileUri);
-          const contentStr = Buffer.from(content).toString("utf8");
-          const candidateImports = this.extractImportsExports(contentStr);
-
-          if (targetFileName && candidateImports.some((imp) => imp.includes(targetFileName))) {
-            dependents.push(candidatePath);
-          }
-        } catch {
-          continue;
-        }
-      }
-    }
-
-    const dependencyMap: DependencyMap = {
-      imports,
-      exports,
-      dependencies,
-      dependents,
-    };
-
-    await this.cachingService.set(cacheKey, dependencyMap, {
-      ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
-    });
-
-    return dependencyMap;
-  }
-
-  async findRelatedFiles(filePath: string, maxDepth: number): Promise<string[]> {
-    const related = new Set<string>();
-    const visited = new Set<string>([filePath]);
-    const queue: Array<{ path: string; depth: number }> = [{ path: filePath, depth: 0 }];
-
-    while (queue.length > 0) {
-      const { path, depth } = queue.shift()!;
-      if (depth >= maxDepth) continue;
-
-      const dependencyMap = await this.analyzeCodeDependencies(path);
-      for (const dep of dependencyMap.dependencies) {
-        if (!visited.has(dep)) {
-          visited.add(dep);
-          related.add(dep);
-          queue.push({ path: dep, depth: depth + 1 });
-        }
-      }
-    }
-
-    return Array.from(related);
   }
 
   async calculateSemanticSimilarity(file1: string, file2: string): Promise<number> {
@@ -350,7 +215,11 @@ export class FileRelevanceAnalysisService {
 
     for (const pattern of keyPatterns) {
       try {
-        const files = await workspace.findFiles(`**/${pattern}`, FilePatterns.exclude, 10);
+        const files = await workspace.findFiles(
+          `**/${pattern}`,
+          FilePatterns.exclude,
+          ServiceLimits.contextIntelligenceKeyFilesLimit,
+        );
         for (const fileUri of files) {
           keyFiles.push(fileUri.fsPath);
         }
@@ -364,25 +233,6 @@ export class FileRelevanceAnalysisService {
     });
 
     return keyFiles;
-  }
-
-  private extractImportsExports(content: string): string[] {
-    const imports: string[] = [];
-    const combinedPattern =
-      /(?:import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\)|from\s+['"]([^'"]+)['"])/g;
-
-    let match;
-    while ((match = combinedPattern.exec(content)) !== null) {
-      const importPath = match[1] || match[2] || match[3];
-      if (importPath && !importPath.startsWith(".") && !importPath.startsWith("/")) {
-        continue;
-      }
-      if (importPath) {
-        imports.push(importPath);
-      }
-    }
-
-    return imports;
   }
 
   private analyzeNamingPatterns(content: string): string[] {

@@ -5,6 +5,7 @@ import {
   type Logger,
 } from "../../../infrastructure/services/LoggingService";
 import { CachingService } from "../../../infrastructure/services/CachingService";
+import { WorkspaceStructureCacheService } from "../../../infrastructure/services/WorkspaceStructureCacheService";
 import { FilePatterns } from "../../../constants";
 import { ServiceLimits } from "../../../constants";
 import type {
@@ -14,11 +15,10 @@ import type {
 
 export class ProjectTypeDetectionService {
   private logger: Logger;
-  private readonly PROJECT_TYPE_KEY = "context-intelligence:project-type";
-  private readonly ESSENTIAL_FILES_KEY = "context-intelligence:essential-files";
 
   constructor(
     private cachingService: CachingService,
+    private workspaceStructureCache: WorkspaceStructureCacheService,
     private loggingService: LoggingService,
   ) {
     this.logger = createLogger("ProjectTypeDetectionService", loggingService);
@@ -29,17 +29,19 @@ export class ProjectTypeDetectionService {
   }
 
   async detectProjectType(): Promise<ProjectTypeDetection> {
-    const cached = await this.cachingService.get<ProjectTypeDetection>(this.PROJECT_TYPE_KEY);
-    if (cached) {
-      return cached;
-    }
-
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       return {
         primaryLanguage: "unknown",
         confidence: 0,
       };
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const cached = await this.workspaceStructureCache.getProjectType(workspaceRoot);
+    if (cached) {
+      this.logger.debug("Using cached project type");
+      return cached;
     }
 
     let primaryLanguage = "unknown";
@@ -109,9 +111,11 @@ export class ProjectTypeDetectionService {
       confidence,
     };
 
-    await this.cachingService.set(this.PROJECT_TYPE_KEY, detection, {
-      ttl: ServiceLimits.contextIntelligenceProjectTypeTTL,
-    });
+    await this.workspaceStructureCache.setProjectType(
+      workspaceRoot,
+      detection,
+      ServiceLimits.contextIntelligenceProjectTypeTTL,
+    );
 
     return detection;
   }
@@ -119,15 +123,16 @@ export class ProjectTypeDetectionService {
   async getLanguageSpecificEssentials(
     projectType: ProjectTypeDetection,
   ): Promise<ProjectEssentialFile[]> {
-    const cacheKey = `${this.ESSENTIAL_FILES_KEY}:${projectType.primaryLanguage}`;
-    const cached = await this.cachingService.get<ProjectEssentialFile[]>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       return [];
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const cached = await this.workspaceStructureCache.getEssentialFiles(workspaceRoot);
+    if (cached) {
+      this.logger.debug("Using cached essential files");
+      return cached;
     }
 
     const essentials: ProjectEssentialFile[] = [];
@@ -200,9 +205,11 @@ export class ProjectTypeDetectionService {
       }
     }
 
-    await this.cachingService.set(cacheKey, essentials, {
-      ttl: ServiceLimits.contextIntelligenceProjectTypeTTL,
-    });
+    await this.workspaceStructureCache.setEssentialFiles(
+      workspaceRoot,
+      essentials,
+      ServiceLimits.contextIntelligenceProjectTypeTTL,
+    );
 
     return essentials;
   }

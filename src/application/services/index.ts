@@ -22,3 +22,8 @@ export { ContextCompressionService } from "./ContextCompressionService";
 export { AdvancedPromptService } from "./AdvancedPromptService";
 export { PromptQualityService } from "./PromptQualityService";
 export { ReadmeUpdateService } from "./ReadmeUpdateService";
+export { FileRelevanceBatchService } from "./context/FileRelevanceBatchService";
+export { DependencyAnalysisService } from "./context/DependencyAnalysisService";
+export { TextUsageSearchService } from "./context/TextUsageSearchService";
+export { ProjectOverviewService } from "./context/ProjectOverviewService";
+export { FileSelectionService } from "./context/FileSelectionService";

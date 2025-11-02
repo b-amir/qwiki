@@ -1,4 +1,10 @@
+import { workspace } from "vscode";
 import { CachingService } from "../../infrastructure/services/CachingService";
+import { ProjectContextCacheService } from "../../infrastructure/services/ProjectContextCacheService";
+import {
+  ProjectContextValidationService,
+  type ProjectContextValidationResult,
+} from "../../infrastructure/services/ProjectContextValidationService";
 import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import { ProjectContextService } from "./ProjectContextService";
 import type { ProjectContext } from "../../domain/entities/Selection";
@@ -16,6 +22,8 @@ export class CachedProjectContextService {
 
   constructor(
     private cacheService: CachingService,
+    private persistentCacheService: ProjectContextCacheService,
+    private validationService: ProjectContextValidationService,
     private performanceMonitor: PerformanceMonitorService,
     private projectContextService: ProjectContextService,
     private loggingService: LoggingService,
@@ -43,14 +51,43 @@ export class CachedProjectContextService {
       languageId,
     });
 
-    const cacheKey = this.generateCacheKey(snippet, filePath, languageId);
-    this.logger.debug("Generated cache key", { cacheKey });
+    const snippetHash = this.simpleHash(snippet);
+    const cacheKey = this.generateCacheKey(snippetHash, filePath, languageId);
+    this.logger.debug("Generated cache key", { cacheKey, snippetHash });
 
     const cacheCheckStart = Date.now();
-    const cached = await this.cacheService.get<ProjectContext>(cacheKey);
+    const memoryCached = await this.cacheService.get<ProjectContext>(cacheKey);
+    let cached: ProjectContext | null = memoryCached;
+
+    if (!cached) {
+      const persistentCached = await this.persistentCacheService.get(cacheKey);
+      if (persistentCached) {
+        const metadata = await this.persistentCacheService.getMetadata(cacheKey);
+        if (metadata) {
+          const validation = await this.validationService.validateMetadata(metadata);
+          if (validation.isValid) {
+            cached = persistentCached;
+            await this.cacheService.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+            this.logger.debug("Loaded from persistent cache and validated", {
+              reason: validation.reason,
+            });
+          } else {
+            this.logger.debug("Persistent cache invalidated", {
+              reason: validation.reason,
+            });
+            await this.persistentCacheService.delete(cacheKey);
+          }
+        } else {
+          cached = persistentCached;
+          await this.cacheService.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        }
+      }
+    }
+
     this.logger.debug("Cache check completed", {
       duration: Date.now() - cacheCheckStart,
       cacheHit: !!cached,
+      source: memoryCached ? "memory" : cached ? "persistent" : "miss",
     });
 
     if (cached) {
@@ -81,8 +118,27 @@ export class CachedProjectContextService {
     });
 
     const cacheSetStart = Date.now();
-    await this.cacheService.set(cacheKey, context, { ttl: this.CACHE_TTL });
-    this.logger.debug("Context cached", { duration: Date.now() - cacheSetStart });
+    const workspaceFolders = workspace.workspaceFolders;
+    const workspaceRoot =
+      workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : "";
+
+    const metadata = await this.validationService.buildMetadata(
+      workspaceRoot,
+      snippetHash,
+      filePath,
+      languageId,
+    );
+    metadata.fileCount = context.filesSample?.length || 0;
+
+    await Promise.all([
+      this.cacheService.set(cacheKey, context, { ttl: this.CACHE_TTL }),
+      this.persistentCacheService.set(cacheKey, context, metadata, this.CACHE_TTL),
+    ]);
+
+    this.logger.debug("Context cached", {
+      duration: Date.now() - cacheSetStart,
+      persistent: true,
+    });
 
     endTimer();
     this.logger.debug("CachedProjectContextService.buildContext completed", {
@@ -91,11 +147,10 @@ export class CachedProjectContextService {
     return context;
   }
 
-  private generateCacheKey(snippet: string, filePath?: string, languageId?: string): string {
-    const snippetHash = this.simpleHash(snippet);
+  private generateCacheKey(snippetHash: string, filePath?: string, languageId?: string): string {
     const pathHash = filePath ? this.simpleHash(filePath) : "";
     const langHash = languageId || "";
-    return `project-context:${snippetHash}:${pathHash}:${langHash}`;
+    return `${snippetHash}:${pathHash}:${langHash}`;
   }
 
   private simpleHash(str: string): string {
@@ -109,6 +164,6 @@ export class CachedProjectContextService {
   }
 
   async clearCache(): Promise<void> {
-    await this.cacheService.clear();
+    await Promise.all([this.cacheService.clear(), this.persistentCacheService.clear()]);
   }
 }

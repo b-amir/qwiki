@@ -6,16 +6,19 @@ import {
   type Logger,
 } from "../../infrastructure/services/LoggingService";
 import { ProjectIndexService } from "../../infrastructure/services/ProjectIndexService";
+import { WorkspaceStructureCacheService } from "../../infrastructure/services/WorkspaceStructureCacheService";
 import { ContextAnalysisService, type DeepContextAnalysis } from "./ContextAnalysisService";
 import { CachedProjectContextService } from "./CachedProjectContextService";
 import { ProviderSelectionService } from "./ProviderSelectionService";
 import { ProjectTypeDetectionService } from "./context/ProjectTypeDetectionService";
 import { FileRelevanceAnalysisService } from "./context/FileRelevanceAnalysisService";
+import { FileRelevanceBatchService } from "./context/FileRelevanceBatchService";
+import { FileSelectionService } from "./context/FileSelectionService";
 import { CachingService } from "../../infrastructure/services/CachingService";
 import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import { LLMRegistry } from "../../llm/providers/registry";
 import { ProviderCapabilities } from "../../llm/types/ProviderCapabilities";
-import { ServiceLimits, FilePatterns } from "../../constants";
+import { ServiceLimits } from "../../constants";
 import { LoadingSteps, type LoadingStep } from "../../constants/loading";
 import type {
   TokenBudget,
@@ -34,7 +37,10 @@ export class ContextIntelligenceService {
     private providerSelectionService: ProviderSelectionService,
     private projectTypeDetectionService: ProjectTypeDetectionService,
     private fileRelevanceAnalysisService: FileRelevanceAnalysisService,
+    private fileRelevanceBatchService: FileRelevanceBatchService,
+    private fileSelectionService: FileSelectionService,
     private cachingService: CachingService,
+    private workspaceStructureCache: WorkspaceStructureCacheService,
     private performanceMonitorService: PerformanceMonitorService,
     private eventBus: EventBus,
     private loggingService: LoggingService,
@@ -161,119 +167,31 @@ export class ContextIntelligenceService {
       }
 
       const findFilesStart = Date.now();
-      this.logger.info("Getting indexed files", { maxFiles: 200 });
+      const maxFiles = ServiceLimits.contextIntelligenceMaxFileAnalysis;
+      this.logger.info("Getting indexed files", { maxFiles });
       onProgress?.(LoadingSteps.analyzingProject);
       const indexedFiles = await this.projectIndexService.getIndexedFiles();
-      const allFiles = indexedFiles.slice(0, 200).map((f) => f.uri);
+      const allFiles = indexedFiles.slice(0, maxFiles).map((f) => f.uri);
       const findFilesDuration = Date.now() - findFilesStart;
       this.logger.info("Indexed files retrieved", {
         duration: findFilesDuration,
         fileCount: allFiles.length,
       });
 
-      if (indexedFiles.length >= 200) {
-        this.logger.warn("File limit reached - only analyzing first 200 files", {
+      if (indexedFiles.length >= maxFiles) {
+        this.logger.warn("File limit reached - only analyzing first files", {
           totalFiles: indexedFiles.length,
-          limit: 200,
+          limit: maxFiles,
         });
       }
 
-      const fileRelevanceScores: FileRelevanceScore[] = [];
-      const analyzeStart = Date.now();
-      let analyzedCount = 0;
-      let skippedCount = 0;
-      let errorCount = 0;
-      const totalFilesToAnalyze = allFiles.length;
-      const progressInterval = 10; // Update progress every 10 files
-      const logInterval = 20; // Log every 20 files
-
-      this.logger.info("Starting file relevance analysis", {
-        totalFiles: totalFilesToAnalyze,
-        targetFilePath,
-        progressUpdateInterval: progressInterval,
-      });
-      onProgress?.(LoadingSteps.analyzingProject);
-
-      for (const fileUri of allFiles) {
-        const filePath = fileUri.fsPath;
-        if (filePath === targetFilePath) {
-          skippedCount++;
-          continue;
-        }
-
-        try {
-          analyzedCount++;
-
-          // Update progress periodically to keep UI responsive
-          if (analyzedCount % progressInterval === 0) {
-            onProgress?.(LoadingSteps.analyzingProject);
-            const elapsed = Date.now() - analyzeStart;
-            const avgTimePerFile = elapsed / analyzedCount;
-            const estimatedRemaining = avgTimePerFile * (totalFilesToAnalyze - analyzedCount);
-
-            const progressData = {
-              analyzed: analyzedCount,
-              total: totalFilesToAnalyze,
-              skipped: skippedCount,
-              errors: errorCount,
-              scoresFound: fileRelevanceScores.length,
-              progressPercent: Math.round((analyzedCount / totalFilesToAnalyze) * 100),
-              elapsedSeconds: Math.round(elapsed / 1000),
-              estimatedRemainingSeconds: Math.round(estimatedRemaining / 1000),
-              avgMsPerFile: Math.round(avgTimePerFile),
-            };
-
-            this.logger.info(
-              `Context gathering progress: ${progressData.progressPercent}% (${progressData.analyzed}/${progressData.total} files analyzed)`,
-              progressData,
-            );
-          } else if (analyzedCount % logInterval === 0) {
-            // Less frequent detailed logging
-            this.logger.debug("File relevance analysis progress", {
-              analyzed: analyzedCount,
-              total: totalFilesToAnalyze,
-              progressPercent: Math.round((analyzedCount / totalFilesToAnalyze) * 100),
-            });
-          }
-
-          const fileAnalysisStart = Date.now();
-          const relevanceScore = await this.fileRelevanceAnalysisService.analyzeFileRelevance(
-            targetFilePath,
-            filePath,
-            projectType,
-          );
-          const fileAnalysisDuration = Date.now() - fileAnalysisStart;
-
-          if (fileAnalysisDuration > 1000) {
-            // Log slow file analysis
-            this.logger.debug("Slow file analysis detected", {
-              filePath,
-              duration: fileAnalysisDuration,
-            });
-          }
-
-          fileRelevanceScores.push(relevanceScore);
-        } catch (error) {
-          errorCount++;
-          this.logError(`Failed to analyze file relevance for ${filePath}`, {
-            error,
-            filePath,
-            analyzedCount,
-            totalFiles: totalFilesToAnalyze,
-          });
-        }
-      }
-
-      const analysisDuration = Date.now() - analyzeStart;
-      this.logger.info("File relevance analysis COMPLETED", {
-        duration: analysisDuration,
-        durationSeconds: Math.round(analysisDuration / 1000),
-        analyzed: analyzedCount,
-        skipped: skippedCount,
-        errors: errorCount,
-        scoresFound: fileRelevanceScores.length,
-        averageTimePerFile: Math.round(analysisDuration / Math.max(analyzedCount, 1)),
-      });
+      const fileRelevanceScores =
+        await this.fileRelevanceBatchService.getOrAnalyzeFileRelevanceScores(
+          targetFilePath,
+          allFiles,
+          projectType,
+          onProgress,
+        );
 
       const sortStart = Date.now();
       fileRelevanceScores.sort((a, b) => b.score - a.score);
@@ -283,64 +201,22 @@ export class ContextIntelligenceService {
         topFile: fileRelevanceScores[0]?.filePath,
       });
 
-      const selectedFiles: FileRelevanceScore[] = [];
-      const excludedFiles: FileRelevanceScore[] = [];
-      let totalTokenCost = 0;
       const availableTokens = tokenBudget.availableForContext * tokenBudget.utilizationTarget;
-
-      const selectStart = Date.now();
-      this.logger.info("Selecting files based on token budget", {
+      const selectionResult = this.fileSelectionService.selectFilesByTokenBudget(
+        fileRelevanceScores,
         availableTokens,
-        utilizationTarget: tokenBudget.utilizationTarget,
-        filesToConsider: fileRelevanceScores.length,
-      });
-      for (const fileScore of fileRelevanceScores) {
-        if (totalTokenCost + fileScore.tokenCost <= availableTokens) {
-          selectedFiles.push(fileScore);
-          totalTokenCost += fileScore.tokenCost;
-        } else {
-          excludedFiles.push(fileScore);
-        }
-      }
-      const selectDuration = Date.now() - selectStart;
-      this.logger.info("File selection completed", {
-        duration: selectDuration,
-        selectedCount: selectedFiles.length,
-        excludedCount: excludedFiles.length,
-        totalTokenCost,
-        tokenUtilization: Math.round((totalTokenCost / availableTokens) * 100),
-      });
+        tokenBudget.utilizationTarget,
+      );
 
-      const essentialStart = Date.now();
-      this.logger.debug("Adding essential files", { essentialCount: essentialFiles.length });
-      for (const essential of essentialFiles) {
-        const alreadyIncluded = selectedFiles.some((f) => f.filePath === essential.filePath);
-        if (!alreadyIncluded && totalTokenCost + essential.tokenCost <= availableTokens) {
-          const essentialScore: FileRelevanceScore = {
-            filePath: essential.filePath,
-            score: 100,
-            relevanceType: "essential",
-            tokenCost: essential.tokenCost,
-            compressionRatio: 0.5,
-            metadata: {
-              isDependency: false,
-              isImportedBy: [],
-              importsFrom: [],
-              semanticSimilarity: 1.0,
-              lastModified: new Date(),
-              complexity: 0,
-              fileCategory: essential.contentType === "package-manager" ? "config" : "source",
-            },
-          };
-          selectedFiles.push(essentialScore);
-          totalTokenCost += essential.tokenCost;
-        }
-      }
-      this.logger.debug("Essential files processed", {
-        duration: Date.now() - essentialStart,
-        finalSelectedCount: selectedFiles.length,
-        finalTokenCost: totalTokenCost,
-      });
+      const essentialResult = this.fileSelectionService.addEssentialFiles(
+        essentialFiles,
+        selectionResult.selectedFiles,
+        selectionResult.totalTokenCost,
+        availableTokens,
+      );
+      const selectedFiles = essentialResult.selectedFiles;
+      const totalTokenCost = essentialResult.totalTokenCost;
+      const excludedFiles = selectionResult.excludedFiles;
 
       const utilizationRate = totalTokenCost / tokenBudget.availableForContext;
 

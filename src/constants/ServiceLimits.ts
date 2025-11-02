@@ -43,4 +43,11 @@ export const ServiceLimits = {
   maxIndexFileSize: 1024 * 1024,
   indexBatchSize: 50,
   indexDebounceDelay: 500,
+  projectContextCacheVersion: 1,
+  projectContextCacheInvalidationDebounce: 1000,
+  contextIntelligenceProgressInterval: 10,
+  contextIntelligenceLogInterval: 20,
+  contextIntelligenceMaxFileAnalysis: 200,
+  contextIntelligenceSlowAnalysisThreshold: 1000,
+  contextIntelligenceKeyFilesLimit: 10,
 } as const;

@@ -3,8 +3,6 @@ import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ErrorModal from "@/components/features/ErrorModal.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
-import RelatedFiles from "@/components/features/RelatedFiles.vue";
-import ProjectFiles from "@/components/features/ProjectFiles.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useVscode } from "@/composables/useVscode";
@@ -177,14 +175,6 @@ onBeforeUnmount(() => {
         <div class="overflow-auto p-4">
           <MarkdownRenderer :content="wikiContentWithoutTitle" />
         </div>
-      </div>
-
-      <div
-        v-if="wiki.related.length || wiki.filesSample.length"
-        class="border-border space-y-4 border-t pt-4"
-      >
-        <RelatedFiles />
-        <ProjectFiles />
       </div>
     </div>
 

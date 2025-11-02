@@ -12,6 +12,7 @@ import {
   isKnownContext,
 } from "@/loading/types";
 import { getContextTimeout } from "@/loading/config";
+import { getStepsForContext } from "@/loading/stepCatalog";
 
 type TimeoutHandle = ReturnType<typeof setTimeout> | null;
 
@@ -47,13 +48,25 @@ export const useLoadingStore = defineStore("loading", {
   actions: {
     handleMessage(message: LoadingMessage) {
       const percent = typeof message.percent === "number" ? message.percent : null;
-      if (!this.getState(message.context).active) {
+      const currentState = this.getState(message.context);
+
+      if (!currentState.active) {
         this.start({ context: message.context, step: message.step });
       } else {
         this.advance({ context: message.context, step: message.step, percent });
       }
     },
     start(options: LoadingStartOptions) {
+      const current = this.getState(options.context);
+      if (current.active) {
+        if (options.step && current.step) {
+          if (!this.isStepBefore(options.context, options.step, current.step)) {
+            this.advance({ context: options.context, step: options.step });
+            return;
+          }
+        }
+      }
+
       const resolvedTimeout = this.resolveTimeout(options.context, options.timeoutMs ?? null);
       const snapshot: LoadingStateSnapshot = {
         ...defaultSnapshot(),
@@ -74,6 +87,10 @@ export const useLoadingStore = defineStore("loading", {
         return;
       }
 
+      if (current.step && this.isStepBefore(options.context, options.step, current.step)) {
+        return;
+      }
+
       current.step = options.step;
       current.percent = this.normalizePercent(options.percent, current.percent);
       current.error = null;
@@ -81,6 +98,25 @@ export const useLoadingStore = defineStore("loading", {
 
       this.setState(options.context, current);
       this.refreshTimeout(options.context);
+    },
+    isStepBefore(context: LoadingContext, step1: string, step2: string): boolean {
+      if (!isKnownContext(context)) {
+        return false;
+      }
+
+      try {
+        const steps = getStepsForContext(context);
+        const index1 = steps.findIndex((s) => s.key === step1);
+        const index2 = steps.findIndex((s) => s.key === step2);
+
+        if (index1 === -1 || index2 === -1) {
+          return false;
+        }
+
+        return index1 < index2;
+      } catch {
+        return false;
+      }
     },
     complete(options: LoadingCompleteOptions) {
       const current = { ...this.ensureState(options.context) };
