@@ -13,11 +13,15 @@ import {
   createLogger,
   type Logger,
 } from "../../infrastructure/services/LoggingService";
+import { ProjectIndexService } from "../../infrastructure/services/ProjectIndexService";
 
 export class ProjectContextService {
   private logger: Logger;
 
-  constructor(private loggingService: LoggingService) {
+  constructor(
+    private loggingService: LoggingService,
+    private projectIndexService: ProjectIndexService,
+  ) {
     this.logger = createLogger("ProjectContextService", loggingService);
   }
   async buildContext(
@@ -43,16 +47,10 @@ export class ProjectContextService {
     });
 
     const findFilesStart = Date.now();
-    this.logger.debug("Finding project files", {
-      pattern: FilePatterns.allFiles.toString(),
-      maxFiles: FileLimits.projectFiles,
-    });
-    const files = await workspace.findFiles(
-      FilePatterns.allFiles,
-      FilePatterns.exclude,
-      FileLimits.projectFiles,
-    );
-    this.logger.debug("Project files found", {
+    this.logger.debug("Getting indexed files");
+    const indexedFiles = await this.projectIndexService.getIndexedFiles();
+    const files = indexedFiles.slice(0, FileLimits.projectFiles).map((f) => f.uri);
+    this.logger.debug("Indexed files retrieved", {
       duration: Date.now() - findFilesStart,
       fileCount: files.length,
     });

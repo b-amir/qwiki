@@ -5,6 +5,7 @@ import {
   createLogger,
   type Logger,
 } from "../../infrastructure/services/LoggingService";
+import { ProjectIndexService } from "../../infrastructure/services/ProjectIndexService";
 import { ContextAnalysisService, type DeepContextAnalysis } from "./ContextAnalysisService";
 import { CachedProjectContextService } from "./CachedProjectContextService";
 import { ProviderSelectionService } from "./ProviderSelectionService";
@@ -38,6 +39,7 @@ export class ContextIntelligenceService {
     private eventBus: EventBus,
     private loggingService: LoggingService,
     private llmRegistry: LLMRegistry,
+    private projectIndexService: ProjectIndexService,
   ) {
     this.logger = createLogger("ContextIntelligenceService", loggingService);
   }
@@ -159,18 +161,19 @@ export class ContextIntelligenceService {
       }
 
       const findFilesStart = Date.now();
-      this.logger.info("Finding all project files", { maxFiles: 200 });
+      this.logger.info("Getting indexed files", { maxFiles: 200 });
       onProgress?.(LoadingSteps.analyzingProject);
-      const allFiles = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude, 200);
+      const indexedFiles = await this.projectIndexService.getIndexedFiles();
+      const allFiles = indexedFiles.slice(0, 200).map((f) => f.uri);
       const findFilesDuration = Date.now() - findFilesStart;
-      this.logger.info("All files found", {
+      this.logger.info("Indexed files retrieved", {
         duration: findFilesDuration,
         fileCount: allFiles.length,
       });
 
-      if (allFiles.length >= 200) {
+      if (indexedFiles.length >= 200) {
         this.logger.warn("File limit reached - only analyzing first 200 files", {
-          totalFiles: allFiles.length,
+          totalFiles: indexedFiles.length,
           limit: 200,
         });
       }

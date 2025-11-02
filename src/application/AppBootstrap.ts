@@ -204,7 +204,11 @@ export class AppBootstrap {
 
     this.container.register(
       "projectContextService",
-      () => new ProjectContextService(this.loggingService),
+      () =>
+        new ProjectContextService(
+          this.loggingService,
+          this.container.resolve("projectIndexService") as ProjectIndexService,
+        ),
     );
     this.container.register(
       "cachedProjectContextService",
@@ -446,6 +450,7 @@ export class AppBootstrap {
           this.container.resolve("eventBus"),
           this.loggingService,
           await this.container.resolveLazy("llmRegistry"),
+          this.container.resolve("projectIndexService") as ProjectIndexService,
         ),
     );
 
