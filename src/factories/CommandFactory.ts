@@ -19,7 +19,9 @@ import {
   UpdateConfigurationCommand,
   ValidateConfigurationCommand,
   ApplyConfigurationTemplateCommand,
+  GetConfigurationTemplatesCommand,
   CreateConfigurationBackupCommand,
+  GetConfigurationBackupsCommand,
   GetProviderHealthCommand,
   GetProviderPerformanceCommand,
   SaveWikiCommand,
@@ -62,7 +64,7 @@ export class CommandFactory {
 
     switch (commandId) {
       case CommandIds.generateWiki:
-        return new GenerateWikiCommand(eventBus) as Command<T>;
+        return new GenerateWikiCommand(eventBus, this.loggingService) as Command<T>;
 
       case CommandIds.getSelection:
         return new GetSelectionCommand(eventBus) as Command<T>;
@@ -147,8 +149,20 @@ export class CommandFactory {
           this.messageBus,
         ) as Command<T>;
 
+      case CommandIds.getConfigurationTemplates:
+        return new GetConfigurationTemplatesCommand(
+          container.resolve("configurationTemplateService"),
+          this.messageBus,
+        ) as Command<T>;
+
       case CommandIds.createConfigurationBackup:
         return new CreateConfigurationBackupCommand(
+          container.resolve("configurationBackupService"),
+          this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.getConfigurationBackups:
+        return new GetConfigurationBackupsCommand(
           container.resolve("configurationBackupService"),
           this.messageBus,
         ) as Command<T>;
@@ -219,7 +233,9 @@ export class CommandFactory {
       CommandIds.updateConfiguration,
       CommandIds.validateConfiguration,
       CommandIds.applyConfigurationTemplate,
+      CommandIds.getConfigurationTemplates,
       CommandIds.createConfigurationBackup,
+      CommandIds.getConfigurationBackups,
       CommandIds.getProviderHealth,
       CommandIds.getProviderPerformance,
       CommandIds.saveWiki,

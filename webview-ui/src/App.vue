@@ -51,9 +51,33 @@ watch(
 watch(
   () => wiki.providers,
   () => {
-    if (wiki.providers.length > 0 && !settings.selectedProvider) {
-      const withKey = wiki.providers.find((p) => p.hasKey);
-      settings.selectedProvider = withKey?.id || "google-ai-studio";
+    if (wiki.providers.length > 0) {
+      if (!settings.selectedProvider) {
+        const withKey = wiki.providers.find((p) => p.hasKey);
+        settings.selectedProvider = withKey?.id || wiki.providers[0]?.id || "google-ai-studio";
+      }
+
+      if (!wiki.providerId) {
+        wiki.providerId = settings.selectedProvider || wiki.providers[0]?.id || "google-ai-studio";
+        const selectedProvider = wiki.providers.find((p) => p.id === wiki.providerId);
+        if (selectedProvider && !wiki.model && selectedProvider.models?.length) {
+          wiki.model = selectedProvider.models[0];
+        }
+      }
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => settings.selectedProvider,
+  (newProviderId) => {
+    if (newProviderId && newProviderId !== wiki.providerId) {
+      wiki.providerId = newProviderId;
+      const selectedProvider = wiki.providers.find((p) => p.id === newProviderId);
+      if (selectedProvider && !wiki.model && selectedProvider.models?.length) {
+        wiki.model = selectedProvider.models[0];
+      }
     }
   },
   { immediate: true },

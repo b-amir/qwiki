@@ -5,7 +5,7 @@ import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
 import LoadingState from "@/components/features/LoadingState.vue";
-import ErrorDisplay from "@/components/features/ErrorDisplay.vue";
+import ErrorModal from "@/components/features/ErrorModal.vue";
 import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
 import Button from "@/components/ui/button.vue";
@@ -28,6 +28,7 @@ const wikiStore = useWikiStore();
 const savedWikis = ref<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const errorModalOpen = ref(false);
 const searchQuery = ref("");
 const previewWiki = ref<SavedWiki | null>(null);
 const updateReadmeState = ref<"idle" | "loading" | "done">("idle");
@@ -115,6 +116,7 @@ const loadSavedWikis = async (force: boolean = false) => {
     hasLoadedOnce = true;
   } catch {
     error.value = "Failed to load saved wikis";
+    errorModalOpen.value = true;
     loading.value = false;
     isLoading.value = false;
     navigationStatus.finish("savedWikis");
@@ -168,6 +170,7 @@ const handleMessage = (event: MessageEvent) => {
     case "showNotification":
       if (message.payload.type === "error") {
         error.value = message.payload.message;
+        errorModalOpen.value = true;
         loading.value = false;
         isLoading.value = false;
         navigationStatus.finish("savedWikis");
@@ -211,10 +214,6 @@ onBeforeUnmount(() => {
     <div class="flex-1 overflow-hidden">
       <div v-if="isSavedWikisLoading" class="flex h-full w-full">
         <LoadingState context="savedWikis" />
-      </div>
-
-      <div v-else-if="error" class="flex h-full w-full items-center justify-center px-4">
-        <ErrorDisplay :error="error" />
       </div>
 
       <div
@@ -317,5 +316,17 @@ onBeforeUnmount(() => {
     </div>
 
     <WikiPreviewModal :wiki="previewWiki" @close="previewWiki = null" />
+
+    <ErrorModal
+      v-if="error"
+      v-model="errorModalOpen"
+      :error="error"
+      @close="
+        () => {
+          error = null;
+          errorModalOpen = false;
+        }
+      "
+    />
   </div>
 </template>

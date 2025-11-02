@@ -67,6 +67,8 @@ class DefaultFormatter implements LogFormatter {
       parts.push(entry.timestamp.toISOString());
     }
 
+    parts.push("qwiki");
+
     if (this.config.includeService) {
       parts.push(entry.service);
     }

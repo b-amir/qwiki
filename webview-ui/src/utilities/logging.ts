@@ -15,7 +15,10 @@ const levelWeight: Record<LogLevel, number> = {
 };
 
 class FrontendLogger {
-  constructor(private config: FrontendLoggerConfig, private source: string) {}
+  constructor(
+    private config: FrontendLoggerConfig,
+    private source: string,
+  ) {}
 
   debug(message: string, data?: unknown) {
     this.log("debug", message, data);
@@ -43,6 +46,8 @@ class FrontendLogger {
     if (this.config.includeTimestamp) {
       parts.push(new Date().toISOString());
     }
+
+    parts.push("qwiki");
 
     if (this.config.includeSource) {
       parts.push(this.source);

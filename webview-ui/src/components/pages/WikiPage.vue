@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
-import ErrorDisplay from "@/components/features/ErrorDisplay.vue";
+import ErrorModal from "@/components/features/ErrorModal.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import RelatedFiles from "@/components/features/RelatedFiles.vue";
 import ProjectFiles from "@/components/features/ProjectFiles.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
-import { useNavigation } from "@/composables/useNavigation";
 import { useVscode } from "@/composables/useVscode";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
@@ -15,7 +14,6 @@ import { createLogger } from "@/utilities/logging";
 const wiki = useWikiStore();
 const logger = createLogger("WikiPage");
 const navigationStatus = useNavigationStatusStore();
-const { setPage } = useNavigation();
 const vscode = useVscode();
 const wikiLoadingContext = useLoading("wiki");
 const isSaving = ref(false);
@@ -37,6 +35,16 @@ const wikiTitle = computed(() => {
     return match ? match[1].trim() : "Untitled Wiki";
   }
   return "Untitled Wiki";
+});
+
+const errorModalOpen = computed({
+  get: () => !!wiki.error,
+  set: (value: boolean) => {
+    if (!value) {
+      wiki.error = "";
+      wiki.errorInfo = null;
+    }
+  },
 });
 
 const saveWiki = async () => {
@@ -101,35 +109,6 @@ onBeforeUnmount(() => {
       <div v-if="showWikiLoading" class="h-full">
         <LoadingState context="wiki" />
       </div>
-      <ErrorDisplay
-        v-else-if="wiki.error"
-        :error="wiki.error"
-        :error-code="wiki.errorInfo?.code"
-        :suggestions="wiki.errorInfo?.suggestions"
-        :retryable="wiki.errorInfo?.retryable"
-        :on-retry="wiki.retryGeneration"
-        :timestamp="wiki.errorInfo?.timestamp"
-        :context="wiki.errorInfo?.context"
-        :original-error="wiki.errorInfo?.originalError"
-      >
-        <template #actions>
-          <div class="flex justify-center gap-4 pt-6">
-            <button
-              class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
-              @click="setPage('settings')"
-            >
-              Change model
-            </button>
-            <button
-              v-if="wiki.errorInfo?.retryable"
-              class="text-primary hover:text-primary/80 text-sm"
-              @click="wiki.retryGeneration"
-            >
-              Retry
-            </button>
-          </div>
-        </template>
-      </ErrorDisplay>
       <div v-else-if="wiki.content" class="relative">
         <div class="bg-background border-border sticky top-0 z-10 border-b p-3">
           <div class="flex justify-end">
@@ -208,5 +187,23 @@ onBeforeUnmount(() => {
         <ProjectFiles />
       </div>
     </div>
+
+    <ErrorModal
+      v-if="wiki.error"
+      v-model="errorModalOpen"
+      :error="wiki.error"
+      :error-code="wiki.errorInfo?.code"
+      :suggestions="wiki.errorInfo?.suggestions"
+      :retryable="wiki.errorInfo?.retryable"
+      :on-retry="wiki.retryGeneration"
+      :timestamp="wiki.errorInfo?.timestamp"
+      :context="wiki.errorInfo?.context"
+      :original-error="wiki.errorInfo?.originalError"
+      @close="
+        () => {
+          errorModalOpen = false;
+        }
+      "
+    />
   </div>
 </template>

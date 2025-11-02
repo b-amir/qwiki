@@ -119,7 +119,10 @@ export class AppBootstrap {
       "generationCacheService",
       new GenerationCacheService(this.container.resolve("cacheService") as CachingService),
     );
-    this.container.registerInstance("requestBatchingService", new RequestBatchingService());
+    this.container.registerInstance(
+      "requestBatchingService",
+      new RequestBatchingService(loggingService),
+    );
     this.container.registerInstance("debouncingService", new DebouncingService());
     this.container.registerInstance(
       "backgroundProcessingService",
@@ -200,6 +203,7 @@ export class AppBootstrap {
           this.container.resolve("cacheService"),
           this.container.resolve("performanceMonitor"),
           this.container.resolve("projectContextService"),
+          this.loggingService,
         ),
     );
 
@@ -501,7 +505,27 @@ export class AppBootstrap {
     commandRegistry.addDisposer(unsubLoading);
 
     const unsubError = eventBus.subscribe(OutboundEvents.error, (payload: any) => {
-      messageBus.postError(payload.message, payload.code, payload.suggestion);
+      this.logger.info("Error event received in AppBootstrap, forwarding to MessageBus", {
+        code: payload.code,
+        message: payload.message,
+        hasSuggestion:
+          !!payload.suggestion || !!(payload.suggestions && payload.suggestions.length > 0),
+        hasContext: !!payload.context,
+        hasOriginalError: !!payload.originalError,
+        timestamp: payload.timestamp,
+      });
+      const suggestion =
+        payload.suggestions && payload.suggestions.length > 0
+          ? payload.suggestions[0]
+          : payload.suggestion;
+      messageBus.postError(
+        payload.message,
+        payload.code,
+        suggestion,
+        payload.context,
+        payload.originalError,
+      );
+      this.logger.debug("Error forwarded to MessageBus.postError");
     });
     commandRegistry.addDisposer(unsubError);
 

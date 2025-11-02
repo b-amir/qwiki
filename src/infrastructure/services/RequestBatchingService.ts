@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { LoggingService, createLogger, type Logger } from "./LoggingService";
 
 export interface BatchedRequest<T = any> {
   id: string;
@@ -40,6 +41,14 @@ export class RequestBatchingService extends EventEmitter {
   };
   private readonly defaultMaxBatchSize = 10;
   private readonly defaultMaxWaitTime = 50;
+  private logger: Logger;
+
+  constructor(loggingService?: LoggingService) {
+    super();
+    this.logger = loggingService
+      ? createLogger("RequestBatchingService", loggingService)
+      : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
+  }
 
   async batchRequest<T>(request: () => Promise<T>, options?: BatchOptions): Promise<T> {
     const batchSize = options?.maxBatchSize ?? this.defaultMaxBatchSize;
@@ -48,9 +57,21 @@ export class RequestBatchingService extends EventEmitter {
     const key = options?.key ?? "default";
     const deduplicationKey = options?.deduplicationKey;
 
+    this.logger.debug("batchRequest called", {
+      batchKey: key,
+      deduplicationKey: deduplicationKey?.substring(0, 50),
+      batchSize,
+      waitTime,
+      priority,
+    });
+
     if (deduplicationKey) {
       const existingRequest = this.findExistingRequest<T>(deduplicationKey);
       if (existingRequest) {
+        this.logger.debug("Found existing request for deduplication", {
+          deduplicationKey: deduplicationKey.substring(0, 50),
+          existingRequestsCount: existingRequest.length,
+        });
         return new Promise<T>((resolve, reject) => {
           const batchedRequest: BatchedRequest<T> = {
             id: this.generateId(),
@@ -64,6 +85,10 @@ export class RequestBatchingService extends EventEmitter {
 
           existingRequest.push(batchedRequest);
           this.statistics.deduplicatedRequests++;
+          this.logger.debug("Added deduplicated request", {
+            requestId: batchedRequest.id,
+            totalDeduplicatedRequests: existingRequest.length,
+          });
         });
       }
     }
@@ -98,10 +123,20 @@ export class RequestBatchingService extends EventEmitter {
         this.statistics.priorityBatches++;
       }
 
+      this.logger.debug("Added request to batch", {
+        batchKey: key,
+        batchSize: batch.length,
+        requestId: batchedRequest.id,
+        deduplicationKey: deduplicationKey?.substring(0, 50),
+      });
+
       if (batch.length >= batchSize) {
+        this.logger.debug("Batch size reached, processing immediately", { batchKey: key });
         this.processBatch(key);
       } else if (!this.batchTimers.has(key)) {
+        this.logger.debug("Setting batch timer", { batchKey: key, waitTime });
         const timer = setTimeout(() => {
+          this.logger.debug("Batch timer fired", { batchKey: key });
           this.processBatch(key);
         }, waitTime);
         this.batchTimers.set(key, timer);
@@ -147,10 +182,19 @@ export class RequestBatchingService extends EventEmitter {
   }
 
   private async processBatch(key: string): Promise<void> {
+    const startTime = Date.now();
+    this.logger.debug("processBatch started", { batchKey: key });
+
     const batch = this.batches.get(key);
     if (!batch || batch.length === 0) {
+      this.logger.debug("processBatch: no batch or empty batch", { batchKey: key });
       return;
     }
+
+    this.logger.debug("processBatch: processing batch", {
+      batchKey: key,
+      batchSize: batch.length,
+    });
 
     const timer = this.batchTimers.get(key);
     if (timer) {
@@ -169,37 +213,110 @@ export class RequestBatchingService extends EventEmitter {
 
     for (const request of batch) {
       if (request.key) {
+        const allRequestsWithKey = this.requestsByKey.get(request.key) || [];
         if (!deduplicatedGroups.has(request.key)) {
-          deduplicatedGroups.set(request.key, []);
+          deduplicatedGroups.set(request.key, [...allRequestsWithKey]);
         }
-        deduplicatedGroups.get(request.key)!.push(request);
       } else {
         deduplicatedGroups.set(request.id, [request]);
       }
     }
 
-    for (const request of batch) {
-      if (request.key) {
-        this.requestsByKey.delete(request.key);
-      }
-    }
+    this.logger.debug("processBatch: created deduplicated groups", {
+      batchKey: key,
+      groupCount: deduplicatedGroups.size,
+    });
 
     const processPromises = Array.from(deduplicatedGroups.entries()).map(
       async ([groupKey, requests]) => {
+        const groupStartTime = Date.now();
+        this.logger.debug("Processing deduplicated group", {
+          groupKey: groupKey.substring(0, 50),
+          requestCount: requests.length,
+        });
+
         try {
+          this.logger.debug("Executing request for group", {
+            groupKey: groupKey.substring(0, 50),
+          });
           const result = await requests[0].request();
-          for (const request of requests) {
+          this.logger.debug("Request executed successfully", {
+            groupKey: groupKey.substring(0, 50),
+            duration: Date.now() - groupStartTime,
+          });
+
+          const allRequestsWithKey = this.requestsByKey.get(groupKey) || [];
+          this.logger.debug("Resolving requests", {
+            groupKey: groupKey.substring(0, 50),
+            initialRequests: requests.length,
+            totalRequestsToResolve: allRequestsWithKey.length + requests.length,
+          });
+
+          const requestMap = new Map<string, BatchedRequest>();
+          for (const req of requests) {
+            requestMap.set(req.id, req);
+          }
+          for (const req of allRequestsWithKey) {
+            requestMap.set(req.id, req);
+          }
+          const allRequestsToResolve = Array.from(requestMap.values());
+
+          for (const request of allRequestsToResolve) {
             request.resolve(result);
           }
+
+          if (this.requestsByKey.has(groupKey)) {
+            this.requestsByKey.delete(groupKey);
+          }
+
+          this.logger.debug("Group processing completed", {
+            groupKey: groupKey.substring(0, 50),
+            duration: Date.now() - groupStartTime,
+            resolvedCount: allRequestsToResolve.length,
+          });
         } catch (error) {
-          for (const request of requests) {
+          this.logger.debug("Request execution failed", {
+            groupKey: groupKey.substring(0, 50),
+            duration: Date.now() - groupStartTime,
+            error: error instanceof Error ? error.message : String(error),
+          });
+
+          const allRequestsWithKey = this.requestsByKey.get(groupKey) || [];
+          const requestMap = new Map<string, BatchedRequest>();
+          for (const req of requests) {
+            requestMap.set(req.id, req);
+          }
+          for (const req of allRequestsWithKey) {
+            requestMap.set(req.id, req);
+          }
+          const allRequestsToReject = Array.from(requestMap.values());
+
+          for (const request of allRequestsToReject) {
             request.reject(error);
           }
+
+          if (this.requestsByKey.has(groupKey)) {
+            this.requestsByKey.delete(groupKey);
+          }
+
+          this.logger.debug("Group processing failed", {
+            groupKey: groupKey.substring(0, 50),
+            duration: Date.now() - groupStartTime,
+            rejectedCount: allRequestsToReject.length,
+          });
         }
       },
     );
 
+    this.logger.debug("processBatch: waiting for all promises to settle", {
+      batchKey: key,
+      promiseCount: processPromises.length,
+    });
     await Promise.allSettled(processPromises);
+    this.logger.debug("processBatch completed", {
+      batchKey: key,
+      duration: Date.now() - startTime,
+    });
     this.emit("batchProcessed", key, batch.length);
   }
 

@@ -533,14 +533,52 @@ export class QwikiPanel {
             }
             default: {
               if (this.commandRegistry?.has(command)) {
+                this.logDebug(`Command ${command} found in registry, executing...`);
+                const initWaitStart = Date.now();
+                this.logDebug("Waiting for initialization promise", { command });
                 await this._initPromise.catch((e) => {
-                  this.logError("Initialization failed before command execution", e);
+                  this.logError("Initialization failed before command execution", {
+                    command,
+                    duration: Date.now() - initWaitStart,
+                    error: e,
+                  });
                 });
-                await this.commandRegistry.execute(command, payload);
+                this.logDebug("Initialization promise resolved/errored", {
+                  command,
+                  waitDuration: Date.now() - initWaitStart,
+                });
+                this.logDebug(`Executing command ${command} with payload`, {
+                  command,
+                  hasPayload: !!payload,
+                });
+                const executeStart = Date.now();
+                this.logDebug("About to call commandRegistry.execute", {
+                  command,
+                  hasRegistry: !!this.commandRegistry,
+                });
+                try {
+                  await this.commandRegistry.execute(command, payload);
+                } catch (err: any) {
+                  this.logError("Error in commandRegistry.execute", {
+                    command,
+                    error: err?.message,
+                    stack: err?.stack,
+                    duration: Date.now() - executeStart,
+                  });
+                  throw err;
+                }
+                const executeDuration = Date.now() - executeStart;
                 const doneTs = Date.now();
                 this.logInfo(
                   `Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`,
                 );
+                this.logDebug("Command execution finished", {
+                  command,
+                  executeDuration,
+                  totalDuration: doneTs - receiveTs,
+                });
+              } else {
+                this.logWarn(`Command ${command} not found in registry`);
               }
               return;
             }

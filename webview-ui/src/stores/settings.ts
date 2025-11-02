@@ -83,6 +83,10 @@ export const useSettingsStore = defineStore("settings", {
               this.apiKeyInputs = { ...apiKeys };
               this.customSettings = { ...settings };
 
+              if (settings?.selectedProvider && !this.selectedProvider) {
+                this.selectedProvider = settings.selectedProvider;
+              }
+
               this.originalApiKeys = { ...apiKeys };
               this.unsavedProviders.clear();
 
@@ -132,8 +136,12 @@ export const useSettingsStore = defineStore("settings", {
             case "providers": {
               const providers = message.payload || [];
               logger.debug(`Received ${providers.length} providers`);
-              const withKey = providers.find((p: any) => p.hasKey);
-              this.selectedProvider = withKey?.id || providers[0]?.id || "";
+
+              if (!this.selectedProvider && providers.length > 0) {
+                const withKey = providers.find((p: any) => p.hasKey);
+                this.selectedProvider = withKey?.id || providers[0]?.id || "google-ai-studio";
+              }
+
               this.loadingPhase.providersResolved = true;
               this.ensurePreparingPhase(loadingStore);
               this.tryCompleteLoading(loadingStore);
@@ -165,12 +173,24 @@ export const useSettingsStore = defineStore("settings", {
               }, 5000);
               return;
             }
+            case "configurationTemplates": {
+              const templates = message.payload?.templates || [];
+              logger.debug(`Received ${templates.length} configuration templates`);
+              this.configurationTemplates = templates;
+              return;
+            }
             case "configurationTemplateApplied": {
               logger.debug("Configuration template applied successfully");
               this.savedMessage = "Configuration template applied successfully";
               setTimeout(() => {
                 this.savedMessage = "";
               }, 3000);
+              return;
+            }
+            case "configurationBackups": {
+              const backups = message.payload?.backups || [];
+              logger.debug(`Received ${backups.length} configuration backups`);
+              this.availableBackups = backups;
               return;
             }
             case "configurationBackupCreated": {

@@ -57,20 +57,60 @@ export const useWikiStore = defineStore("wiki", {
           case "providers": {
             this.providers = message.payload || [];
 
-            const selectedProvider = this.providers.find((p) => p.hasKey);
-            if (selectedProvider) {
-              this.providerId = selectedProvider.id;
-              if (!this.model && selectedProvider.models?.length) {
-                this.model = selectedProvider.models[0];
+            vscode.postMessage({
+              command: "frontendLog",
+              payload: {
+                message: "WikiStore: providers received",
+                data: {
+                  providerCount: this.providers.length,
+                  providersWithKeys: this.providers.filter((p) => p.hasKey).length,
+                },
+              },
+            });
+
+            if (!this.providerId) {
+              const selectedProvider = this.providers.find((p) => p.hasKey) || this.providers[0];
+              if (selectedProvider) {
+                vscode.postMessage({
+                  command: "frontendLog",
+                  payload: {
+                    message: "WikiStore: Setting providerId",
+                    data: { providerId: selectedProvider.id, hasKey: selectedProvider.hasKey },
+                  },
+                });
+                this.providerId = selectedProvider.id;
+                if (!this.model && selectedProvider.models?.length) {
+                  this.model = selectedProvider.models[0];
+                }
+              } else {
+                vscode.postMessage({
+                  command: "frontendLog",
+                  payload: {
+                    message: "WikiStore: No providers available",
+                  },
+                });
               }
             }
             return;
           }
           case "triggerGenerate": {
+            vscode.postMessage({
+              command: "frontendLog",
+              payload: {
+                message: "WikiStore: triggerGenerate received",
+                data: { hasSnippet: !!this.snippet?.trim() },
+              },
+            });
             if (this.snippet?.trim()) {
               this.generate();
             } else {
               this.pendingAutoGenerate = true;
+              vscode.postMessage({
+                command: "frontendLog",
+                payload: {
+                  message: "WikiStore: triggerGenerate - no snippet, setting pendingAutoGenerate",
+                },
+              });
             }
             return;
           }
@@ -153,7 +193,19 @@ export const useWikiStore = defineStore("wiki", {
       }, 10000);
     },
     async generate() {
+      vscode.postMessage({
+        command: "frontendLog",
+        payload: {
+          message: "WikiStore: generate() called",
+          data: { hasSnippet: !!this.snippet?.trim(), hasProvider: !!this.providerId?.trim() },
+        },
+      });
+
       if (!this.snippet?.trim()) {
+        vscode.postMessage({
+          command: "frontendLog",
+          payload: { message: "WikiStore: generate() aborted - missing snippet" },
+        });
         const errorInfo = getErrorMessage(ErrorCodes.MISSING_SNIPPET);
         this.error = errorInfo.message;
         this.errorInfo = {
@@ -167,7 +219,13 @@ export const useWikiStore = defineStore("wiki", {
       }
 
       if (!this.providerId?.trim()) {
+        vscode.postMessage({
+          command: "frontendLog",
+          payload: { message: "WikiStore: generate() aborted - no provider selected" },
+        });
         const errorInfo = getErrorMessage(ErrorCodes.PROVIDER_NOT_SELECTED);
+        this.loading = false;
+        this.loadingStep = "";
         this.error = errorInfo.message;
         this.errorInfo = {
           message: errorInfo.message,
@@ -176,8 +234,15 @@ export const useWikiStore = defineStore("wiki", {
           retryable: false,
           timestamp: new Date().toISOString(),
         };
+        const loadingStore = useLoadingStore();
+        loadingStore.fail({ context: "wiki", error: this.error });
         return;
       }
+
+      vscode.postMessage({
+        command: "frontendLog",
+        payload: { message: "WikiStore: generate() setting loading state" },
+      });
 
       this.loading = true;
       this.loadingStep = "validating";
@@ -188,6 +253,18 @@ export const useWikiStore = defineStore("wiki", {
       this.content = "";
 
       this.generateRequestId = Math.random().toString(36).substring(7);
+
+      vscode.postMessage({
+        command: "frontendLog",
+        payload: {
+          message: "WikiStore: generate() sending generateWiki command",
+          data: {
+            providerId: this.providerId,
+            snippetLength: this.snippet.length,
+            requestId: this.generateRequestId,
+          },
+        },
+      });
 
       vscode.postMessage({
         command: "generateWiki",

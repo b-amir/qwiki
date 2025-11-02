@@ -1,6 +1,11 @@
 import type { Command } from "./Command";
 import type { EventBus } from "../../events";
 import { InboundEvents } from "../../constants/Events";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 interface GenerateWikiPayload {
   providerId: string;
@@ -11,9 +16,47 @@ interface GenerateWikiPayload {
 }
 
 export class GenerateWikiCommand implements Command<GenerateWikiPayload> {
-  constructor(private eventBus: EventBus) {}
+  private logger: Logger;
+
+  constructor(
+    private eventBus: EventBus,
+    private loggingService: LoggingService,
+  ) {
+    this.logger = createLogger("GenerateWikiCommand", loggingService);
+  }
 
   async execute(payload: GenerateWikiPayload): Promise<void> {
-    await this.eventBus.publish(InboundEvents.generateWiki, payload);
+    const startTime = Date.now();
+    this.logger.info("GenerateWikiCommand.execute ENTRY", {
+      providerId: payload.providerId,
+      snippetLength: payload.snippet?.length,
+      filePath: payload.filePath,
+      languageId: payload.languageId,
+      model: payload.model,
+    });
+    this.logger.debug("GenerateWikiCommand.execute started", {
+      providerId: payload.providerId,
+      snippetLength: payload.snippet?.length,
+      filePath: payload.filePath,
+      languageId: payload.languageId,
+      model: payload.model,
+    });
+
+    try {
+      this.logger.debug("Publishing generateWiki event", {
+        event: InboundEvents.generateWiki,
+      });
+      await this.eventBus.publish(InboundEvents.generateWiki, payload);
+      this.logger.debug("GenerateWikiCommand.execute completed", {
+        duration: Date.now() - startTime,
+      });
+    } catch (error: any) {
+      this.logger.error("GenerateWikiCommand.execute failed", {
+        duration: Date.now() - startTime,
+        error: error?.message,
+        stack: error?.stack,
+      });
+      throw error;
+    }
   }
 }

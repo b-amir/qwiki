@@ -11,6 +11,9 @@ export type LoadingContext = (typeof LoadingContexts)[keyof typeof LoadingContex
 
 export const LoadingSteps = {
   validating: "validating",
+  buildingContext: "buildingContext",
+  selectingContext: "selectingContext",
+  analyzingProject: "analyzingProject",
   analyzing: "analyzing",
   finding: "finding",
   preparing: "preparing",

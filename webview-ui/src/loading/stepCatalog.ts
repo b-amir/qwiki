@@ -5,6 +5,9 @@ type StepCatalog = Record<KnownLoadingContext, LoadingStepDefinition[]>;
 export const stepCatalog: StepCatalog = {
   wiki: [
     { text: "Validating selection...", key: "validating" },
+    { text: "Building project context...", key: "buildingContext" },
+    { text: "Selecting optimal context...", key: "selectingContext" },
+    { text: "Analyzing project structure...", key: "analyzingProject" },
     { text: "Analyzing code structure...", key: "analyzing" },
     { text: "Finding related files...", key: "finding" },
     { text: "Preparing LLM request...", key: "preparing" },
