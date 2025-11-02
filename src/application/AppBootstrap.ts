@@ -45,6 +45,7 @@ import {
   BackgroundProcessingService,
   MemoryOptimizationService,
   ProviderValidationService,
+  ProjectIndexService,
   type ValidationResult,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
@@ -99,6 +100,13 @@ export class AppBootstrap {
       "backgroundProcessingService",
     ) as BackgroundProcessingService;
     backgroundProcessingService.setMaxConcurrentTasks(3);
+
+    const projectIndexService = this.container.resolve(
+      "projectIndexService",
+    ) as ProjectIndexService;
+    projectIndexService.initialize().catch((err) => {
+      this.logger.error("Failed to initialize project index", err);
+    });
   }
 
   private registerServices(): void {
@@ -303,6 +311,16 @@ export class AppBootstrap {
           this.container.resolve("configurationManager"),
           this.container.resolve("apiKeyRepository"),
           this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "projectIndexService",
+      () =>
+        new ProjectIndexService(
+          this.context,
+          this.loggingService,
+          this.container.resolve("debouncingService") as DebouncingService,
         ),
     );
 

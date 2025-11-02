@@ -38,4 +38,9 @@ export const ServiceLimits = {
   performanceWindowMs: 3600000,
   contextIntelligenceFileRelevanceTTL: 5 * 60 * 1000,
   contextIntelligenceProjectTypeTTL: 30 * 60 * 1000,
+  indexCacheVersion: 1,
+  indexCacheTTL: 60 * 60 * 1000,
+  maxIndexFileSize: 1024 * 1024,
+  indexBatchSize: 50,
+  indexDebounceDelay: 500,
 } as const;

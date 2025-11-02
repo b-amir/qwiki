@@ -30,3 +30,9 @@ export {
   type Logger,
 } from "./LoggingService";
 export { ProviderValidationService, type ValidationResult } from "./ProviderValidationService";
+export {
+  ProjectIndexService,
+  type IndexedFile,
+  type ProjectIndexCache,
+  type SymbolInfo,
+} from "./ProjectIndexService";
