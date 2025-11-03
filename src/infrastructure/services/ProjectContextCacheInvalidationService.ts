@@ -153,6 +153,14 @@ export class ProjectContextCacheInvalidationService {
     try {
       this.logger.info("Invalidating all cache entries");
       await this.cacheService.clear();
+
+      const workspaceFolders = workspace.workspaceFolders;
+      if (workspaceFolders && workspaceFolders.length > 0) {
+        for (const folder of workspaceFolders) {
+          await this.workspaceStructureCache.clear(folder.uri.fsPath);
+        }
+        this.logger.info("Invalidated workspace structure cache for all workspaces");
+      }
     } catch (error) {
       this.logger.error("Error clearing cache", { error });
     }

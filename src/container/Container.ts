@@ -1,7 +1,15 @@
+export type LoadingCallback = (serviceKey: string, step: string) => void;
+
 export class Container {
   private services = new Map<string, any>();
   private factories = new Map<string, () => any>();
   private lazyFactories = new Map<string, () => Promise<any>>();
+  private loadingStates = new Map<string, Promise<any>>();
+  private loadingCallback?: LoadingCallback;
+
+  setLoadingCallback(callback: LoadingCallback): void {
+    this.loadingCallback = callback;
+  }
 
   register<T>(key: string, factory: () => T): void {
     this.factories.set(key, factory);
@@ -35,14 +43,33 @@ export class Container {
       return this.services.get(key) as T;
     }
 
+    if (this.loadingStates.has(key)) {
+      return (await this.loadingStates.get(key)) as T;
+    }
+
     const factory = this.lazyFactories.get(key);
     if (!factory) {
       throw new Error(`Lazy service ${key} not registered`);
     }
 
-    const instance = (await factory()) as T;
-    this.services.set(key, instance);
-    return instance;
+    const loadingPromise = (async () => {
+      try {
+        if (this.loadingCallback) {
+          this.loadingCallback(key, "Initializing service...");
+        }
+
+        const instance = (await factory()) as T;
+        this.services.set(key, instance);
+        this.loadingStates.delete(key);
+        return instance;
+      } catch (error) {
+        this.loadingStates.delete(key);
+        throw error;
+      }
+    })();
+
+    this.loadingStates.set(key, loadingPromise);
+    return loadingPromise;
   }
 
   has(key: string): boolean {
@@ -51,6 +78,10 @@ export class Container {
 
   isLoaded(key: string): boolean {
     return this.services.has(key);
+  }
+
+  isLoading(key: string): boolean {
+    return this.loadingStates.has(key);
   }
 
   async dispose(): Promise<void> {

@@ -1,6 +1,7 @@
 export { CommandIds, VSCodeCommandIds } from "./Commands";
 export { ErrorCodes, ErrorMessages } from "./ErrorCodes";
 export { InboundEvents, OutboundEvents, LoadingSteps, Pages } from "./Events";
+export { LoadingContexts } from "./loading";
 export { Extension } from "./Extension";
 export { FilePatterns, FileLimits } from "./FilePatterns";
 export { MessageTemplates, MessageStrings, MessageFormats } from "./MessageConstants";

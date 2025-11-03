@@ -82,7 +82,7 @@ import { ExtensionContextStorageService } from "../infrastructure/services/Exten
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
-import { OutboundEvents } from "../constants";
+import { OutboundEvents, LoadingContexts } from "../constants";
 import type { ExtensionContext, Webview } from "vscode";
 
 export class AppBootstrap {
@@ -98,6 +98,25 @@ export class AppBootstrap {
     const configManager = this.container.resolve(
       "configurationManager",
     ) as ConfigurationManagerService;
+
+    const cachingService = this.container.resolve("cachingService") as CachingService;
+    const generationCacheService = this.container.resolve(
+      "generationCacheService",
+    ) as GenerationCacheService;
+    const projectIndexService = (await this.container.resolveLazy(
+      "projectIndexService",
+    )) as ProjectIndexService;
+    const cacheInvalidationService = this.container.resolve(
+      "projectContextCacheInvalidationService",
+    ) as ProjectContextCacheInvalidationService;
+
+    configManager.setCacheServices(
+      cacheInvalidationService,
+      cachingService,
+      generationCacheService,
+      projectIndexService,
+    );
+
     await configManager.initialize();
 
     const migrationService = this.container.resolve(
@@ -124,16 +143,10 @@ export class AppBootstrap {
     ) as BackgroundProcessingService;
     backgroundProcessingService.setMaxConcurrentTasks(3);
 
-    const projectIndexService = this.container.resolve(
-      "projectIndexService",
-    ) as ProjectIndexService;
     projectIndexService.initialize().catch((err) => {
       this.logger.error("Failed to initialize project index", err);
     });
 
-    const cacheInvalidationService = this.container.resolve(
-      "projectContextCacheInvalidationService",
-    ) as ProjectContextCacheInvalidationService;
     cacheInvalidationService.startWatching();
 
     const wikiWatcherService = this.container.resolve("wikiWatcherService") as WikiWatcherService;
@@ -155,9 +168,17 @@ export class AppBootstrap {
       new VSCodeFileSystemService(loggingService),
     );
 
-    this.container.registerInstance("eventBus", new EventBusImpl(loggingService));
+    const eventBus = new EventBusImpl(loggingService);
+    this.container.registerInstance("eventBus", eventBus);
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
+
+    this.container.setLoadingCallback((serviceKey: string, step: string) => {
+      eventBus.publish(OutboundEvents.loadingStep, {
+        context: LoadingContexts.wiki,
+        step: `Initializing ${serviceKey}...`,
+      });
+    });
     this.container.registerInstance(
       "extensionContextStorageService",
       new ExtensionContextStorageService(this.context, loggingService),
@@ -253,19 +274,15 @@ export class AppBootstrap {
       () => new ProjectOverviewService(this.loggingService),
     );
 
-    this.container.register(
-      "projectContextService",
-      () =>
-        new ProjectContextService(
-          this.loggingService,
-          this.container.resolve("projectIndexService") as ProjectIndexService,
-          this.container.resolve(
-            "workspaceStructureCacheService",
-          ) as WorkspaceStructureCacheService,
-          this.container.resolve("textUsageSearchService") as TextUsageSearchService,
-          this.container.resolve("projectOverviewService") as ProjectOverviewService,
-        ),
-    );
+    this.container.registerLazy("projectContextService", async () => {
+      return new ProjectContextService(
+        this.loggingService,
+        (await this.container.resolveLazy("projectIndexService")) as ProjectIndexService,
+        this.container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
+        this.container.resolve("textUsageSearchService") as TextUsageSearchService,
+        this.container.resolve("projectOverviewService") as ProjectOverviewService,
+      );
+    });
     this.container.register(
       "projectContextCacheService",
       () => new ProjectContextCacheService(this.context, this.loggingService, false),
@@ -294,20 +311,18 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register(
-      "cachedProjectContextService",
-      () =>
-        new CachedProjectContextService(
-          this.container.resolve("cachingService"),
-          this.container.resolve("projectContextCacheService") as ProjectContextCacheService,
-          this.container.resolve(
-            "projectContextValidationService",
-          ) as ProjectContextValidationService,
-          this.container.resolve("performanceMonitor"),
-          this.container.resolve("projectContextService"),
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("cachedProjectContextService", async () => {
+      return new CachedProjectContextService(
+        this.container.resolve("cachingService"),
+        this.container.resolve("projectContextCacheService") as ProjectContextCacheService,
+        this.container.resolve(
+          "projectContextValidationService",
+        ) as ProjectContextValidationService,
+        this.container.resolve("performanceMonitor"),
+        (await this.container.resolveLazy("projectContextService")) as ProjectContextService,
+        this.loggingService,
+      );
+    });
 
     this.container.registerLazy("llmRegistry", async () => {
       const configurationRepository = this.container.resolve(
@@ -337,13 +352,15 @@ export class AppBootstrap {
             "contextIntelligenceService",
           )) as ContextIntelligenceService,
           this.container.resolve("contextCompressionService") as ContextCompressionService,
-          this.container.resolve("advancedPromptService") as AdvancedPromptService,
+          (await this.container.resolveLazy("advancedPromptService")) as AdvancedPromptService,
           this.container.resolve("performanceMonitor") as PerformanceMonitorService,
-          this.container.resolve("cachedProjectContextService") as CachedProjectContextService,
+          (await this.container.resolveLazy(
+            "cachedProjectContextService",
+          )) as CachedProjectContextService,
           this.loggingService,
-          this.container.resolve(
+          (await this.container.resolveLazy(
             "languageServerIntegrationService",
-          ) as LanguageServerIntegrationService,
+          )) as LanguageServerIntegrationService,
         ),
     );
 
@@ -382,7 +399,7 @@ export class AppBootstrap {
         new ProviderSelectionService(
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("eventBus"),
-          this.container.resolve("contextAnalysisService") as ContextAnalysisService,
+          (await this.container.resolveLazy("contextAnalysisService")) as ContextAnalysisService,
           await this.container.resolveLazy("providerHealthService"),
           this.loggingService,
         ),
@@ -409,27 +426,25 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register(
-      "projectIndexService",
-      () =>
-        new ProjectIndexService(
-          this.context,
-          this.loggingService,
-          this.container.resolve("debouncingService") as DebouncingService,
-          this.container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
-        ),
-    );
+    this.container.registerLazy("projectIndexService", async () => {
+      const service = new ProjectIndexService(
+        this.context,
+        this.loggingService,
+        this.container.resolve("debouncingService") as DebouncingService,
+        this.container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
+      );
+      await service.initialize();
+      return service;
+    });
 
-    this.container.register(
-      "languageServerIntegrationService",
-      () =>
-        new LanguageServerIntegrationService(
-          this.loggingService,
-          this.container.resolve("eventBus"),
-          this.container.resolve("debouncingService") as DebouncingService,
-          this.container.resolve("cachingService") as CachingService,
-        ),
-    );
+    this.container.registerLazy("languageServerIntegrationService", async () => {
+      return new LanguageServerIntegrationService(
+        this.loggingService,
+        this.container.resolve("eventBus"),
+        this.container.resolve("debouncingService") as DebouncingService,
+        this.container.resolve("cachingService") as CachingService,
+      );
+    });
 
     this.container.register(
       "gitChangeDetectionService",
@@ -476,7 +491,7 @@ export class AppBootstrap {
         new WikiEventHandler(
           this.container.resolve("eventBus"),
           await this.container.resolveLazy("wikiService"),
-          this.container.resolve("projectContextService"),
+          (await this.container.resolveLazy("projectContextService")) as ProjectContextService,
           this.container.resolve("errorRecoveryService"),
           this.container.resolve("errorLoggingService"),
           await this.container.resolveLazy("providerValidationService"),
@@ -530,70 +545,56 @@ export class AppBootstrap {
       () => new ComplexityCalculationService(this.loggingService),
     );
 
-    this.container.register(
-      "contextAnalysisService",
-      () =>
-        new ContextAnalysisService(
-          this.container.resolve("eventBus"),
-          this.loggingService,
-          this.container.resolve("complexityCalculationService") as ComplexityCalculationService,
-          this.container.resolve("patternExtractionService") as PatternExtractionService,
-          this.container.resolve("structureAnalysisService") as StructureAnalysisService,
-          this.container.resolve("relationshipAnalysisService") as RelationshipAnalysisService,
-        ),
-    );
+    this.container.registerLazy("contextAnalysisService", async () => {
+      return new ContextAnalysisService(
+        this.container.resolve("eventBus"),
+        this.loggingService,
+        this.container.resolve("complexityCalculationService") as ComplexityCalculationService,
+        this.container.resolve("patternExtractionService") as PatternExtractionService,
+        this.container.resolve("structureAnalysisService") as StructureAnalysisService,
+        this.container.resolve("relationshipAnalysisService") as RelationshipAnalysisService,
+      );
+    });
 
-    this.container.register(
-      "projectTypeDetectionService",
-      () =>
-        new ProjectTypeDetectionService(
-          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
-          this.container.resolve("cachingService") as CachingService,
-          this.container.resolve(
-            "workspaceStructureCacheService",
-          ) as WorkspaceStructureCacheService,
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("projectTypeDetectionService", async () => {
+      return new ProjectTypeDetectionService(
+        this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+        this.container.resolve("cachingService") as CachingService,
+        this.container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
+        this.loggingService,
+      );
+    });
 
-    this.container.register(
-      "dependencyAnalysisService",
-      () =>
-        new DependencyAnalysisService(
-          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
-          this.container.resolve("cachingService") as CachingService,
-          this.container.resolve(
-            "workspaceStructureCacheService",
-          ) as WorkspaceStructureCacheService,
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("dependencyAnalysisService", async () => {
+      return new DependencyAnalysisService(
+        this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+        this.container.resolve("cachingService") as CachingService,
+        this.container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
+        this.loggingService,
+      );
+    });
 
-    this.container.register(
-      "fileRelevanceAnalysisService",
-      () =>
-        new FileRelevanceAnalysisService(
-          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
-          this.container.resolve("cachingService") as CachingService,
-          this.container.resolve(
-            "workspaceStructureCacheService",
-          ) as WorkspaceStructureCacheService,
-          this.container.resolve("dependencyAnalysisService") as DependencyAnalysisService,
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("fileRelevanceAnalysisService", async () => {
+      return new FileRelevanceAnalysisService(
+        this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+        this.container.resolve("cachingService") as CachingService,
+        this.container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
+        (await this.container.resolveLazy(
+          "dependencyAnalysisService",
+        )) as DependencyAnalysisService,
+        this.loggingService,
+      );
+    });
 
-    this.container.register(
-      "fileRelevanceBatchService",
-      () =>
-        new FileRelevanceBatchService(
-          this.container.resolve(
-            "workspaceStructureCacheService",
-          ) as WorkspaceStructureCacheService,
-          this.container.resolve("fileRelevanceAnalysisService") as FileRelevanceAnalysisService,
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("fileRelevanceBatchService", async () => {
+      return new FileRelevanceBatchService(
+        this.container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
+        (await this.container.resolveLazy(
+          "fileRelevanceAnalysisService",
+        )) as FileRelevanceAnalysisService,
+        this.loggingService,
+      );
+    });
 
     this.container.register(
       "fileSelectionService",
@@ -609,12 +610,20 @@ export class AppBootstrap {
       "contextIntelligenceService",
       async () =>
         new ContextIntelligenceService(
-          this.container.resolve("contextAnalysisService") as ContextAnalysisService,
-          this.container.resolve("cachedProjectContextService") as CachedProjectContextService,
+          (await this.container.resolveLazy("contextAnalysisService")) as ContextAnalysisService,
+          (await this.container.resolveLazy(
+            "cachedProjectContextService",
+          )) as CachedProjectContextService,
           await this.container.resolveLazy("providerSelectionService"),
-          this.container.resolve("projectTypeDetectionService") as ProjectTypeDetectionService,
-          this.container.resolve("fileRelevanceAnalysisService") as FileRelevanceAnalysisService,
-          this.container.resolve("fileRelevanceBatchService") as FileRelevanceBatchService,
+          (await this.container.resolveLazy(
+            "projectTypeDetectionService",
+          )) as ProjectTypeDetectionService,
+          (await this.container.resolveLazy(
+            "fileRelevanceAnalysisService",
+          )) as FileRelevanceAnalysisService,
+          (await this.container.resolveLazy(
+            "fileRelevanceBatchService",
+          )) as FileRelevanceBatchService,
           this.container.resolve("fileSelectionService") as FileSelectionService,
           this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
@@ -624,7 +633,7 @@ export class AppBootstrap {
           this.container.resolve("eventBus"),
           this.loggingService,
           await this.container.resolveLazy("llmRegistry"),
-          this.container.resolve("projectIndexService") as ProjectIndexService,
+          (await this.container.resolveLazy("projectIndexService")) as ProjectIndexService,
         ),
     );
 
@@ -633,15 +642,13 @@ export class AppBootstrap {
       () => new ContextCompressionService(this.loggingService),
     );
 
-    this.container.register(
-      "advancedPromptService",
-      () =>
-        new AdvancedPromptService(
-          this.loggingService,
-          this.container.resolve("contextAnalysisService") as ContextAnalysisService,
-          this.container.resolve("eventBus"),
-        ),
-    );
+    this.container.registerLazy("advancedPromptService", async () => {
+      return new AdvancedPromptService(
+        this.loggingService,
+        (await this.container.resolveLazy("contextAnalysisService")) as ContextAnalysisService,
+        this.container.resolve("eventBus"),
+      );
+    });
 
     this.container.register(
       "promptQualityService",
@@ -696,16 +703,16 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register(
-      "readmePromptBuilderService",
-      () =>
-        new ReadmePromptBuilderService(
-          this.container.resolve("wikiSummarizationService") as WikiSummarizationService,
-          this.container.resolve("projectContextService") as ProjectContextService,
-          this.container.resolve("projectTypeDetectionService") as ProjectTypeDetectionService,
-          this.loggingService,
-        ),
-    );
+    this.container.registerLazy("readmePromptBuilderService", async () => {
+      return new ReadmePromptBuilderService(
+        this.container.resolve("wikiSummarizationService") as WikiSummarizationService,
+        (await this.container.resolveLazy("projectContextService")) as ProjectContextService,
+        (await this.container.resolveLazy(
+          "projectTypeDetectionService",
+        )) as ProjectTypeDetectionService,
+        this.loggingService,
+      );
+    });
 
     this.container.register("readmeDiffService", () => new ReadmeDiffService(this.loggingService));
 
@@ -727,7 +734,9 @@ export class AppBootstrap {
           (await this.container.resolveLazy(
             "readmePromptOptimizationService",
           )) as ReadmePromptOptimizationService,
-          this.container.resolve("readmePromptBuilderService") as ReadmePromptBuilderService,
+          (await this.container.resolveLazy(
+            "readmePromptBuilderService",
+          )) as ReadmePromptBuilderService,
           this.container.resolve("readmeStateDetectionService") as ReadmeStateDetectionService,
           this.container.resolve("readmeContentAnalysisService") as ReadmeContentAnalysisService,
           this.container.resolve("readmeBackupService") as ReadmeBackupService,

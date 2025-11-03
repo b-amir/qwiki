@@ -29,11 +29,19 @@ import {
   createLogger,
   type Logger,
 } from "../../infrastructure/services/LoggingService";
+import type { ProjectContextCacheInvalidationService } from "../../infrastructure/services/ProjectContextCacheInvalidationService";
+import type { CachingService } from "../../infrastructure/services/CachingService";
+import type { GenerationCacheService } from "../../infrastructure/services/GenerationCacheService";
+import type { ProjectIndexService } from "../../infrastructure/services/ProjectIndexService";
 
 export class ConfigurationManagerService {
   private configCache = new Map<string, any>();
   private logger: Logger;
   private disposables: Array<{ dispose(): void }> = [];
+  private cacheInvalidationService?: ProjectContextCacheInvalidationService;
+  private cachingService?: CachingService;
+  private generationCacheService?: GenerationCacheService;
+  private projectIndexService?: ProjectIndexService;
 
   constructor(
     private configurationRepository: ConfigurationRepository,
@@ -54,6 +62,18 @@ export class ConfigurationManagerService {
         };
   }
 
+  setCacheServices(
+    cacheInvalidationService?: ProjectContextCacheInvalidationService,
+    cachingService?: CachingService,
+    generationCacheService?: GenerationCacheService,
+    projectIndexService?: ProjectIndexService,
+  ): void {
+    this.cacheInvalidationService = cacheInvalidationService;
+    this.cachingService = cachingService;
+    this.generationCacheService = generationCacheService;
+    this.projectIndexService = projectIndexService;
+  }
+
   async initialize(): Promise<void> {
     await this.refreshCache();
     this.setupConfigurationChangeListener();
@@ -66,9 +86,18 @@ export class ConfigurationManagerService {
 
     const configurationChangeListener = workspace.onDidChangeConfiguration(async (e) => {
       if (e.affectsConfiguration("qwiki")) {
-        this.logger.info("Qwiki configuration changed, reloading...");
+        const providerConfigChanged = e.affectsConfiguration("qwiki.provider");
+        this.logger.info("Qwiki configuration changed, reloading...", {
+          providerConfigChanged,
+        });
+
         try {
           await this.reloadConfiguration();
+
+          if (providerConfigChanged) {
+            await this.invalidateCaches();
+          }
+
           this.logger.info("Configuration reloaded successfully");
         } catch (error) {
           this.logger.error("Failed to reload configuration after change", error);
@@ -84,6 +113,45 @@ export class ConfigurationManagerService {
     this.configCache.clear();
     await this.refreshCache();
     await this.eventBus.publish("configurationReloaded", {});
+  }
+
+  private async invalidateCaches(): Promise<void> {
+    try {
+      this.logger.info("Invalidating caches due to provider configuration change");
+
+      if (this.cacheInvalidationService) {
+        await this.cacheInvalidationService.invalidateAll();
+        this.logger.info("Invalidated project context caches");
+      }
+
+      if (this.cachingService) {
+        await this.cachingService.clear();
+        this.logger.info("Invalidated memory cache");
+      }
+
+      if (this.generationCacheService) {
+        await this.generationCacheService.invalidateCache("*");
+        this.logger.info("Invalidated generation cache");
+      }
+
+      if (this.projectIndexService) {
+        this.projectIndexService.invalidateCache();
+        this.logger.info("Invalidated project index cache");
+      }
+
+      await this.eventBus.publish("cachesInvalidated", {
+        reason: "providerConfigurationChanged",
+        timestamp: Date.now(),
+      });
+
+      this.logger.info("Cache invalidation completed");
+    } catch (error) {
+      this.logger.error("Error invalidating caches", error);
+      await this.eventBus.publish("cacheInvalidationError", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        timestamp: Date.now(),
+      });
+    }
   }
 
   async getProviderConfig(providerId: string): Promise<ProviderConfiguration | undefined> {

@@ -284,6 +284,10 @@
       {
         "command": "qwiki.cancelActiveRequest",
         "title": "Qwiki: Cancel Active Request"
+      },
+      {
+        "command": "qwiki.toggleOutputChannel",
+        "title": "Qwiki: Toggle Output Channel"
       }
     ],
     "menus": {
