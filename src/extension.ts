@@ -63,11 +63,19 @@ export function activate(context: ExtensionContext) {
         });
         context.subscriptions.push(savedWikisTreeView);
       }
-    } catch (error) {}
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to initialize tree view:", errorMessage);
+    }
   };
 
-  setTimeout(() => {
-    initializeTreeView().catch(() => {});
+  setTimeout(async () => {
+    try {
+      await initializeTreeView();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to initialize tree view:", errorMessage);
+    }
   }, ServiceLimits.treeViewInitializationDelay);
 
   const initializeProviders = async () => {
@@ -120,11 +128,19 @@ export function activate(context: ExtensionContext) {
           await diagnosticsProvider?.analyzeDocumentation(document);
         }
       });
-    } catch (error) {}
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to initialize providers:", errorMessage);
+    }
   };
 
-  setTimeout(() => {
-    initializeProviders().catch(() => {});
+  setTimeout(async () => {
+    try {
+      await initializeProviders();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to initialize providers:", errorMessage);
+    }
   }, ServiceLimits.treeViewInitializationDelay);
 
   const showQwikiCommand = commands.registerCommand(VSCodeCommandIds.showPanel, () => {

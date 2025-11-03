@@ -131,19 +131,20 @@ export class GitChangeDetectionService {
     const disposables: Disposable[] = [];
 
     for (const repo of this.repositories) {
-      const disposable = repo.state.onDidChange(() => {
-        this.getChangedFiles()
-          .then(callback)
-          .catch((error: any) => {
-            this.logger.error("Error in Git change callback", error);
-            this.publishError(
-              "Git change detection callback failed",
-              ErrorCodes.unknown,
-              "File indexing may not update automatically.",
-              { error: error?.message },
-              error?.message,
-            );
-          });
+      const disposable = repo.state.onDidChange(async () => {
+        try {
+          const changedFiles = await this.getChangedFiles();
+          await callback(changedFiles);
+        } catch (error: any) {
+          this.logger.error("Error in Git change callback", error);
+          this.publishError(
+            "Git change detection callback failed",
+            ErrorCodes.unknown,
+            "File indexing may not update automatically.",
+            { error: error?.message },
+            error?.message,
+          );
+        }
       });
       disposables.push(disposable);
       if (this.extensionContext?.subscriptions) {

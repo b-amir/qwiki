@@ -128,23 +128,25 @@ export class QwikiPanel {
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
     this.initializeManagers(webviewView.webview);
-    this.bootstrap
-      .createCommandRegistry(webviewView.webview)
-      .then((registry) => {
+    (async () => {
+      try {
+        const registry = await this.bootstrap.createCommandRegistry(webviewView.webview);
         this.commandRegistry = registry;
         this.logInfo("createCommandRegistry completed successfully");
         this.setupWikiWatcherListener();
         this.updateWebviewMessageHandler();
-      })
-      .catch((e) => {
+      } catch (e) {
         this.logError("createCommandRegistry failed", e);
         this.createFallbackCommandRegistry(webviewView.webview);
-      });
+      }
+    })();
     webviewView.onDidDispose(
-      () => {
-        this.dispose().catch((error) => {
+      async () => {
+        try {
+          await this.dispose();
+        } catch (error) {
           this.logError("Error during disposal", error);
-        });
+        }
       },
       null,
       this._disposables,
@@ -180,7 +182,13 @@ export class QwikiPanel {
       this.errorHandler,
       this._initPromise,
       this.loggingService,
-      () => this.cancelActiveGeneration(),
+      async () => {
+        try {
+          await this.cancelActiveGeneration();
+        } catch (error) {
+          this.logError("Failed to cancel active generation", error);
+        }
+      },
       this.navigationManager,
     );
     this.webviewMessageHandler.setupMessageListener();
@@ -197,7 +205,13 @@ export class QwikiPanel {
         this.errorHandler,
         this._initPromise,
         this.loggingService,
-        () => this.cancelActiveGeneration(),
+        async () => {
+        try {
+          await this.cancelActiveGeneration();
+        } catch (error) {
+          this.logError("Failed to cancel active generation", error);
+        }
+      },
         this.navigationManager,
       );
       this.webviewMessageHandler.setupMessageListener();
@@ -227,7 +241,9 @@ export class QwikiPanel {
   }
 
   public showPage(page: (typeof Pages)[keyof typeof Pages]) {
-    this.cancelActiveGeneration();
+    this.cancelActiveGeneration().catch((error) => {
+      this.logError("Failed to cancel active generation", error);
+    });
     this.navigationManager?.queueNavigation(page);
     commands.executeCommand(VSCodeCommandIds.openPanelView);
     this.view?.show?.(true);
@@ -278,14 +294,13 @@ export class QwikiPanel {
     this.view = undefined;
   }
 
-  private cancelActiveGeneration(): void {
+  private async cancelActiveGeneration(): Promise<void> {
     try {
       const container = this.bootstrap.getContainer();
-      container.resolveLazy("wikiEventHandler").then((handler: any) => {
-        if (handler && typeof handler.cancelActiveGeneration === "function") {
-          handler.cancelActiveGeneration();
-        }
-      });
+      const handler = await container.resolveLazy("wikiEventHandler");
+      if (handler && typeof (handler as any).cancelActiveGeneration === "function") {
+        (handler as any).cancelActiveGeneration();
+      }
     } catch (error) {
       this.logDebug("Failed to cancel active generation", error);
     }

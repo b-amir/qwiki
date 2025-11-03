@@ -152,12 +152,14 @@ export class WebviewMessageHandler {
     }
 
     const executeStart = Date.now();
-    await this.initPromise.catch((e) => {
+    try {
+      await this.initPromise;
+    } catch (e) {
       this.logger.error("Initialization failed before command execution", {
         command,
         error: e,
       });
-    });
+    }
 
     try {
       await this.commandRegistry.execute(command, payload);
