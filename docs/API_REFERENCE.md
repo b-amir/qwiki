@@ -11,7 +11,8 @@ This document provides detailed API documentation for Qwiki's LLM providers and 
 3. [Message Types](#message-types)
 4. [Configuration API](#configuration-api)
 5. [Error Handling](#error-handling)
-6. [Phase 2 Services API](#phase-2-services-api)
+6. [Provider Services API](#provider-services-api)
+7. [Logging Infrastructure](#logging-infrastructure)
 
 ## LLM Provider API
 
@@ -19,7 +20,7 @@ This document provides detailed API documentation for Qwiki's LLM providers and 
 
 **Important Note**: The system currently uses a **Registry Pattern**, not a Factory pattern as previously documented. Providers are statically instantiated and registered, not dynamically created.
 
-### Core Interface (Phase 2 Enhanced)
+### Core Interface
 
 All LLM providers must implement the enhanced `LLMProvider` interface:
 
@@ -32,7 +33,7 @@ interface LLMProvider {
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
 
-  // Phase 2 additions
+  // Lifecycle and monitoring capabilities
   initialize?(): Promise<void>;
   dispose?(): Promise<void>;
   healthCheck?(): Promise<HealthCheckResult>;
@@ -41,7 +42,7 @@ interface LLMProvider {
 }
 ```
 
-### Provider Metadata System (Phase 2)
+### Provider Metadata System
 
 ```typescript
 interface ProviderMetadata {
@@ -73,16 +74,16 @@ interface ProviderManifest extends ProviderMetadata {
 }
 ```
 
-### Provider Registration System (Phase 2 Enhanced)
+### Provider Registration System
 
 **Current Implementation with Dynamic Discovery**:
 
 ```typescript
-// src/llm/providers/registry.ts (Phase 2 enhanced)
+// src/llm/providers/registry.ts
 export class ProviderRegistry {
   private discoveryService: ProviderDiscoveryService;
-  private lifecycleManager: ProviderLifecycleManager;
-  private dependencyResolver: ProviderDependencyResolver;
+  private lifecycleManager: ProviderLifecycleManagerService;
+  private dependencyResolver: ProviderDependencyResolverService;
 
   async loadProviders(getSetting: GetSetting): Promise<Record<string, LLMProvider>> {
     // Dynamic provider discovery
@@ -103,7 +104,7 @@ export class ProviderRegistry {
     return providers;
   }
 
-  // Phase 2 additions
+  // Provider management capabilities
   async reloadProviders(): Promise<void>;
   async addProviderDirectory(directoryPath: string): Promise<void>;
   async removeProviderDirectory(directoryPath: string): Promise<void>;
@@ -111,7 +112,7 @@ export class ProviderRegistry {
 }
 ```
 
-**Phase 2 Achievements**:
+**Current Capabilities**:
 
 - ✅ Dynamic provider discovery with manifest system
 - ✅ Provider lifecycle management with state machine
@@ -119,7 +120,7 @@ export class ProviderRegistry {
 - ✅ Hot-reloading of providers
 - ✅ Runtime extensibility without core code changes
 
-**Future Vision: Plugin Architecture (Phase 3+)**:
+**Future Vision: Plugin Architecture**:
 
 ```typescript
 // Planned: Dynamic provider discovery
@@ -760,6 +761,175 @@ Updates multiple configuration settings.
 
 **Returns**: Success confirmation
 
+### README Automation Commands
+
+#### Update README
+
+**Command ID**: `updateReadme`
+
+Updates README file from saved wikis with approval workflow.
+
+**Parameters**:
+
+```typescript
+{
+  wikiIds: string[];           // IDs of wikis to use for generation
+  providerId: string;          // Provider to use for generation
+  model?: string;              // Model to use
+  backupOriginal?: boolean;    // Create backup before update (default: true)
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  success: boolean;
+  preview?: ReadmePreview;     // Preview of changes
+  requiresApproval: boolean;   // Whether approval is required
+}
+```
+
+#### Approve README Update
+
+**Command ID**: `approveReadmeUpdate`
+
+Approves a pending README update and applies changes.
+
+**Parameters**: None (uses pending update from UpdateReadmeCommand)
+
+**Returns**:
+
+```typescript
+{
+  success: boolean;
+  backupPath?: string;         // Path to backup file
+  sections: string[];          // Sections that were updated
+}
+```
+
+#### Cancel README Update
+
+**Command ID**: `cancelReadmeUpdate`
+
+Cancels a pending README update.
+
+**Parameters**: None
+
+**Returns**: Success confirmation
+
+#### Undo README
+
+**Command ID**: `undoReadme`
+
+Undoes the last README update by restoring from backup.
+
+**Parameters**: None
+
+**Returns**:
+
+```typescript
+{
+  success: boolean;
+  restoredFrom: string; // Backup file path
+  timestamp: string; // Backup timestamp
+}
+```
+
+#### Check README Backup State
+
+**Command ID**: `checkReadmeBackupState`
+
+Checks if a README backup exists and returns backup information.
+
+**Parameters**: None
+
+**Returns**:
+
+```typescript
+{
+  hasBackup: boolean;
+  backupPath?: string;
+  timestamp?: string;
+  canUndo: boolean;
+}
+```
+
+### Provider Capability Commands
+
+#### Get Provider Capabilities
+
+**Command ID**: `getProviderCapabilities`
+
+Gets detailed capabilities for a specific provider.
+
+**Parameters**:
+
+```typescript
+{
+  providerId: string; // Provider ID
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  capabilities: {
+    contextWindowSize: number; // Maximum context window in tokens
+    maxOutputTokens: number;   // Maximum output tokens
+    supportedLanguages: string[]; // Supported programming languages
+    features: string[];        // Supported features (streaming, function-calling, etc.)
+    complexity: {              // Complexity range the provider handles well
+      min: number;
+      max: number;
+    };
+  };
+}
+```
+
+### Environment Status Commands
+
+#### Get Environment Status
+
+**Command ID**: `getEnvironmentStatus`
+
+Gets current environment health status including language servers, providers, and background tasks.
+
+**Parameters**: None
+
+**Returns**:
+
+```typescript
+{
+  status: {
+    languageServersReady: boolean;
+    backgroundTasksHealthy: boolean;
+    providersHealthy: boolean;
+    memoryUsageNormal: boolean;
+    cachePerformanceGood: boolean;
+  };
+  warnings: string[];          // Array of warning messages
+  details: {
+    languageServers: {
+      typescript: boolean;
+      python: boolean;
+      // ... other language servers
+    };
+    backgroundTasks: {
+      activeCount: number;
+      queuedCount: number;
+    };
+    providers: {
+      [providerId: string]: {
+        healthy: boolean;
+        lastCheck: string;
+      };
+    };
+  };
+}
+```
+
 ### Utility Commands
 
 #### Open File
@@ -830,7 +1000,7 @@ The extension exposes the following VS Code settings:
 
 ### Runtime Configuration
 
-Configuration is managed through the `ConfigurationManager` service:
+Configuration is managed through the `ConfigurationManagerService` service:
 
 - **API Keys**: Stored securely using VS Code's secret storage
 - **Provider Settings**: Provider-specific configuration
@@ -1036,7 +1206,7 @@ const message = {
 2. **Error Handling**: Inconsistent across providers
 3. **Configuration Leakage**: Some provider knowledge in services
 
-**Phase 2 Implemented Improvements**:
+**Recent Improvements**:
 
 1. ✅ **Dynamic Provider Discovery**: Provider discovery service with manifest system
 2. ✅ **Standardized Errors**: Consistent error types and handling
@@ -1044,13 +1214,13 @@ const message = {
 4. ✅ **Smart Selection**: Context-aware provider selection with fallback
 5. ✅ **Performance Optimization**: Caching, batching, and background processing
 
-**Future Improvements (Phase 3+)**:
+**Planned Improvements**:
 
 1. **Plugin Architecture**: True plugin system with hot-swapping
 2. **Advanced AI Features**: Multi-provider generation and ensembles
 3. **Enterprise Features**: Team management and collaboration
 
-## Phase 2 Services API
+## Provider Services API
 
 ### Provider Discovery Service
 
@@ -1071,10 +1241,10 @@ class ProviderDiscoveryService {
 }
 ```
 
-### Provider Lifecycle Manager
+### Provider Lifecycle Manager Service
 
 ```typescript
-class ProviderLifecycleManager {
+class ProviderLifecycleManagerService {
   constructor(
     private discoveryService: ProviderDiscoveryService,
     private eventBus: EventBus
@@ -1138,10 +1308,10 @@ interface SelectionCriteria {
 }
 ```
 
-### Configuration Validation Engine
+### Configuration Validation Engine Service
 
 ```typescript
-class ConfigurationValidationEngine {
+class ConfigurationValidationEngineService {
   validateConfiguration(
     config: any,
     schema: ValidationSchema,
@@ -1262,3 +1432,592 @@ class BackgroundProcessingService {
   getQueueStatistics(): QueueStatistics;
 }
 ```
+
+- `ProviderFallbackManagerService`
+- `ProviderHealthService`
+- `ProviderPerformanceService` (Orchestrator)
+
+### Performance Monitoring Services
+
+#### Metrics Collection Service
+
+```typescript
+// src/infrastructure/services/performance/MetricsCollectionService.ts
+class MetricsCollectionService {
+  constructor(
+    private eventBus: EventBus,
+    private loggingService: LoggingService
+  );
+
+  recordGenerationStart(providerId: string): string;
+  recordGenerationEnd(
+    requestId: string,
+    success: boolean,
+    tokensUsed?: number,
+    error?: string
+  ): PerformanceMetric | null;
+  addMetric(providerId: string, metric: PerformanceMetric): void;
+  cleanupOldMetrics(providerId: string, timeWindowMs: number): void;
+  recordSelection(providerId: string): void;
+  recordFallback(fromProviderId: string, toProviderId: string): void;
+  clearProviderMetrics(providerId: string): void;
+  clearAllMetrics(): void;
+  getMetricsForProvider(providerId: string): PerformanceMetric[];
+  getRecentMetrics(providerId: string, timeWindowMs?: number): PerformanceMetric[];
+  exportMetrics(): Map<string, PerformanceMetric[]>;
+  dispose(): void;
+  recordCacheHit(providerId: string): void;
+  recordCacheMiss(providerId: string): void;
+  recordBatchOperation(providerId: string, batchSize: number): void;
+  recordDebounceOperation(providerId: string): void;
+  recordBackgroundTask(providerId: string, taskId: string): void;
+  recordMemoryOptimization(providerId: string): void;
+}
+```
+
+**Purpose**: Collects and manages performance metrics for LLM providers including generation times, success rates, token usage, and various operation types.
+
+**Registered as**: `"metricsCollectionService"` in AppBootstrap
+
+#### Statistics Calculation Service
+
+```typescript
+// src/infrastructure/services/performance/StatisticsCalculationService.ts
+class StatisticsCalculationService {
+  constructor(
+    private llmRegistry: LLMRegistry,
+    private loggingService: LoggingService
+  );
+
+  calculatePerformanceScore(stats: PerformanceStats): number;
+  calculateProviderStats(providerId: string, metrics: PerformanceMetric[]): PerformanceStats;
+  calculateProviderStatsFromMetrics(providerId: string, metrics: PerformanceMetric[]): PerformanceStats;
+  getProviderStats(providerId: string, metricsMap: Map<string, PerformanceMetric[]>): PerformanceStats | null;
+  getAllProviderStats(metricsMap: Map<string, PerformanceMetric[]>): Record<string, PerformanceStats>;
+  getProviderRankings(metricsMap: Map<string, PerformanceMetric[]>): ProviderRanking[];
+  getBestPerformingProvider(metricsMap: Map<string, PerformanceMetric[]>): string | null;
+  getProvidersByPerformance(
+    metricsMap: Map<string, PerformanceMetric[]>,
+    minScore?: number
+  ): ProviderRanking[];
+  private getWeightedScore(stats: PerformanceStats): number;
+}
+```
+
+**Purpose**: Calculates performance statistics and rankings from collected metrics including success rates, average response times, and performance scores.
+
+**Registered as**: `"statisticsCalculationService"` in AppBootstrap
+
+#### Performance Monitoring Service
+
+```typescript
+// src/infrastructure/services/performance/PerformanceMonitoringService.ts
+class PerformanceMonitoringService {
+  constructor(
+    private eventBus: EventBus,
+    private loggingService: LoggingService
+  );
+
+  updateProviderRanking(providerId: string, ranking: ProviderRanking): void;
+  updateProviderRankings(rankings: ProviderRanking[]): void;
+  getCacheStatistics(metricsMap: Map<string, PerformanceMetric[]>): CacheStatistics;
+  getBatchStatistics(metricsMap: Map<string, PerformanceMetric[]>): BatchStatistics;
+  getBackgroundTaskStatistics(metricsMap: Map<string, PerformanceMetric[]>): BackgroundTaskStatistics;
+  getMemoryOptimizationStatistics(metricsMap: Map<string, PerformanceMetric[]>): MemoryOptimizationStatistics;
+}
+```
+
+**Purpose**: Monitors and reports performance metrics, publishes performance events, and provides statistics for caching, batching, and background operations.
+
+**Registered as**: `"performanceMonitoringService"` in AppBootstrap
+
+#### Provider Performance Service (Orchestrator)
+
+```typescript
+// src/infrastructure/services/ProviderPerformanceService.ts
+class ProviderPerformanceService {
+  constructor(
+    private metricsCollectionService: MetricsCollectionService,
+    private statisticsCalculationService: StatisticsCalculationService,
+    private performanceMonitoringService: PerformanceMonitoringService,
+    private eventBus: EventBus,
+    private loggingService: LoggingService
+  );
+
+  recordGenerationStart(providerId: string): string;
+  recordGenerationEnd(requestId: string, success: boolean, tokensUsed?: number, error?: string): void;
+  getProviderStats(providerId: string): PerformanceStats | null;
+  getAllProviderStats(): Record<string, PerformanceStats>;
+  getProviderRankings(): ProviderRanking[];
+  getBestPerformingProvider(): string | null;
+  clearProviderMetrics(providerId: string): void;
+  clearAllMetrics(): void;
+}
+```
+
+**Purpose**: Orchestrates performance monitoring by delegating to MetricsCollectionService, StatisticsCalculationService, and PerformanceMonitoringService. Follows orchestrator pattern.
+
+**Registered as**: `"providerPerformanceService"` (lazy) in AppBootstrap
+
+### Context Intelligence Service
+
+```typescript
+// src/application/services/ContextIntelligenceService.ts
+class ContextIntelligenceService {
+  async selectOptimalContext(
+    targetFilePath: string,
+    providerId: string,
+    model?: string,
+    onProgress?: (step: LoadingStep) => void,
+  ): Promise<OptimalContextSelection>;
+
+  calculateTokenBudget(
+    capabilities: ProviderCapabilities,
+    promptTemplateSize: number,
+    outputEstimate: number,
+  ): TokenBudget;
+}
+
+interface OptimalContextSelection {
+  files: SelectedFile[];
+  projectType: ProjectTypeDetection;
+  essentialFiles: ProjectEssentialFile[];
+  tokenUsage: {
+    used: number;
+    available: number;
+    percentage: number;
+  };
+  relevanceScores: Map<string, number>;
+  compressionApplied: boolean;
+}
+
+interface TokenBudget {
+  totalTokens: number;
+  reservedForPrompt: number;
+  reservedForOutput: number;
+  availableForContext: number;
+  utilizationTarget: number;
+}
+```
+
+**Purpose**: Orchestrates optimal context selection with token budget management. Ranks files by relevance, calculates token budgets, and selects the best context within provider limits.
+
+**Workflow**:
+
+1. Build/refresh project index
+2. Detect project type and identify essential files
+3. Calculate token budget for provider
+4. Rank files by relevance to target
+5. Select optimal files within budget
+6. Apply compression if needed
+
+### File Relevance Services
+
+```typescript
+// src/application/services/context/FileRelevanceAnalysisService.ts
+class FileRelevanceAnalysisService {
+  async analyzeRelevance(
+    targetFile: string,
+    candidateFile: string,
+    projectType: ProjectTypeDetection,
+  ): Promise<FileRelevanceScore>;
+}
+
+// src/application/services/context/FileRelevanceBatchService.ts
+class FileRelevanceBatchService {
+  async batchAnalyzeRelevance(
+    targetFile: string,
+    candidateFiles: string[],
+    projectType: ProjectTypeDetection,
+  ): Promise<FileRelevanceScore[]>;
+}
+
+// src/application/services/context/FileSelectionService.ts
+class FileSelectionService {
+  selectOptimalFiles(
+    relevanceScores: FileRelevanceScore[],
+    tokenBudget: TokenBudget,
+    essentialFiles: ProjectEssentialFile[],
+  ): SelectedFile[];
+}
+
+interface FileRelevanceScore {
+  filePath: string;
+  score: number;
+  reasons: string[];
+  relationships: {
+    imports: boolean;
+    exports: boolean;
+    dependencies: boolean;
+    usageFound: boolean;
+  };
+}
+```
+
+**Purpose**: Ranks files by relevance using dependencies, imports, exports, and symbol usage. Batch processing ensures O(n) complexity instead of O(n²).
+
+### Project Indexing Services
+
+```typescript
+// src/infrastructure/services/ProjectIndexService.ts
+class ProjectIndexService {
+  async buildIndex(workspacePath: string): Promise<ProjectIndexCache>;
+  async updateIndex(changedFiles: string[]): Promise<void>;
+  async getSymbolInfo(filePath: string): Promise<SymbolInfo[]>;
+  async findUsages(symbol: string): Promise<UsageLocation[]>;
+}
+
+interface ProjectIndexCache {
+  files: Map<string, IndexedFile>;
+  symbols: Map<string, SymbolInfo>;
+  lastUpdated: number;
+  version: string;
+}
+
+interface IndexedFile {
+  path: string;
+  language: string;
+  imports: string[];
+  exports: string[];
+  symbols: string[];
+  dependencies: string[];
+  metadata: FileMetadata;
+}
+```
+
+**Purpose**: Maintains fast-access index of project files with metadata extraction. Supports incremental updates via Git change detection.
+
+### Context Analysis Services
+
+#### Pattern Extraction Service
+
+```typescript
+// src/application/services/context/PatternExtractionService.ts
+class PatternExtractionService {
+  constructor(private loggingService: LoggingService);
+
+  extractCodePatterns(snippet: string, language: string): CodePattern[];
+
+  getFunctionRegex(language: string): RegExp;
+  getClassRegex(language: string): RegExp;
+  getInterfaceRegex(language: string): RegExp;
+  getImportRegex(language: string): RegExp;
+  getExportRegex(language: string): RegExp;
+  getTypeRegex(language: string): RegExp;
+  getVariableRegex(language: string): RegExp;
+}
+
+interface CodePattern {
+  type: PatternType;
+  name: string;
+  description: string;
+  confidence: number;
+  location: {
+    line: number;
+    column: number;
+  };
+}
+
+enum PatternType {
+  FUNCTION_DECLARATION = "function-declaration",
+  CLASS_DECLARATION = "class-declaration",
+  INTERFACE_DECLARATION = "interface-declaration",
+  TYPE_ALIAS = "type-alias",
+  IMPORT_STATEMENT = "import-statement",
+  EXPORT_STATEMENT = "export-statement",
+  VARIABLE_DECLARATION = "variable-declaration",
+  METHOD_CALL = "method-call",
+  PROPERTY_ACCESS = "property-access",
+  CONDITIONAL = "conditional",
+  LOOP = "loop",
+  ERROR_HANDLING = "error-handling",
+  ASYNC_AWAIT = "async-await",
+  PROMISE_CHAIN = "promise-chain",
+  DESTRUCTURING = "destructuring",
+  SPREAD_OPERATOR = "spread-operator",
+  TEMPLATE_LITERAL = "template-literal",
+  ARROW_FUNCTION = "arrow-function",
+  GENERATOR_FUNCTION = "generator-function",
+  DECORATOR = "decorator",
+}
+```
+
+**Purpose**: Extracts code patterns (functions, classes, interfaces, imports, variables, control flow) from code snippets using language-specific regex patterns.
+
+**Registered as**: `"patternExtractionService"` in AppBootstrap
+
+#### Complexity Calculation Service
+
+```typescript
+// src/application/services/context/ComplexityCalculationService.ts
+class ComplexityCalculationService {
+  constructor(private loggingService: LoggingService);
+
+  estimateContextComplexity(snippet: string, structure: CodeStructure): ComplexityScore;
+  calculateMaxNestingDepth(snippet: string): number;
+  calculateCyclomaticComplexity(structure: CodeStructure): number;
+  calculateCognitiveComplexity(snippet: string, structure: CodeStructure): number;
+  calculateHalsteadComplexity(
+    snippet: string,
+    structure: CodeStructure
+  ): { volume: number; difficulty: number; effort: number };
+}
+
+interface ComplexityScore {
+  overall: number;
+  cyclomatic: number;
+  cognitive: number;
+  halstead: {
+    volume: number;
+    difficulty: number;
+    effort: number;
+  };
+  lines: number;
+  functions: number;
+  classes: number;
+  interfaces: number;
+}
+```
+
+**Purpose**: Calculates code complexity metrics including cyclomatic complexity, cognitive complexity, Halstead complexity, and nesting depth.
+
+**Registered as**: `"complexityCalculationService"` in AppBootstrap
+
+#### Structure Analysis Service
+
+```typescript
+// src/application/services/context/StructureAnalysisService.ts
+class StructureAnalysisService {
+  constructor(
+    private loggingService: LoggingService,
+    private patternExtractionService: PatternExtractionService
+  );
+
+  analyzeCodeStructure(snippet: string, language: string, lines?: string[]): CodeStructure;
+
+  private getVisibility(line: string): "public" | "private" | "protected";
+  private extractParameters(functionSignature: string): ParameterInfo[];
+  private extractExtends(line: string): string[];
+  private extractImplements(line: string): string[];
+  private extractProperties(line: string): PropertyInfo[];
+  private extractMethods(line: string): MethodInfo[];
+  private extractConstructors(line: string): ConstructorInfo[];
+  private extractDecorators(line: string): string[];
+  private extractExportType(exportLine: string): "default" | "named" | "namespace";
+  private extractTypeDefinition(line: string): TypeAliasInfo | null;
+  private extractImportElements(importLine: string): ImportInfo[];
+}
+
+interface CodeStructure {
+  functions: FunctionInfo[];
+  classes: ClassInfo[];
+  interfaces: InterfaceInfo[];
+  types: TypeAliasInfo[];
+  imports: ImportInfo[];
+  exports: ExportInfo[];
+}
+```
+
+**Purpose**: Analyzes code structure by extracting functions, classes, interfaces, types, imports, and exports with detailed metadata (parameters, visibility, decorators, etc.).
+
+**Registered as**: `"structureAnalysisService"` in AppBootstrap
+
+#### Relationship Analysis Service
+
+```typescript
+// src/application/services/context/RelationshipAnalysisService.ts
+class RelationshipAnalysisService {
+  constructor(private loggingService: LoggingService);
+
+  analyzeCodeRelationships(
+    snippet: string,
+    structure: CodeStructure,
+    lines?: string[]
+  ): CodeRelationship[];
+
+  private buildCallGraph(
+    lines: string[],
+    functionMap: Map<string, FunctionInfo>
+  ): Map<string, Array<{ callee: string; location: { line: number; column: number } }>>;
+}
+
+interface CodeRelationship {
+  type: RelationshipType;
+  source: { element: string; type: string; location: { line: number; column: number } };
+  target: { element: string; type: string; location: { line: number; column: number } };
+  strength: number;
+  description: string;
+}
+
+enum RelationshipType {
+  CALLS = "calls",
+  IMPLEMENTS = "implements",
+  EXTENDS = "extends",
+  USES = "uses",
+  IMPORTS = "imports",
+  EXPORTS = "exports"
+}
+```
+
+**Purpose**: Analyzes relationships between code elements including function calls, inheritance, implementations, and dependencies.
+
+**Registered as**: `"relationshipAnalysisService"` in AppBootstrap
+
+#### Context Analysis Service (Orchestrator)
+
+```typescript
+// src/application/services/ContextAnalysisService.ts
+class ContextAnalysisService {
+  constructor(
+    private eventBus: EventBus,
+    private loggingService: LoggingService,
+    private complexityCalculationService: ComplexityCalculationService,
+    private patternExtractionService: PatternExtractionService,
+    private structureAnalysisService: StructureAnalysisService,
+    private relationshipAnalysisService: RelationshipAnalysisService
+  );
+
+  async analyzeDeepContext(
+    snippet: string,
+    filePath: string,
+    projectContext?: any
+  ): Promise<DeepContextAnalysis>;
+}
+```
+
+**Purpose**: Orchestrates deep code analysis by delegating to specialized services (PatternExtractionService, StructureAnalysisService, RelationshipAnalysisService, ComplexityCalculationService). Follows orchestrator pattern for clean separation of concerns.
+
+**Registered as**: `"contextAnalysisService"` in AppBootstrap
+
+### Data Transformation Layer
+
+#### Wiki Transformer
+
+```typescript
+// src/application/transformers/WikiTransformer.ts
+class WikiTransformer {
+  static analyzeSnippet(snippet: string, languageId?: string): SnippetAnalysis;
+  static extractSymbolCandidates(lines: string[]): string[];
+  static summarizeContext(projectContext: ProjectContext): ContextSummary;
+  static prepareGenerationInput(
+    request: WikiGenerationRequest,
+    projectContext: ProjectContext,
+    analysis: SnippetAnalysis,
+    contextSummary: ContextSummary,
+  ): GenerationInput;
+  static buildPromptSeed(generationInput: GenerationInput): string;
+  static processGenerationResult(
+    content: string,
+    metadata: GenerationMetadata,
+    promptSeed: string,
+  ): ProcessedGeneration;
+  static finalizeContent(processed: ProcessedGeneration, metadata: GenerationMetadata): string;
+}
+
+interface SnippetAnalysis {
+  languageId?: string;
+  lineCount: number;
+  nonEmptyLineCount: number;
+  characterCount: number;
+  symbols: string[];
+}
+
+interface ContextSummary {
+  relatedCount: number;
+  relatedPaths: string[];
+  hasOverview: boolean;
+  hasRootName: boolean;
+  filesSample: string[];
+}
+
+interface GenerationMetadata {
+  analysis: SnippetAnalysis;
+  context: ContextSummary;
+}
+
+interface GenerationInput {
+  snippet: string;
+  project: ProjectContext;
+  metadata: GenerationMetadata;
+}
+
+interface ProcessedGeneration {
+  content: string;
+  metrics: {
+    headingCount: number;
+    listCount: number;
+    paragraphCount: number;
+    promptSeedLength: number;
+  };
+}
+```
+
+**Purpose**: Pure transformation functions for wiki generation data processing. Separates data transformation logic from business logic for perfect separation of concerns. All methods are static and have no side effects.
+
+**Location**: `src/application/transformers/WikiTransformer.ts`
+
+## Logging Infrastructure
+
+### Backend (Extension Host)
+
+```typescript
+// src/infrastructure/services/LoggingService.ts
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+export interface LogEntry {
+  timestamp: Date;
+  level: LogLevel;
+  service: string;
+  message: string;
+  data?: unknown;
+}
+
+export interface LoggerConfig {
+  enabled: boolean;
+  level: LogLevel;
+  includeTimestamp: boolean;
+  includeService: boolean;
+}
+
+export class LoggingService {
+  constructor(private config: LoggerConfig) {}
+  debug(service: string, message: string, data?: unknown): void;
+  info(service: string, message: string, data?: unknown): void;
+  warn(service: string, message: string, data?: unknown): void;
+  error(service: string, message: string, data?: unknown): void;
+}
+```
+
+- Registered once in `AppBootstrap` (`loggingService` key)
+- Injected into services/commands/events via DI container
+- Default config: `{ enabled: false, level: "error", includeTimestamp: true, includeService: true }`
+- Enable or adjust level via configuration manager when diagnostics required
+
+### Frontend (Webview)
+
+```typescript
+// webview-ui/src/utilities/logging.ts
+type LogLevel = "debug" | "info" | "warn" | "error";
+
+export interface FrontendLoggerConfig {
+  enabled: boolean;
+  level: LogLevel;
+  includeTimestamp: boolean;
+  includeSource: boolean;
+}
+
+export const createLogger = (
+  source: string,
+  overrides?: Partial<FrontendLoggerConfig>,
+) => ({
+  debug(message: string, data?: unknown): void;
+  info(message: string, data?: unknown): void;
+  warn(message: string, data?: unknown): void;
+  error(message: string, data?: unknown): void;
+});
+```
+
+- Mirrors backend behaviour (level thresholds, metadata formatting)
+- Default config: `{ enabled: true, level: "debug", includeTimestamp: true, includeSource: true }`
+- Intended to replace all raw `console.*` usage inside `webview-ui`
+- Forward logs to the extension by combining with `vscode.postMessage({ command: "frontendLog", ... })` when central aggregation is needed

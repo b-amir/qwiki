@@ -2,157 +2,121 @@
 
 ![Qwiki Preview](resources/preview-icon.png)
 
-Qwiki is a VS Code extension that provides a quick wiki interface directly in your editor. It uses Vue.js for a modern and responsive webview UI that integrates seamlessly with your development workflow.
+Qwiki is a local-only VS Code extension that turns code selections into rich project documentation. It blends deep project indexing, provider-aware prompt engineering, automated README maintenance, and a Vue-powered dashboard so teams can capture knowledge without leaving the editor.
 
-## Features
+## Highlights
 
-- **Integrated WebView Panel**: Access Qwiki directly from the VS Code activity bar
-- **Modern UI**: Built with Vue.js and VS Code's webview UI toolkit for a native look and feel
-- **Real-time Communication**: Bidirectional messaging between the extension and webview
-- **TypeScript Support**: Fully typed for better development experience
+- **Context intelligence pipeline**: builds project indexes, ranks related files, and fits the best context into each provider's token budget before any request runs.
+- **Provider orchestration**: unified registry with health checks, performance metrics, validation, retry policies, fallback strategies, and configuration introspection across OpenAI, Google AI Studio, Cohere, HuggingFace, OpenRouter, Z.ai, and Gemini variants.
+- **Adaptive prompt engineering**: advanced prompt builders, quality scoring, compression, and template controls tailored per provider and workflow.
+- **README automation**: analyze, back up, diff, and update README sections using saved wikis, with approval flow, rollback support, and chunked writes.
+- **Multi-surface UX**: activity-bar panel, saved wiki tree view, inline hover/completion providers, diagnostics, document symbols, and workspace commands.
+- **Observability & resilience**: structured logging, centralized error modal, background task scheduler, memory watchdog, generation caching, batching, debouncing, and environment health telemetry.
 
-## Project Structure
-
-```
-qwiki/
-├── src/                      # Extension source code
-│   ├── extension.ts          # Main extension entry point
-│   ├── panels/               # WebView panel implementations
-│   │   └── QwikiPanel.ts
-│   ├── utilities/            # Helper functions
-│   │   ├── getNonce.ts
-│   │   └── getUri.ts
-│   └── test/                 # Extension tests
-├── webview-ui/               # Vue.js webview application
-│   ├── src/
-│   │   ├── App.vue           # Main Vue component
-│   │   ├── main.ts           # Vue app entry point
-│   │   └── utilities/
-│   │       └── vscode.ts     # VS Code API bridge
-│   ├── package.json          # Webview dependencies
-│   └── vite.config.ts        # Vite build configuration
-├── resources/                # Extension resources
-│   ├── preview-icon.png      # Preview icon for documentation
-│   └── qwiki-icon.svg        # Activity bar icon
-├── package.json              # Extension manifest and dependencies
-├── tsconfig.json             # TypeScript configuration
-└── webpack.config.js         # Extension build configuration
-```
-
-## Installation
-
-### From Source
-
-1. Clone this repository:
+## Quick Start
 
 ```bash
 git clone <repository-url>
 cd qwiki
-```
-
-2. Install dependencies:
-
-```bash
 pnpm run install:all
-```
-
-3. Build the webview UI:
-
-```bash
 pnpm run build:webview
-```
-
-4. Compile the extension:
-
-```bash
 pnpm run compile
 ```
 
-5. Open in VS Code and press F5 to run the extension in a new Extension Development Host window.
+Launch the extension by pressing `F5` in VS Code. The development host opens with the Qwiki panel available from the activity bar icon.
 
-## Usage
+## Panel Walkthrough
 
-### Accessing Qwiki
+- **Wiki**: generate documentation, inspect context reasoning, and trigger provider retries. Includes cancellation support and environment readiness checks.
+- **Settings**: manage API keys, provider capabilities, configuration templates, backups, and validation feedback.
+- **Saved Wikis**: browse generated wikis, open them in editors, or bootstrap README updates.
+- **Error History**: review recent failures with structured metadata forwarded from the extension host.
 
-1. Open VS Code
-2. Look for the Qwiki icon in the activity bar (usually on the left side)
-3. Click on the Qwiki icon to open the webview panel
+## Command Surface
 
-### Creating a Wiki Entry
+| Category | Command(s) | Description |
+| --- | --- | --- |
+| Generation | `generateWiki` | Build documentation with context intelligence, caching, batching, and retries. |
+| Context | `getSelection`, `getRelated` | Stream selection metadata and ranked related files to the webview. |
+| Provider Ops | `getProviders`, `getProviderConfigs`, `saveApiKey`, `deleteApiKey`, `getProviderCapabilities`, `getProviderHealth`, `getProviderPerformance` | Manage providers, credentials, and health/performance telemetry. |
+| Configuration | `getConfiguration`, `updateConfiguration`, `validateConfiguration`, `applyConfigurationTemplate`, `getConfigurationTemplates`, `createConfigurationBackup`, `getConfigurationBackups` | Full configuration lifecycle with validation, templates, and backups. |
+| Wiki Storage | `saveWiki`, `getSavedWikis`, `deleteWiki` | Persist and organize generated wikis under `.qwiki`. |
+| README Automation | `updateReadme`, `approveReadmeUpdate`, `cancelReadmeUpdate`, `undoReadme`, `checkReadmeBackupState` | Execute automated README updates with preview, approval, and rollback. |
+| Panel Utilities | `openFile`, `openExternal`, `saveSetting`, `getApiKeys`, `getEnvironmentStatus` | Panel communication helpers for navigation and notifications. |
 
-You can create wiki entries in two ways:
+VS Code contributes additional shortcuts such as `qwiki.createQuickWiki`, `qwiki.viewSavedWikis`, `qwiki.viewErrorHistory`, `qwiki.cancelActiveRequest`, and a dedicated `qwiki.wikiView` entry.
 
-1. **Keyboard Shortcut**: Select any code in the editor and press `Ctrl+Shift+Q` (Windows/Linux) or `Cmd+Shift+Q` (macOS)
-2. **Context Menu**: Right-click on selected code and choose "Qwiki: Create a quick wiki!" from the context menu
+## Project Layout
 
-### Using the Interface
+```text
+src/
+  application/
+    commands/                 command implementations (generation, provider ops, README flows)
+    services/                 context intelligence, prompt pipeline, configuration suite, storage, etc.
+    transformers/             pure data transformers
+    validation/               provider validation rules
+    AppBootstrap.ts           dependency graph and lifecycle wiring
+  domain/                     entities and configuration contracts
+  infrastructure/
+    repositories/             VS Code-backed repositories
+    services/                 logging, caching, indexing, performance, background workers
+  llm/                        provider registry, manifests, prompts, capability types
+  panels/                     webview host, navigation manager, environment monitors
+  providers/                  VS Code language features (hover, completions, diagnostics, etc.)
+  constants/                  commands, events, limits, loading steps, path patterns
+  events/                     event bus and handlers
+  views/                      saved wiki tree data provider
 
-The Qwiki webview provides a simple interface with interactive elements. Click the "Howdy!" button to see an example of communication between the webview and the extension.
-
-## Development
-
-### Running in Development Mode
-
-1. Install dependencies:
-
-```bash
-pnpm run install:all
+webview-ui/
+  src/
+    App.vue                   top-level navigation and loading orchestration
+    components/               layout shell, feature widgets, and page modules
+    stores/                   Pinia stores (wiki, settings, environment, navigation, errors, loading)
+    composables/              navigation, batching, resizing, provider helpers
+    loading/                  shared loading context helpers
+    utilities/                VS Code bridge, logging facade, formatting helpers
+  vite.config.ts              production build tuned for VS Code webviews
 ```
 
-2. Start the webview development server:
+## Local Development
 
-```bash
-pnpm run start:webview
-```
+- `pnpm run start:webview`: hot reload the Vue application.
+- `pnpm run watch`: rebuild the extension host on changes.
+- `pnpm run lint`: lint both extension and webview (requires `pnpm dlx eslint`).
+- `pnpm run vscode:prepublish`: production build used by VSIX packaging.
 
-3. In another terminal, compile the extension in watch mode:
+All automation scripts rely on Node.js >= 18 and pnpm >= 8.
 
-```bash
-pnpm run watch
-```
+## Provider Configuration & Secrets
 
-4. Press F5 in VS Code to launch the extension in debug mode.
+- API keys are stored via VS Code `SecretStorage` (`qwiki:apikey:<providerId>`).
+- Provider models, fallback chains, and metadata are read from the configuration manager, which supports templates, migration to version `1.4.0`, and backups.
+- Provider validation surfaces actionable warnings in Settings before a generation runs.
 
-### Building for Production
+## README Automation Workflow
 
-1. Build the webview:
+1. **Analyze** existing README structure, detect custom sections, and snapshot current content.
+2. **Compose** candidate sections using saved wikis and wiki summarization.
+3. **Preview & approval**: the panel displays a diff, allows cancellations, and requires approval when configured.
+4. **Backup & write**: chunked writes with automatic backup and optional rollback.
 
-```bash
-pnpm run build:webview
-```
+Events such as `readmeUpdateProgress`, `readmeBackupCreated`, and `readmeUpdateApproved` keep the webview in sync during the process.
 
-2. Compile the extension:
+## Telemetry & Diagnostics
 
-```bash
-pnpm run vscode:prepublish
-```
+- Structured logging through `LoggingService` for the extension and `createLogger` in the webview.
+- Provider metrics captured via `MetricsCollectionService`, `StatisticsCalculationService`, and `PerformanceMonitoringService` feed the provider performance dashboard.
+- The environment store tracks language server readiness, background task saturation, and provider health so the panel can warn before a generation starts.
 
-### Extension Structure
+## Further Reading
 
-- **Extension Entry Point** (`src/extension.ts`): Registers the webview provider and commands
-- **WebView Panel** (`src/panels/HelloWorldPanel.ts`): Manages the webview lifecycle and communication
-- **Vue App** (`webview-ui/src/App.vue`): The UI displayed in the webview
-- **VS Code Bridge** (`webview-ui/src/utilities/vscode.ts`): Handles communication with the extension
+- **[Architecture](docs/ARCHITECTURE.md)**: Clean architecture overview, service catalog, and data flow diagrams.
+- **[Developer Onboarding](docs/DEVELOPER_ONBOARDING.md)**: Workstation setup, debugging tips, and contribution workflow.
+- **[Backend Guide](docs/BACKEND.md)**: Extension-host best practices, activation, disposal, and memory management.
+- **[Frontend Guide](docs/FRONTEND.md)**: Vue performance tactics, loading framework, and batching protocol.
+- **[Design System](docs/DESIGN_SYSTEM.md)**: Tailwind theme tokens and UI conventions.
+- **[API Reference](docs/API_REFERENCE.md)**: Commands, message payloads, and provider contracts.
 
-## Requirements
+---
 
-- Visual Studio Code 1.105.0 or higher
-- Node.js and pnpm for development
-
-## Extension Settings
-
-This extension currently doesn't contribute any VS Code settings.
-
-## Release Notes
-
-### 0.0.1
-
-Initial release of Qwiki extension with basic webview functionality.
-
-## For more information
-
-- [Visual Studio Code's Extension API](https://code.visualstudio.com/api)
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Qwiki keeps every request local to your editor, giving teams production-grade documentation workflows without leaving VS Code.

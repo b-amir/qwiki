@@ -1,4 +1,4 @@
-﻿# Developer Onboarding Guide
+# Developer Onboarding Guide
 
 ## Welcome to Qwiki
 
@@ -60,72 +60,96 @@ qwiki/
 ├── src/                      # Extension source code
 │   ├── extension.ts          # Main extension entry point
 │   ├── application/          # Application layer (services, commands)
-│   │   ├── services/
-│   │   │   ├── WikiService.ts
-│   │   │   ├── SelectionService.ts
-│   │   │   ├── ProjectContextService.ts
-│   │   │   ├── MessageBus.ts
-│   │   │   ├── ConfigurationManager.ts
-│   │   │   ├── ConfigurationValidator.ts
-│   │   │   ├── ConfigurationMigrationService.ts
-│   │   │   ├── ConfigurationTemplateService.ts
-│   │   │   ├── ErrorRecoveryService.ts
-│   │   │   ├── ErrorLoggingService.ts
-│   │   │   ├── ProviderSelectionService.ts
-│   │   │   ├── ProviderHealthService.ts
-│   │   │   ├── ProviderPerformanceService.ts
-│   │   │   ├── ProviderDiscoveryService.ts
-│   │   │   ├── ProviderLifecycleManager.ts
-│   │   │   ├── ProviderDependencyResolver.ts
-│   │   │   ├── ContextAnalysisService.ts
-│   │   │   ├── SmartProviderSelectionService.ts
-│   │   │   ├── ProviderFallbackManager.ts
-│   │   │   ├── ConfigurationValidationEngine.ts
-│   │   │   ├── ConfigurationImportExportService.ts
-│   │   │   ├── PromptTemplateService.ts
-│   │   │   ├── PromptValidationService.ts
-│   │   │   ├── PromptLibraryService.ts
-│   │   │   ├── DynamicPromptAdjustmentService.ts
-│   │   │   ├── OutputValidationService.ts
-│   │   │   ├── OutputNormalizationService.ts
-│   │   │   ├── ConsistencyScoreService.ts
-│   │   │   ├── OutputCacheService.ts
-│   │   │   ├── FallbackStrategyService.ts
-│   │   │   ├── WikiStorageService.ts
-│   │   │   ├── WikiAggregationService.ts
-│   │   │   ├── WikiLinkingService.ts
-│   │   │   ├── ProjectWikiIndexService.ts
-│   │   │   ├── WikiSearchService.ts
-│   │   │   ├── WikiVersioningService.ts
-│   │   │   ├── QualityMetricsService.ts
-│   │   │   ├── QualityImprovementService.ts
-│   │   │   └── QualityAssuranceService.ts
-│   │   ├── commands/
+│   │   ├── services/         # See ARCHITECTURE.md for complete list
+│   │   │   ├── Core Services:
+│   │   │   │   ├── WikiService.ts
+│   │   │   │   ├── CachedWikiService.ts
+│   │   │   │   ├── SelectionService.ts
+│   │   │   │   ├── ProjectContextService.ts
+│   │   │   │   ├── CachedProjectContextService.ts
+│   │   │   │   ├── MessageBusService.ts
+│   │   │   │   └── WikiStorageService.ts
+│   │   │   ├── Configuration Services:
+│   │   │   │   ├── ConfigurationManagerService.ts
+│   │   │   │   ├── ConfigurationValidationEngineService.ts
+│   │   │   │   ├── ConfigurationTemplateService.ts
+│   │   │   │   ├── ConfigurationImportExportService.ts
+│   │   │   │   └── ConfigurationMigrationService.ts
+│   │   │   ├── Context Intelligence Services:
+│   │   │   │   ├── ContextIntelligenceService.ts (Orchestrator)
+│   │   │   │   ├── context/FileRelevanceAnalysisService.ts
+│   │   │   │   ├── context/FileRelevanceBatchService.ts
+│   │   │   │   ├── context/FileSelectionService.ts
+│   │   │   │   ├── context/TokenBudgetCalculatorService.ts
+│   │   │   │   ├── context/ProjectTypeDetectionService.ts
+│   │   │   │   ├── context/EssentialFilesIdentifierService.ts
+│   │   │   │   └── context/ContextCompressionService.ts
+│   │   │   ├── README Automation Services:
+│   │   │   │   ├── ReadmeUpdateService.ts (Orchestrator)
+│   │   │   │   ├── readme/ReadmeAnalysisService.ts
+│   │   │   │   ├── readme/ReadmeGenerationService.ts
+│   │   │   │   ├── readme/ReadmeBackupService.ts
+│   │   │   │   └── readme/ReadmeApprovalService.ts
+│   │   │   └── Provider Services:
+│   │   │       ├── ContextAnalysisService.ts (Orchestrator)
+│   │   │       ├── context/PatternExtractionService.ts
+│   │   │       ├── context/StructureAnalysisService.ts
+│   │   │       ├── context/RelationshipAnalysisService.ts
+│   │   │       ├── context/ComplexityCalculationService.ts
+│   │   │       ├── SmartProviderSelectionService.ts
+│   │   │       ├── ProviderSelectionService.ts
+│   │   │       ├── ProviderFallbackManagerService.ts
+│   │   │       ├── ProviderDiscoveryService.ts
+│   │   │       ├── ProviderLifecycleManagerService.ts
+│   │   │       ├── ProviderDependencyResolverService.ts
+│   │   │       ├── ProviderValidationService.ts
+│   │   │       └── ProviderSelectionIntegrationService.ts
+│   │   ├── transformers/     # Data transformation layer
+│   │   │   └── WikiTransformer.ts
+│   │   ├── commands/         # See ARCHITECTURE.md for complete list
+│   │   │   ├── Command.ts    # Base interface
 │   │   │   ├── GenerateWikiCommand.ts
-│   │   │   ├── CreatePromptTemplateCommand.ts
-│   │   │   ├── CreateWikiPageCommand.ts
-│   │   │   ├── CalculateQualityMetricsCommand.ts
-│   │   │   └── RunQAChecksCommand.ts
+│   │   │   ├── GetSelectionCommand.ts
+│   │   │   ├── SaveWikiCommand.ts
+│   │   │   ├── Configuration commands (10+)
+│   │   │   └── Provider commands (5+)
 │   │   ├── CommandRegistry.ts
-│   │   └── AppBootstrap.ts
-│   ├── prompts/
-│   │   ├── types/
-│   │   ├── services/
-│   │   └── variants/
-│   ├── output/
-│   │   └── services/
-│   ├── wiki/
-│   │   └── services/
-│   ├── quality/
-│   │   └── services/
-│   ├── llm/
-│   ├── panels/
-│   ├── container/
-│   ├── constants/
-│   ├── errors/
-│   ├── events/
-│   ├── factories/
-│   └── utilities/
+│   │   └── AppBootstrap.ts   # DI container setup
+│   ├── domain/               # Domain entities and repository interfaces
+│   ├── infrastructure/       # External integrations (repositories, services)
+│   │   ├── repositories/    # VS Code implementations
+│   │   └── services/        # Technical services
+│   │       ├── performance/ # Performance monitoring
+│   │       │   ├── MetricsCollectionService.ts
+│   │       │   ├── StatisticsCalculationService.ts
+│   │       │   └── PerformanceMonitoringService.ts
+│   │       ├── caching/     # Caching infrastructure
+│   │       │   ├── CacheService.ts
+│   │       │   └── WikiCacheService.ts
+│   │       ├── ProjectIndexService.ts # Project indexing
+│   │       ├── ProjectChangeDetectorService.ts
+│   │       ├── GitChangeDetectorService.ts
+│   │       ├── EnvironmentMonitoringService.ts
+│   │       └── LoggingService.ts # Structured logging
+│   ├── llm/                  # LLM provider system
+│   │   ├── providers/        # Provider implementations
+│   │   ├── prompt.ts         # Prompt building logic
+│   │   └── registry.ts       # Provider registry
+│   ├── panels/               # VS Code webview panels
+│   ├── views/                # VS Code tree views and custom editors
+│   │   ├── WikiTreeViewProvider.ts
+│   │   └── WikiDocumentProvider.ts
+│   ├── providers/            # VS Code language feature providers
+│   │   ├── WikiHoverProvider.ts
+│   │   ├── WikiCompletionProvider.ts
+│   │   └── WikiDiagnosticProvider.ts
+│   ├── container/            # Dependency injection
+│   ├── constants/            # Application constants
+│   │   └── ServiceLimits.ts  # Service configuration limits
+│   ├── errors/               # Custom error classes
+│   ├── events/               # Event system
+│   ├── factories/            # Factory patterns
+│   └── utilities/            # Helper functions
 ├── webview-ui/               # Vue.js webview application
 ├── docs/                     # Documentation
 ├── resources/                # Extension resources
@@ -180,6 +204,91 @@ interface ApiKeyRepository {
 }
 ```
 
+### 5. Context Intelligence Pipeline
+
+The Context Intelligence Pipeline optimizes the context sent to LLM providers by selecting the most relevant files within token budget limits.
+
+**Key Components:**
+
+- **Project Indexing**: Maintains a fast-access index of project files with metadata
+- **File Relevance Analysis**: Ranks files by relevance using dependencies, imports, and symbol usage
+- **Token Budget Management**: Calculates optimal token allocation for context, prompt, and output
+- **File Selection**: Selects the best files to include within the token budget
+- **Context Compression**: Applies compression when needed to fit within limits
+
+**Workflow:**
+
+```typescript
+// Example usage in wiki generation
+const contextIntelligence = container.get<ContextIntelligenceService>("contextIntelligenceService");
+
+const optimalContext = await contextIntelligence.selectOptimalContext(
+  targetFile,
+  providerId,
+  model,
+  (step) => console.log(`Progress: ${step.label}`),
+);
+
+// optimalContext includes:
+// - Selected files ranked by relevance
+// - Project type detection
+// - Essential files identification
+// - Token usage statistics
+// - Relevance scores per file
+```
+
+### 6. README Automation Workflow
+
+The README Automation feature provides an AI-powered workflow for generating and updating README files from saved wiki documentation.
+
+**Key Components:**
+
+- **Analysis**: Examines existing README structure and wiki content
+- **Generation**: Creates updated README using AI with current project context
+- **Preview**: Shows diff of changes before applying
+- **Approval**: User reviews and approves/rejects changes
+- **Backup**: Creates automatic backups before updates
+- **Rollback**: Supports undoing README updates
+
+**Workflow:**
+
+```typescript
+// Example usage
+const readmeUpdate = container.get<ReadmeUpdateService>("readmeUpdateService");
+
+// 1. Generate preview
+const result = await readmeUpdate.updateReadmeFromWikis(wikiIds, {
+  providerId,
+  model,
+  backupOriginal: true,
+});
+
+// 2. User reviews preview in UI
+// 3. User approves or cancels
+
+// 4. Apply approved changes
+if (result.requiresApproval) {
+  await readmeUpdate.applyApprovedChanges(result.preview.id);
+}
+
+// 5. Rollback if needed
+await readmeUpdate.undoLastUpdate();
+```
+
+### 7. VS Code Language Features
+
+The extension provides VS Code language features for enhanced development experience:
+
+**Features:**
+
+- **Hover Providers**: Show wiki documentation on hover
+- **Completion Providers**: Suggest wiki-documented items
+- **Diagnostic Providers**: Surface documentation warnings
+- **Code Actions**: Quick fixes for documentation issues
+- **Document Symbols**: Navigate wiki structure
+- **Tree Views**: Browse saved wikis in sidebar
+- **Custom Editors**: Edit wiki files with custom UI
+
 ## Development Workflow
 
 ### 1. Making Changes
@@ -198,16 +307,16 @@ interface ApiKeyRepository {
 5. Add infrastructure implementations
 6. Update UI components if necessary
 
-### 3. Adding New LLM Providers (Phase 2 Enhanced)
+### 3. Adding New LLM Providers
 
-**Current Process (Enhanced Registry with Dynamic Discovery)**:
+**Current Process**:
 
 1. Create a provider file under `src/llm/providers/<provider-id>.ts` implementing enhanced `LLMProvider` interface.
 2. Create a provider manifest file (`provider.json`) with metadata and capabilities.
 3. Place provider files in a discoverable directory (automatic discovery) or register in `src/llm/providers/registry.ts`.
 4. No modifications elsewhere. The system discovers and loads providers dynamically.
 
-**Phase 2 Achievements**:
+**Current Capabilities**:
 
 - ✅ Dynamic provider discovery with manifest system
 - ✅ Provider lifecycle management (initialize, dispose, health checks)
@@ -215,7 +324,7 @@ interface ApiKeyRepository {
 - ✅ Dependency resolution between providers
 - ✅ Hot-reloading without extension restart
 
-**Example provider structure (Phase 2)**:
+**Example provider structure**:
 
 ```typescript
 // src/llm/providers/newprovider.ts
@@ -276,7 +385,7 @@ export class NewProvider implements LLMProvider {
 }
 ```
 
-**Provider Manifest (Phase 2)**:
+**Provider Manifest**:
 
 ```json
 {
@@ -301,7 +410,7 @@ export class NewProvider implements LLMProvider {
 }
 ```
 
-**Future Vision (Phase 3+ Plugin System)**:
+**Future Vision: Plugin System**:
 
 1. **Provider Self-Registration**: Providers register themselves dynamically
 2. **Runtime Discovery**: No core code modifications needed
@@ -401,6 +510,98 @@ export class NewRepositoryImpl implements NewRepository {
 container.register("newRepository", () => new NewRepositoryImpl());
 ```
 
+### 4. Working with Context Intelligence
+
+The Context Intelligence system selects the most relevant files for LLM context:
+
+Example usage:
+
+```typescript
+// In a command or service
+const contextIntelligence = this.container.get<ContextIntelligenceService>("contextIntelligenceService");
+
+const optimalContext = await contextIntelligence.selectOptimalContext(
+  targetFilePath,
+  providerId,
+  model,
+  (step: LoadingStep) => {
+    // Report progress to UI
+    this.messageBus.postLoadingStep(step);
+  }
+);
+
+// Use optimalContext.files in your LLM request
+const prompt = buildPrompt(optimalContext.files, ...);
+```
+
+**Key Services:**
+
+- `ContextIntelligenceService`: Main orchestrator
+- `FileRelevanceAnalysisService`: Analyzes file relevance
+- `FileSelectionService`: Selects optimal files
+- `ProjectIndexService`: Maintains project index
+- `TokenBudgetCalculatorService`: Calculates token budgets
+
+### 5. Working with README Automation
+
+The README Automation system generates and updates README files from wikis:
+
+Example usage:
+
+```typescript
+// In a command
+const readmeUpdate = this.container.get<ReadmeUpdateService>("readmeUpdateService");
+
+// Generate preview
+const result = await readmeUpdate.updateReadmeFromWikis(wikiIds, {
+  providerId,
+  model,
+  backupOriginal: true,
+});
+
+// Result includes preview for user approval
+if (result.requiresApproval && result.preview) {
+  // Show preview to user in webview
+  this.messageBus.postReadmePreview(result.preview);
+}
+```
+
+**Key Services:**
+
+- `ReadmeUpdateService`: Main orchestrator
+- `ReadmeAnalysisService`: Analyzes existing README
+- `ReadmeGenerationService`: Generates new content
+- `ReadmeBackupService`: Creates backups
+- `ReadmeApprovalService`: Manages approval workflow
+
+### 6. Adding VS Code Language Features
+
+To add new VS Code language features (hover, completions, diagnostics):
+
+1. Create provider class in `src/providers/`
+2. Implement VS Code provider interface
+3. Register provider in extension activation
+4. Add dispose logic for cleanup
+
+Example:
+
+```typescript
+// src/providers/WikiHoverProvider.ts
+export class WikiHoverProvider implements vscode.HoverProvider {
+  async provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    token: vscode.CancellationToken,
+  ): Promise<vscode.Hover | undefined> {
+    // Implementation
+  }
+}
+
+// In extension.ts
+const hoverProvider = new WikiHoverProvider();
+context.subscriptions.push(vscode.languages.registerHoverProvider("typescript", hoverProvider));
+```
+
 ## Debugging
 
 ### 1. Extension Debugging
@@ -422,7 +623,7 @@ container.register("newRepository", () => new NewRepositoryImpl());
 - **Extension not loading**: Check the extension.ts file for errors, verify all dependencies are installed
 - **Commands not working**: Verify command registration in CommandRegistry and constants
 - **Services not available**: Ensure proper DI registration in AppBootstrap
-- **Webview not communicating**: Check MessageBus implementation and webview message handling
+- **Webview not communicating**: Check MessageBusService implementation and webview message handling
 - **LLM provider errors**: Verify API keys are properly stored and provider configuration is correct
 - **Build errors**: Ensure webview UI is built (`pnpm run build:webview`) before compiling extension
 
@@ -505,19 +706,237 @@ If you need help:
 3. Ask questions in team channels
 4. Create an issue for bugs or feature requests
 
+## Loading System
+
+### Overview
+
+The QWiki loading system provides a sophisticated, multi-layered approach to managing loading states across the application. It combines visual components, centralized state management, and backend coordination to deliver a smooth user experience during asynchronous operations.
+
+### Architecture
+
+The loading system consists of four main layers:
+
+1. **Frontend Components** - Visual loading indicators and animations
+2. **Central Loading Store** - Unified state management for all loading contexts
+3. **Loading Bus** - Message-based communication bridge
+4. **Backend Integration** - Step-by-step progress tracking from services
+
+### Key Components
+
+#### 1. LoadingState Component
+
+**Location:** `/webview-ui/src/components/features/LoadingState.vue`
+
+The main loading component that renders a centered loading skeleton with animated steps.
+
+**Props:**
+
+```typescript
+interface Props {
+  context?: LoadingContext; // Loading context for automatic step resolution
+  steps?: LoadingStepDefinition[]; // Custom steps array
+  currentStep?: string; // Override current step
+  density?: LoadingDensity; // Override density
+  percent?: number | null; // Progress percentage
+  isActive?: boolean; // Manual active state control
+}
+```
+
+#### 2. Central Loading Store
+
+**Location:** `/webview-ui/src/stores/loading.ts`
+
+Central coordinator that owns loading state per context (`wiki`, `settings`, `navigation`, `environment`, `savedWikis`, `errorHistory`).
+
+**Core Actions:**
+
+- `start(options)` - Begin loading with optional step and timeout
+- `advance(options)` - Progress to next step with optional percentage
+- `complete(options)` - Mark loading as finished successfully
+- `fail(options)` - Mark loading as failed with error message
+- `cancel(options)` - Cancel loading with optional reason
+- `reset(context)` - Clear all state for a context
+
+#### 3. useLoading Composable
+
+**Location:** `/webview-ui/src/loading/useLoading.ts`
+
+Reactive composable for components to interact with loading state:
+
+**Returns:**
+
+- `state` - Computed LoadingStateSnapshot for context
+- `isActive` - Computed boolean for active state
+- `steps` - Computed array of LoadingStepDefinition
+- `density` - Computed LoadingDensity
+- Action methods: `start()`, `advance()`, `complete()`, `fail()`, `cancel()`, `reset()`
+
+### Usage Patterns
+
+#### When to Use LoadingState
+
+1. **Async Operations:** API calls, data processing
+2. **Page Transitions:** Navigation between pages
+3. **Initial Loading:** Application startup
+4. **Complex Operations:** Multi-step processes
+
+#### Container Styling
+
+Always use full-space containers for loading states:
+
+```vue
+<div class="flex h-full w-full items-center justify-center">
+  <LoadingState ... />
+</div>
+```
+
+#### Step Naming Conventions
+
+- Use present participles: "Loading...", "Fetching...", "Preparing..."
+- Be specific about the operation: "Analyzing code structure..."
+- Keep descriptions concise but informative
+- Use consistent terminology across the application
+
+#### Central Store Usage
+
+- Prefer `useLoading(context)` composable over local loading state
+- Use context-specific step definitions from `stepCatalog`
+- Leverage automatic timeout handling
+- Integrate with loading bus for backend progress updates
+
+### Loading Contexts
+
+The system supports these predefined contexts:
+
+- **wiki**: Wiki generation process (10s timeout, medium density)
+- **settings**: Settings initialization (5s timeout, low density)
+- **navigation**: Page navigation (5s timeout, low density)
+- **environment**: Service readiness (8s timeout, low density)
+- **savedWikis**: Wiki collection loading (8s timeout, low density)
+- **errorHistory**: Error gathering (5s timeout, low density)
+
+### Integration Examples
+
+#### Wiki Page Loading
+
+```vue
+<div v-if="wikiLoadingContext.isActive.value" class="h-full">
+  <LoadingState context="wiki" />
+</div>
+```
+
+#### Settings Page Loading
+
+```vue
+<div v-if="isSettingsLoading" class="flex h-full w-full">
+  <LoadingState context="settings" />
+</div>
+```
+
+### Backend Integration
+
+Loading steps are communicated through progress callbacks:
+
+```typescript
+await this.wikiService.generateWiki(request, projectContext, (step: LoadingStep) => {
+  this.eventBus.publish(OutboundEvents.loadingStep, { step });
+});
+```
+
+### Error Handling
+
+#### Loading Timeouts
+
+- **Wiki Generation:** 10 seconds timeout
+- **Settings Initialization:** 5 seconds timeout
+- **Navigation:** 5 seconds timeout
+- **Environment Loading:** 8 seconds timeout
+- **Saved Wikis:** 8 seconds timeout
+- **Error History:** 5 seconds timeout
+
+#### Common Issues
+
+1. **Loading Not Centered:** Ensure parent container has `h-full w-full`
+2. **Steps Not Updating:** Check `loadingStep` message flow through loading bus
+3. **Animation Issues:** Verify CSS custom properties are available
+4. **Timeout Issues:** Review backend processing times and context-specific timeouts
+5. **Context Not Found:** Verify context is defined in `KNOWN_CONTEXTS` array
+6. **Store Not Updating:** Check if `loadingBus` is properly initialized
+
+### Debug Information
+
+Loading states include comprehensive logging:
+
+- `[QWIKI] Settings Store:` prefix for settings operations
+- `[QWIKI] Wiki Service:` prefix for generation operations
+- Timing information for performance monitoring
+- Error details for troubleshooting
+- Central loading store state inspection via browser dev tools
+
+### Migration Guide
+
+#### From Legacy Loading State
+
+To migrate from legacy loading patterns to the new centralized system:
+
+1. **Replace Local State:**
+
+   ```typescript
+   // Old
+   const loading = ref(false);
+   const loadingStep = ref("");
+
+   // New
+   const loadingContext = useLoading("contextName");
+   ```
+
+2. **Update Component Templates:**
+
+   ```vue
+   <!-- Old -->
+   <div v-if="loading" class="loading-container">
+     <CustomLoading :step="loadingStep" />
+   </div>
+
+   <!-- New -->
+   <div v-if="loadingContext.isActive.value" class="flex h-full w-full">
+     <LoadingState context="contextName" />
+   </div>
+   ```
+
+3. **Update Store Actions:**
+
+   ```typescript
+   // Old
+   this.loading = true;
+   this.loadingStep = "processing";
+
+   // New
+   const loadingStore = useLoadingStore();
+   loadingStore.start({ context: "contextName", step: "processing" });
+   ```
+
 ## Quick Reference
 
 ### Common File Locations
 
 - Commands: `src/application/commands/`
 - Services: `src/application/services/`
+- Context Intelligence: `src/application/services/context/`
+- README Automation: `src/application/services/readme/`
 - Repositories: `src/infrastructure/repositories/`
 - LLM Providers: `src/llm/providers/`
+- Language Features: `src/providers/`
+- Tree Views: `src/views/`
 - Constants: `src/constants/`
 - Error Classes: `src/errors/`
 - Webview UI: `webview-ui/src/`
+- Loading Store: `webview-ui/src/stores/loading.ts`
+- Loading Components: `webview-ui/src/components/features/LoadingState.vue`
 - DI Container: `src/container/Container.ts`
 - Extension Entry: `src/extension.ts`
+- Project Index: `src/infrastructure/services/ProjectIndexService.ts`
+- Environment Monitoring: `src/infrastructure/services/EnvironmentMonitoringService.ts`
 
 ### Common Patterns
 
@@ -526,13 +945,22 @@ If you need help:
 - **Factory Pattern**: Object creation
 - **Dependency Injection**: Service management
 - **Event System**: Loose coupling
+- **Central Loading**: Unified loading state management
 
 ### Key Classes
 
 - `CommandRegistry`: Command management
 - `Container`: Dependency injection
-- `MessageBus`: Webview communication
+- `MessageBusService`: Webview communication
 - `EventBus`: Event system
 - `AppBootstrap`: Application initialization
+- `useLoading`: Loading state composable
+- `LoadingStore`: Central loading state management
+- `ContextIntelligenceService`: Orchestrates optimal context selection
+- `ReadmeUpdateService`: Orchestrates README automation workflow
+- `LLMRegistry`: Provider discovery and lifecycle management
+- `ProviderValidationService`: Validates provider configurations
+- `ProjectIndexService`: Maintains project file index
+- `EnvironmentMonitoringService`: Real-time health monitoring
 
 Remember: The goal is to maintain clean, modular, and maintainable code following SOLID principles. When in doubt, look at existing implementations for guidance.

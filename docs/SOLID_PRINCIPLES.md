@@ -287,8 +287,8 @@ export interface ConfigurationRepository {
 Services have focused interfaces for their specific responsibilities:
 
 ```typescript
-// src/application/services/MessageBus.ts
-export interface MessageBus {
+// src/application/services/MessageBusService.ts
+export interface MessageBusService {
   sendMessage(message: Message): Promise<void>;
   onMessage(handler: MessageHandler): void;
   dispose(): void;
@@ -376,7 +376,7 @@ Commands depend on service interfaces, not implementations:
 export class GenerateWikiCommand implements Command {
   constructor(
     private wikiService: WikiService, // Depends on service
-    private messageBus: MessageBus, // Depends on interface
+    private messageBus: MessageBusService, // Depends on interface
   ) {}
 
   async execute(): Promise<any> {
