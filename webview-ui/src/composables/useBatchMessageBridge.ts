@@ -1,5 +1,4 @@
 import { onMounted, onBeforeUnmount } from "vue";
-import { vscode } from "@/utilities/vscode";
 import { createLogger } from "@/utilities/logging";
 
 const lastPayloadByCommand = new Map<string, string>();
@@ -26,15 +25,7 @@ export function useBatchMessageBridge() {
     if (!Array.isArray(messages)) return;
     try {
       const cmds = messages.map((m: any) => m?.command).filter(Boolean);
-      logger.debug(
-        `Received batch with ${messages.length} messages -> [${cmds.join(", ")}]`,
-      );
-      vscode.postMessage({
-        command: "frontendLog",
-        payload: {
-          message: `BatchBridge: Received batch with ${messages.length} messages -> [${cmds.join(", ")}]`,
-        },
-      });
+      logger.debug(`Batch received: ${messages.length} messages [${cmds.join(", ")}]`);
     } catch {}
 
     const seenInBatch = new Set<string>();
@@ -43,7 +34,7 @@ export function useBatchMessageBridge() {
       const m = messages[i];
       if (!m || !m.command) continue;
       if (DEDUP_IN_BATCH.has(m.command)) {
-        if (seenInBatch.has(m.command)) continue; // skip earlier duplicates
+        if (seenInBatch.has(m.command)) continue;
         seenInBatch.add(m.command);
         coalesced.push(m);
       } else {
@@ -61,9 +52,7 @@ export function useBatchMessageBridge() {
       if (THROTTLED_COMMANDS.has(m.command)) {
         const lastTime = lastExecutionTime.get(m.command) || 0;
         if (now - lastTime < THROTTLE_DELAY) {
-          logger.debug(
-            `Throttling command ${m.command}, last executed ${now - lastTime}ms ago`,
-          );
+          logger.debug(`Throttling command ${m.command}, last executed ${now - lastTime}ms ago`);
           continue;
         }
         lastExecutionTime.set(m.command, now);
@@ -84,18 +73,15 @@ export function useBatchMessageBridge() {
     }
 
     for (const m of toForward) {
-      try {
-        logger.debug(`Forwarding command ${m?.command}`);
-        vscode.postMessage({
-          command: "frontendLog",
-          payload: { message: `BatchBridge: Forwarding command ${m?.command}` },
-        });
-      } catch {}
       window.dispatchEvent(
         new MessageEvent("message", {
           data: { command: m.command, payload: m.payload },
         }),
       );
+    }
+
+    if (toForward.length > 1) {
+      logger.debug(`Forwarded ${toForward.length} messages`);
     }
   };
 

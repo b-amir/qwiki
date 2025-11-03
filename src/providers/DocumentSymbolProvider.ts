@@ -16,6 +16,9 @@ import {
 
 export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
   private logger: Logger;
+  private lastSymbolCounts = new Map<string, number>();
+  private readonly LOG_THROTTLE_MS = 5000;
+  private lastLogTime = new Map<string, number>();
 
   constructor(private loggingService: LoggingService) {
     this.logger = createLogger("QwikiDocumentSymbolProvider", loggingService);
@@ -27,6 +30,7 @@ export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
       const text = document.getText();
       const lines = text.split("\n");
       const languageId = document.languageId;
+      const filePath = document.uri.fsPath;
 
       if (languageId === "typescript" || languageId === "javascript") {
         this.extractJavaScriptSymbols(document, lines, symbols);
@@ -40,15 +44,28 @@ export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
         this.extractGenericSymbols(document, lines, symbols);
       }
 
-      this.logger.debug("Extracted document symbols", {
-        path: document.uri.fsPath,
-        symbolCount: symbols.length,
-        language: languageId,
-      });
+      const lastCount = this.lastSymbolCounts.get(filePath) ?? -1;
+      const lastLog = this.lastLogTime.get(filePath) ?? 0;
+      const now = Date.now();
+
+      if (symbols.length !== lastCount || now - lastLog > this.LOG_THROTTLE_MS) {
+        this.logger.debug("Document symbols extracted", {
+          path: filePath,
+          symbolCount: symbols.length,
+          language: languageId,
+          countChanged: symbols.length !== lastCount,
+        });
+        this.lastSymbolCounts.set(filePath, symbols.length);
+        this.lastLogTime.set(filePath, now);
+      }
 
       return symbols;
     } catch (error) {
-      this.logger.error("Failed to provide document symbols", error);
+      this.logger.error("Document symbol extraction failed", {
+        path: document.uri.fsPath,
+        language: document.languageId,
+        error,
+      });
       return [];
     }
   }

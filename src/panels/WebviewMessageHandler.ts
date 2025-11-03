@@ -38,7 +38,11 @@ export class WebviewMessageHandler {
 
         try {
           const receiveTs = Date.now();
-          this.logger.debug(`Received webview message - command=${command}`);
+
+          const silentCommands = new Set(["frontendLog", "webviewReady", "getEnvironmentStatus"]);
+          if (!silentCommands.has(command)) {
+            this.logger.debug(`Received webview message - command=${command}`);
+          }
 
           if (command === "getSavedWikis") {
             const lastTime = this._lastCommandExecutionTime.get(command) || 0;
@@ -55,11 +59,13 @@ export class WebviewMessageHandler {
             case "frontendLog": {
               try {
                 const msg = payload?.message ?? "";
+                const level = payload?.level || "debug";
                 const data = payload?.data;
-                if (data !== undefined) {
-                  this.logger.debug(`Frontend: ${msg}`, data);
-                } else {
-                  this.logger.debug(`Frontend: ${msg}`);
+
+                if (level === "error") {
+                  this.logger.error(`Frontend: ${msg}`, data);
+                } else if (level === "warn") {
+                  this.logger.warn(`Frontend: ${msg}`, data);
                 }
               } catch (e) {
                 this.logger.warn("Frontend log formatting error");
@@ -113,60 +119,44 @@ export class WebviewMessageHandler {
 
   private async handleCommand(command: string, payload: any, receiveTs: number): Promise<void> {
     if (!this.commandRegistry) {
-      this.logger.debug(
-        `Command ${command} received but command registry not yet initialized, ignoring`,
-      );
+      const ignoreCommands = new Set(["webviewReady", "frontendLog"]);
+      if (!ignoreCommands.has(command)) {
+        this.logger.debug(`Command ${command} received before registry initialized, ignoring`);
+      }
       return;
     }
 
     if (!this.commandRegistry.has(command)) {
-      this.logger.warn(`Command ${command} not found in registry`);
+      this.logger.warn(`Command not found in registry`, { command });
       return;
     }
 
-    this.logger.debug(`Command ${command} found in registry, executing...`);
-    const initWaitStart = Date.now();
-    this.logger.debug("Waiting for initialization promise", { command });
+    const executeStart = Date.now();
     await this.initPromise.catch((e) => {
       this.logger.error("Initialization failed before command execution", {
         command,
-        duration: Date.now() - initWaitStart,
         error: e,
       });
     });
-    this.logger.debug("Initialization promise resolved/errored", {
-      command,
-      waitDuration: Date.now() - initWaitStart,
-    });
-    this.logger.debug(`Executing command ${command} with payload`, {
-      command,
-      hasPayload: !!payload,
-    });
-    const executeStart = Date.now();
-    this.logger.debug("About to call commandRegistry.execute", {
-      command,
-      hasRegistry: !!this.commandRegistry,
-    });
+
     try {
       await this.commandRegistry.execute(command, payload);
+      const totalDuration = Date.now() - receiveTs;
+      const importantCommands = new Set(["generateWiki", "saveWiki"]);
+      if (importantCommands.has(command) || totalDuration > 100) {
+        this.logger.info(`Command executed`, {
+          command,
+          duration: totalDuration,
+        });
+      }
     } catch (err: any) {
-      this.logger.error("Error in commandRegistry.execute", {
+      this.logger.error("Command execution failed", {
         command,
+        duration: Date.now() - executeStart,
         error: err?.message,
         stack: err?.stack,
-        duration: Date.now() - executeStart,
       });
       throw err;
     }
-    const executeDuration = Date.now() - executeStart;
-    const doneTs = Date.now();
-    this.logger.info(
-      `Executed command from webview - command=${command}, duration=${doneTs - receiveTs}ms`,
-    );
-    this.logger.debug("Command execution finished", {
-      command,
-      executeDuration,
-      totalDuration: doneTs - receiveTs,
-    });
   }
 }

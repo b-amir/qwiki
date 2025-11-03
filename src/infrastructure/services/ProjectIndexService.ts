@@ -261,12 +261,6 @@ export class ProjectIndexService {
       const indexedFile = await this.metadataExtractor.extractFileMetadata(uri, stat.size);
       this.cacheService.getIndex().set(uri.fsPath, indexedFile);
       this.cacheService.updateLanguageIndexForFile(uri.fsPath, indexedFile.language);
-
-      this.logger.debug("Indexed file", {
-        path: uri.fsPath,
-        language: indexedFile.language,
-        importCount: indexedFile.metadata?.imports?.length || 0,
-      });
     } catch (error) {
       this.logger.debug(`Failed to index file ${uri.fsPath}`, error);
     }

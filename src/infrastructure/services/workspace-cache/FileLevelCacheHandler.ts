@@ -121,8 +121,6 @@ export class FileLevelCacheHandler {
 
       const key = `${this.DEPENDENCY_MAP_KEY}${filePath}`;
       await this.memento.update(key, cached);
-
-      this.logger.debug("Dependency map cached", { filePath });
     } catch (error) {
       this.logger.error("Error caching dependency map", { error });
     }

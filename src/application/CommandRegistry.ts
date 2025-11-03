@@ -36,24 +36,8 @@ export class CommandRegistry {
 
   async execute<T>(name: string, payload: T): Promise<void> {
     const startTime = Date.now();
-    this.logger.info("CommandRegistry.execute ENTRY", {
-      command: name,
-      hasPayload: !!payload,
-      payloadKeys: payload && typeof payload === "object" ? Object.keys(payload) : [],
-      commandCount: this.commands.size,
-    });
-    this.logger.debug("CommandRegistry.execute started", {
-      command: name,
-      hasPayload: !!payload,
-      payloadKeys: payload && typeof payload === "object" ? Object.keys(payload) : [],
-    });
-
     const command = this.commands.get(name);
-    this.logger.info("CommandRegistry.execute - command lookup", {
-      command: name,
-      found: !!command,
-      availableCommands: Array.from(this.commands.keys()),
-    });
+
     if (!command) {
       this.logger.error("Command not found in registry", {
         command: name,
@@ -62,29 +46,34 @@ export class CommandRegistry {
       throw new Error(`${ErrorMessages[ErrorCodes.missingCommand]}: ${name}`);
     }
 
-    this.logger.debug("Command found, executing", { command: name });
-    const executeStart = Date.now();
-    try {
-      this.logDebug(`Executing command "${name}"`);
-      await command.execute(payload);
-      const duration = Date.now() - executeStart;
-      const totalDuration = Date.now() - startTime;
-      this.logger.debug("Command execution completed", {
+    const hasPayload =
+      !!payload && (typeof payload === "object" ? Object.keys(payload).length > 0 : true);
+    const importantCommands = new Set(["generateWiki", "saveWiki", "cancelWikiGeneration"]);
+
+    if (importantCommands.has(name)) {
+      this.logger.debug("Executing command", {
         command: name,
-        executionDuration: duration,
-        totalDuration,
+        hasPayload,
       });
-      this.logDebug(`Command "${name}" completed in ${duration}ms`);
+    }
+
+    try {
+      await command.execute(payload);
+      const duration = Date.now() - startTime;
+
+      if (importantCommands.has(name) || duration > 500) {
+        this.logger.debug("Command completed", {
+          command: name,
+          duration,
+        });
+      }
     } catch (error) {
-      const duration = Date.now() - executeStart;
-      const totalDuration = Date.now() - startTime;
+      const duration = Date.now() - startTime;
       this.logger.error("Command execution failed", {
         command: name,
-        executionDuration: duration,
-        totalDuration,
+        duration,
         error,
       });
-      this.logError(`Command "${name}" failed after ${duration}ms`, error);
       throw error;
     }
   }

@@ -178,7 +178,10 @@ export class WikiStorageService {
 
     const fileNameMatch = filePath.match(/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z?)-(.+)\.md$/);
     const id = fileNameMatch?.[1] || new Date().toISOString();
-    const parsedTitle = title || this.extractTitleFromBody(body) || "Untitled";
+    let parsedTitle = title || this.extractTitleFromBody(body) || "Untitled";
+    if (parsedTitle.length > 36) {
+      parsedTitle = parsedTitle.substring(0, 33) + "...";
+    }
 
     return {
       id,
@@ -194,7 +197,8 @@ export class WikiStorageService {
   private extractTitleFromBody(content: string): string | null {
     const match = content.match(/^#\s+(.+)$/m);
     if (match) {
-      return match[1].trim();
+      const title = match[1].trim();
+      return title.length > 36 ? title.substring(0, 33) + "..." : title;
     }
 
     const functionMatch = content.match(

@@ -68,13 +68,15 @@ Start with a single H1 title. Extract the actual component/function/class name f
 
 # ComponentName - BriefPurpose
 
-For example:
-- # UserService - Handles user authentication
-- # DataProcessor - Processes and validates input data
-- # ButtonComponent - Renders clickable button UI
-- # calculateTotal - Computes sum of values
+IMPORTANT: The title must be short, concise, and relevant - less than 36 characters (including spaces). Keep it brief and descriptive.
 
-If no clear name exists, use the filename or a descriptive name based on functionality.
+For example:
+- # UserService - Auth Handler
+- # DataProcessor - Input Validator
+- # ButtonComponent - UI Renderer
+- # calculateTotal - Sum Calculator
+
+If no clear name exists, use the filename or a descriptive name based on functionality. Always ensure the title is under 36 characters.
 
 Then create these EXACT sections in this order (use H2 headings exactly as shown):
 

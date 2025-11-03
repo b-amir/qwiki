@@ -47,10 +47,6 @@ export class MessageBusService {
   }
 
   postMessage(command: string, payload?: any): void {
-    try {
-      const size = payload ? JSON.stringify(payload).length : 0;
-      this.logger.debug(`Queueing message to webview - command=${command}, size=${size}`);
-    } catch {}
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
     } else {
@@ -59,10 +55,6 @@ export class MessageBusService {
   }
 
   postImmediate(command: string, payload?: any): void {
-    try {
-      const size = payload ? JSON.stringify(payload).length : 0;
-      this.logger.debug(`Posting immediate message to webview - command=${command}, size=${size}`);
-    } catch {}
     this.optimizer.postImmediate(command, payload);
   }
 
@@ -99,7 +91,6 @@ export class MessageBusService {
   }
 
   postSuccess(command: string, payload?: any): void {
-    this.logger.debug(`postSuccess called for command=${command}`);
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
     } else {

@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
           class="border-border border-b last:border-b-0"
         >
           <div
-            class="bg-muted/50 text-muted-foreground sticky top-0 z-10 px-4 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-lg"
+            class="bg-muted/90 text-muted-foreground border-border sticky top-0 z-10 border-b px-4 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-sm"
           >
             {{ date }}
           </div>

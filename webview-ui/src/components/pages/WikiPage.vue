@@ -31,7 +31,8 @@ const wikiContentWithoutTitle = computed(() => {
 const wikiTitle = computed(() => {
   if (wiki.content && typeof wiki.content === "string") {
     const match = wiki.content.match(/^#\s+(.+)$/m);
-    return match ? match[1].trim() : "Untitled Wiki";
+    const title = match ? match[1].trim() : "Untitled Wiki";
+    return title.length > 36 ? title.substring(0, 33) + "..." : title;
   }
   return "Untitled Wiki";
 });
@@ -115,10 +116,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div
-      v-if="wiki.content"
-      class="border-border bg-background flex-shrink-0 border-t px-4 py-4"
-    >
+    <div v-if="wiki.content" class="border-border bg-background flex-shrink-0 border-t px-4 py-4">
       <Button
         :disabled="saveState === 'saving'"
         class="bg-foreground w-full text-sm"
@@ -154,9 +152,7 @@ onBeforeUnmount(() => {
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
         </svg>
-        {{
-          saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save Wiki"
-        }}
+        {{ saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save Wiki" }}
       </Button>
     </div>
 

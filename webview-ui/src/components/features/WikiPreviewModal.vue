@@ -52,7 +52,6 @@ const handleClose = () => {
       <ModalHeader @close="handleClose">
         <div>
           <h2 class="text-lg font-semibold">{{ wiki?.title }}</h2>
-          <div class="text-muted-foreground mt-1 text-sm">{{ wiki?.filePath }}</div>
         </div>
       </ModalHeader>
       <ModalContent>

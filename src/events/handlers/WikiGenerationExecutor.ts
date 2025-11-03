@@ -159,7 +159,6 @@ export class WikiGenerationExecutor {
         if (cancellationToken.isCancellationRequested) {
           return;
         }
-        this.logger.debug("Loading step progress", { step });
         const message = getProgressMessageForStep(step);
         this.updateStatusBar(message);
         this.eventBus.publish(OutboundEvents.loadingStep, { step });
