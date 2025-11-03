@@ -75,6 +75,12 @@ export class WikiStorageService {
     const qwikiFolderUri = Uri.file(qwikiFolderPath);
 
     try {
+      try {
+        await workspace.fs.stat(qwikiFolderUri);
+      } catch {
+        return [];
+      }
+
       const entries = await workspace.fs.readDirectory(qwikiFolderUri);
       const wikis: SavedWiki[] = [];
 
@@ -93,7 +99,8 @@ export class WikiStorageService {
       }
 
       return wikis.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    } catch {
+    } catch (error) {
+      this.logger.error("Failed to get saved wikis", error);
       return [];
     }
   }
@@ -106,9 +113,16 @@ export class WikiStorageService {
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
+    const qwikiFolderUri = Uri.file(qwikiFolderPath);
 
     try {
-      const entries = await workspace.fs.readDirectory(Uri.file(qwikiFolderPath));
+      try {
+        await workspace.fs.stat(qwikiFolderUri);
+      } catch {
+        return;
+      }
+
+      const entries = await workspace.fs.readDirectory(qwikiFolderUri);
       for (const [name, type] of entries) {
         if (type === 1 && name.startsWith(wikiId) && name.endsWith(".md")) {
           const fileUri = Uri.file(join(qwikiFolderPath, name));
@@ -116,7 +130,8 @@ export class WikiStorageService {
           break;
         }
       }
-    } catch {
+    } catch (error) {
+      this.logger.error("Failed to delete wiki", error);
       return;
     }
   }

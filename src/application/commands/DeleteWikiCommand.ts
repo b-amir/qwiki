@@ -1,5 +1,6 @@
 import type { Command } from "./Command";
 import type { WikiStorageService } from "../services/WikiStorageService";
+import type { ReadmeCacheService } from "../services/ReadmeCacheService";
 import type { MessageBusService } from "../services/MessageBusService";
 import {
   LoggingService,
@@ -16,6 +17,7 @@ export class DeleteWikiCommand implements Command<DeleteWikiPayload> {
 
   constructor(
     private wikiStorageService: WikiStorageService,
+    private readmeCacheService: ReadmeCacheService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
       enabled: false,
@@ -39,6 +41,10 @@ export class DeleteWikiCommand implements Command<DeleteWikiPayload> {
     try {
       this.logDebug("Starting to delete wiki", payload.wikiId);
       await this.wikiStorageService.deleteWiki(payload.wikiId);
+
+      await this.readmeCacheService.invalidateForWiki(payload.wikiId);
+      this.logDebug("Invalidated README cache for deleted wiki");
+
       this.logDebug("Wiki deleted successfully");
 
       await this.messageBus.postMessage("wikiDeleted", {

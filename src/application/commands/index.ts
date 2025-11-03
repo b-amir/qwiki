@@ -24,3 +24,7 @@ export { SaveWikiCommand } from "./SaveWikiCommand";
 export { GetSavedWikisCommand } from "./GetSavedWikisCommand";
 export { DeleteWikiCommand } from "./DeleteWikiCommand";
 export { UpdateReadmeCommand } from "./UpdateReadmeCommand";
+export { ApproveReadmeUpdateCommand } from "./ApproveReadmeUpdateCommand";
+export { CancelReadmeUpdateCommand } from "./CancelReadmeUpdateCommand";
+export { UndoReadmeCommand } from "./UndoReadmeCommand";
+export { CheckReadmeBackupCommand } from "./CheckReadmeBackupCommand";

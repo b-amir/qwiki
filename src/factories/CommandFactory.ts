@@ -28,6 +28,10 @@ import {
   GetSavedWikisCommand,
   DeleteWikiCommand,
   UpdateReadmeCommand,
+  ApproveReadmeUpdateCommand,
+  CancelReadmeUpdateCommand,
+  UndoReadmeCommand,
+  CheckReadmeBackupCommand,
 } from "../application/commands";
 import { MessageBusService } from "../application/services/MessageBusService";
 import { CommandIds } from "../constants";
@@ -196,6 +200,7 @@ export class CommandFactory {
       case CommandIds.deleteWiki:
         return new DeleteWikiCommand(
           container.resolve("wikiStorageService"),
+          container.resolve("readmeCacheService"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
@@ -205,6 +210,34 @@ export class CommandFactory {
           await container.resolveLazy("readmeUpdateService"),
           this.messageBus,
           container.resolve("configurationManager"),
+          this.loggingService,
+        ) as Command<T>;
+
+      case CommandIds.undoReadme:
+        return new UndoReadmeCommand(
+          await container.resolveLazy("readmeUpdateService"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
+      case CommandIds.checkReadmeBackupState:
+        return new CheckReadmeBackupCommand(
+          await container.resolveLazy("readmeUpdateService"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
+      case CommandIds.approveReadmeUpdate:
+        return new ApproveReadmeUpdateCommand(
+          await container.resolveLazy("readmeUpdateService"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
+      case CommandIds.cancelReadmeUpdate:
+        return new CancelReadmeUpdateCommand(
+          await container.resolveLazy("readmeUpdateService"),
+          this.messageBus,
           this.loggingService,
         ) as Command<T>;
 
@@ -242,6 +275,10 @@ export class CommandFactory {
       CommandIds.getSavedWikis,
       CommandIds.deleteWiki,
       CommandIds.updateReadme,
+      CommandIds.approveReadmeUpdate,
+      CommandIds.cancelReadmeUpdate,
+      CommandIds.undoReadme,
+      CommandIds.checkReadmeBackupState,
     ];
 
     for (const commandId of commandIds) {

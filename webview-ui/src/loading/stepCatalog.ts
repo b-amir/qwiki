@@ -35,6 +35,13 @@ export const stepCatalog: StepCatalog = {
     { text: "Gathering error history...", key: "loading" },
     { text: "Preparing view...", key: "preparing" },
   ],
+  readmeUpdate: [
+    { text: "Analyzing wikis...", key: "analyzingWikis" },
+    { text: "Detecting README state...", key: "detectingReadmeState" },
+    { text: "Building prompt...", key: "buildingPrompt" },
+    { text: "Generating README...", key: "generatingReadme" },
+    { text: "Writing README...", key: "writingReadme" },
+  ],
 };
 
 export function getStepsForContext(context: KnownLoadingContext) {

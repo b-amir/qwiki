@@ -247,6 +247,11 @@ export interface ReadmeUpdateSettings {
   preserveCustomSections: boolean;
   defaultSections: string[];
   mergeStrategy: "replace" | "merge" | "append";
+  maxWikisPerUpdate?: number; // Default: 20
+  timeout?: number; // Default: 90000 (90 seconds)
+  enableCaching?: boolean; // Default: true
+  cacheTTL?: number; // Default: 3600000 (1 hour)
+  enableStreaming?: boolean; // Default: false
 }
 
 export interface WikiManagementConfig {

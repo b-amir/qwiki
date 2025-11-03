@@ -57,4 +57,13 @@ export const ServiceLimits = {
   environmentStatusDebounceDelay: 200,
   errorContextMaxLength: 500,
   languageStatusCheckInterval: 3000,
+  readmeMaxPromptTokens: 100000,
+  readmeTokenSafetyMargin: 0.15,
+  readmeSystemPromptTokens: 200,
+  readmeInstructionsTokens: 500,
+  readmeOutputBufferTokens: 1000,
+  readmeTimeoutDefault: 90000,
+  readmeWikiTruncateLength: 5000,
+  readmeWikiTruncateKeepLength: 4000,
+  readmeMaxWikisPerUpdate: 20,
 } as const;

@@ -5,6 +5,7 @@ export const LoadingContexts = {
   environment: "environment",
   savedWikis: "savedWikis",
   errorHistory: "errorHistory",
+  readmeUpdate: "readmeUpdate",
 } as const;
 
 export type LoadingContext = (typeof LoadingContexts)[keyof typeof LoadingContexts];
@@ -25,6 +26,10 @@ export const LoadingSteps = {
   extensionLoading: "extensionLoading",
   languageServerLoading: "languageServerLoading",
   loading: "loading",
+  analyzingWikis: "analyzingWikis",
+  detectingReadmeState: "detectingReadmeState",
+  generatingReadme: "generatingReadme",
+  writingReadme: "writingReadme",
 } as const;
 
 export type LoadingStep = (typeof LoadingSteps)[keyof typeof LoadingSteps];
@@ -52,6 +57,10 @@ export function getProgressMessageForStep(step: LoadingStep): string {
     [LoadingSteps.extensionLoading]: "Preparing Qwiki services...",
     [LoadingSteps.languageServerLoading]: "Waiting for language features...",
     [LoadingSteps.loading]: "Loading...",
+    [LoadingSteps.analyzingWikis]: "Analyzing wikis...",
+    [LoadingSteps.detectingReadmeState]: "Detecting README state...",
+    [LoadingSteps.generatingReadme]: "Generating README...",
+    [LoadingSteps.writingReadme]: "Writing README...",
   };
   return messageMap[step] || "Processing...";
 }

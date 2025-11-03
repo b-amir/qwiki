@@ -24,6 +24,10 @@ export const CommandIds = {
   getSavedWikis: "getSavedWikis",
   deleteWiki: "deleteWiki",
   updateReadme: "updateReadme",
+  approveReadmeUpdate: "approveReadmeUpdate",
+  cancelReadmeUpdate: "cancelReadmeUpdate",
+  undoReadme: "undoReadme",
+  checkReadmeBackupState: "checkReadmeBackupState",
 } as const;
 
 export const VSCodeCommandIds = {

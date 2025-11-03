@@ -5,6 +5,7 @@ export const KNOWN_CONTEXTS = [
   "environment",
   "savedWikis",
   "errorHistory",
+  "readmeUpdate",
 ] as const;
 
 export type KnownLoadingContext = (typeof KNOWN_CONTEXTS)[number];

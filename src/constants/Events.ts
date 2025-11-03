@@ -39,6 +39,14 @@ export const OutboundEvents = {
   showNotification: "showNotification",
   environmentStatus: "environmentStatus",
   readmeUpdated: "readmeUpdated",
+  readmeBackupCreated: "readmeBackupCreated",
+  readmeBackupDeleted: "readmeBackupDeleted",
+  readmeBackupState: "readmeBackupState",
+  readmeUpdatePreviewReady: "readmeUpdatePreviewReady",
+  readmeUpdateApprovalRequested: "readmeUpdateApprovalRequested",
+  readmeUpdateCancelled: "readmeUpdateCancelled",
+  readmeUpdateApproved: "readmeUpdateApproved",
+  readmeUpdateProgress: "readmeUpdateProgress",
   generationCancelled: "generationCancelled",
 } as const;
 

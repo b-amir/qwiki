@@ -19,6 +19,7 @@ export interface UpdateResult {
   changes: string[];
   backupPath?: string;
   conflicts: string[];
+  requiresApproval?: boolean;
 }
 
 export interface ReadmeAnalysis {

@@ -20,6 +20,15 @@ import {
   AdvancedPromptService,
   PromptQualityService,
   ReadmeUpdateService,
+  ReadmePromptOptimizationService,
+  WikiSummarizationService,
+  ReadmeStateDetectionService,
+  ReadmeContentAnalysisService,
+  ReadmeBackupService,
+  ReadmeFileService,
+  ReadmePromptBuilderService,
+  ReadmeDiffService,
+  ReadmeCacheService,
 } from "./";
 import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
 import { PatternExtractionService } from "./services/context/PatternExtractionService";
@@ -622,11 +631,78 @@ export class AppBootstrap {
     );
 
     this.container.registerLazy(
+      "readmePromptOptimizationService",
+      async () =>
+        new ReadmePromptOptimizationService(
+          await this.container.resolveLazy("llmRegistry"),
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "wikiSummarizationService",
+      () => new WikiSummarizationService(this.loggingService),
+    );
+
+    this.container.register(
+      "readmeContentAnalysisService",
+      () => new ReadmeContentAnalysisService(this.loggingService),
+    );
+
+    this.container.register(
+      "readmeStateDetectionService",
+      () =>
+        new ReadmeStateDetectionService(
+          this.container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register(
+      "readmeBackupService",
+      () => new ReadmeBackupService(this.loggingService, this.container.resolve("eventBus")),
+    );
+
+    this.container.register("readmeFileService", () => new ReadmeFileService(this.loggingService));
+
+    this.container.register(
+      "readmePromptBuilderService",
+      () =>
+        new ReadmePromptBuilderService(
+          this.container.resolve("wikiSummarizationService") as WikiSummarizationService,
+          this.container.resolve("projectContextService") as ProjectContextService,
+          this.container.resolve("projectTypeDetectionService") as ProjectTypeDetectionService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register("readmeDiffService", () => new ReadmeDiffService(this.loggingService));
+
+    this.container.register(
+      "readmeCacheService",
+      () =>
+        new ReadmeCacheService(
+          this.container.resolve("cachingService") as CachingService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.registerLazy(
       "readmeUpdateService",
       async () =>
         new ReadmeUpdateService(
           this.container.resolve("wikiStorageService") as WikiStorageService,
           await this.container.resolveLazy("llmRegistry"),
+          (await this.container.resolveLazy(
+            "readmePromptOptimizationService",
+          )) as ReadmePromptOptimizationService,
+          this.container.resolve("readmePromptBuilderService") as ReadmePromptBuilderService,
+          this.container.resolve("readmeStateDetectionService") as ReadmeStateDetectionService,
+          this.container.resolve("readmeContentAnalysisService") as ReadmeContentAnalysisService,
+          this.container.resolve("readmeBackupService") as ReadmeBackupService,
+          this.container.resolve("readmeFileService") as ReadmeFileService,
+          this.container.resolve("readmeDiffService") as ReadmeDiffService,
+          this.container.resolve("readmeCacheService") as ReadmeCacheService,
           this.loggingService,
           this.container.resolve("eventBus"),
         ),
@@ -686,6 +762,18 @@ export class AppBootstrap {
     const unsubLoading = eventBus.subscribe(OutboundEvents.loadingStep, (payload) => {
       messageBus.postSuccess(OutboundEvents.loadingStep, payload);
     });
+
+    const unsubReadmeProgress = eventBus.subscribe(
+      OutboundEvents.readmeUpdateProgress,
+      (payload: { step: string; percent?: number }) => {
+        messageBus.postMessage(OutboundEvents.loadingStep, {
+          context: "readmeUpdate",
+          step: payload.step,
+          percent: payload.percent,
+        });
+      },
+    );
+    commandRegistry.addDisposer(unsubReadmeProgress);
     commandRegistry.addDisposer(unsubLoading);
 
     const unsubError = eventBus.subscribe(OutboundEvents.error, (payload: any) => {
@@ -717,6 +805,16 @@ export class AppBootstrap {
       messageBus.postImmediate(OutboundEvents.generationCancelled, {});
     });
     commandRegistry.addDisposer(unsubGenerationCancelled);
+
+    const unsubReadmeBackupCreated = eventBus.subscribe(OutboundEvents.readmeBackupCreated, (payload) => {
+      messageBus.postImmediate(OutboundEvents.readmeBackupCreated, payload);
+    });
+    commandRegistry.addDisposer(unsubReadmeBackupCreated);
+
+    const unsubReadmeBackupDeleted = eventBus.subscribe(OutboundEvents.readmeBackupDeleted, (payload) => {
+      messageBus.postImmediate(OutboundEvents.readmeBackupDeleted, payload);
+    });
+    commandRegistry.addDisposer(unsubReadmeBackupDeleted);
 
     return commandRegistry;
   }

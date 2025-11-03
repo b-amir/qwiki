@@ -66,42 +66,86 @@ export class GetProvidersCommand implements Command<void> {
       const statusesStartTime = Date.now();
       this.logDebug("Processing provider statuses");
 
-      const statuses = await Promise.all(
+      const statuses = await Promise.allSettled(
         list.map(async (p) => {
           const providerProcessStartTime = Date.now();
+          let providerId = "";
+          let providerName = "";
+          let models: string[] = [];
+          let hasKey = false;
 
           try {
-            const provider = this.llmRegistry.getProvider(p.id as ProviderId);
+            providerId = typeof p.id === "string" ? p.id : String(p.id || "");
+            providerName = typeof p.name === "string" ? p.name : String(p.name || "");
 
-            const hasSecretKey = await this.apiKeyRepository.has(p.id as ProviderId);
-            const providerConfig = await this.configurationManager.getProviderConfig(p.id);
-            const hasConfigKey = Boolean(providerConfig?.apiKey);
-            const hasKey = hasSecretKey || hasConfigKey;
+            try {
+              const initialModels = p.models || [];
+              if (Array.isArray(initialModels)) {
+                models = initialModels.filter(
+                  (m): m is string => typeof m === "string" && m.length > 0,
+                );
+              }
+            } catch (error) {
+              this.logError(
+                `Error processing initial models for provider ${providerId} after ${Date.now() - providerProcessStartTime}ms`,
+                error,
+              );
+            }
 
-            const models = provider?.listModels?.() || [];
+            try {
+              const provider = this.llmRegistry.getProvider(providerId as ProviderId);
+              if (provider) {
+                const providerModels = provider.listModels?.() || [];
+                if (Array.isArray(providerModels) && providerModels.length > 0) {
+                  const validModels = providerModels.filter(
+                    (m): m is string => typeof m === "string" && m.length > 0,
+                  );
+                  if (validModels.length > 0) {
+                    models = validModels;
+                  }
+                }
+              }
+            } catch (error) {
+              this.logError(
+                `Error getting models for provider ${providerId} after ${Date.now() - providerProcessStartTime}ms`,
+                error,
+              );
+            }
+
+            try {
+              const hasSecretKey = await this.apiKeyRepository.has(providerId as ProviderId);
+              const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+              const hasConfigKey = Boolean(providerConfig?.apiKey);
+              hasKey = hasSecretKey || hasConfigKey;
+            } catch (error) {
+              this.logError(
+                `Error checking API key status for provider ${providerId} after ${Date.now() - providerProcessStartTime}ms`,
+                error,
+              );
+            }
 
             const providerProcessEndTime = Date.now();
             this.logDebug(
-              `Processed provider ${p.id} in ${providerProcessEndTime - providerProcessStartTime}ms`,
+              `Processed provider ${providerId} in ${providerProcessEndTime - providerProcessStartTime}ms`,
               { models: models.length, hasKey },
             );
 
             return {
-              id: p.id,
-              name: p.name,
+              id: providerId,
+              name: providerName,
               models,
               hasKey,
             };
           } catch (error) {
             const providerProcessEndTime = Date.now();
             this.logError(
-              `Error processing provider ${p.id} after ${providerProcessEndTime - providerProcessStartTime}ms`,
+              `Fatal error processing provider ${providerId || p.id || "unknown"} after ${providerProcessEndTime - providerProcessStartTime}ms`,
               error,
             );
 
             return {
-              id: p.id,
-              name: p.name,
+              id: providerId || String(p.id || ""),
+              name: providerName || String(p.name || ""),
               models: [],
               hasKey: false,
             };
@@ -109,10 +153,29 @@ export class GetProvidersCommand implements Command<void> {
         }),
       );
 
+      const successfulStatuses = statuses
+        .filter((result): result is PromiseFulfilledResult<any> => result.status === "fulfilled")
+        .map((result) => result.value);
+
+      const failedStatuses = statuses
+        .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+        .map((result, index) => {
+          this.logError(`Provider processing failed`, result.reason);
+          const p = list[index];
+          return {
+            id: typeof p?.id === "string" ? p.id : String(p?.id || ""),
+            name: typeof p?.name === "string" ? p.name : String(p?.name || ""),
+            models: [] as string[],
+            hasKey: false,
+          };
+        });
+
+      const allStatuses = [...successfulStatuses, ...failedStatuses];
+
       const statusesEndTime = Date.now();
       this.logDebug(`All provider statuses processed in ${statusesEndTime - statusesStartTime}ms`);
 
-      this.messageBus.postSuccess(OutboundEvents.providers, statuses);
+      this.messageBus.postSuccess(OutboundEvents.providers, allStatuses);
       this.lastEmitAt = Date.now();
       const executeEndTime = Date.now();
       this.logDebug(`Command completed successfully in ${executeEndTime - executeStartTime}ms`);

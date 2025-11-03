@@ -48,8 +48,9 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
       }
 
       const globalConfig = await this.configurationManager.getGlobalConfig();
-      const defaultProviderId = globalConfig.defaultProviderId || ("google-ai-studio" as ProviderId);
-      
+      const defaultProviderId =
+        globalConfig.defaultProviderId || ("google-ai-studio" as ProviderId);
+
       let providerId = payload.config?.providerId || defaultProviderId;
       if (!providerId) {
         throw new Error("Provider ID is required. Please configure a default provider.");
@@ -64,10 +65,12 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
         backupOriginal: payload.config?.backupOriginal ?? true,
       };
 
-      const result = await this.readmeUpdateService.updateReadmeFromWikis(
-        payload.wikiIds,
-        config,
-      );
+      const result = await this.readmeUpdateService.updateReadmeFromWikis(payload.wikiIds, config);
+
+      if (result.requiresApproval) {
+        this.logDebug("README update requires user approval");
+        return;
+      }
 
       if (result.success) {
         await this.messageBus.postMessage("readmeUpdated", {
@@ -102,4 +105,3 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
     }
   }
 }
-

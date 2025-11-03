@@ -8,9 +8,11 @@ import LoadingState from "@/components/features/LoadingState.vue";
 import ErrorModal from "@/components/features/ErrorModal.vue";
 import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
+import ReadmeConfirmDialog from "@/components/features/ReadmeConfirmDialog.vue";
 import Button from "@/components/ui/button.vue";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
+import type { ReadmePreview } from "../../../../src/domain/entities/ReadmeUpdate";
 
 interface SavedWiki {
   id: string;
@@ -32,6 +34,16 @@ const errorModalOpen = ref(false);
 const searchQuery = ref("");
 const previewWiki = ref<SavedWiki | null>(null);
 const updateReadmeState = ref<"idle" | "loading" | "done">("idle");
+const undoReadmeState = ref<"idle" | "loading">("idle");
+const hasBackup = ref(false);
+const showReadmeConfirmDialog = ref(false);
+const readmePreview = ref<ReadmePreview | null>(null);
+const changeSummary = ref<{
+  added: number;
+  updated: number;
+  removed: number;
+  preserved: number;
+} | null>(null);
 
 const savedWikisLoadingContext = useLoading("savedWikis");
 const isSavedWikisLoading = computed(
@@ -92,6 +104,20 @@ const updateReadme = async () => {
   }
 };
 
+const undoReadme = async () => {
+  if (undoReadmeState.value === "loading" || !hasBackup.value) return;
+
+  undoReadmeState.value = "loading";
+  try {
+    vscode.postMessage({
+      command: "undoReadme",
+    });
+  } catch (err) {
+    logger.error("Failed to undo README update", err);
+    undoReadmeState.value = "idle";
+  }
+};
+
 const showPreview = (wiki: SavedWiki, event: Event) => {
   event.stopPropagation();
   previewWiki.value = wiki;
@@ -143,6 +169,34 @@ const deleteWiki = async (wikiId: string, event: Event) => {
   }
 };
 
+const approveReadmeUpdate = async () => {
+  try {
+    vscode.postMessage({
+      command: "approveReadmeUpdate",
+    });
+    showReadmeConfirmDialog.value = false;
+    readmePreview.value = null;
+    changeSummary.value = null;
+    updateReadmeState.value = "loading";
+  } catch (err) {
+    logger.error("Failed to approve README update", err);
+  }
+};
+
+const cancelReadmeUpdate = async () => {
+  try {
+    vscode.postMessage({
+      command: "cancelReadmeUpdate",
+    });
+    showReadmeConfirmDialog.value = false;
+    readmePreview.value = null;
+    changeSummary.value = null;
+    updateReadmeState.value = "idle";
+  } catch (err) {
+    logger.error("Failed to cancel README update", err);
+  }
+};
+
 const handleMessage = (event: MessageEvent) => {
   const message = event.data;
 
@@ -157,6 +211,28 @@ const handleMessage = (event: MessageEvent) => {
     case "wikiDeleted":
       savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
       break;
+    case "readmeUpdateProgress":
+      if (message.payload) {
+        updateReadmeState.value = "loading";
+      }
+      break;
+    case "readmeUpdatePreviewReady":
+      readmePreview.value = message.payload.preview;
+      changeSummary.value = message.payload.changeSummary;
+      showReadmeConfirmDialog.value = true;
+      updateReadmeState.value = "idle";
+      break;
+    case "readmeUpdateApprovalRequested":
+      break;
+    case "readmeUpdateApproved":
+      updateReadmeState.value = "done";
+      setTimeout(() => {
+        updateReadmeState.value = "idle";
+      }, 2000);
+      break;
+    case "readmeUpdateCancelled":
+      updateReadmeState.value = "idle";
+      break;
     case "readmeUpdated":
       if (message.payload.success) {
         updateReadmeState.value = "done";
@@ -166,6 +242,19 @@ const handleMessage = (event: MessageEvent) => {
       } else {
         updateReadmeState.value = "idle";
       }
+      undoReadmeState.value = "idle";
+      vscode.postMessage({ command: "checkReadmeBackupState" });
+      break;
+    case "readmeBackupCreated":
+      hasBackup.value = true;
+      undoReadmeState.value = "idle";
+      break;
+    case "readmeBackupDeleted":
+      hasBackup.value = false;
+      undoReadmeState.value = "idle";
+      break;
+    case "readmeBackupState":
+      hasBackup.value = message.payload?.hasBackup ?? false;
       break;
     case "showNotification":
       if (message.payload.type === "error") {
@@ -175,6 +264,8 @@ const handleMessage = (event: MessageEvent) => {
         isLoading.value = false;
         navigationStatus.finish("savedWikis");
         savedWikisLoadingContext.fail(message.payload.message);
+        undoReadmeState.value = "idle";
+        updateReadmeState.value = "idle";
       }
       break;
   }
@@ -193,6 +284,7 @@ watch(
 
 onMounted(() => {
   window.addEventListener("message", handleMessage);
+  vscode.postMessage({ command: "checkReadmeBackupState" });
 });
 
 onBeforeUnmount(() => {
@@ -270,49 +362,101 @@ onBeforeUnmount(() => {
       v-if="filteredWikis.length > 0"
       class="border-border bg-background flex-shrink-0 border-t px-4 py-4"
     >
-      <Button
-        :disabled="updateReadmeState === 'loading'"
-        class="bg-foreground w-full text-sm"
-        @click="updateReadme"
-      >
-        <svg
-          v-if="updateReadmeState === 'loading'"
-          class="mr-2 h-4 w-4 animate-spin"
-          fill="none"
-          viewBox="0 0 24 24"
+      <div class="flex gap-2">
+        <Transition
+          enter-active-class="undo-button-enter-active"
+          enter-from-class="undo-button-enter-from"
+          enter-to-class="undo-button-enter-to"
+          leave-active-class="undo-button-leave-active"
+          leave-from-class="undo-button-leave-from"
+          leave-to-class="undo-button-leave-to"
         >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
+          <Button
+            v-if="hasBackup"
+            :disabled="undoReadmeState === 'loading' || updateReadmeState === 'loading'"
+            class="undo-button bg-muted hover:bg-muted/80 text-foreground flex min-w-[3rem] flex-[0.2] items-center justify-center"
+            @click="undoReadme"
+          >
+            <svg
+              v-if="undoReadmeState === 'loading'"
+              class="h-4 w-4 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <svg
+              v-else
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+              />
+            </svg>
+          </Button>
+        </Transition>
+        <Button
+          :disabled="updateReadmeState === 'loading' || undoReadmeState === 'loading'"
+          class="bg-foreground flex-1 text-sm transition-all"
+          @click="updateReadme"
+        >
+          <svg
+            v-if="updateReadmeState === 'loading'"
+            class="mr-2 h-4 w-4 animate-spin"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <svg
+            v-else-if="updateReadmeState === 'done'"
+            class="mr-2 h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
-            stroke-width="4"
-          />
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-        <svg
-          v-else-if="updateReadmeState === 'done'"
-          class="mr-2 h-4 w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-        {{
-          updateReadmeState === "loading"
-            ? "Updating..."
-            : updateReadmeState === "done"
-              ? "Done"
-              : "Update README.md"
-        }}
-      </Button>
+            stroke-width="2"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {{
+            updateReadmeState === "loading"
+              ? "Updating..."
+              : updateReadmeState === "done"
+                ? "Done"
+                : "Update README"
+          }}
+        </Button>
+      </div>
     </div>
 
     <WikiPreviewModal :wiki="previewWiki" @close="previewWiki = null" />
@@ -328,5 +472,66 @@ onBeforeUnmount(() => {
         }
       "
     />
+
+    <ReadmeConfirmDialog
+      v-if="showReadmeConfirmDialog && readmePreview && changeSummary"
+      :preview="readmePreview"
+      :change-summary="changeSummary"
+      :backup-original="hasBackup"
+      :warnings="readmePreview.warnings"
+      @confirm="approveReadmeUpdate"
+      @cancel="cancelReadmeUpdate"
+    />
   </div>
 </template>
+
+<style scoped>
+.undo-button {
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+.undo-button-enter-active {
+  transition:
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.undo-button-enter-from {
+  opacity: 0;
+  transform: translate3d(-1rem, 0, 0) scale(0.95);
+}
+
+.undo-button-enter-to {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.undo-button-leave-active {
+  transition:
+    transform 120ms cubic-bezier(0.4, 0, 1, 1),
+    opacity 120ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.undo-button-leave-from {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.undo-button-leave-to {
+  opacity: 0;
+  transform: translate3d(-1rem, 0, 0) scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .undo-button-enter-active,
+  .undo-button-leave-active {
+    transition: none;
+  }
+
+  .undo-button-enter-from,
+  .undo-button-leave-to {
+    transform: none;
+  }
+}
+</style>
