@@ -1,4 +1,4 @@
-import { workspace, Uri } from "vscode";
+import { workspace } from "vscode";
 import { join } from "path";
 import { EventBus } from "../../events/EventBus";
 import {
@@ -6,6 +6,7 @@ import {
   createLogger,
   type Logger,
 } from "../../infrastructure/services/LoggingService";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
 
 export class ReadmeBackupService {
   private logger: Logger;
@@ -14,6 +15,7 @@ export class ReadmeBackupService {
   private hasBackup: boolean = false;
 
   constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService,
     private eventBus?: EventBus,
   ) {
@@ -25,13 +27,7 @@ export class ReadmeBackupService {
     try {
       const backupPath = this.getBackupPath();
       if (backupPath) {
-        const backupUri = Uri.file(backupPath);
-        try {
-          await workspace.fs.stat(backupUri);
-          this.hasBackup = true;
-        } catch {
-          this.hasBackup = false;
-        }
+        this.hasBackup = await this.vscodeFileSystem.fileExists(backupPath);
       }
     } catch {
       this.hasBackup = false;
@@ -56,17 +52,15 @@ export class ReadmeBackupService {
 
     await this.ensureBackupFolder(workspaceRoot);
 
-    const backupUri = Uri.file(backupPath);
-
     if (this.hasBackup) {
       try {
-        await workspace.fs.delete(backupUri);
+        await this.vscodeFileSystem.delete(backupPath);
       } catch {
         this.logger.warn("Failed to delete existing backup, continuing");
       }
     }
 
-    await workspace.fs.writeFile(backupUri, Buffer.from(readmeContent, "utf8"));
+    await this.vscodeFileSystem.writeFile(backupPath, readmeContent);
     this.hasBackup = true;
 
     if (this.eventBus) {
@@ -89,13 +83,11 @@ export class ReadmeBackupService {
     }
 
     try {
-      const backupUri = Uri.file(backupPath);
-      const backupContent = await workspace.fs.readFile(backupUri);
-      const content = Buffer.from(backupContent).toString("utf8");
+      const content = await this.vscodeFileSystem.readFile(backupPath);
 
       await writeReadme(content);
 
-      await workspace.fs.delete(backupUri);
+      await this.vscodeFileSystem.delete(backupPath);
       this.hasBackup = false;
 
       if (this.eventBus) {
@@ -125,8 +117,7 @@ export class ReadmeBackupService {
     }
 
     try {
-      const backupUri = Uri.file(backupPath);
-      await workspace.fs.delete(backupUri);
+      await this.vscodeFileSystem.delete(backupPath);
       this.hasBackup = false;
 
       if (this.eventBus) {
@@ -159,19 +150,13 @@ export class ReadmeBackupService {
   private async ensureBackupFolder(workspaceRoot: string): Promise<void> {
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const backupFolderPath = join(qwikiFolderPath, "backup");
-    const qwikiFolderUri = Uri.file(qwikiFolderPath);
-    const backupFolderUri = Uri.file(backupFolderPath);
 
-    try {
-      await workspace.fs.stat(qwikiFolderUri);
-    } catch {
-      await workspace.fs.createDirectory(qwikiFolderUri);
+    if (!(await this.vscodeFileSystem.fileExists(qwikiFolderPath))) {
+      await this.vscodeFileSystem.createDirectory(qwikiFolderPath);
     }
 
-    try {
-      await workspace.fs.stat(backupFolderUri);
-    } catch {
-      await workspace.fs.createDirectory(backupFolderUri);
+    if (!(await this.vscodeFileSystem.fileExists(backupFolderPath))) {
+      await this.vscodeFileSystem.createDirectory(backupFolderPath);
     }
   }
 }

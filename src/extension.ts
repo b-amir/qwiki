@@ -228,6 +228,11 @@ export function activate(context: ExtensionContext) {
         command: VSCodeCommandIds.viewSettings,
         description: "Open Qwiki settings",
       },
+      {
+        label: "Toggle Output Channel",
+        command: VSCodeCommandIds.toggleOutputChannel,
+        description: "Show or hide Qwiki output channel",
+      },
     ];
 
     if (WikiEventHandler.instance?.hasActiveGeneration()) {
@@ -268,6 +273,28 @@ export function activate(context: ExtensionContext) {
     },
   );
 
+  const toggleOutputChannelCommand = commands.registerCommand(
+    VSCodeCommandIds.toggleOutputChannel,
+    () => {
+      try {
+        const container = qwikiProvider?.getContainer?.();
+        if (!container) {
+          window.showErrorMessage(
+            "Qwiki is not initialized yet. Please wait a moment and try again.",
+          );
+          return;
+        }
+
+        const loggingService = container.resolve("loggingService") as any;
+        loggingService.toggleOutputChannel();
+      } catch (error) {
+        window.showErrorMessage(
+          `Failed to toggle output channel: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    },
+  );
+
   context.subscriptions.push(
     showQwikiCommand,
     showSettingsCommand,
@@ -278,6 +305,7 @@ export function activate(context: ExtensionContext) {
     showCommandsCommand,
     cancelGenerationCommand,
     cancelActiveRequestCommand,
+    toggleOutputChannelCommand,
   );
 }
 

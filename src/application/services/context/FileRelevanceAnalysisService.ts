@@ -1,4 +1,4 @@
-import { workspace, Uri } from "vscode";
+import { workspace } from "vscode";
 import {
   LoggingService,
   createLogger,
@@ -7,6 +7,7 @@ import {
 import { CachingService } from "../../../infrastructure/services/CachingService";
 import { WorkspaceStructureCacheService } from "../../../infrastructure/services/WorkspaceStructureCacheService";
 import { DependencyAnalysisService } from "./DependencyAnalysisService";
+import { VSCodeFileSystemService } from "../../../infrastructure/services/VSCodeFileSystemService";
 import { ServiceLimits, FilePatterns } from "../../../constants";
 import type {
   FileRelevanceScore,
@@ -20,6 +21,7 @@ export class FileRelevanceAnalysisService {
   private readonly KEY_FILES_KEY = "context-intelligence:key-files";
 
   constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
     private cachingService: CachingService,
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private dependencyAnalysisService: DependencyAnalysisService,
@@ -51,11 +53,9 @@ export class FileRelevanceAnalysisService {
     let fileContent = "";
     let lastModified = new Date();
     try {
-      const fileUri = Uri.file(candidatePath);
-      const content = await workspace.fs.readFile(fileUri);
-      fileContent = Buffer.from(content).toString("utf8");
-      const stat = await workspace.fs.stat(fileUri);
-      lastModified = new Date(stat.mtime);
+      fileContent = await this.vscodeFileSystem.readFile(candidatePath);
+      const stat = await this.vscodeFileSystem.stat(candidatePath);
+      lastModified = stat.mtime ? new Date(stat.mtime) : new Date();
     } catch (error) {
       this.logDebug(`Failed to read file ${candidatePath}`, error);
     }
@@ -163,12 +163,8 @@ export class FileRelevanceAnalysisService {
     let content2 = "";
 
     try {
-      const uri1 = Uri.file(file1);
-      const uri2 = Uri.file(file2);
-      const bytes1 = await workspace.fs.readFile(uri1);
-      const bytes2 = await workspace.fs.readFile(uri2);
-      content1 = Buffer.from(bytes1).toString("utf8");
-      content2 = Buffer.from(bytes2).toString("utf8");
+      content1 = await this.vscodeFileSystem.readFile(file1);
+      content2 = await this.vscodeFileSystem.readFile(file2);
     } catch {
       return 0;
     }

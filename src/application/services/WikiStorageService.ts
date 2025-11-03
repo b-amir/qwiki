@@ -1,10 +1,11 @@
-import { workspace, Uri } from "vscode";
+import { workspace } from "vscode";
 import { join } from "path";
 import {
   LoggingService,
   createLogger,
   type Logger,
 } from "../../infrastructure/services/LoggingService";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
 
 export interface SavedWiki {
   id: string;
@@ -20,7 +21,10 @@ export class WikiStorageService {
   private readonly qwikiFolderName = ".qwiki";
   private logger: Logger;
 
-  constructor(private loggingService: LoggingService) {
+  constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
+    private loggingService: LoggingService,
+  ) {
     this.logger = createLogger("WikiStorageService", loggingService);
   }
 
@@ -34,19 +38,12 @@ export class WikiStorageService {
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const savedFolderPath = join(qwikiFolderPath, "saved");
 
-    const qwikiFolderUri = Uri.file(qwikiFolderPath);
-    const savedFolderUri = Uri.file(savedFolderPath);
-
-    try {
-      await workspace.fs.stat(qwikiFolderUri);
-    } catch {
-      await workspace.fs.createDirectory(qwikiFolderUri);
+    if (!(await this.vscodeFileSystem.fileExists(qwikiFolderPath))) {
+      await this.vscodeFileSystem.createDirectory(qwikiFolderPath);
     }
 
-    try {
-      await workspace.fs.stat(savedFolderUri);
-    } catch {
-      await workspace.fs.createDirectory(savedFolderUri);
+    if (!(await this.vscodeFileSystem.fileExists(savedFolderPath))) {
+      await this.vscodeFileSystem.createDirectory(savedFolderPath);
     }
 
     const sanitizedName = this.sanitizeFileName(title);
@@ -55,9 +52,8 @@ export class WikiStorageService {
     const wikiFilePath = join(savedFolderPath, fileName);
 
     const wikiContent = this.formatWikiContent(title, content, sourceFilePath);
-    const wikiFileUri = Uri.file(wikiFilePath);
 
-    await workspace.fs.writeFile(wikiFileUri, Buffer.from(wikiContent, "utf8"));
+    await this.vscodeFileSystem.writeFile(wikiFilePath, wikiContent);
 
     const savedWiki: SavedWiki = {
       id: timestamp,
@@ -81,25 +77,21 @@ export class WikiStorageService {
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const savedFolderPath = join(qwikiFolderPath, "saved");
-    const savedFolderUri = Uri.file(savedFolderPath);
 
     try {
-      try {
-        await workspace.fs.stat(savedFolderUri);
-      } catch {
+      if (!(await this.vscodeFileSystem.fileExists(savedFolderPath))) {
         return [];
       }
 
-      const entries = await workspace.fs.readDirectory(savedFolderUri);
+      const entries = await this.vscodeFileSystem.readDirectory(savedFolderPath);
       const wikis: SavedWiki[] = [];
 
       for (const [name, type] of entries) {
         if (type === 1 && name.endsWith(".md")) {
           try {
-            const fileUri = Uri.file(join(savedFolderPath, name));
-            const content = await workspace.fs.readFile(fileUri);
-            const contentStr = Buffer.from(content).toString("utf8");
-            const parsed = this.parseWikiContent(contentStr, fileUri.fsPath);
+            const filePath = join(savedFolderPath, name);
+            const contentStr = await this.vscodeFileSystem.readFile(filePath);
+            const parsed = this.parseWikiContent(contentStr, filePath);
             wikis.push(parsed);
           } catch (error) {
             this.logger.error(`Failed to read wiki file ${name}`, error);
@@ -123,20 +115,17 @@ export class WikiStorageService {
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const savedFolderPath = join(qwikiFolderPath, "saved");
-    const savedFolderUri = Uri.file(savedFolderPath);
 
     try {
-      try {
-        await workspace.fs.stat(savedFolderUri);
-      } catch {
+      if (!(await this.vscodeFileSystem.fileExists(savedFolderPath))) {
         return;
       }
 
-      const entries = await workspace.fs.readDirectory(savedFolderUri);
+      const entries = await this.vscodeFileSystem.readDirectory(savedFolderPath);
       for (const [name, type] of entries) {
         if (type === 1 && name.startsWith(wikiId) && name.endsWith(".md")) {
-          const fileUri = Uri.file(join(savedFolderPath, name));
-          await workspace.fs.delete(fileUri);
+          const filePath = join(savedFolderPath, name);
+          await this.vscodeFileSystem.delete(filePath);
           break;
         }
       }

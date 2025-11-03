@@ -8,6 +8,7 @@ import {
   type Logger,
 } from "../../infrastructure/services/LoggingService";
 import { Extension } from "../../constants/Extension";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
 
 export enum ReadmeState {
   NON_EXISTENT = "non_existent",
@@ -34,6 +35,7 @@ export class ReadmeStateDetectionService {
   private gitAPI: GitAPI | undefined;
 
   constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
     private gitChangeDetectionService: GitChangeDetectionService,
     private loggingService: LoggingService,
   ) {
@@ -107,8 +109,7 @@ export class ReadmeStateDetectionService {
 
   private async fileExists(uri: Uri): Promise<boolean> {
     try {
-      await workspace.fs.stat(uri);
-      return true;
+      return await this.vscodeFileSystem.fileExists(uri.fsPath);
     } catch {
       return false;
     }
@@ -132,8 +133,7 @@ export class ReadmeStateDetectionService {
       return changes.some((change) => change.uri.fsPath === uri.fsPath);
     } catch {
       try {
-        const stat = await workspace.fs.stat(uri);
-        return stat !== undefined;
+        return await this.vscodeFileSystem.fileExists(uri.fsPath);
       } catch {
         return false;
       }
@@ -165,7 +165,7 @@ export class ReadmeStateDetectionService {
     }
 
     try {
-      const stat = await workspace.fs.stat(uri);
+      const stat = await this.vscodeFileSystem.stat(uri.fsPath);
       const lastModifiedDate = stat.mtime ? new Date(stat.mtime) : undefined;
 
       const changes = [
@@ -206,8 +206,7 @@ export class ReadmeStateDetectionService {
     hasCustomContent: boolean;
   }> {
     try {
-      const content = await workspace.fs.readFile(uri);
-      const text = Buffer.from(content).toString("utf8");
+      const text = await this.vscodeFileSystem.readFile(uri.fsPath);
 
       const hasCustomContent = this.hasNonBoilerplateContent(text);
 

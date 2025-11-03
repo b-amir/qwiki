@@ -6,6 +6,7 @@ import {
 } from "../../../infrastructure/services/LoggingService";
 import { CachingService } from "../../../infrastructure/services/CachingService";
 import { WorkspaceStructureCacheService } from "../../../infrastructure/services/WorkspaceStructureCacheService";
+import { VSCodeFileSystemService } from "../../../infrastructure/services/VSCodeFileSystemService";
 import { FilePatterns } from "../../../constants";
 import { ServiceLimits } from "../../../constants";
 import type {
@@ -17,6 +18,7 @@ export class ProjectTypeDetectionService {
   private logger: Logger;
 
   constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
     private cachingService: CachingService,
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private loggingService: LoggingService,
@@ -73,8 +75,7 @@ export class ProjectTypeDetectionService {
           if (indicator.pattern === "package.json") {
             try {
               const fileUri = files[0];
-              const content = await workspace.fs.readFile(fileUri);
-              const contentStr = Buffer.from(content).toString("utf8");
+              const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath);
               const packageJson = JSON.parse(contentStr);
 
               if (packageJson.dependencies) {
@@ -154,8 +155,7 @@ export class ProjectTypeDetectionService {
           const files = await workspace.findFiles(`**/${essential.path}`, FilePatterns.exclude, 1);
           if (files.length > 0) {
             const fileUri = files[0];
-            const content = await workspace.fs.readFile(fileUri);
-            const contentStr = Buffer.from(content).toString("utf8");
+            const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath);
             const tokenCost = this.estimateTokenCount(contentStr);
 
             essentials.push({
@@ -187,8 +187,7 @@ export class ProjectTypeDetectionService {
           const files = await workspace.findFiles(`**/${essential.path}`, FilePatterns.exclude, 1);
           if (files.length > 0) {
             const fileUri = files[0];
-            const content = await workspace.fs.readFile(fileUri);
-            const contentStr = Buffer.from(content).toString("utf8");
+            const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath);
             const tokenCost = this.estimateTokenCount(contentStr);
 
             essentials.push({

@@ -68,6 +68,7 @@ import {
   WikiWatcherService,
   LanguageServerIntegrationService,
   GitChangeDetectionService,
+  VSCodeFileSystemService,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
 import { StatisticsCalculationService } from "../infrastructure/services/performance/StatisticsCalculationService";
@@ -149,6 +150,10 @@ export class AppBootstrap {
     this.loggingService = loggingService;
     this.logger = createLogger("AppBootstrap", loggingService);
     this.container.registerInstance("loggingService", loggingService);
+    this.container.registerInstance(
+      "vscodeFileSystemService",
+      new VSCodeFileSystemService(loggingService),
+    );
 
     this.container.registerInstance("eventBus", new EventBusImpl(loggingService));
     this.container.registerInstance("context", this.context);
@@ -481,7 +486,11 @@ export class AppBootstrap {
 
     this.container.register(
       "wikiStorageService",
-      () => new WikiStorageService(this.loggingService),
+      () =>
+        new WikiStorageService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+          this.loggingService,
+        ),
     );
 
     this.container.register(
@@ -538,6 +547,7 @@ export class AppBootstrap {
       "projectTypeDetectionService",
       () =>
         new ProjectTypeDetectionService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
           this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
@@ -550,6 +560,7 @@ export class AppBootstrap {
       "dependencyAnalysisService",
       () =>
         new DependencyAnalysisService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
           this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
@@ -562,6 +573,7 @@ export class AppBootstrap {
       "fileRelevanceAnalysisService",
       () =>
         new FileRelevanceAnalysisService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
           this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
@@ -659,6 +671,7 @@ export class AppBootstrap {
       "readmeStateDetectionService",
       () =>
         new ReadmeStateDetectionService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
           this.container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
           this.loggingService,
         ),
@@ -666,10 +679,22 @@ export class AppBootstrap {
 
     this.container.register(
       "readmeBackupService",
-      () => new ReadmeBackupService(this.loggingService, this.container.resolve("eventBus")),
+      () =>
+        new ReadmeBackupService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+          this.loggingService,
+          this.container.resolve("eventBus"),
+        ),
     );
 
-    this.container.register("readmeFileService", () => new ReadmeFileService(this.loggingService));
+    this.container.register(
+      "readmeFileService",
+      () =>
+        new ReadmeFileService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+          this.loggingService,
+        ),
+    );
 
     this.container.register(
       "readmePromptBuilderService",

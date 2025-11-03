@@ -1,16 +1,20 @@
-import { workspace, Uri } from "vscode";
+import { workspace } from "vscode";
 import { join } from "path";
 import {
   LoggingService,
   createLogger,
   type Logger,
 } from "../../infrastructure/services/LoggingService";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
 
 export class ReadmeFileService {
   private logger: Logger;
   private readonly readmeFileName = "README.md";
 
-  constructor(private loggingService: LoggingService) {
+  constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
+    private loggingService: LoggingService,
+  ) {
     this.logger = createLogger("ReadmeFileService", loggingService);
   }
 
@@ -21,11 +25,9 @@ export class ReadmeFileService {
     }
 
     const readmePath = join(workspaceRoot, this.readmeFileName);
-    const readmeUri = Uri.file(readmePath);
 
     try {
-      const content = await workspace.fs.readFile(readmeUri);
-      return Buffer.from(content).toString("utf8");
+      return await this.vscodeFileSystem.readFile(readmePath);
     } catch {
       return "";
     }
@@ -38,9 +40,8 @@ export class ReadmeFileService {
     }
 
     const readmePath = join(workspaceRoot, this.readmeFileName);
-    const readmeUri = Uri.file(readmePath);
 
-    await workspace.fs.writeFile(readmeUri, Buffer.from(content, "utf8"));
+    await this.vscodeFileSystem.writeFile(readmePath, content);
   }
 
   getReadmePath(): string | undefined {

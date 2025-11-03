@@ -32,6 +32,7 @@ import {
   CancelReadmeUpdateCommand,
   UndoReadmeCommand,
   CheckReadmeBackupCommand,
+  ToggleOutputChannelCommand,
 } from "../application/commands";
 import { MessageBusService } from "../application/services/MessageBusService";
 import { CommandIds } from "../constants";
@@ -241,6 +242,11 @@ export class CommandFactory {
           this.loggingService,
         ) as Command<T>;
 
+      case CommandIds.toggleOutputChannel:
+        return new ToggleOutputChannelCommand(
+          container.resolve("loggingService") as LoggingService,
+        ) as Command<T>;
+
       default:
         return undefined;
     }
@@ -279,6 +285,7 @@ export class CommandFactory {
       CommandIds.cancelReadmeUpdate,
       CommandIds.undoReadme,
       CommandIds.checkReadmeBackupState,
+      CommandIds.toggleOutputChannel,
     ];
 
     for (const commandId of commandIds) {

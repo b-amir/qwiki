@@ -28,6 +28,7 @@ export const CommandIds = {
   cancelReadmeUpdate: "cancelReadmeUpdate",
   undoReadme: "undoReadme",
   checkReadmeBackupState: "checkReadmeBackupState",
+  toggleOutputChannel: "toggleOutputChannel",
 } as const;
 
 export const VSCodeCommandIds = {
@@ -40,6 +41,7 @@ export const VSCodeCommandIds = {
   showCommands: "qwiki.showCommands",
   cancelGeneration: "qwiki.cancelGeneration",
   cancelActiveRequest: "qwiki.cancelActiveRequest",
+  toggleOutputChannel: "qwiki.toggleOutputChannel",
   openPanelView: "workbench.view.extension.qwiki",
   wikiViewId: "qwiki.wikiView",
 } as const;

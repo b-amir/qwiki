@@ -83,6 +83,14 @@ class OutputChannelOutput implements LogOutput {
     }
   }
 
+  show(): void {
+    this.outputChannel.show(true);
+  }
+
+  hide(): void {
+    this.outputChannel.hide();
+  }
+
   dispose(): void {
     this.outputChannel.dispose();
   }
@@ -114,6 +122,7 @@ export class LoggingService {
   private outputs: LogOutput[] = [];
   private formatter: LogFormatter;
   private outputChannelOutput?: OutputChannelOutput;
+  private outputChannelVisible: boolean = false;
 
   constructor(
     private config: LoggerConfig,
@@ -195,6 +204,32 @@ export class LoggingService {
       return false;
     }
     return levelOrder[level] >= levelOrder[this.config.level];
+  }
+
+  showOutputChannel(): void {
+    if (this.outputChannelOutput) {
+      this.outputChannelOutput.show();
+      this.outputChannelVisible = true;
+    }
+  }
+
+  hideOutputChannel(): void {
+    if (this.outputChannelOutput) {
+      this.outputChannelOutput.hide();
+      this.outputChannelVisible = false;
+    }
+  }
+
+  toggleOutputChannel(): void {
+    if (this.outputChannelOutput) {
+      if (this.outputChannelVisible) {
+        this.outputChannelOutput.hide();
+        this.outputChannelVisible = false;
+      } else {
+        this.outputChannelOutput.show();
+        this.outputChannelVisible = true;
+      }
+    }
   }
 
   dispose(): void {

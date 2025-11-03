@@ -28,3 +28,4 @@ export { ApproveReadmeUpdateCommand } from "./ApproveReadmeUpdateCommand";
 export { CancelReadmeUpdateCommand } from "./CancelReadmeUpdateCommand";
 export { UndoReadmeCommand } from "./UndoReadmeCommand";
 export { CheckReadmeBackupCommand } from "./CheckReadmeBackupCommand";
+export { ToggleOutputChannelCommand } from "./ToggleOutputChannelCommand";

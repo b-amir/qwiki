@@ -60,17 +60,32 @@ export class VSCodeFileSystemService {
     }
   }
 
-  async stat(filePath: string): Promise<{ isFile: () => boolean; isDirectory: () => boolean }> {
+  async stat(filePath: string): Promise<{
+    isFile: () => boolean;
+    isDirectory: () => boolean;
+    mtime?: number;
+  }> {
     try {
       const uri = Uri.file(filePath);
       const stat = await workspace.fs.stat(uri);
       return {
         isFile: () => stat.type === FileType.File,
         isDirectory: () => stat.type === FileType.Directory,
+        mtime: stat.mtime,
       };
     } catch (error) {
       this.logger.error(`Failed to stat ${filePath}`, error);
       throw new Error(`Failed to stat ${filePath}: ${error}`);
+    }
+  }
+
+  async delete(filePath: string): Promise<void> {
+    try {
+      const uri = Uri.file(filePath);
+      await workspace.fs.delete(uri, { recursive: false });
+    } catch (error) {
+      this.logger.error(`Failed to delete file ${filePath}`, error);
+      throw new Error(`Failed to delete file ${filePath}: ${error}`);
     }
   }
 

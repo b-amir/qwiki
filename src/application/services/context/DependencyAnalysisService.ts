@@ -1,4 +1,4 @@
-import { workspace, Uri } from "vscode";
+import { workspace } from "vscode";
 import {
   LoggingService,
   createLogger,
@@ -6,6 +6,7 @@ import {
 } from "../../../infrastructure/services/LoggingService";
 import { CachingService } from "../../../infrastructure/services/CachingService";
 import { WorkspaceStructureCacheService } from "../../../infrastructure/services/WorkspaceStructureCacheService";
+import { VSCodeFileSystemService } from "../../../infrastructure/services/VSCodeFileSystemService";
 import { ServiceLimits, FilePatterns } from "../../../constants";
 import type { DependencyMap } from "../../../domain/entities/ContextIntelligence";
 
@@ -14,6 +15,7 @@ export class DependencyAnalysisService {
   private readonly DEPENDENCY_MAP_PREFIX = "context-intelligence:dependency-map:";
 
   constructor(
+    private vscodeFileSystem: VSCodeFileSystemService,
     private cachingService: CachingService,
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private loggingService: LoggingService,
@@ -39,9 +41,7 @@ export class DependencyAnalysisService {
 
     let fileContent = "";
     try {
-      const fileUri = Uri.file(filePath);
-      const content = await workspace.fs.readFile(fileUri);
-      fileContent = Buffer.from(content).toString("utf8");
+      fileContent = await this.vscodeFileSystem.readFile(filePath);
     } catch (error) {
       this.logger.debug(`Failed to read file ${filePath}`, error);
       return { imports: [], exports: [], dependencies: [], dependents: [] };
@@ -101,8 +101,7 @@ export class DependencyAnalysisService {
           if (candidatePath === filePath) continue;
 
           try {
-            const content = await workspace.fs.readFile(fileUri);
-            const contentStr = Buffer.from(content).toString("utf8");
+            const contentStr = await this.vscodeFileSystem.readFile(candidatePath);
             const candidateImports = this.extractImportsExports(contentStr);
 
             let isDependent = false;
