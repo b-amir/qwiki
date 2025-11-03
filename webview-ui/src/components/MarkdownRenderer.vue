@@ -1,23 +1,54 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
-import hljs from "highlight.js/lib/common";
 import MarkdownIt from "markdown-it";
 import { vscode } from "@/utilities/vscode";
+import { loadLanguage, highlightCode } from "@/utils/highlightLoader";
 
 const props = defineProps<{ content: string }>();
 const container = ref<HTMLElement | null>(null);
+const languagesLoading = ref<Set<string>>(new Set());
+
+const commonLanguages = [
+  "typescript",
+  "javascript",
+  "json",
+  "css",
+  "html",
+  "xml",
+  "markdown",
+  "bash",
+  "shell",
+  "python",
+  "java",
+  "go",
+  "rust",
+  "cpp",
+  "c",
+  "yaml",
+  "sql",
+  "vue",
+  "tsx",
+  "jsx",
+];
 
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
-  highlight(str, lang) {
+  highlight(str: string, lang?: string): string {
     try {
-      if (lang && hljs.getLanguage(lang)) {
-        return `<pre class="hljs"><code>${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
+      if (lang) {
+        const normalizedLang = lang.toLowerCase().trim();
+        if (normalizedLang && !languagesLoading.value.has(normalizedLang)) {
+          languagesLoading.value.add(normalizedLang);
+          loadLanguage(normalizedLang).catch(() => {
+            languagesLoading.value.delete(normalizedLang);
+          });
+        }
       }
-      return `<pre class="hljs"><code>${hljs.highlightAuto(str).value}</code></pre>`;
-    } catch (e) {
+      const highlighted = highlightCode(str, lang);
+      return `<pre class="hljs"><code>${highlighted}</code></pre>`;
+    } catch {
       return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`;
     }
   },
@@ -46,7 +77,6 @@ function linkifyFiles(input: string): string {
       const m = line.match(bracketFileLine);
       if (m) {
         const label = m[1];
-        const after = line.slice(m[0].length);
         const href = `openfile:${encode(label)}`;
         return line.replace(bracketFileLine, `[${label}](${href})`);
       }
@@ -58,7 +88,7 @@ function linkifyFiles(input: string): string {
     .join("\n");
 }
 
-function render() {
+async function render() {
   if (container.value) {
     let content = props.content || "";
     if (typeof content !== "string") {
@@ -66,6 +96,27 @@ function render() {
     }
     content = content.replace(/^#\s+.+$/m, "");
     const linked = linkifyFiles(content);
+
+    const codeBlockRegex = /```(\w+)?[\r\n][\s\S]*?```/g;
+    const codeBlocks = linked.match(codeBlockRegex);
+    if (codeBlocks) {
+      const languagesToLoad = new Set<string>();
+      for (const block of codeBlocks) {
+        const langMatch = block.match(/```(\w+)/);
+        if (langMatch && langMatch[1]) {
+          const lang = langMatch[1].toLowerCase().trim();
+          if (lang && lang.length > 0) {
+            languagesToLoad.add(lang);
+          }
+        }
+      }
+      if (languagesToLoad.size > 0) {
+        await Promise.all(
+          Array.from(languagesToLoad).map((lang) => loadLanguage(lang).catch(() => {})),
+        );
+      }
+    }
+
     container.value.innerHTML = md.render(linked);
   }
 }
@@ -107,9 +158,10 @@ function handleLinkClicks(e: MouseEvent) {
   vscode.postMessage({ command: "openFile", payload: { path, line } });
 }
 
-onMounted(() => {
-  render();
+onMounted(async () => {
+  await Promise.all(commonLanguages.map((lang) => loadLanguage(lang).catch(() => {})));
   container.value?.addEventListener("click", handleLinkClicks);
+  await render();
 });
 onBeforeUnmount(() => {
   container.value?.removeEventListener("click", handleLinkClicks);

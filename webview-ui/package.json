@@ -14,12 +14,10 @@
     "format:check": "prettier --cache --check ."
   },
   "dependencies": {
-    "@vscode/webview-ui-toolkit": "^1.2.2",
     "vue": "^3.2.33",
     "pinia": "^2.1.7",
     "highlight.js": "^11.9.0",
     "markdown-it": "^14.1.0",
-    "shadcn-vue": "^0.9.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1"
   },

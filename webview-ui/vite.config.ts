@@ -12,13 +12,19 @@ export default defineConfig({
   },
   build: {
     outDir: "build",
+    minify: "esbuild",
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name].js`,
         chunkFileNames: `assets/[name].js`,
         assetFileNames: `assets/[name].[ext]`,
+        manualChunks: {
+          vendor: ["vue", "pinia"],
+          markdown: ["markdown-it"],
+        },
       },
     },
+    chunkSizeWarningLimit: 250,
   },
   define: {
     "process.env": {},
