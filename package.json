@@ -332,7 +332,19 @@
           "icon": "resources/qwiki-icon.svg"
         }
       ]
-    }
+    },
+    "customEditors": [
+      {
+        "viewType": "qwiki.wikiEditor",
+        "displayName": "Qwiki Editor",
+        "selector": [
+          {
+            "filenamePattern": "**/*.qwiki.md"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
   },
   "scripts": {
     "install:all": "pnpm install && cd webview-ui && pnpm install",

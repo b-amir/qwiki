@@ -5,16 +5,31 @@ import {
   StatusBarAlignment,
   TreeView,
   StatusBarItem,
+  languages,
+  workspace,
 } from "vscode";
 import { QwikiPanel } from "./panels/QwikiPanel";
 import { VSCodeCommandIds, Pages, ServiceLimits } from "./constants";
 import { SelectProviderCommand } from "./application/commands/SelectProviderCommand";
 import { SavedWikisTreeDataProvider } from "./views/SavedWikisTreeView";
 import { WikiEventHandler } from "./events/handlers/WikiEventHandler";
+import {
+  QwikiWorkspaceSymbolProvider,
+  DocumentationHoverProvider,
+  DocumentationCodeActionProvider,
+  DocumentationDiagnosticsProvider,
+  DocumentationCompletionProvider,
+  WikiDocumentLinkProvider,
+  WikiContentProvider,
+  WikiCustomEditorProvider,
+} from "./providers";
 
 let qwikiProvider: QwikiPanel | undefined;
 let savedWikisTreeProvider: SavedWikisTreeDataProvider | undefined;
 let savedWikisTreeView: TreeView<any> | undefined;
+let diagnosticsProvider: DocumentationDiagnosticsProvider | undefined;
+let contentProvider: WikiContentProvider | undefined;
+let customEditorProvider: WikiCustomEditorProvider | undefined;
 
 export let qwikiStatusBarItem: StatusBarItem | null = null;
 
@@ -52,6 +67,61 @@ export function activate(context: ExtensionContext) {
 
   setTimeout(() => {
     initializeTreeView().catch(() => {});
+  }, ServiceLimits.treeViewInitializationDelay);
+
+  const initializeProviders = async () => {
+    try {
+      const container = qwikiProvider?.getContainer?.();
+      if (!container) {
+        return;
+      }
+
+      const wikiStorage = container.resolve("wikiStorageService") as any;
+      const loggingService = container.resolve("loggingService") as any;
+
+      const workspaceSymbolProvider = new QwikiWorkspaceSymbolProvider(wikiStorage, loggingService);
+      const hoverProvider = new DocumentationHoverProvider(
+        wikiStorage,
+        loggingService,
+        context.extensionUri,
+      );
+      const codeActionProvider = new DocumentationCodeActionProvider(loggingService);
+      diagnosticsProvider = new DocumentationDiagnosticsProvider(wikiStorage, loggingService);
+      const completionProvider = new DocumentationCompletionProvider(loggingService);
+      const documentLinkProvider = new WikiDocumentLinkProvider(loggingService);
+      contentProvider = new WikiContentProvider(wikiStorage, loggingService);
+      customEditorProvider = new WikiCustomEditorProvider(wikiStorage, loggingService);
+
+      context.subscriptions.push(
+        languages.registerWorkspaceSymbolProvider(workspaceSymbolProvider),
+        languages.registerHoverProvider("*", hoverProvider),
+        languages.registerCodeActionsProvider("*", codeActionProvider),
+        languages.registerCompletionItemProvider("*", completionProvider),
+        languages.registerDocumentLinkProvider({ pattern: "**/*.md" }, documentLinkProvider),
+        languages.registerDocumentLinkProvider(
+          { pattern: "**/.qwiki/**/*.md" },
+          documentLinkProvider,
+        ),
+        workspace.registerTextDocumentContentProvider("qwiki", contentProvider),
+        window.registerCustomEditorProvider("qwiki.wikiEditor", customEditorProvider),
+      );
+
+      workspace.onDidOpenTextDocument(async (document) => {
+        if (document.fileName.endsWith(".qwiki.md") || document.uri.fsPath.includes(".qwiki")) {
+          await diagnosticsProvider?.analyzeDocumentation(document);
+        }
+      });
+
+      workspace.onDidSaveTextDocument(async (document) => {
+        if (document.fileName.endsWith(".qwiki.md") || document.uri.fsPath.includes(".qwiki")) {
+          await diagnosticsProvider?.analyzeDocumentation(document);
+        }
+      });
+    } catch (error) {}
+  };
+
+  setTimeout(() => {
+    initializeProviders().catch(() => {});
   }, ServiceLimits.treeViewInitializationDelay);
 
   const showQwikiCommand = commands.registerCommand(VSCodeCommandIds.showPanel, () => {
@@ -212,6 +282,10 @@ export async function deactivate(): Promise<void> {
   if (savedWikisTreeProvider) {
     savedWikisTreeProvider.dispose();
     savedWikisTreeProvider = undefined;
+  }
+  if (diagnosticsProvider) {
+    diagnosticsProvider.dispose();
+    diagnosticsProvider = undefined;
   }
   if (qwikiProvider) {
     await qwikiProvider.dispose();

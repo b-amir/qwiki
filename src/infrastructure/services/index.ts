@@ -56,3 +56,4 @@ export {
   type CachedDependencyMap,
 } from "./WorkspaceStructureCacheService";
 export { WikiWatcherService } from "./WikiWatcherService";
+export { ExtensionContextStorageService } from "./ExtensionContextStorageService";

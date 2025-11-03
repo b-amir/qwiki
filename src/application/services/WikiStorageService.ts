@@ -13,6 +13,7 @@ export interface SavedWiki {
   filePath: string;
   createdAt: Date;
   tags: string[];
+  sourceFilePath?: string;
 }
 
 export class WikiStorageService {
@@ -57,6 +58,7 @@ export class WikiStorageService {
       filePath: wikiFilePath,
       createdAt: new Date(),
       tags: this.extractTags(content),
+      sourceFilePath: sourceFilePath || undefined,
     };
 
     return savedWiki;
@@ -150,13 +152,23 @@ export class WikiStorageService {
     let bodyStartIndex = 0;
 
     if (lines[0] === "---") {
-      const metadataEndIndex = lines.indexOf("---", 1);
+      let metadataEndIndex = -1;
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim().startsWith("---")) {
+          metadataEndIndex = i;
+          break;
+        }
+      }
+
       if (metadataEndIndex > 0) {
         const metadataLines = lines.slice(1, metadataEndIndex);
         for (const line of metadataLines) {
-          if (line.startsWith("title: ")) title = line.substring(7);
-          if (line.startsWith("created: ")) created = line.substring(9);
-          if (line.startsWith("source: ")) source = line.substring(8);
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith("title: ")) title = trimmedLine.substring(7);
+          if (trimmedLine.startsWith("created: ")) created = trimmedLine.substring(9);
+          if (trimmedLine.startsWith("source: ")) {
+            source = trimmedLine.substring(8);
+          }
         }
         bodyStartIndex = metadataEndIndex + 1;
       }
@@ -175,6 +187,7 @@ export class WikiStorageService {
       filePath,
       createdAt: created ? new Date(created) : new Date(),
       tags: this.extractTags(body),
+      sourceFilePath: source ? source.trim() : undefined,
     };
   }
 

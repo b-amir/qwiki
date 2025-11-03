@@ -66,6 +66,7 @@ import {
   createLogger,
   type Logger,
 } from "../infrastructure/services/LoggingService";
+import { ExtensionContextStorageService } from "../infrastructure/services/ExtensionContextStorageService";
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
@@ -124,7 +125,7 @@ export class AppBootstrap {
     cacheInvalidationService.startWatching();
   }
 
-  private registerServices(): void {
+  private async registerServices(): Promise<void> {
     const loggingService = new LoggingService({
       enabled: true,
       level: "debug",
@@ -138,6 +139,10 @@ export class AppBootstrap {
     this.container.registerInstance("eventBus", new EventBusImpl(loggingService));
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
+    this.container.registerInstance(
+      "extensionContextStorageService",
+      new ExtensionContextStorageService(this.context, loggingService),
+    );
     this.container.registerInstance("cacheService", new CachingService());
     this.container.registerInstance("performanceMonitor", new PerformanceMonitorService());
     this.container.registerInstance(
