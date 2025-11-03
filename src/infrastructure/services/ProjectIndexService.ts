@@ -1,6 +1,7 @@
 import { workspace, Uri, type ExtensionContext, type Disposable, FileSystemWatcher } from "vscode";
 import { LoggingService, createLogger, type Logger } from "./LoggingService";
 import { DebouncingService, type DebouncedFunction } from "./DebouncingService";
+import { GitChangeDetectionService } from "./GitChangeDetectionService";
 import { ServiceLimits } from "../../constants/ServiceLimits";
 import { FilePatterns } from "../../constants/FilePatterns";
 import type { Disposable as IDisposable } from "vscode";
@@ -40,15 +41,19 @@ export class ProjectIndexService {
   private binaryPatterns: RegExp[];
   private metadataExtractor: FileMetadataExtractionService;
   private cacheService: IndexCacheService;
+  private gitChangeDetectionService: GitChangeDetectionService | null = null;
+  private gitUnsubscribe: (() => void) | null = null;
 
   constructor(
     private extensionContext: ExtensionContext,
     private loggingService: LoggingService,
     private debouncingService: DebouncingService,
+    gitChangeDetectionService?: GitChangeDetectionService,
   ) {
     this.logger = createLogger("ProjectIndexService", loggingService);
     this.metadataExtractor = new FileMetadataExtractionService(loggingService);
     this.cacheService = new IndexCacheService(extensionContext, loggingService);
+    this.gitChangeDetectionService = gitChangeDetectionService || null;
     this.binaryPatterns = [
       FilePatterns.excludeBinary,
       FilePatterns.excludeLarge,
@@ -79,6 +84,7 @@ export class ProjectIndexService {
 
       await this.performInitialIndex();
       this.setupFileWatchers();
+      this.setupGitBasedWatchers();
       this.isInitialized = true;
 
       const duration = Date.now() - startTime;
@@ -145,6 +151,10 @@ export class ProjectIndexService {
     if (this.debouncedUpdate) {
       this.debouncedUpdate.cancel();
     }
+    if (this.gitUnsubscribe) {
+      this.gitUnsubscribe();
+      this.gitUnsubscribe = null;
+    }
     this.disposables.forEach((d) => d.dispose());
     this.disposables = [];
     this.isInitialized = false;
@@ -210,6 +220,35 @@ export class ProjectIndexService {
     });
 
     this.disposables.push(this.fileWatcher);
+  }
+
+  private setupGitBasedWatchers(): void {
+    if (!this.gitChangeDetectionService) {
+      this.logger.debug("Git change detection service not available, using FileSystemWatcher only");
+      return;
+    }
+
+    this.gitUnsubscribe = this.gitChangeDetectionService.subscribeToChanges(
+      async (changedFiles) => {
+        for (const changedFile of changedFiles) {
+          if (changedFile.status === "deleted") {
+            this.removeFromIndex(changedFile.uri);
+          } else if (changedFile.status === "added" || changedFile.status === "modified") {
+            if (this.debouncedUpdate) {
+              this.debouncedUpdate(changedFile.uri);
+            }
+          }
+        }
+
+        if (changedFiles.length > 0) {
+          await this.cacheService.persistIndex();
+        }
+      },
+    );
+
+    this.logger.info("Git-based file watchers initialized", {
+      usingGitWatchers: true,
+    });
   }
 
   private async indexFile(uri: Uri): Promise<void> {

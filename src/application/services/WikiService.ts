@@ -26,6 +26,7 @@ import {
 } from "../../infrastructure/services/LoggingService";
 import { CachedProjectContextService } from "./CachedProjectContextService";
 import { WikiGenerationFlow } from "./WikiGenerationFlow";
+import { LanguageServerIntegrationService } from "../../infrastructure/services/LanguageServerIntegrationService";
 
 export class WikiService {
   private debouncedGenerate: any;
@@ -47,6 +48,7 @@ export class WikiService {
     private performanceMonitor?: PerformanceMonitorService,
     private cachedProjectContextService?: CachedProjectContextService,
     private loggingService?: LoggingService,
+    private languageServerIntegrationService?: LanguageServerIntegrationService,
   ) {
     this.logger = loggingService
       ? createLogger("WikiService", loggingService)
@@ -66,6 +68,7 @@ export class WikiService {
       performanceMonitor,
       loggingService,
       this.intelligentContextEnabled,
+      languageServerIntegrationService,
     );
   }
 

@@ -6,3 +6,4 @@ export { DocumentationCompletionProvider } from "./DocumentationCompletionProvid
 export { WikiDocumentLinkProvider } from "./WikiDocumentLinkProvider";
 export { WikiContentProvider } from "./WikiContentProvider";
 export { WikiCustomEditorProvider } from "./WikiCustomEditorProvider";
+export { QwikiDocumentSymbolProvider } from "./DocumentSymbolProvider";

@@ -22,6 +22,7 @@ import {
   WikiDocumentLinkProvider,
   WikiContentProvider,
   WikiCustomEditorProvider,
+  QwikiDocumentSymbolProvider,
 } from "./providers";
 
 let qwikiProvider: QwikiPanel | undefined;
@@ -89,6 +90,7 @@ export function activate(context: ExtensionContext) {
       diagnosticsProvider = new DocumentationDiagnosticsProvider(wikiStorage, loggingService);
       const completionProvider = new DocumentationCompletionProvider(loggingService);
       const documentLinkProvider = new WikiDocumentLinkProvider(loggingService);
+      const documentSymbolProvider = new QwikiDocumentSymbolProvider(loggingService);
       contentProvider = new WikiContentProvider(wikiStorage, loggingService);
       customEditorProvider = new WikiCustomEditorProvider(wikiStorage, loggingService);
 
@@ -97,6 +99,7 @@ export function activate(context: ExtensionContext) {
         languages.registerHoverProvider("*", hoverProvider),
         languages.registerCodeActionsProvider("*", codeActionProvider),
         languages.registerCompletionItemProvider("*", completionProvider),
+        languages.registerDocumentSymbolProvider("*", documentSymbolProvider),
         languages.registerDocumentLinkProvider({ pattern: "**/*.md" }, documentLinkProvider),
         languages.registerDocumentLinkProvider(
           { pattern: "**/.qwiki/**/*.md" },

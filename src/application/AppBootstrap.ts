@@ -57,6 +57,8 @@ import {
   ProjectContextCacheInvalidationService,
   WorkspaceStructureCacheService,
   WikiWatcherService,
+  LanguageServerIntegrationService,
+  GitChangeDetectionService,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
 import { StatisticsCalculationService } from "../infrastructure/services/performance/StatisticsCalculationService";
@@ -322,6 +324,9 @@ export class AppBootstrap {
           this.container.resolve("performanceMonitor") as PerformanceMonitorService,
           this.container.resolve("cachedProjectContextService") as CachedProjectContextService,
           this.loggingService,
+          this.container.resolve(
+            "languageServerIntegrationService",
+          ) as LanguageServerIntegrationService,
         ),
     );
 
@@ -394,7 +399,18 @@ export class AppBootstrap {
           this.context,
           this.loggingService,
           this.container.resolve("debouncingService") as DebouncingService,
+          this.container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
         ),
+    );
+
+    this.container.register(
+      "languageServerIntegrationService",
+      () => new LanguageServerIntegrationService(this.loggingService),
+    );
+
+    this.container.register(
+      "gitChangeDetectionService",
+      () => new GitChangeDetectionService(this.loggingService),
     );
 
     this.container.registerLazy("providerPerformanceService", async () => {

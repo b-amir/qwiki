@@ -42,7 +42,7 @@ export class AdvancedPromptService {
   }
 
   static buildWikiPrompt(params: GenerateParams): string {
-    const { snippet, languageId, filePath } = params;
+    const { snippet, languageId, filePath, semanticInfo } = params;
 
     const systemPrompt = `You are an expert technical documentation specialist. Your task is to create accurate, comprehensive documentation for code snippets. Follow these rules strictly:
 
@@ -58,6 +58,23 @@ export class AdvancedPromptService {
     ]
       .filter(Boolean)
       .join("\n");
+
+    const semanticSection = semanticInfo
+      ? [
+          `Code Semantic Information:`,
+          `- Symbol Name: ${semanticInfo.symbolName}`,
+          `- Symbol Kind: ${this.getSymbolKindName(semanticInfo.symbolKind)}`,
+          semanticInfo.type ? `- Type: ${semanticInfo.type}` : undefined,
+          semanticInfo.isAsync ? `- Execution: Async function (returns Promise)` : undefined,
+          semanticInfo.returnType ? `- Return Type: ${semanticInfo.returnType}` : undefined,
+          semanticInfo.parameters && semanticInfo.parameters.length > 0
+            ? `- Parameters:\n${semanticInfo.parameters.map((p) => `  - ${p.name}${p.type ? `: ${p.type}` : ""}`).join("\n")}`
+            : undefined,
+          semanticInfo.documentation ? `- Documentation: ${semanticInfo.documentation}` : undefined,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : undefined;
 
     const proj = params.project;
     const projectSection = proj
@@ -129,11 +146,50 @@ FORMATTING RULES:
       "```" + (languageId || "") + "\n" + snippet + "\n```",
     ].join("\n");
 
-    const finalPrompt = [systemPrompt, context, projectSection, strictInstructions, codeSection]
+    const finalPrompt = [
+      systemPrompt,
+      context,
+      semanticSection,
+      projectSection,
+      strictInstructions,
+      codeSection,
+    ]
       .filter(Boolean)
       .join("\n\n");
 
     return finalPrompt;
+  }
+
+  private static getSymbolKindName(kind: number): string {
+    const kindMap: Record<number, string> = {
+      1: "File",
+      2: "Module",
+      3: "Namespace",
+      4: "Package",
+      5: "Class",
+      6: "Method",
+      7: "Property",
+      8: "Field",
+      9: "Constructor",
+      10: "Enum",
+      11: "Interface",
+      12: "Function",
+      13: "Variable",
+      14: "Constant",
+      15: "String",
+      16: "Number",
+      17: "Boolean",
+      18: "Array",
+      19: "Object",
+      20: "Key",
+      21: "Null",
+      22: "EnumMember",
+      23: "Struct",
+      24: "Event",
+      25: "Operator",
+      26: "TypeParameter",
+    };
+    return kindMap[kind] || "Unknown";
   }
 
   async generateDynamicPrompt(config: DynamicPromptConfig): Promise<string> {

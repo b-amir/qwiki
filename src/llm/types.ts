@@ -4,12 +4,14 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "./types/ProviderCapabilities";
+import type { SemanticCodeInfo } from "../infrastructure/services/LanguageServerIntegrationService";
 
 export type GenerateParams = {
   snippet: string;
   languageId?: string;
   filePath?: string;
   model?: string;
+  semanticInfo?: SemanticCodeInfo;
   project?: {
     rootName?: string;
     overview?: string;

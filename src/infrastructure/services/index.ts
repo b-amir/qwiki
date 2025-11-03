@@ -57,3 +57,8 @@ export {
 } from "./WorkspaceStructureCacheService";
 export { WikiWatcherService } from "./WikiWatcherService";
 export { ExtensionContextStorageService } from "./ExtensionContextStorageService";
+export {
+  LanguageServerIntegrationService,
+  type SemanticCodeInfo,
+} from "./LanguageServerIntegrationService";
+export { GitChangeDetectionService, type ChangedFile } from "./GitChangeDetectionService";

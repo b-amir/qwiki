@@ -1,4 +1,4 @@
-import { CancellationToken } from "vscode";
+import { CancellationToken, workspace, Uri, Position } from "vscode";
 import type { LLMRegistry } from "../../llm";
 import type { WikiGenerationRequest, WikiGenerationResult } from "../../domain/entities/Wiki";
 import type { ProjectContext } from "../../domain/entities/Selection";
@@ -10,6 +10,7 @@ import { WikiTransformer, type GenerationInput } from "../transformers/WikiTrans
 import { ContextIntelligenceService } from "./ContextIntelligenceService";
 import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import { GenerationCacheService } from "../../infrastructure/services/GenerationCacheService";
+import { LanguageServerIntegrationService } from "../../infrastructure/services/LanguageServerIntegrationService";
 import {
   LoggingService,
   createLogger,
@@ -35,6 +36,7 @@ export class WikiGenerationFlow {
     private performanceMonitor?: PerformanceMonitorService,
     private loggingService?: LoggingService,
     private intelligentContextEnabled = false,
+    private languageServerIntegrationService?: LanguageServerIntegrationService,
   ) {
     this.logger = loggingService
       ? createLogger("WikiGenerationFlow", loggingService)
@@ -117,7 +119,15 @@ export class WikiGenerationFlow {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
-    const rawResult = await this.callLLM(request, generationInput, onProgress, cancellationToken);
+    const semanticInfo = await this.collectSemanticInfo(request);
+
+    const rawResult = await this.callLLM(
+      request,
+      generationInput,
+      semanticInfo,
+      onProgress,
+      cancellationToken,
+    );
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
@@ -269,6 +279,7 @@ export class WikiGenerationFlow {
   private async callLLM(
     request: WikiGenerationRequest,
     generationInput: GenerationInput,
+    semanticInfo: any,
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
   ): Promise<{ content: string }> {
@@ -279,6 +290,7 @@ export class WikiGenerationFlow {
     this.logger.info("Sending request to LLM", {
       providerId: request.providerId,
       model: request.model,
+      hasSemanticInfo: !!semanticInfo,
     });
     onProgress?.(LoadingSteps.sendingRequest);
 
@@ -292,6 +304,7 @@ export class WikiGenerationFlow {
       snippet: generationInput.snippet,
       languageId: request.languageId,
       filePath: request.filePath,
+      semanticInfo,
       project: generationInput.project,
     });
 
@@ -330,5 +343,70 @@ export class WikiGenerationFlow {
 
   private async yieldForUi(minDuration = ServiceLimits.uiYieldDuration) {
     await new Promise((resolve) => setTimeout(resolve, minDuration));
+  }
+
+  private async collectSemanticInfo(request: WikiGenerationRequest): Promise<any | null> {
+    if (!this.languageServerIntegrationService || !request.filePath) {
+      return null;
+    }
+
+    try {
+      const document = await workspace.openTextDocument(Uri.file(request.filePath));
+      const selection = this.getSelectionFromSnippet(document, request.snippet);
+
+      if (!selection) {
+        this.logger.debug("Could not determine selection position for semantic info");
+        return null;
+      }
+
+      const semanticInfo = await this.languageServerIntegrationService.getSemanticInfoForSelection(
+        document,
+        request.snippet,
+        selection,
+      );
+
+      if (semanticInfo) {
+        this.logger.debug("Collected semantic info", {
+          symbolName: semanticInfo.symbolName,
+          symbolKind: semanticInfo.symbolKind,
+          hasType: !!semanticInfo.type,
+          hasReturnType: !!semanticInfo.returnType,
+        });
+      }
+
+      return semanticInfo;
+    } catch (error: any) {
+      this.logger.debug("Failed to collect semantic info", {
+        error: error?.message,
+        filePath: request.filePath,
+      });
+      return null;
+    }
+  }
+
+  private getSelectionFromSnippet(document: any, snippet: string): Position | null {
+    try {
+      const documentText = document.getText();
+      const snippetStart = documentText.indexOf(snippet);
+
+      if (snippetStart === -1) {
+        const firstLine = snippet.split("\n")[0];
+        const firstLineIndex = documentText.indexOf(firstLine);
+        if (firstLineIndex === -1) {
+          return new Position(0, 0);
+        }
+        const textBefore = documentText.substring(0, firstLineIndex);
+        const lineNumber = textBefore.split("\n").length - 1;
+        return new Position(lineNumber, 0);
+      }
+
+      const textBefore = documentText.substring(0, snippetStart);
+      const lineNumber = textBefore.split("\n").length - 1;
+      const columnNumber = textBefore.split("\n").pop()?.length || 0;
+
+      return new Position(lineNumber, columnNumber);
+    } catch (error) {
+      return null;
+    }
   }
 }
