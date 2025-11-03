@@ -4,6 +4,8 @@ import { join } from "path";
 import { EventBus } from "../../events/EventBus";
 import { LoggingService, createLogger, type Logger } from "./LoggingService";
 import type { GitChangeDetectionService, ChangedFile } from "./GitChangeDetectionService";
+import { DebouncingService, type DebouncedFunction } from "./DebouncingService";
+import { ServiceLimits } from "../../constants/ServiceLimits";
 
 export class WikiWatcherService {
   private watcher: FileSystemWatcher | undefined;
@@ -11,11 +13,13 @@ export class WikiWatcherService {
   private disposables: Disposable[] = [];
   private gitUnsubscribe: (() => void) | null = null;
   private savedFolderPath: string | undefined;
+  private debouncedRefresh: DebouncedFunction<() => Promise<void>> | null = null;
 
   constructor(
     private eventBus: EventBus,
     private ctx: ExtensionContext,
     private loggingService: LoggingService,
+    private debouncingService: DebouncingService,
     private gitChangeDetectionService?: GitChangeDetectionService,
   ) {
     this.logger = createLogger("WikiWatcherService", loggingService);
@@ -33,22 +37,36 @@ export class WikiWatcherService {
   startWatching(): void {
     this.logger.debug("Starting wiki file watcher", { savedFolderPath: this.savedFolderPath });
 
+    this.debouncedRefresh = this.debouncingService.debounce(
+      async () => {
+        await this.refreshSavedWikis();
+      },
+      ServiceLimits.projectContextCacheInvalidationDebounce,
+      { leading: false, trailing: true },
+    );
+
     const pattern = "**/.qwiki/saved/**/*.md";
     this.watcher = workspace.createFileSystemWatcher(pattern);
 
-    this.watcher.onDidCreate(async (uri) => {
+    this.watcher.onDidCreate((uri) => {
       this.logger.info(`Wiki file created: ${uri.fsPath}`);
-      await this.refreshSavedWikis();
+      if (this.debouncedRefresh) {
+        this.debouncedRefresh();
+      }
     });
 
-    this.watcher.onDidDelete(async (uri) => {
+    this.watcher.onDidDelete((uri) => {
       this.logger.info(`Wiki file deleted: ${uri.fsPath}`);
-      await this.refreshSavedWikis();
+      if (this.debouncedRefresh) {
+        this.debouncedRefresh();
+      }
     });
 
-    this.watcher.onDidChange(async (uri) => {
+    this.watcher.onDidChange((uri) => {
       this.logger.info(`Wiki file changed: ${uri.fsPath}`);
-      await this.refreshSavedWikis();
+      if (this.debouncedRefresh) {
+        this.debouncedRefresh();
+      }
     });
 
     this.disposables.push(this.watcher);
@@ -96,7 +114,9 @@ export class WikiWatcherService {
                 files: wikiFilesChanged.map((f) => ({ path: f.uri.fsPath, status: f.status })),
               },
             );
-            this.refreshSavedWikis();
+            if (this.debouncedRefresh) {
+              this.debouncedRefresh();
+            }
           }
         },
       );
@@ -120,6 +140,11 @@ export class WikiWatcherService {
 
   dispose(): void {
     this.logger.debug("Disposing wiki file watcher");
+
+    if (this.debouncedRefresh) {
+      this.debouncedRefresh.cancel();
+      this.debouncedRefresh = null;
+    }
 
     if (this.gitUnsubscribe) {
       this.gitUnsubscribe();

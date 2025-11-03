@@ -1,12 +1,31 @@
 import { workspace, Uri, FileType } from "vscode";
 import * as path from "path";
 import { LoggingService, createLogger, type Logger } from "./LoggingService";
+import { CachingService } from "./CachingService";
+
+interface FileStat {
+  isFile: () => boolean;
+  isDirectory: () => boolean;
+  mtime?: number;
+}
+
+interface FileReadResult {
+  filePath: string;
+  content: string;
+  error?: Error;
+}
 
 export class VSCodeFileSystemService {
   private logger: Logger;
+  private statCache: CachingService;
+  private readonly STAT_CACHE_TTL = 5000;
 
   constructor(private loggingService: LoggingService) {
     this.logger = createLogger("VSCodeFileSystemService", loggingService);
+    this.statCache = new CachingService({
+      maxSize: 1000,
+      defaultTtl: this.STAT_CACHE_TTL,
+    });
   }
 
   async readFile(filePath: string): Promise<string> {
@@ -20,10 +39,47 @@ export class VSCodeFileSystemService {
     }
   }
 
+  async readFiles(filePaths: string[]): Promise<FileReadResult[]> {
+    if (filePaths.length === 0) {
+      return [];
+    }
+
+    const results = await Promise.allSettled(
+      filePaths.map(async (filePath) => {
+        try {
+          const uri = Uri.file(filePath);
+          const bytes = await workspace.fs.readFile(uri);
+          const content = Buffer.from(bytes).toString("utf-8");
+          return { filePath, content };
+        } catch (error) {
+          this.logger.error(`Failed to read file ${filePath}`, error);
+          return {
+            filePath,
+            content: "",
+            error: error instanceof Error ? error : new Error(String(error)),
+          };
+        }
+      }),
+    );
+
+    return results.map((result, index) => {
+      if (result.status === "fulfilled") {
+        return result.value;
+      } else {
+        return {
+          filePath: filePaths[index],
+          content: "",
+          error: result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
+        };
+      }
+    });
+  }
+
   async writeFile(filePath: string, content: string): Promise<void> {
     try {
       const uri = Uri.file(filePath);
       await workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
+      this.invalidateStatCache(filePath);
     } catch (error) {
       this.logger.error(`Failed to write file ${filePath}`, error);
       throw new Error(`Failed to write file ${filePath}: ${error}`);
@@ -32,8 +88,7 @@ export class VSCodeFileSystemService {
 
   async fileExists(filePath: string): Promise<boolean> {
     try {
-      const uri = Uri.file(filePath);
-      await workspace.fs.stat(uri);
+      await this.stat(filePath);
       return true;
     } catch {
       return false;
@@ -60,22 +115,79 @@ export class VSCodeFileSystemService {
     }
   }
 
-  async stat(filePath: string): Promise<{
-    isFile: () => boolean;
-    isDirectory: () => boolean;
-    mtime?: number;
-  }> {
+  async stat(filePath: string): Promise<FileStat> {
+    const cacheKey = `stat:${filePath}`;
+    const cached = await this.statCache.get<FileStat>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     try {
       const uri = Uri.file(filePath);
-      const stat = await workspace.fs.stat(uri);
-      return {
-        isFile: () => stat.type === FileType.File,
-        isDirectory: () => stat.type === FileType.Directory,
-        mtime: stat.mtime,
+      const statResult = await workspace.fs.stat(uri);
+      const fileStat: FileStat = {
+        isFile: () => statResult.type === FileType.File,
+        isDirectory: () => statResult.type === FileType.Directory,
+        mtime: statResult.mtime,
       };
+      this.statCache.set(cacheKey, fileStat, { ttl: this.STAT_CACHE_TTL });
+      return fileStat;
     } catch (error) {
       this.logger.error(`Failed to stat ${filePath}`, error);
       throw new Error(`Failed to stat ${filePath}: ${error}`);
+    }
+  }
+
+  async statFiles(filePaths: string[]): Promise<Map<string, FileStat>> {
+    const results = new Map<string, FileStat>();
+    const uncachedPaths: string[] = [];
+
+    for (const filePath of filePaths) {
+      const cacheKey = `stat:${filePath}`;
+      const cached = await this.statCache.get<FileStat>(cacheKey);
+      if (cached) {
+        results.set(filePath, cached);
+      } else {
+        uncachedPaths.push(filePath);
+      }
+    }
+
+    if (uncachedPaths.length > 0) {
+      const statPromises = uncachedPaths.map(async (filePath) => {
+        try {
+          const uri = Uri.file(filePath);
+          const stat = await workspace.fs.stat(uri);
+          const fileStat: FileStat = {
+            isFile: () => stat.type === FileType.File,
+            isDirectory: () => stat.type === FileType.Directory,
+            mtime: stat.mtime,
+          };
+          const cacheKey = `stat:${filePath}`;
+          this.statCache.set(cacheKey, fileStat, { ttl: this.STAT_CACHE_TTL });
+          return { filePath, stat: fileStat };
+        } catch (error) {
+          this.logger.error(`Failed to stat ${filePath}`, error);
+          return { filePath, stat: null };
+        }
+      });
+
+      const statResults = await Promise.all(statPromises);
+      for (const { filePath, stat } of statResults) {
+        if (stat) {
+          results.set(filePath, stat);
+        }
+      }
+    }
+
+    return results;
+  }
+
+  invalidateStatCache(filePath?: string): void {
+    if (filePath) {
+      const cacheKey = `stat:${filePath}`;
+      this.statCache.delete(cacheKey);
+    } else {
+      this.statCache.clear();
     }
   }
 
@@ -83,6 +195,7 @@ export class VSCodeFileSystemService {
     try {
       const uri = Uri.file(filePath);
       await workspace.fs.delete(uri, { recursive: false });
+      this.invalidateStatCache(filePath);
     } catch (error) {
       this.logger.error(`Failed to delete file ${filePath}`, error);
       throw new Error(`Failed to delete file ${filePath}: ${error}`);

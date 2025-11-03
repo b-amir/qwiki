@@ -57,7 +57,9 @@ export class ProjectContextCacheInvalidationService {
     this.fileWatcher.onDidDelete((uri) => {
       this.logger.debug("File deleted", { path: uri.fsPath });
       if (this.shouldInvalidate(uri.fsPath)) {
-        this.invalidateCacheForFile(uri.fsPath);
+        if (this.debouncedInvalidate) {
+          this.debouncedInvalidate(uri.fsPath);
+        }
       }
     });
 

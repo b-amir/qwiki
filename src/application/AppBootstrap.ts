@@ -515,6 +515,7 @@ export class AppBootstrap {
           this.container.resolve("eventBus"),
           this.context,
           this.loggingService,
+          this.container.resolve("debouncingService") as DebouncingService,
           this.container.resolve("gitChangeDetectionService") as
             | import("../infrastructure/services/GitChangeDetectionService").GitChangeDetectionService
             | undefined,

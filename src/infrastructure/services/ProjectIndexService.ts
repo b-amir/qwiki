@@ -203,9 +203,26 @@ export class ProjectIndexService {
       { leading: false, trailing: true },
     );
 
-    this.fileWatcher.onDidCreate(async (uri) => {
-      this.logger.debug("File created", { path: uri.fsPath });
-      await this.indexFile(uri);
+    const debouncedCreate = this.debouncingService.debounce(
+      async (uri: Uri) => {
+        this.logger.debug("File created", { path: uri.fsPath });
+        await this.indexFile(uri);
+      },
+      ServiceLimits.indexDebounceDelay,
+      { leading: false, trailing: true },
+    );
+
+    const debouncedDelete = this.debouncingService.debounce(
+      (uri: Uri) => {
+        this.logger.debug("File deleted", { path: uri.fsPath });
+        this.removeFromIndex(uri);
+      },
+      ServiceLimits.indexDebounceDelay,
+      { leading: false, trailing: true },
+    );
+
+    this.fileWatcher.onDidCreate((uri) => {
+      debouncedCreate(uri);
     });
 
     this.fileWatcher.onDidChange(async (uri) => {
@@ -215,8 +232,7 @@ export class ProjectIndexService {
     });
 
     this.fileWatcher.onDidDelete((uri) => {
-      this.logger.debug("File deleted", { path: uri.fsPath });
-      this.removeFromIndex(uri);
+      debouncedDelete(uri);
     });
 
     this.disposables.push(this.fileWatcher);
