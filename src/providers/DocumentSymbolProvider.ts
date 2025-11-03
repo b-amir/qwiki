@@ -48,7 +48,10 @@ export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
       const lastLog = this.lastLogTime.get(filePath) ?? 0;
       const now = Date.now();
 
-      if (symbols.length !== lastCount || now - lastLog > this.LOG_THROTTLE_MS) {
+      if (
+        (symbols.length !== lastCount && Math.abs(symbols.length - lastCount) > 5) ||
+        now - lastLog > this.LOG_THROTTLE_MS
+      ) {
         this.logger.debug("Document symbols extracted", {
           path: filePath,
           symbolCount: symbols.length,

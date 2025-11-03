@@ -119,7 +119,7 @@ export class WikiGenerationFlow {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
-    const semanticInfo = await this.collectSemanticInfo(request);
+    const semanticInfo = await this.collectSemanticInfo(request, cancellationToken);
 
     const rawResult = await this.callLLM(
       request,
@@ -345,8 +345,15 @@ export class WikiGenerationFlow {
     await new Promise((resolve) => setTimeout(resolve, minDuration));
   }
 
-  private async collectSemanticInfo(request: WikiGenerationRequest): Promise<any | null> {
+  private async collectSemanticInfo(
+    request: WikiGenerationRequest,
+    cancellationToken?: CancellationToken,
+  ): Promise<any | null> {
     if (!this.languageServerIntegrationService || !request.filePath) {
+      return null;
+    }
+
+    if (cancellationToken?.isCancellationRequested) {
       return null;
     }
 
@@ -363,6 +370,7 @@ export class WikiGenerationFlow {
         document,
         request.snippet,
         selection,
+        cancellationToken,
       );
 
       if (semanticInfo) {

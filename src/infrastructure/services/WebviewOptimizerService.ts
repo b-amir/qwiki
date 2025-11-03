@@ -108,11 +108,14 @@ export class WebviewOptimizerService {
   private safePostMessage(message: any): void {
     try {
       this.webview.postMessage(message);
-      try {
-        const command = message?.command ?? "unknown";
-        const size = message?.payload ? JSON.stringify(message.payload).length : 0;
-        this.logDebug(`Posted message - command=${command}, size=${size}`);
-      } catch {}
+      const command = message?.command ?? "unknown";
+      const importantCommands = new Set(["error", "loadingStep", "generationCancelled"]);
+      if (importantCommands.has(command)) {
+        try {
+          const size = message?.payload ? JSON.stringify(message.payload).length : 0;
+          this.logDebug(`Posted message - command=${command}, size=${size}`);
+        } catch {}
+      }
     } catch (error) {
       this.logError("Channel closed, message discarded:", {
         error: error instanceof Error ? error.message : String(error),

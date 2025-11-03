@@ -21,7 +21,7 @@ export class CachedProjectContextService {
   private logger: Logger;
 
   constructor(
-    private cacheService: CachingService,
+    private cachingService: CachingService,
     private persistentCacheService: ProjectContextCacheService,
     private validationService: ProjectContextValidationService,
     private performanceMonitor: PerformanceMonitorService,
@@ -56,7 +56,7 @@ export class CachedProjectContextService {
     this.logger.debug("Generated cache key", { cacheKey, snippetHash });
 
     const cacheCheckStart = Date.now();
-    const memoryCached = await this.cacheService.get<ProjectContext>(cacheKey);
+    const memoryCached = await this.cachingService.get<ProjectContext>(cacheKey);
     let cached: ProjectContext | null = memoryCached;
 
     if (!cached) {
@@ -67,7 +67,7 @@ export class CachedProjectContextService {
           const validation = await this.validationService.validateMetadata(metadata);
           if (validation.isValid) {
             cached = persistentCached;
-            await this.cacheService.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+            await this.cachingService.set(cacheKey, cached, { ttl: this.CACHE_TTL });
             this.logger.debug("Loaded from persistent cache and validated", {
               reason: validation.reason,
             });
@@ -79,7 +79,7 @@ export class CachedProjectContextService {
           }
         } else {
           cached = persistentCached;
-          await this.cacheService.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+          await this.cachingService.set(cacheKey, cached, { ttl: this.CACHE_TTL });
         }
       }
     }
@@ -131,7 +131,7 @@ export class CachedProjectContextService {
     metadata.fileCount = context.filesSample?.length || 0;
 
     await Promise.all([
-      this.cacheService.set(cacheKey, context, { ttl: this.CACHE_TTL }),
+      this.cachingService.set(cacheKey, context, { ttl: this.CACHE_TTL }),
       this.persistentCacheService.set(cacheKey, context, metadata, this.CACHE_TTL),
     ]);
 
@@ -164,6 +164,6 @@ export class CachedProjectContextService {
   }
 
   async clearCache(): Promise<void> {
-    await Promise.all([this.cacheService.clear(), this.persistentCacheService.clear()]);
+    await Promise.all([this.cachingService.clear(), this.persistentCacheService.clear()]);
   }
 }

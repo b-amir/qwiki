@@ -1,4 +1,5 @@
 import { window, OutputChannel } from "vscode";
+import { LogSanitizer } from "./LogSanitizer";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -173,9 +174,14 @@ export class LoggingService {
       return;
     }
 
+    const sanitizedEntry: LogEntry = {
+      ...entry,
+      data: entry.data ? LogSanitizer.sanitizeData(entry.data) : undefined,
+    };
+
     for (const output of this.outputs) {
       try {
-        output.write(entry);
+        output.write(sanitizedEntry);
       } catch (error) {
         try {
           console.error("Log output failed:", error);

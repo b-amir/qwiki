@@ -145,11 +145,11 @@ export class AppBootstrap {
       "extensionContextStorageService",
       new ExtensionContextStorageService(this.context, loggingService),
     );
-    this.container.registerInstance("cacheService", new CachingService());
+    this.container.registerInstance("cachingService", new CachingService());
     this.container.registerInstance("performanceMonitor", new PerformanceMonitorService());
     this.container.registerInstance(
       "generationCacheService",
-      new GenerationCacheService(this.container.resolve("cacheService") as CachingService),
+      new GenerationCacheService(this.container.resolve("cachingService") as CachingService),
     );
     this.container.registerInstance(
       "requestBatchingService",
@@ -281,7 +281,7 @@ export class AppBootstrap {
       "cachedProjectContextService",
       () =>
         new CachedProjectContextService(
-          this.container.resolve("cacheService"),
+          this.container.resolve("cachingService"),
           this.container.resolve("projectContextCacheService") as ProjectContextCacheService,
           this.container.resolve(
             "projectContextValidationService",
@@ -335,7 +335,7 @@ export class AppBootstrap {
       async () =>
         new CachedWikiService(
           await this.container.resolveLazy("llmRegistry"),
-          this.container.resolve("cacheService"),
+          this.container.resolve("cachingService"),
           this.container.resolve("performanceMonitor"),
           this.container.resolve("generationCacheService") as GenerationCacheService,
           this.container.resolve("requestBatchingService") as RequestBatchingService,
@@ -405,12 +405,23 @@ export class AppBootstrap {
 
     this.container.register(
       "languageServerIntegrationService",
-      () => new LanguageServerIntegrationService(this.loggingService),
+      () =>
+        new LanguageServerIntegrationService(
+          this.loggingService,
+          this.container.resolve("eventBus"),
+          this.container.resolve("debouncingService") as DebouncingService,
+          this.container.resolve("cachingService") as CachingService,
+        ),
     );
 
     this.container.register(
       "gitChangeDetectionService",
-      () => new GitChangeDetectionService(this.loggingService),
+      () =>
+        new GitChangeDetectionService(
+          this.loggingService,
+          this.container.resolve("eventBus"),
+          this.context,
+        ),
     );
 
     this.container.registerLazy("providerPerformanceService", async () => {
@@ -512,7 +523,7 @@ export class AppBootstrap {
       "projectTypeDetectionService",
       () =>
         new ProjectTypeDetectionService(
-          this.container.resolve("cacheService") as CachingService,
+          this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
           ) as WorkspaceStructureCacheService,
@@ -524,7 +535,7 @@ export class AppBootstrap {
       "dependencyAnalysisService",
       () =>
         new DependencyAnalysisService(
-          this.container.resolve("cacheService") as CachingService,
+          this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
           ) as WorkspaceStructureCacheService,
@@ -536,7 +547,7 @@ export class AppBootstrap {
       "fileRelevanceAnalysisService",
       () =>
         new FileRelevanceAnalysisService(
-          this.container.resolve("cacheService") as CachingService,
+          this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
           ) as WorkspaceStructureCacheService,
@@ -578,7 +589,7 @@ export class AppBootstrap {
           this.container.resolve("fileRelevanceAnalysisService") as FileRelevanceAnalysisService,
           this.container.resolve("fileRelevanceBatchService") as FileRelevanceBatchService,
           this.container.resolve("fileSelectionService") as FileSelectionService,
-          this.container.resolve("cacheService") as CachingService,
+          this.container.resolve("cachingService") as CachingService,
           this.container.resolve(
             "workspaceStructureCacheService",
           ) as WorkspaceStructureCacheService,

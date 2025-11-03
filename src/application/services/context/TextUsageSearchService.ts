@@ -41,7 +41,6 @@ export class TextUsageSearchService {
     const combinedPattern = new RegExp(
       `\\b(?:function|const|let|var|class|interface|type)\\s+${escapedToken}\\b|\\bexport\\s+(?:default\\s+)?(?:function|class|const|let|var)?\\s*${escapedToken}\\b|\\bimport.*from\\s+['"]${escapedToken}['"]|\\b${escapedToken}\\s*\\(`,
     );
-    this.logger.debug("Search pattern created", { pattern: combinedPattern.toString() });
 
     let processedCount = 0;
     let skippedBinaryCount = 0;
@@ -76,11 +75,6 @@ export class TextUsageSearchService {
           const pos = doc.positionAt(m.index);
           const line = pos.line + 1;
           const previewLine = doc.lineAt(pos.line).text.trim();
-          this.logger.debug("Match found in file", {
-            file: relativePathFn(uri),
-            line,
-            preview: previewLine.substring(0, 50),
-          });
           return {
             path: relativePathFn(uri),
             line,

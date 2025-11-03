@@ -39,7 +39,17 @@ export class WebviewMessageHandler {
         try {
           const receiveTs = Date.now();
 
-          const silentCommands = new Set(["frontendLog", "webviewReady", "getEnvironmentStatus"]);
+          const silentCommands = new Set([
+            "frontendLog",
+            "webviewReady",
+            "getEnvironmentStatus",
+            "getSelection",
+            "getProviders",
+            "getProviderCapabilities",
+            "getApiKeys",
+            "getConfigurationTemplates",
+            "getConfigurationBackups",
+          ]);
           if (!silentCommands.has(command)) {
             this.logger.debug(`Received webview message - command=${command}`);
           }
@@ -119,7 +129,17 @@ export class WebviewMessageHandler {
 
   private async handleCommand(command: string, payload: any, receiveTs: number): Promise<void> {
     if (!this.commandRegistry) {
-      const ignoreCommands = new Set(["webviewReady", "frontendLog"]);
+      const ignoreCommands = new Set([
+        "webviewReady",
+        "frontendLog",
+        "getSelection",
+        "getProviders",
+        "getRelated",
+        "getApiKeys",
+        "getConfigurationTemplates",
+        "getConfigurationBackups",
+        "getProviderCapabilities",
+      ]);
       if (!ignoreCommands.has(command)) {
         this.logger.debug(`Command ${command} received before registry initialized, ignoring`);
       }

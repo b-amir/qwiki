@@ -36,8 +36,7 @@ export class FileRelevanceBatchService {
     }
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    const cachedScores =
-      await this.workspaceStructureCache.getFileRelevanceScores(targetFilePath);
+    const cachedScores = await this.workspaceStructureCache.getFileRelevanceScores(targetFilePath);
 
     if (cachedScores) {
       this.logger.info("Using cached file relevance scores", {
@@ -96,16 +95,12 @@ export class FileRelevanceBatchService {
             avgMsPerFile: Math.round(avgTimePerFile),
           };
 
-          this.logger.info(
-            `Context gathering progress: ${progressData.progressPercent}% (${progressData.analyzed}/${progressData.total} files analyzed)`,
-            progressData,
-          );
-        } else if (analyzedCount % logInterval === 0) {
-          this.logger.debug("File relevance analysis progress", {
-            analyzed: analyzedCount,
-            total: totalFilesToAnalyze,
-            progressPercent: Math.round((analyzedCount / totalFilesToAnalyze) * 100),
-          });
+          if (progressData.progressPercent % 25 === 0 || analyzedCount === totalFilesToAnalyze) {
+            this.logger.info(
+              `Context gathering progress: ${progressData.progressPercent}% (${progressData.analyzed}/${progressData.total} files analyzed)`,
+              progressData,
+            );
+          }
         }
 
         const fileAnalysisStart = Date.now();
@@ -146,12 +141,8 @@ export class FileRelevanceBatchService {
       averageTimePerFile: Math.round(analysisDuration / Math.max(analyzedCount, 1)),
     });
 
-    await this.workspaceStructureCache.setFileRelevanceScores(
-      targetFilePath,
-      fileRelevanceScores,
-    );
+    await this.workspaceStructureCache.setFileRelevanceScores(targetFilePath, fileRelevanceScores);
 
     return fileRelevanceScores;
   }
 }
-

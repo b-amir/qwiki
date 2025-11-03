@@ -21,7 +21,7 @@ export class CachedWikiService {
 
   constructor(
     private llmRegistry: LLMRegistry,
-    private cacheService: CachingService,
+    private cachingService: CachingService,
     private performanceMonitor: PerformanceMonitorService,
     private generationCacheService: GenerationCacheService,
     private requestBatchingService: RequestBatchingService,
@@ -54,7 +54,7 @@ export class CachedWikiService {
 
     const cacheKey = this.generateCacheKey(request, projectContext);
 
-    const cached = await this.cacheService.get<WikiGenerationResult>(cacheKey);
+    const cached = await this.cachingService.get<WikiGenerationResult>(cacheKey);
     if (cached) {
       endTimer();
       return cached;
@@ -68,7 +68,7 @@ export class CachedWikiService {
     );
 
     if (result.success) {
-      await this.cacheService.set(cacheKey, result, { ttl: this.CACHE_TTL });
+      await this.cachingService.set(cacheKey, result, { ttl: this.CACHE_TTL });
     }
 
     endTimer();
@@ -105,6 +105,6 @@ export class CachedWikiService {
   }
 
   async clearCache(): Promise<void> {
-    await this.cacheService.clear();
+    await this.cachingService.clear();
   }
 }

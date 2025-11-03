@@ -57,21 +57,18 @@ export class RequestBatchingService extends EventEmitter {
     const key = options?.key ?? "default";
     const deduplicationKey = options?.deduplicationKey;
 
-    this.logger.debug("batchRequest called", {
-      batchKey: key,
-      deduplicationKey: deduplicationKey?.substring(0, 50),
-      batchSize,
-      waitTime,
-      priority,
-    });
+    if (priority > 0 || batchSize > 5) {
+      this.logger.debug("batchRequest called", {
+        batchKey: key,
+        batchSize,
+        waitTime,
+        priority,
+      });
+    }
 
     if (deduplicationKey) {
       const existingRequest = this.findExistingRequest<T>(deduplicationKey);
       if (existingRequest) {
-        this.logger.debug("Found existing request for deduplication", {
-          deduplicationKey: deduplicationKey.substring(0, 50),
-          existingRequestsCount: existingRequest.length,
-        });
         return new Promise<T>((resolve, reject) => {
           const batchedRequest: BatchedRequest<T> = {
             id: this.generateId(),
@@ -85,10 +82,6 @@ export class RequestBatchingService extends EventEmitter {
 
           existingRequest.push(batchedRequest);
           this.statistics.deduplicatedRequests++;
-          this.logger.debug("Added deduplicated request", {
-            requestId: batchedRequest.id,
-            totalDeduplicatedRequests: existingRequest.length,
-          });
         });
       }
     }
@@ -123,12 +116,12 @@ export class RequestBatchingService extends EventEmitter {
         this.statistics.priorityBatches++;
       }
 
-      this.logger.debug("Added request to batch", {
-        batchKey: key,
-        batchSize: batch.length,
-        requestId: batchedRequest.id,
-        deduplicationKey: deduplicationKey?.substring(0, 50),
-      });
+      if (batch.length >= batchSize * 0.8) {
+        this.logger.debug("Added request to batch", {
+          batchKey: key,
+          batchSize: batch.length,
+        });
+      }
 
       if (batch.length >= batchSize) {
         this.logger.debug("Batch size reached, processing immediately", { batchKey: key });
@@ -230,27 +223,17 @@ export class RequestBatchingService extends EventEmitter {
     const processPromises = Array.from(deduplicatedGroups.entries()).map(
       async ([groupKey, requests]) => {
         const groupStartTime = Date.now();
-        this.logger.debug("Processing deduplicated group", {
-          groupKey: groupKey.substring(0, 50),
-          requestCount: requests.length,
-        });
 
         try {
-          this.logger.debug("Executing request for group", {
-            groupKey: groupKey.substring(0, 50),
-          });
           const result = await requests[0].request();
-          this.logger.debug("Request executed successfully", {
-            groupKey: groupKey.substring(0, 50),
-            duration: Date.now() - groupStartTime,
-          });
+          const duration = Date.now() - groupStartTime;
+          if (duration > 1000) {
+            this.logger.debug("Request executed successfully", {
+              duration,
+            });
+          }
 
           const allRequestsWithKey = this.requestsByKey.get(groupKey) || [];
-          this.logger.debug("Resolving requests", {
-            groupKey: groupKey.substring(0, 50),
-            initialRequests: requests.length,
-            totalRequestsToResolve: allRequestsWithKey.length + requests.length,
-          });
 
           const requestMap = new Map<string, BatchedRequest>();
           for (const req of requests) {
@@ -268,16 +251,10 @@ export class RequestBatchingService extends EventEmitter {
           if (this.requestsByKey.has(groupKey)) {
             this.requestsByKey.delete(groupKey);
           }
-
-          this.logger.debug("Group processing completed", {
-            groupKey: groupKey.substring(0, 50),
-            duration: Date.now() - groupStartTime,
-            resolvedCount: allRequestsToResolve.length,
-          });
         } catch (error) {
+          const duration = Date.now() - groupStartTime;
           this.logger.debug("Request execution failed", {
-            groupKey: groupKey.substring(0, 50),
-            duration: Date.now() - groupStartTime,
+            duration,
             error: error instanceof Error ? error.message : String(error),
           });
 
@@ -298,12 +275,6 @@ export class RequestBatchingService extends EventEmitter {
           if (this.requestsByKey.has(groupKey)) {
             this.requestsByKey.delete(groupKey);
           }
-
-          this.logger.debug("Group processing failed", {
-            groupKey: groupKey.substring(0, 50),
-            duration: Date.now() - groupStartTime,
-            rejectedCount: allRequestsToReject.length,
-          });
         }
       },
     );
