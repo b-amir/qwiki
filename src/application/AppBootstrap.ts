@@ -134,6 +134,9 @@ export class AppBootstrap {
       "projectContextCacheInvalidationService",
     ) as ProjectContextCacheInvalidationService;
     cacheInvalidationService.startWatching();
+
+    const wikiWatcherService = this.container.resolve("wikiWatcherService") as WikiWatcherService;
+    wikiWatcherService.startWatching();
   }
 
   private async registerServices(): Promise<void> {
@@ -488,6 +491,9 @@ export class AppBootstrap {
           this.container.resolve("eventBus"),
           this.context,
           this.loggingService,
+          this.container.resolve("gitChangeDetectionService") as
+            | import("../infrastructure/services/GitChangeDetectionService").GitChangeDetectionService
+            | undefined,
         ),
     );
 
@@ -806,14 +812,20 @@ export class AppBootstrap {
     });
     commandRegistry.addDisposer(unsubGenerationCancelled);
 
-    const unsubReadmeBackupCreated = eventBus.subscribe(OutboundEvents.readmeBackupCreated, (payload) => {
-      messageBus.postImmediate(OutboundEvents.readmeBackupCreated, payload);
-    });
+    const unsubReadmeBackupCreated = eventBus.subscribe(
+      OutboundEvents.readmeBackupCreated,
+      (payload) => {
+        messageBus.postImmediate(OutboundEvents.readmeBackupCreated, payload);
+      },
+    );
     commandRegistry.addDisposer(unsubReadmeBackupCreated);
 
-    const unsubReadmeBackupDeleted = eventBus.subscribe(OutboundEvents.readmeBackupDeleted, (payload) => {
-      messageBus.postImmediate(OutboundEvents.readmeBackupDeleted, payload);
-    });
+    const unsubReadmeBackupDeleted = eventBus.subscribe(
+      OutboundEvents.readmeBackupDeleted,
+      (payload) => {
+        messageBus.postImmediate(OutboundEvents.readmeBackupDeleted, payload);
+      },
+    );
     commandRegistry.addDisposer(unsubReadmeBackupDeleted);
 
     return commandRegistry;

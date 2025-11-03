@@ -32,8 +32,10 @@ export class WikiStorageService {
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
+    const savedFolderPath = join(qwikiFolderPath, "saved");
 
     const qwikiFolderUri = Uri.file(qwikiFolderPath);
+    const savedFolderUri = Uri.file(savedFolderPath);
 
     try {
       await workspace.fs.stat(qwikiFolderUri);
@@ -41,10 +43,16 @@ export class WikiStorageService {
       await workspace.fs.createDirectory(qwikiFolderUri);
     }
 
+    try {
+      await workspace.fs.stat(savedFolderUri);
+    } catch {
+      await workspace.fs.createDirectory(savedFolderUri);
+    }
+
     const sanitizedName = this.sanitizeFileName(title);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const fileName = `${timestamp}-${sanitizedName}.md`;
-    const wikiFilePath = join(qwikiFolderPath, fileName);
+    const wikiFilePath = join(savedFolderPath, fileName);
 
     const wikiContent = this.formatWikiContent(title, content, sourceFilePath);
     const wikiFileUri = Uri.file(wikiFilePath);
@@ -72,22 +80,23 @@ export class WikiStorageService {
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
-    const qwikiFolderUri = Uri.file(qwikiFolderPath);
+    const savedFolderPath = join(qwikiFolderPath, "saved");
+    const savedFolderUri = Uri.file(savedFolderPath);
 
     try {
       try {
-        await workspace.fs.stat(qwikiFolderUri);
+        await workspace.fs.stat(savedFolderUri);
       } catch {
         return [];
       }
 
-      const entries = await workspace.fs.readDirectory(qwikiFolderUri);
+      const entries = await workspace.fs.readDirectory(savedFolderUri);
       const wikis: SavedWiki[] = [];
 
       for (const [name, type] of entries) {
         if (type === 1 && name.endsWith(".md")) {
           try {
-            const fileUri = Uri.file(join(qwikiFolderPath, name));
+            const fileUri = Uri.file(join(savedFolderPath, name));
             const content = await workspace.fs.readFile(fileUri);
             const contentStr = Buffer.from(content).toString("utf8");
             const parsed = this.parseWikiContent(contentStr, fileUri.fsPath);
@@ -113,19 +122,20 @@ export class WikiStorageService {
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
-    const qwikiFolderUri = Uri.file(qwikiFolderPath);
+    const savedFolderPath = join(qwikiFolderPath, "saved");
+    const savedFolderUri = Uri.file(savedFolderPath);
 
     try {
       try {
-        await workspace.fs.stat(qwikiFolderUri);
+        await workspace.fs.stat(savedFolderUri);
       } catch {
         return;
       }
 
-      const entries = await workspace.fs.readDirectory(qwikiFolderUri);
+      const entries = await workspace.fs.readDirectory(savedFolderUri);
       for (const [name, type] of entries) {
         if (type === 1 && name.startsWith(wikiId) && name.endsWith(".md")) {
-          const fileUri = Uri.file(join(qwikiFolderPath, name));
+          const fileUri = Uri.file(join(savedFolderPath, name));
           await workspace.fs.delete(fileUri);
           break;
         }

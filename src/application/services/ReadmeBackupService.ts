@@ -54,7 +54,7 @@ export class ReadmeBackupService {
       throw new Error("Failed to determine backup path");
     }
 
-    await this.ensureQwikiFolder(workspaceRoot);
+    await this.ensureBackupFolder(workspaceRoot);
 
     const backupUri = Uri.file(backupPath);
 
@@ -123,7 +123,7 @@ export class ReadmeBackupService {
     if (!workspaceRoot) {
       return undefined;
     }
-    return join(workspaceRoot, this.qwikiFolderName, this.backupFileName);
+    return join(workspaceRoot, this.qwikiFolderName, "backup", this.backupFileName);
   }
 
   private getWorkspaceRoot(): string | undefined {
@@ -131,15 +131,22 @@ export class ReadmeBackupService {
     return workspaceFolders?.[0]?.uri.fsPath;
   }
 
-  private async ensureQwikiFolder(workspaceRoot: string): Promise<void> {
+  private async ensureBackupFolder(workspaceRoot: string): Promise<void> {
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
+    const backupFolderPath = join(qwikiFolderPath, "backup");
     const qwikiFolderUri = Uri.file(qwikiFolderPath);
+    const backupFolderUri = Uri.file(backupFolderPath);
 
     try {
       await workspace.fs.stat(qwikiFolderUri);
     } catch {
       await workspace.fs.createDirectory(qwikiFolderUri);
     }
+
+    try {
+      await workspace.fs.stat(backupFolderUri);
+    } catch {
+      await workspace.fs.createDirectory(backupFolderUri);
+    }
   }
 }
-
