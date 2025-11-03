@@ -30,7 +30,7 @@ const showDiff = computed(() => !!props.preview);
 
 <template>
   <div
-    class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4"
+    class="bg-muted/95 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md will-change-[opacity,backdrop-filter]"
     @click.self="emit('cancel')"
   >
     <div class="bg-background border-border w-full max-w-4xl rounded-lg border shadow-lg">
@@ -59,7 +59,10 @@ const showDiff = computed(() => !!props.preview);
             </div>
           </div>
 
-          <div v-if="warnings && warnings.length > 0" class="bg-yellow-500/10 border-yellow-500/20 rounded-md border p-3 text-sm">
+          <div
+            v-if="warnings && warnings.length > 0"
+            class="rounded-md border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm"
+          >
             <div class="font-medium text-yellow-600">Warnings:</div>
             <ul class="mt-1 list-disc space-y-1 pl-5">
               <li v-for="warning in warnings" :key="warning">{{ warning }}</li>

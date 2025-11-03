@@ -46,8 +46,12 @@ const changeSummary = ref<{
 } | null>(null);
 
 const savedWikisLoadingContext = useLoading("savedWikis");
+const readmeUpdateLoadingContext = useLoading("readmeUpdate");
 const isSavedWikisLoading = computed(
   () => loading.value || savedWikisLoadingContext.isActive.value,
+);
+const isReadmeUpdateLoading = computed(
+  () => updateReadmeState.value === "loading" || readmeUpdateLoadingContext.isActive.value,
 );
 
 const isLoading = ref(false);
@@ -86,6 +90,7 @@ const updateReadme = async () => {
   if (filteredWikis.value.length === 0 || updateReadmeState.value === "loading") return;
 
   updateReadmeState.value = "loading";
+  readmeUpdateLoadingContext.start("analyzingWikis");
   try {
     vscode.postMessage({
       command: "updateReadme",
@@ -101,6 +106,7 @@ const updateReadme = async () => {
   } catch (err) {
     logger.error("Failed to update README", err);
     updateReadmeState.value = "idle";
+    readmeUpdateLoadingContext.complete();
   }
 };
 
@@ -178,6 +184,7 @@ const approveReadmeUpdate = async () => {
     readmePreview.value = null;
     changeSummary.value = null;
     updateReadmeState.value = "loading";
+    readmeUpdateLoadingContext.start("writingReadme");
   } catch (err) {
     logger.error("Failed to approve README update", err);
   }
@@ -221,26 +228,27 @@ const handleMessage = (event: MessageEvent) => {
       changeSummary.value = message.payload.changeSummary;
       showReadmeConfirmDialog.value = true;
       updateReadmeState.value = "idle";
+      readmeUpdateLoadingContext.complete();
       break;
     case "readmeUpdateApprovalRequested":
       break;
     case "readmeUpdateApproved":
-      updateReadmeState.value = "done";
-      setTimeout(() => {
-        updateReadmeState.value = "idle";
-      }, 2000);
+      updateReadmeState.value = "loading";
       break;
     case "readmeUpdateCancelled":
       updateReadmeState.value = "idle";
+      readmeUpdateLoadingContext.complete();
       break;
     case "readmeUpdated":
       if (message.payload.success) {
         updateReadmeState.value = "done";
+        readmeUpdateLoadingContext.complete();
         setTimeout(() => {
           updateReadmeState.value = "idle";
         }, 2000);
       } else {
         updateReadmeState.value = "idle";
+        readmeUpdateLoadingContext.complete();
       }
       undoReadmeState.value = "idle";
       vscode.postMessage({ command: "checkReadmeBackupState" });
@@ -266,6 +274,9 @@ const handleMessage = (event: MessageEvent) => {
         savedWikisLoadingContext.fail(message.payload.message);
         undoReadmeState.value = "idle";
         updateReadmeState.value = "idle";
+        if (isReadmeUpdateLoading.value) {
+          readmeUpdateLoadingContext.fail(message.payload.message);
+        }
       }
       break;
   }
@@ -332,7 +343,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-else class="h-full overflow-y-auto">
+      <div v-else class="relative h-full overflow-y-auto">
         <div
           v-for="(wikis, date) in groupedWikis"
           :key="date"
@@ -355,6 +366,36 @@ onBeforeUnmount(() => {
             />
           </div>
         </div>
+        <Transition
+          enter-active-class="transition-opacity duration-200 ease-out"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="transition-opacity duration-200 ease-in delay-100"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+        >
+          <div
+            v-if="isReadmeUpdateLoading"
+            class="readme-loading-backdrop bg-muted/95 absolute inset-0 z-50 backdrop-blur-md will-change-[opacity,backdrop-filter]"
+          ></div>
+        </Transition>
+        <Transition
+          enter-active-class="transition-opacity duration-200 ease-out delay-75"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="transition-opacity duration-200 ease-in"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+        >
+          <div
+            v-if="isReadmeUpdateLoading"
+            class="readme-loading-content will-change-opacity absolute inset-0 z-50 flex items-center justify-center"
+          >
+            <div class="w-full max-w-md px-4">
+              <LoadingState context="readmeUpdate" />
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -532,6 +573,13 @@ onBeforeUnmount(() => {
   .undo-button-enter-from,
   .undo-button-leave-to {
     transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .readme-loading-backdrop,
+  .readme-loading-content {
+    transition: none !important;
   }
 }
 </style>

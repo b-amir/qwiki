@@ -33,7 +33,7 @@ const handleClose = () => {
     >
       <div
         v-if="modelValue"
-        class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+        class="bg-muted/95 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md will-change-[opacity,backdrop-filter]"
         @click.self="handleClose"
       >
         <Transition

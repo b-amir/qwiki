@@ -114,6 +114,31 @@ export class ReadmeBackupService {
     }
   }
 
+  async deleteBackup(): Promise<void> {
+    if (!this.hasBackup) {
+      return;
+    }
+
+    const backupPath = this.getBackupPath();
+    if (!backupPath) {
+      return;
+    }
+
+    try {
+      const backupUri = Uri.file(backupPath);
+      await workspace.fs.delete(backupUri);
+      this.hasBackup = false;
+
+      if (this.eventBus) {
+        this.eventBus.publish("readmeBackupDeleted", {});
+      }
+
+      this.logger.info("README backup deleted");
+    } catch (error) {
+      this.logger.warn("Failed to delete README backup", error);
+    }
+  }
+
   getBackupState(): boolean {
     return this.hasBackup;
   }

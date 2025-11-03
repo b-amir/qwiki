@@ -22,7 +22,7 @@ export class CancelReadmeUpdateCommand implements Command<void> {
     try {
       this.logger.debug("Cancelling pending README update");
 
-      this.readmeUpdateService.cancelPendingUpdate();
+      await this.readmeUpdateService.cancelPendingUpdate();
 
       await this.messageBus.postMessage("readmeUpdateCancelled", {
         success: true,

@@ -38,8 +38,12 @@ export const stepCatalog: StepCatalog = {
   readmeUpdate: [
     { text: "Analyzing wikis...", key: "analyzingWikis" },
     { text: "Detecting README state...", key: "detectingReadmeState" },
-    { text: "Building prompt...", key: "buildingPrompt" },
-    { text: "Generating README...", key: "generatingReadme" },
+    { text: "Optimizing wiki selection...", key: "optimizingSelection" },
+    { text: "Building README prompt...", key: "buildingPrompt" },
+    { text: "Preparing LLM request...", key: "preparingLLMRequest" },
+    { text: "Sending request to LLM...", key: "sendingRequest" },
+    { text: "Waiting for LLM response...", key: "waitingForResponse" },
+    { text: "Processing response...", key: "processingResponse" },
     { text: "Writing README...", key: "writingReadme" },
   ],
 };

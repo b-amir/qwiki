@@ -28,7 +28,10 @@ export const LoadingSteps = {
   loading: "loading",
   analyzingWikis: "analyzingWikis",
   detectingReadmeState: "detectingReadmeState",
+  optimizingSelection: "optimizingSelection",
+  preparingLLMRequest: "preparingLLMRequest",
   generatingReadme: "generatingReadme",
+  processingResponse: "processingResponse",
   writingReadme: "writingReadme",
 } as const;
 
@@ -59,7 +62,10 @@ export function getProgressMessageForStep(step: LoadingStep): string {
     [LoadingSteps.loading]: "Loading...",
     [LoadingSteps.analyzingWikis]: "Analyzing wikis...",
     [LoadingSteps.detectingReadmeState]: "Detecting README state...",
+    [LoadingSteps.optimizingSelection]: "Optimizing wiki selection...",
+    [LoadingSteps.preparingLLMRequest]: "Preparing LLM request...",
     [LoadingSteps.generatingReadme]: "Generating README...",
+    [LoadingSteps.processingResponse]: "Processing response...",
     [LoadingSteps.writingReadme]: "Writing README...",
   };
   return messageMap[step] || "Processing...";

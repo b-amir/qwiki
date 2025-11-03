@@ -7,6 +7,7 @@ export const defaultLoadingConfig: LoadingConfigMap = {
   environment: { timeoutMs: 8000, density: "low" },
   savedWikis: { timeoutMs: 8000, density: "low" },
   errorHistory: { timeoutMs: 5000, density: "low" },
+  readmeUpdate: { timeoutMs: 30000, density: "medium" },
 };
 
 export function getContextTimeout(context: KnownLoadingContext): number | null {
