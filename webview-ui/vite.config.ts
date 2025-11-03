@@ -16,11 +16,33 @@ export default defineConfig({
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name].js`,
-        chunkFileNames: `assets/[name].js`,
+        chunkFileNames: `assets/[name].[hash].js`,
         assetFileNames: `assets/[name].[ext]`,
-        manualChunks: {
-          vendor: ["vue", "pinia"],
-          markdown: ["markdown-it"],
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("vue") || id.includes("pinia")) {
+              return "vendor";
+            }
+            if (id.includes("markdown-it")) {
+              return "markdown";
+            }
+            return "vendor-other";
+          }
+          if (id.includes("/components/pages/HomePage.vue")) {
+            return "page-home";
+          }
+          if (id.includes("/components/pages/SettingsPage.vue")) {
+            return "page-settings";
+          }
+          if (id.includes("/components/pages/ErrorHistoryPage.vue")) {
+            return "page-error-history";
+          }
+          if (id.includes("/components/pages/SavedWikisPage.vue")) {
+            return "page-saved-wikis";
+          }
+          if (id.includes("/components/pages/")) {
+            return "pages";
+          }
         },
       },
     },

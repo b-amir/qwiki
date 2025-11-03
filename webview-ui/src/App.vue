@@ -3,10 +3,10 @@ import { computed, watch } from "vue";
 import { TopBar } from "@/components/layout";
 import {
   HomePage,
-  WikiPage,
   SettingsPage,
   ErrorHistoryPage,
   SavedWikisPage,
+  WikiPage,
 } from "@/components/pages";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
@@ -128,8 +128,15 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
           </div>
         </template>
         <template v-else>
-          <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
-          <WikiPage v-else />
+          <Suspense>
+            <template #default>
+              <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
+              <WikiPage v-else />
+            </template>
+            <template #fallback>
+              <LoadingState class="flex-1" context="wiki" />
+            </template>
+          </Suspense>
         </template>
       </div>
 
@@ -140,7 +147,14 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
           class="flex-1"
           context="settings"
         />
-        <SettingsPage v-else class="flex-1" />
+        <Suspense v-else>
+          <template #default>
+            <SettingsPage class="flex-1" />
+          </template>
+          <template #fallback>
+            <LoadingState class="flex-1" context="settings" />
+          </template>
+        </Suspense>
       </div>
 
       <div v-else-if="currentPage === 'errorHistory'" class="flex h-full">
@@ -150,11 +164,25 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
           class="flex-1"
           context="errorHistory"
         />
-        <ErrorHistoryPage v-else class="flex-1" />
+        <Suspense v-else>
+          <template #default>
+            <ErrorHistoryPage class="flex-1" />
+          </template>
+          <template #fallback>
+            <LoadingState class="flex-1" context="errorHistory" />
+          </template>
+        </Suspense>
       </div>
 
       <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
-        <SavedWikisPage class="flex-1" />
+        <Suspense>
+          <template #default>
+            <SavedWikisPage class="flex-1" />
+          </template>
+          <template #fallback>
+            <LoadingState class="flex-1" context="savedWikis" />
+          </template>
+        </Suspense>
       </div>
     </div>
   </main>
