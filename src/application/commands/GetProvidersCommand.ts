@@ -138,9 +138,21 @@ export class GetProvidersCommand implements Command<void> {
             };
           } catch (error) {
             const providerProcessEndTime = Date.now();
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : typeof error === "string"
+                  ? error
+                  : JSON.stringify(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
             this.logError(
               `Fatal error processing provider ${providerId || p.id || "unknown"} after ${providerProcessEndTime - providerProcessStartTime}ms`,
-              error,
+              {
+                error: errorMessage,
+                stack: errorStack,
+                providerId,
+                providerName,
+              },
             );
 
             return {

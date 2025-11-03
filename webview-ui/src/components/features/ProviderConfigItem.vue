@@ -18,6 +18,7 @@ interface ProviderConfig {
     options?: string[];
   }>;
   additionalInfo?: string;
+  models?: string[];
 }
 
 interface Props {
@@ -43,6 +44,10 @@ const wiki = useWikiStore();
 const settings = useSettingsStore();
 
 const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
+  if (props.provider?.models?.length) {
+    return props.provider.models;
+  }
+
   const provider = wiki.providers.find((p) => p.id === providerId);
   if (provider?.models?.length) return provider.models;
 

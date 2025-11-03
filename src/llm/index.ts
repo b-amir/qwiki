@@ -26,11 +26,19 @@ export class LLMRegistry {
   }
 
   list() {
-    return Array.from(this.providers.values()).map((p) => ({
-      id: p.id,
-      name: p.name,
-      models: p.listModels?.() || [],
-    }));
+    return Array.from(this.providers.values()).map((p) => {
+      let models: string[] = [];
+      try {
+        models = p.listModels?.() || [];
+      } catch (error) {
+        models = [];
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        models,
+      };
+    });
   }
 
   async getProviderConfigs(): Promise<ProviderConfig[]> {

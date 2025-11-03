@@ -88,7 +88,7 @@ export class LogSanitizer {
       } else if (key === "pattern" || key === "regex") {
         sanitized[key] = this.sanitizePattern(value as string | RegExp);
       } else if (key === "deduplicationKey" || key === "groupKey" || key.includes("Key")) {
-        sanitized[key] = this.sanitizeString(value as string);
+        sanitized[key] = typeof value === "string" ? this.sanitizeString(value) : value;
       } else if (
         key === "preview" &&
         typeof value === "string" &&
