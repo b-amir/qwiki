@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
@@ -27,7 +27,7 @@ const vscode = useVscode();
 const logger = createLogger("SavedWikisPage");
 const navigationStatus = useNavigationStatusStore();
 const wikiStore = useWikiStore();
-const savedWikis = ref<SavedWiki[]>([]);
+const savedWikis = shallowRef<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const errorModalOpen = ref(false);
@@ -85,6 +85,8 @@ const groupedWikis = computed(() => {
 
   return groups;
 });
+
+const needsVirtualScrolling = computed(() => filteredWikis.value.length > 50);
 
 const updateReadme = async () => {
   if (filteredWikis.value.length === 0 || updateReadmeState.value === "loading") return;
@@ -358,6 +360,7 @@ onBeforeUnmount(() => {
             <WikiListItem
               v-for="wiki in wikis"
               :key="wiki.id"
+              v-memo="[wiki.id, wiki.title, wiki.tags.length]"
               :wiki="wiki"
               :selected="false"
               @preview="showPreview"
