@@ -4,6 +4,7 @@ import type {
   ProviderConfiguration,
   GlobalConfiguration,
   ValidationResult,
+  ValidationError,
   ConfigurationSchema,
   ExportedConfiguration,
   ContextIntelligenceConfig,
@@ -33,6 +34,7 @@ import type { ProjectContextCacheInvalidationService } from "../../infrastructur
 import type { CachingService } from "../../infrastructure/services/CachingService";
 import type { GenerationCacheService } from "../../infrastructure/services/GenerationCacheService";
 import type { ProjectIndexService } from "../../infrastructure/services/ProjectIndexService";
+import type { LLMRegistry } from "../../llm";
 
 export class ConfigurationManagerService {
   private configCache = new Map<string, any>();
@@ -42,6 +44,7 @@ export class ConfigurationManagerService {
   private cachingService?: CachingService;
   private generationCacheService?: GenerationCacheService;
   private projectIndexService?: ProjectIndexService;
+  private llmRegistry?: LLMRegistry;
 
   constructor(
     private configurationRepository: ConfigurationRepository,
@@ -72,6 +75,10 @@ export class ConfigurationManagerService {
     this.cachingService = cachingService;
     this.generationCacheService = generationCacheService;
     this.projectIndexService = projectIndexService;
+  }
+
+  setLlmRegistry(llmRegistry: LLMRegistry): void {
+    this.llmRegistry = llmRegistry;
   }
 
   async initialize(): Promise<void> {
@@ -168,12 +175,37 @@ export class ConfigurationManagerService {
   }
 
   async setProviderConfig(providerId: string, config: ProviderConfiguration): Promise<void> {
-    const schema = this.createProviderSchema(providerId);
-    const validationResult = await this.validateConfiguration(config, schema);
+    let availableModels: string[] | undefined;
+
+    if (this.llmRegistry) {
+      try {
+        const provider = this.llmRegistry.getProvider(providerId as any);
+        if (provider) {
+          availableModels = provider.listModels();
+        }
+      } catch (error) {
+        this.logger.warn(`Could not get models for provider ${providerId}`, error);
+      }
+    }
+
+    const validationResult = this.validationEngine.validateProviderConfig(
+      providerId,
+      config,
+      availableModels,
+    );
 
     if (!validationResult.isValid) {
-      const errorMessages = validationResult.errors.map((e) => e.message).join(", ");
-      throw new Error(`Invalid provider configuration for ${providerId}: ${errorMessages}`);
+      const errorMessages = this.formatValidationErrors(validationResult.errors);
+      throw new ConfigurationError("invalidConfiguration", errorMessages, {
+        providerId,
+        errors: validationResult.errors,
+        warnings: validationResult.warnings,
+      });
+    }
+
+    if (validationResult.warnings.length > 0) {
+      const warningMessages = validationResult.warnings.map((w) => w.message).join(", ");
+      this.logger.warn(`Configuration warnings for ${providerId}: ${warningMessages}`);
     }
 
     const cacheKey = `provider.${providerId}`;
@@ -642,6 +674,33 @@ export class ConfigurationManagerService {
       promptEngineering,
       wikiManagement,
     };
+  }
+
+  private formatValidationErrors(errors: ValidationError[]): string {
+    if (errors.length === 0) {
+      return "Configuration validation failed";
+    }
+
+    if (errors.length === 1) {
+      const error = errors[0];
+      return error.field ? `${error.field}: ${error.message}` : error.message;
+    }
+
+    const fieldErrors = errors
+      .filter((e) => e.field)
+      .map((e) => `${e.field}: ${e.message}`)
+      .join("; ");
+
+    const generalErrors = errors
+      .filter((e) => !e.field)
+      .map((e) => e.message)
+      .join("; ");
+
+    const parts: string[] = [];
+    if (fieldErrors) parts.push(fieldErrors);
+    if (generalErrors) parts.push(generalErrors);
+
+    return parts.length > 0 ? parts.join(". ") : "Configuration validation failed";
   }
 
   private createProviderSchema(providerId: string): ConfigurationSchema {

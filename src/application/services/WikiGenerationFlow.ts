@@ -11,6 +11,8 @@ import { ContextIntelligenceService } from "./ContextIntelligenceService";
 import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import { GenerationCacheService } from "../../infrastructure/services/GenerationCacheService";
 import { LanguageServerIntegrationService } from "../../infrastructure/services/LanguageServerIntegrationService";
+import { DocumentationQualityService } from "./DocumentationQualityService";
+import { DocumentationImprovementService } from "./DocumentationImprovementService";
 import {
   LoggingService,
   createLogger,
@@ -28,6 +30,8 @@ interface GenerateParams {
 
 export class WikiGenerationFlow {
   private logger: Logger;
+  private qualityService: DocumentationQualityService;
+  private improvementService: DocumentationImprovementService;
 
   constructor(
     private llmRegistry: LLMRegistry,
@@ -41,6 +45,24 @@ export class WikiGenerationFlow {
     this.logger = loggingService
       ? createLogger("WikiGenerationFlow", loggingService)
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
+    this.qualityService = new DocumentationQualityService(
+      loggingService ||
+        new LoggingService({
+          enabled: false,
+          level: "error",
+          includeTimestamp: true,
+          includeService: true,
+        }),
+    );
+    this.improvementService = new DocumentationImprovementService(
+      loggingService ||
+        new LoggingService({
+          enabled: false,
+          level: "error",
+          includeTimestamp: true,
+          includeService: true,
+        }),
+    );
   }
 
   async execute(
@@ -152,6 +174,22 @@ export class WikiGenerationFlow {
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
+
+    const qualityMetrics = this.qualityService.calculateQualityMetrics(
+      finalContent,
+      request.snippet,
+    );
+    const improvementAnalysis = this.improvementService.generateImprovements(
+      finalContent,
+      request.snippet,
+      qualityMetrics,
+    );
+
+    this.logger.debug("Documentation quality analysis completed", {
+      overallScore: qualityMetrics.overallScore,
+      suggestionCount: improvementAnalysis.suggestions.length,
+      canImprove: improvementAnalysis.canImprove,
+    });
 
     const finalResult: WikiGenerationResult = {
       content: finalContent,

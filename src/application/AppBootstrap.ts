@@ -29,6 +29,7 @@ import {
   ReadmePromptBuilderService,
   ReadmeDiffService,
   ReadmeCacheService,
+  ContextSuggestionService,
 } from "./";
 import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
 import { PatternExtractionService } from "./services/context/PatternExtractionService";
@@ -116,6 +117,9 @@ export class AppBootstrap {
       generationCacheService,
       projectIndexService,
     );
+
+    const llmRegistry = (await this.container.resolveLazy("llmRegistry")) as LLMRegistry;
+    configManager.setLlmRegistry(llmRegistry);
 
     await configManager.initialize();
 
@@ -392,7 +396,15 @@ export class AppBootstrap {
       () => new ErrorLoggingService(this.loggingService),
     );
 
-    this.container.register("errorRecoveryService", () => new ErrorRecoveryService());
+    this.container.register(
+      "errorRecoveryService",
+      () =>
+        new ErrorRecoveryService(
+          this.container.resolve("eventBus"),
+          this.container.resolve("memoryOptimizationService") as MemoryOptimizationService,
+          this.loggingService,
+        ),
+    );
 
     this.container.registerLazy(
       "providerSelectionService",
@@ -608,6 +620,11 @@ export class AppBootstrap {
       () => new CodeExtractionService(this.loggingService),
     );
 
+    this.container.register(
+      "contextSuggestionService",
+      () => new ContextSuggestionService(this.loggingService),
+    );
+
     this.container.registerLazy(
       "contextIntelligenceService",
       async () =>
@@ -636,6 +653,7 @@ export class AppBootstrap {
           this.loggingService,
           await this.container.resolveLazy("llmRegistry"),
           (await this.container.resolveLazy("projectIndexService")) as ProjectIndexService,
+          this.container.resolve("contextSuggestionService") as ContextSuggestionService,
         ),
     );
 

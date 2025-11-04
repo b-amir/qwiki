@@ -14,6 +14,7 @@ import { ProjectTypeDetectionService } from "./context/ProjectTypeDetectionServi
 import { FileRelevanceAnalysisService } from "./context/FileRelevanceAnalysisService";
 import { FileRelevanceBatchService } from "./context/FileRelevanceBatchService";
 import { FileSelectionService } from "./context/FileSelectionService";
+import { ContextSuggestionService } from "./context/ContextSuggestionService";
 import { CachingService } from "../../infrastructure/services/CachingService";
 import { PerformanceMonitorService } from "../../infrastructure/services/PerformanceMonitorService";
 import { LLMRegistry } from "../../llm/providers/registry";
@@ -27,6 +28,8 @@ import type {
   ProjectEssentialFile,
   ProjectTypeDetection,
 } from "../../domain/entities/ContextIntelligence";
+import type { ProjectContext } from "../../domain/entities/Selection";
+import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
 
 export class ContextIntelligenceService {
   private logger: Logger;
@@ -46,6 +49,7 @@ export class ContextIntelligenceService {
     private loggingService: LoggingService,
     private llmRegistry: LLMRegistry,
     private projectIndexService: ProjectIndexService,
+    private contextSuggestionService?: ContextSuggestionService,
   ) {
     this.logger = createLogger("ContextIntelligenceService", loggingService);
   }
@@ -259,5 +263,13 @@ export class ContextIntelligenceService {
       });
       throw error;
     }
+  }
+
+  analyzeContextSuggestions(request: WikiGenerationRequest, projectContext: ProjectContext) {
+    if (!this.contextSuggestionService) {
+      return null;
+    }
+
+    return this.contextSuggestionService.analyzeContext(request, projectContext);
   }
 }
