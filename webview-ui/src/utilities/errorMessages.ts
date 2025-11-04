@@ -13,6 +13,36 @@ export const ErrorCodes = {
   INIT_TIMEOUT: "INIT_TIMEOUT",
 } as const;
 
+export const ErrorTitles: Record<string, string> = {
+  "error.unknown": "Unknown Error",
+  "error.generationFailed": "Generation Failed",
+  "error.invalidSelection": "Invalid Selection",
+  "error.missingSnippet": "No Code Selected",
+  "error.missingProvider": "Provider Not Available",
+  "error.invalidConfiguration": "Invalid Configuration",
+  "error.missingCommand": "Command Not Found",
+  "error.apiKeyMissing": "API Key Required",
+  "error.apiKeyInvalid": "Invalid API Key",
+  "error.invalidModel": "Model Not Available",
+  "error.providerDisabled": "Provider Disabled",
+  "error.customFieldMissing": "Custom Field Missing",
+  "error.providerNotConfigured": "Provider Not Configured",
+  "error.validationFailed": "Validation Failed",
+  "error.noApiKeysConfigured": "No API Keys Configured",
+  [ErrorCodes.PROVIDER_NOT_FOUND]: "Provider Not Found",
+  [ErrorCodes.API_KEY_MISSING]: "API Key Missing",
+  [ErrorCodes.API_KEY_INVALID]: "Invalid API Key",
+  [ErrorCodes.MODEL_NOT_SUPPORTED]: "Model Not Supported",
+  [ErrorCodes.NETWORK_ERROR]: "Network Error",
+  [ErrorCodes.RATE_LIMIT_EXCEEDED]: "Rate Limit Exceeded",
+  [ErrorCodes.GENERATION_FAILED]: "Generation Failed",
+  [ErrorCodes.VALIDATION_ERROR]: "Validation Error",
+  [ErrorCodes.CONFIGURATION_ERROR]: "Configuration Error",
+  [ErrorCodes.PROVIDER_NOT_SELECTED]: "No Provider Selected",
+  [ErrorCodes.MISSING_SNIPPET]: "No Code Selected",
+  [ErrorCodes.INIT_TIMEOUT]: "Initialization Timeout",
+};
+
 export const ErrorMessages: Record<string, { message: string; suggestion: string | string[] }> = {
   [ErrorCodes.PROVIDER_NOT_FOUND]: {
     message: "The specified provider could not be found.",

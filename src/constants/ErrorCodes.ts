@@ -33,3 +33,21 @@ export const ErrorMessages = {
   [ErrorCodes.validationFailed]: "Validation failed",
   [ErrorCodes.noApiKeysConfigured]: "At least one API key is required for the extension to work",
 } as const;
+
+export const ErrorTitles = {
+  [ErrorCodes.unknown]: "Unknown Error",
+  [ErrorCodes.generationFailed]: "Generation Failed",
+  [ErrorCodes.invalidSelection]: "Invalid Selection",
+  [ErrorCodes.missingSnippet]: "No Code Selected",
+  [ErrorCodes.missingProvider]: "Provider Not Available",
+  [ErrorCodes.invalidConfiguration]: "Invalid Configuration",
+  [ErrorCodes.missingCommand]: "Command Not Found",
+  [ErrorCodes.apiKeyMissing]: "API Key Required",
+  [ErrorCodes.apiKeyInvalid]: "Invalid API Key",
+  [ErrorCodes.invalidModel]: "Model Not Available",
+  [ErrorCodes.providerDisabled]: "Provider Disabled",
+  [ErrorCodes.customFieldMissing]: "Custom Field Missing",
+  [ErrorCodes.providerNotConfigured]: "Provider Not Configured",
+  [ErrorCodes.validationFailed]: "Validation Failed",
+  [ErrorCodes.noApiKeysConfigured]: "No API Keys Configured",
+} as const;

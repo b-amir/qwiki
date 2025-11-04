@@ -16,7 +16,7 @@ export interface ValidationResult {
 export function useSettingsNavigationGuard(
   wiki: ReturnType<typeof useWikiStore>,
   settings: ReturnType<typeof useSettingsStore>,
-  providerConfigs: Ref<Array<{ id: string; name: string }>>,
+  providerConfigs: Ref<Array<{ id: string; name: string; apiKeyUrl?: string }>>,
   getApiKeyInput: (providerId: string) => string,
   validating: Ref<boolean>,
   lastValidationValid: Ref<boolean | null>,
@@ -121,6 +121,14 @@ export function useSettingsNavigationGuard(
         "Enter the API key in any provider's API Key field",
         "You need at least one API key for the extension to work",
       ];
+
+      const providerLinks = providerConfigs.value
+        .filter((p) => p.apiKeyUrl)
+        .map((p) => `${p.name}: ${p.apiKeyUrl}`);
+
+      if (providerLinks.length > 0) {
+        suggestions.push(...providerLinks);
+      }
 
       const errorInfo = {
         message: errorMessage,

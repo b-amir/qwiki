@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, provide, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
-import ValidationErrors from "@/components/features/ValidationErrors.vue";
 import ProviderConfigItem from "@/components/features/ProviderConfigItem.vue";
 import ErrorModal from "@/components/features/ErrorModal.vue";
 import { useWikiStore } from "@/stores/wiki";
@@ -368,47 +367,6 @@ onBeforeUnmount(() => {
               LLM Provider
             </h3>
           </div>
-
-          <div
-            v-if="navigationGuard.showSuccessMessage.value"
-            class="rounded-lg border border-emerald-500/30 bg-emerald-50/50 p-3 sm:p-4 dark:bg-emerald-950/20"
-          >
-            <div class="flex items-start gap-2 sm:items-center sm:gap-3">
-              <svg
-                class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 sm:mt-0 sm:h-5 sm:w-5 dark:text-emerald-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <div class="min-w-0 flex-1">
-                <p
-                  class="break-words text-sm font-semibold leading-snug text-emerald-900 sm:text-[0.875rem] dark:text-emerald-100"
-                >
-                  Settings saved successfully
-                </p>
-                <p
-                  class="mt-0.5 break-words text-xs leading-normal text-emerald-700 sm:text-xs dark:text-emerald-300"
-                >
-                  Your configuration has been validated and saved.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <ValidationErrors
-            v-if="!settings.error"
-            :is-valid="lastValidationValid === true"
-            :show-errors="showValidationErrors"
-            :errors="validationErrors"
-            :warnings="validationWarnings"
-          />
 
           <div class="space-y-2 sm:space-y-3 md:space-y-4">
             <ProviderConfigItem

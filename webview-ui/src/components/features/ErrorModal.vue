@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useNavigation } from "@/composables/useNavigation";
 import { useErrorCategory } from "@/composables/useErrorCategory";
+import { ErrorTitles } from "@/utilities/errorMessages";
 import Modal from "@/components/ui/Modal.vue";
 import ModalHeader from "@/components/ui/ModalHeader.vue";
 import ModalContent from "@/components/ui/ModalContent.vue";
@@ -75,6 +76,32 @@ const errorDetails = computed(() => {
 
   return parts.length > 0 ? parts.join("\n\n") : null;
 });
+
+const displayErrorCode = computed(() => {
+  if (!props.errorCode) return undefined;
+
+  return ErrorTitles[props.errorCode] || props.errorCode;
+});
+
+const parsedSuggestions = computed(() => {
+  if (!props.suggestions) return [];
+
+  return props.suggestions.map((suggestion) => {
+    const urlMatch = suggestion.match(/^(.+?):\s*(https?:\/\/.+)$/);
+    if (urlMatch) {
+      return {
+        text: urlMatch[1],
+        url: urlMatch[2],
+        isLink: true,
+      };
+    }
+    return {
+      text: suggestion,
+      url: undefined,
+      isLink: false,
+    };
+  });
+});
 </script>
 
 <template>
@@ -85,8 +112,8 @@ const errorDetails = computed(() => {
           <h2 class="text-base font-semibold capitalize sm:text-lg">
             {{ errorCategory.replace("-", " ") }} Error
           </h2>
-          <div v-if="errorCode" class="text-muted-foreground mt-1 text-xs">
-            <span class="font-mono">{{ errorCode }}</span>
+          <div v-if="displayErrorCode" class="text-muted-foreground mt-1 text-xs">
+            <span class="font-mono">{{ displayErrorCode }}</span>
           </div>
         </div>
       </ModalHeader>
@@ -99,17 +126,26 @@ const errorDetails = computed(() => {
             </p>
           </div>
 
-          <div v-if="suggestions && suggestions.length > 0" class="space-y-2">
+          <div v-if="parsedSuggestions && parsedSuggestions.length > 0" class="space-y-2">
             <h4 class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
               Suggestions
             </h4>
             <ul class="space-y-1.5">
               <li
-                v-for="(suggestion, index) in suggestions"
+                v-for="(suggestion, index) in parsedSuggestions"
                 :key="index"
                 class="text-muted-foreground text-sm leading-relaxed"
               >
-                • {{ suggestion }}
+                <span v-if="!suggestion.isLink">• {{ suggestion.text }}</span>
+                <a
+                  v-else
+                  :href="suggestion.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary hover:text-primary/80 hover:underline"
+                >
+                  • {{ suggestion.text }}
+                </a>
               </li>
             </ul>
           </div>
