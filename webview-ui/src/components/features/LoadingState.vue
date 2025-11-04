@@ -1,6 +1,11 @@
 <template>
-  <div class="loading-container flex h-full w-full items-center justify-center">
-    <div :class="['loading-content', 'w-full', 'max-w-md', { 'single-step': isSingleStep }]">
+  <div class="flex h-full w-full items-center justify-center px-3 sm:px-6">
+    <div
+      :class="[
+        'w-full max-w-md',
+        { 'flex !w-auto !max-w-none items-center justify-center': isSingleStep },
+      ]"
+    >
       <DynamicSkeleton
         :steps="resolvedSteps"
         :current-step="resolvedCurrentStep"
@@ -56,22 +61,3 @@ const resolvedDensity = computed<LoadingDensity>(() => {
 
 const isSingleStep = computed(() => resolvedSteps.value.length === 1);
 </script>
-
-<style scoped>
-.loading-container {
-  padding-left: clamp(1rem, 4vw, 4rem);
-  padding-right: clamp(1rem, 4vw, 4rem);
-}
-
-.loading-content {
-  width: 100%;
-}
-
-.loading-content.single-step {
-  width: auto !important;
-  max-width: none !important;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-</style>

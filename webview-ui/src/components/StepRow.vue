@@ -2,21 +2,24 @@
   <div
     ref="rowRef"
     :class="[
-      'step-row',
-      state,
-      { center: isCenter },
-      completedDepth ? `depth-${completedDepth}` : '',
-      pendingDepth ? `depth-${pendingDepth}` : '',
+      'flex min-h-[28px] items-center gap-1.5 transition-[gap,opacity] duration-[180ms] ease-out',
+      state === 'completed' && 'gap-1 opacity-85 sm:gap-1.5',
+      state === 'completed' && completedDepth === 1 && 'opacity-85 blur-[0.2px]',
+      state === 'completed' && completedDepth === 2 && 'opacity-70 blur-[0.5px]',
+      state === 'completed' && completedDepth === 3 && 'opacity-55 blur-[0.8px]',
+      state === 'active' && 'gap-2 sm:gap-2.5',
+      state === 'pending' && 'gap-1.5 sm:gap-2',
+      state === 'pending' && pendingDepth === 1 && 'opacity-85 blur-[0.2px]',
+      state === 'pending' && pendingDepth === 2 && 'opacity-70 blur-[0.5px]',
+      state === 'pending' && pendingDepth === 3 && 'opacity-55 blur-[0.8px]',
     ]"
   >
     <div
       :class="[
-        'step-icon',
-        {
-          active: state === 'active',
-          completed: state === 'completed',
-          placeholder: state === 'pending',
-        },
+        'inline-flex h-4 w-4 flex-shrink-0 items-center justify-center transition-colors duration-200 ease-out sm:h-5 sm:w-5',
+        state === 'active' && 'text-primary animate-[iconPulse_1.2s_ease-in-out_infinite]',
+        state === 'completed' && 'text-muted-foreground',
+        state === 'pending' && 'text-transparent',
       ]"
     >
       <template v-if="state === 'active'">
@@ -26,18 +29,21 @@
         <StepCheckIcon />
       </template>
       <template v-else>
-        <span class="pending-dot" aria-hidden="true"></span>
+        <span
+          class="bg-border h-1.5 w-1.5 flex-shrink-0 rounded-sm opacity-40 sm:h-[7px] sm:w-[7px] sm:rounded-[1.5px]"
+          aria-hidden="true"
+        ></span>
       </template>
     </div>
 
-    <div class="step-text-container min-w-0 flex-1">
+    <div class="min-w-0 flex-1 overflow-hidden">
       <span
         v-if="state !== 'pending'"
         :class="[
-          'step-text transition-colors',
+          'inline-block w-full overflow-hidden text-ellipsis whitespace-nowrap transition-colors',
           state === 'completed'
-            ? 'text-muted-foreground completed-text'
-            : 'text-foreground active-text',
+            ? 'text-muted-foreground text-[0.6875rem] font-medium leading-4 tracking-[-0.005em] sm:text-xs'
+            : 'text-foreground animate-[textPulse_1.4s_ease-in-out_infinite] text-[0.8125rem] font-semibold leading-4 sm:text-sm',
         ]"
       >
         {{ text }}
@@ -72,113 +78,6 @@ defineExpose({
 </script>
 
 <style scoped>
-.step-row {
-  display: flex;
-  align-items: center;
-  gap: clamp(0.375rem, 1vw, 0.5rem);
-  min-height: clamp(28px, 8vw, 32px);
-  transition:
-    gap 180ms ease,
-    opacity 180ms ease;
-}
-
-.step-row.completed {
-  gap: clamp(0.25rem, 0.75vw, 0.375rem);
-  opacity: 0.85;
-}
-
-.step-row.completed.depth-1 {
-  opacity: 0.85;
-  filter: blur(0.2px);
-}
-.step-row.completed.depth-2 {
-  opacity: 0.7;
-  filter: blur(0.5px);
-}
-.step-row.completed.depth-3 {
-  opacity: 0.55;
-  filter: blur(0.8px);
-}
-
-.step-row.active {
-  gap: clamp(0.5rem, 1.25vw, 0.625rem);
-}
-
-.step-row.pending {
-  gap: clamp(0.375rem, 1vw, 0.5rem);
-}
-
-.step-row.pending.depth-1 {
-  opacity: 0.85;
-  filter: blur(0.2px);
-}
-.step-row.pending.depth-2 {
-  opacity: 0.7;
-  filter: blur(0.5px);
-}
-.step-row.pending.depth-3 {
-  opacity: 0.55;
-  filter: blur(0.8px);
-}
-
-.step-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: clamp(16px, 4vw, 20px);
-  height: clamp(16px, 4vw, 20px);
-  flex-shrink: 0;
-  transition: color 0.2s ease;
-}
-
-.step-icon.active {
-  color: var(--primary, var(--vscode-textLink-foreground));
-  animation: iconPulse 1.2s ease-in-out infinite;
-}
-
-.step-icon.completed {
-  color: var(--muted-foreground, var(--vscode-descriptionForeground));
-}
-
-.step-icon.placeholder {
-  color: transparent;
-}
-
-.pending-dot {
-  width: clamp(6px, 1.5vw, 7px);
-  height: clamp(6px, 1.5vw, 7px);
-  border-radius: clamp(1px, 0.25vw, 1.5px);
-  background: var(--border, var(--vscode-widget-border));
-  opacity: 0.4;
-  flex-shrink: 0;
-}
-
-.step-text-container {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.step-text {
-  display: inline-block;
-  line-height: clamp(1rem, 3vw, 1.25rem);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  width: 100%;
-}
-
-.completed-text {
-  font-size: clamp(0.6875rem, 2vw, 0.75rem);
-  letter-spacing: -0.005em;
-  font-weight: 500;
-}
-
-.active-text {
-  font-size: clamp(0.8125rem, 2.5vw, 0.875rem);
-  font-weight: 600;
-  animation: textPulse 1.4s ease-in-out infinite;
-}
-
 @keyframes iconPulse {
   0% {
     transform: scale(1);

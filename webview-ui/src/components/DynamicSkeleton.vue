@@ -1,7 +1,10 @@
 <template>
-  <div ref="wrapperEl" class="step-wrapper">
-    <div ref="viewportEl" class="viewport">
-      <div class="step-track" :style="trackStyle">
+  <div ref="wrapperEl" class="box-border h-full w-full overflow-visible p-3 sm:p-4">
+    <div ref="viewportEl" class="relative h-full w-full overflow-visible">
+      <div
+        class="flex min-h-full flex-col gap-1.5 py-1.5 transition-transform duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform sm:gap-2 sm:py-2"
+        :style="trackStyle"
+      >
         <StepRow
           v-for="(item, index) in visibleStepStates"
           :key="item.step.key"
@@ -76,30 +79,3 @@ const trackStyle = computed(() => {
   } as Record<string, string>;
 });
 </script>
-
-<style scoped>
-.step-wrapper {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  padding: clamp(0.75rem, 2vw, 1rem);
-  box-sizing: border-box;
-}
-
-.viewport {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.step-track {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(0.375rem, 1vw, 0.5rem);
-  will-change: transform;
-  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
-  min-height: 100%;
-  padding: clamp(0.375rem, 1vw, 0.5rem) 0;
-}
-</style>

@@ -1,5 +1,8 @@
 <template>
-  <div class="skeleton-line" :style="style"></div>
+  <div
+    class="h-4 max-w-full animate-[skeletonShimmer_0.9s_cubic-bezier(0.2,0.6,0.35,1)_infinite] rounded sm:h-5 sm:rounded-md"
+    :style="style"
+  ></div>
 </template>
 
 <script setup lang="ts">
@@ -9,11 +12,8 @@ defineProps<{
 </script>
 
 <style scoped>
-.skeleton-line {
-  height: clamp(1rem, 3vw, 1.25rem);
-  border-radius: clamp(0.25rem, 0.5vw, 0.375rem);
+div {
   width: min(calc(var(--skeleton-ch) * 1ch), 100%);
-  max-width: 100%;
   --skeleton-base: color-mix(in oklab, var(--vscode-widget-border, var(--border)) 80%, transparent);
   --skeleton-highlight: color-mix(
     in oklab,
@@ -29,7 +29,6 @@ defineProps<{
     var(--skeleton-base) 100%
   );
   background-size: 220% 100%;
-  animation: skeletonShimmer 0.9s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
 }
 
 @keyframes skeletonShimmer {

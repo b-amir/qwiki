@@ -171,14 +171,19 @@ watch(
   <div v-if="isSettingsLoading" class="flex h-full w-full">
     <LoadingState context="settings" />
   </div>
-  <div v-else class="settings-shell mx-auto max-w-3xl space-y-8">
-    <section class="providers-section border-border bg-background rounded-2xl border shadow-sm">
-      <div class="space-y-6">
-        <div class="settings-header flex flex-col gap-2">
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
+  <div
+    v-else
+    class="mx-auto w-full max-w-3xl space-y-4 p-3 sm:space-y-6 sm:p-4 md:space-y-8 md:p-6"
+  >
+    <section class="border-border bg-background mb-4 rounded-2xl border shadow-sm sm:mb-6 md:mb-8">
+      <div class="space-y-4 px-3 py-3 sm:space-y-6 sm:px-4 sm:py-4 md:space-y-6 md:px-6 md:py-5">
+        <div
+          class="flex flex-col gap-2 px-3 pb-3 pt-3 sm:gap-2.5 sm:px-4 sm:pb-4 sm:pt-4 md:gap-3 md:px-6 md:pb-5 md:pt-6"
+        >
+          <div class="space-y-1 sm:space-y-1.5">
+            <div class="flex items-center gap-2 sm:gap-2.5 md:gap-3">
               <svg
-                class="settings-icon text-foreground"
+                class="text-foreground h-4 w-4 flex-shrink-0 sm:h-5 sm:w-5 md:h-6 md:w-6"
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -192,15 +197,19 @@ watch(
                 <path d="M12 12L4 7.5" stroke="currentColor" stroke-width="2" />
                 <path d="M20 7.5L12 12" stroke="currentColor" stroke-width="2" />
               </svg>
-              <h2 class="settings-title text-foreground font-semibold">Providers</h2>
+              <h2
+                class="text-foreground text-sm font-semibold leading-snug sm:text-base md:text-lg lg:text-xl"
+              >
+                Providers
+              </h2>
             </div>
-            <p class="settings-description text-muted-foreground">
+            <p class="text-muted-foreground text-xs leading-relaxed sm:text-sm md:text-sm">
               Choose the models and credentials that power your wiki.
             </p>
           </div>
           <span
             v-if="settings.loadingProviders"
-            class="text-muted-foreground text-xs font-medium uppercase tracking-wide"
+            class="text-muted-foreground text-xs font-medium uppercase tracking-wide sm:text-xs"
           >
             Refreshing providers
           </span>
@@ -215,15 +224,17 @@ watch(
           <LoadingState context="settings" />
         </div>
 
-        <div v-else class="space-y-4">
+        <div v-else class="space-y-3 sm:space-y-4 md:space-y-5">
           <div
-            class="settings-actions flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between md:gap-3"
           >
-            <h3 class="text-muted-foreground text-xs font-semibold uppercase tracking-wide">
+            <h3
+              class="text-muted-foreground text-xs font-semibold uppercase tracking-wide sm:text-xs md:text-sm"
+            >
               LLM Provider
             </h3>
             <button
-              class="validate-button text-primary hover:text-primary/80 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              class="text-primary hover:text-primary/80 whitespace-nowrap text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:text-right sm:text-xs md:text-sm"
               :disabled="validating"
               :aria-busy="validating ? 'true' : 'false'"
               @click="validateCurrentConfiguration"
@@ -239,7 +250,7 @@ watch(
             :warnings="validationWarnings"
           />
 
-          <div class="space-y-3">
+          <div class="space-y-2 sm:space-y-3 md:space-y-4">
             <ProviderConfigItem
               v-for="provider in providerConfigs"
               :key="provider.id"
@@ -260,80 +271,10 @@ watch(
       </div>
 
       <footer
-        class="settings-footer border-border bg-muted/10 text-muted-foreground border-t text-xs"
+        class="border-border bg-muted/10 text-muted-foreground break-words border-t px-3 py-2.5 text-xs leading-relaxed sm:px-4 sm:py-3 sm:text-xs md:px-6 md:py-4 md:text-sm"
       >
         Keys are stored securely in VS Code Secret Storage.
       </footer>
     </section>
   </div>
 </template>
-
-<style scoped>
-.settings-shell {
-  padding-left: clamp(1rem, 3vw, 1.5rem);
-  padding-right: clamp(1rem, 3vw, 1.5rem);
-  padding-top: clamp(1.5rem, 4vw, 2.5rem);
-  padding-bottom: clamp(1.5rem, 4vw, 2.5rem);
-  gap: clamp(1.5rem, 4vw, 2rem);
-}
-
-.providers-section {
-  margin-bottom: clamp(2rem, 5vw, 3rem);
-}
-
-section > div:not(.settings-header) {
-  padding-left: clamp(1rem, 3vw, 1.5rem);
-  padding-right: clamp(1rem, 3vw, 1.5rem);
-  padding-top: clamp(0.75rem, 2vw, 1rem);
-  padding-bottom: clamp(0.75rem, 2vw, 1rem);
-}
-
-.settings-header {
-  padding-left: clamp(1rem, 3vw, 1.5rem);
-  padding-right: clamp(1rem, 3vw, 1.5rem);
-  padding-top: clamp(1rem, 3vw, 1.5rem);
-  padding-bottom: clamp(0.75rem, 2vw, 1rem);
-}
-
-.settings-icon {
-  width: clamp(18px, 4vw, 20px);
-  height: clamp(18px, 4vw, 20px);
-  flex-shrink: 0;
-}
-
-.settings-title {
-  font-size: clamp(0.9375rem, 2.5vw, 1.125rem);
-  line-height: 1.4;
-}
-
-.settings-description {
-  font-size: clamp(0.6875rem, 2vw, 0.75rem);
-  line-height: 1.5;
-}
-
-.settings-actions {
-  min-width: 0;
-}
-
-.validate-button {
-  white-space: nowrap;
-  text-align: left;
-}
-
-@media (min-width: 640px) {
-  .validate-button {
-    text-align: right;
-  }
-}
-
-.settings-footer {
-  padding-left: clamp(1rem, 3vw, 1.5rem);
-  padding-right: clamp(1rem, 3vw, 1.5rem);
-  padding-top: clamp(0.75rem, 2vw, 1rem);
-  padding-bottom: clamp(0.75rem, 2vw, 1rem);
-  font-size: clamp(0.6875rem, 2vw, 0.75rem);
-  line-height: 1.5;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-</style>

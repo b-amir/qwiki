@@ -9,11 +9,13 @@ defineProps<Props>();
 <template>
   <div
     v-if="errors.length > 0"
-    class="validation-errors-box border-destructive/30 bg-destructive/5 rounded-lg border shadow-sm"
+    class="border-destructive/30 bg-destructive/5 rounded-lg border p-3 shadow-sm sm:p-4"
   >
-    <div class="validation-errors-header mb-3 flex items-center gap-2 sm:mb-4 sm:gap-2.5">
+    <div
+      class="border-destructive/20 mb-3 flex items-center gap-2 border-b pb-2 sm:mb-4 sm:gap-2.5 sm:pb-3"
+    >
       <svg
-        class="validation-errors-icon text-destructive h-4 w-4 shrink-0 sm:h-5 sm:w-5"
+        class="text-destructive h-4 w-4 shrink-0 sm:h-5 sm:w-5"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -25,19 +27,17 @@ defineProps<Props>();
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
         />
       </svg>
-      <h4 class="validation-errors-title text-destructive font-semibold">
-        Configuration Errors ({{ errors.length }})
-      </h4>
+      <h4 class="text-destructive font-semibold">Configuration Errors ({{ errors.length }})</h4>
     </div>
-    <ul class="validation-errors-list space-y-2.5 sm:space-y-3">
+    <ul class="m-0 list-none space-y-2.5 p-0 sm:space-y-3">
       <li
         v-for="(error, index) in errors"
         :key="index"
-        class="validation-error-item border-destructive/20 bg-destructive/5 rounded-lg border"
+        class="border-destructive/20 bg-destructive/5 rounded-lg border p-2.5 sm:p-3.5"
       >
         <div class="flex items-start gap-2 sm:gap-3">
           <svg
-            class="validation-error-icon text-destructive mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5"
+            class="text-destructive mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -51,21 +51,23 @@ defineProps<Props>();
           </svg>
           <div class="min-w-0 flex-1 space-y-1.5">
             <div class="flex flex-wrap items-start gap-2">
-              <p class="validation-error-message text-destructive font-medium leading-relaxed">
+              <p
+                class="text-destructive break-words text-sm font-medium leading-relaxed sm:text-[0.9375rem]"
+              >
                 {{ typeof error === "string" ? error : error.message }}
               </p>
             </div>
             <div
               v-if="typeof error === 'object' && (error.field || error.code)"
-              class="validation-error-meta text-muted-foreground flex flex-wrap items-center gap-2 text-xs sm:gap-3"
+              class="flex min-w-0 flex-wrap items-center gap-2 text-xs sm:gap-3"
             >
               <span
                 v-if="error.field"
-                class="validation-error-field bg-destructive/10 rounded-md px-2 py-0.5 font-mono text-xs"
+                class="bg-destructive/10 rounded-md px-2 py-0.5 font-mono text-xs"
               >
                 {{ error.field }}
               </span>
-              <span v-if="error.code" class="validation-error-code">Code: {{ error.code }}</span>
+              <span v-if="error.code" class="text-muted-foreground">Code: {{ error.code }}</span>
             </div>
           </div>
         </div>
@@ -73,38 +75,3 @@ defineProps<Props>();
     </ul>
   </div>
 </template>
-
-<style scoped>
-.validation-errors-box {
-  padding: clamp(0.75rem, 2vw, 1rem);
-}
-
-.validation-errors-header {
-  padding-bottom: clamp(0.5rem, 1.5vw, 0.75rem);
-  border-bottom: 1px solid var(--border-destructive, rgba(239, 68, 68, 0.2));
-}
-
-.validation-errors-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.validation-error-item {
-  padding: clamp(0.625rem, 1.75vw, 0.875rem);
-}
-
-.validation-error-message {
-  font-size: clamp(0.8125rem, 2.1vw, 0.9375rem);
-}
-
-.validation-error-meta {
-  min-width: 0;
-}
-
-.validation-error-badge {
-  font-size: clamp(0.625rem, 1.75vw, 0.75rem);
-  max-width: 100%;
-  min-width: 0;
-}
-</style>

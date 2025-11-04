@@ -16,11 +16,11 @@ defineProps<Props>();
   <div>
     <div
       v-if="isValid && !showErrors"
-      class="validation-success rounded-lg border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20"
+      class="rounded-lg border border-emerald-500/30 bg-emerald-50/50 p-3 sm:p-4 dark:bg-emerald-950/20"
     >
       <div class="flex items-start gap-2 sm:items-center sm:gap-3">
         <svg
-          class="validation-icon h-4 w-4 shrink-0 text-emerald-600 sm:h-5 sm:w-5 dark:text-emerald-400"
+          class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 sm:mt-0 sm:h-5 sm:w-5 dark:text-emerald-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -33,10 +33,14 @@ defineProps<Props>();
           />
         </svg>
         <div class="min-w-0 flex-1">
-          <p class="validation-title text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+          <p
+            class="break-words text-sm font-semibold leading-snug text-emerald-900 sm:text-[0.875rem] dark:text-emerald-100"
+          >
             Configuration is valid
           </p>
-          <p class="validation-description mt-0.5 text-xs text-emerald-700 dark:text-emerald-300">
+          <p
+            class="mt-0.5 break-words text-xs leading-normal text-emerald-700 sm:text-xs dark:text-emerald-300"
+          >
             Your provider configuration has been validated successfully.
           </p>
         </div>
@@ -45,44 +49,10 @@ defineProps<Props>();
 
     <div
       v-if="showErrors && (errors.length > 0 || warnings.length > 0)"
-      class="validation-errors-container space-y-3 sm:space-y-4"
+      class="min-w-0 space-y-3 sm:space-y-4"
     >
       <ValidationErrorList :errors="errors" />
       <ValidationWarningList :warnings="warnings" />
     </div>
   </div>
 </template>
-
-<style scoped>
-.validation-success {
-  padding: clamp(0.75rem, 2vw, 1rem);
-}
-
-.validation-icon {
-  margin-top: 0.125rem;
-}
-
-@media (min-width: 640px) {
-  .validation-icon {
-    margin-top: 0;
-  }
-}
-
-.validation-title {
-  font-size: clamp(0.8125rem, 2.5vw, 0.875rem);
-  line-height: 1.4;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-.validation-description {
-  font-size: clamp(0.6875rem, 2vw, 0.75rem);
-  line-height: 1.5;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-.validation-errors-container {
-  min-width: 0;
-}
-</style>

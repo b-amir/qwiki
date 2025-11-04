@@ -109,6 +109,28 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
 </script>
 
 <template>
+  <svg style="position: absolute; width: 0; height: 0" aria-hidden="true">
+    <defs>
+      <linearGradient id="qwikiAnimatedGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color: #8b5cf6">
+          <animate
+            attributeName="stop-color"
+            values="#8B5CF6;#3B82F6;#8B5CF6"
+            dur="6s"
+            repeatCount="indefinite"
+          />
+        </stop>
+        <stop offset="100%" style="stop-color: #3b82f6">
+          <animate
+            attributeName="stop-color"
+            values="#3B82F6;#8B5CF6;#3B82F6"
+            dur="2s"
+            repeatCount="indefinite"
+          />
+        </stop>
+      </linearGradient>
+    </defs>
+  </svg>
   <main class="bg-background flex h-full w-full flex-col">
     <TopBar />
 
@@ -194,10 +216,5 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-}
-
-.settings-page-container {
-  padding-top: 0;
-  padding-bottom: 0;
 }
 </style>
