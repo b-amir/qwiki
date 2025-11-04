@@ -50,6 +50,9 @@ export class LLMRegistry {
         const providerId = key.replace("provider.", "");
         const providerConfig = value as ProviderConfiguration;
 
+        const provider = this.providers.get(providerId);
+        const providerName = provider?.name || providerConfig.name;
+
         const customFields = providerConfig.customFields
           ? Object.entries(providerConfig.customFields).map(([key, value]) => ({
               id: key,
@@ -62,7 +65,7 @@ export class LLMRegistry {
 
         providerConfigs.push({
           id: providerId,
-          name: providerConfig.name,
+          name: providerName,
           apiKeyUrl: "",
           apiKeyInput: "",
           additionalInfo: customFields?.find((f) => f.id === "description")?.defaultValue,
@@ -83,6 +86,9 @@ export class LLMRegistry {
       return undefined;
     }
 
+    const provider = this.providers.get(providerId);
+    const providerName = provider?.name || providerConfig.name;
+
     const customFields = providerConfig.customFields
       ? Object.entries(providerConfig.customFields).map(([key, value]) => ({
           id: key,
@@ -95,7 +101,7 @@ export class LLMRegistry {
 
     return {
       id: providerConfig.id,
-      name: providerConfig.name,
+      name: providerName,
       apiKeyUrl: "",
       apiKeyInput: "",
       additionalInfo: customFields?.find((f) => f.id === "description")?.defaultValue,

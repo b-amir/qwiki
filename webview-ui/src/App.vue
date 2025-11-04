@@ -26,6 +26,9 @@ const settings = useSettingsStore();
 const environment = useEnvironmentStore();
 const navigationStatus = useNavigationStatusStore();
 
+vscode.postMessage({ command: "webviewReady" });
+vscode.postMessage({ command: "getProviders" });
+
 wiki.init();
 settings.init();
 environment.init();

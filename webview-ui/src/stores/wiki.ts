@@ -195,9 +195,7 @@ export const useWikiStore = defineStore("wiki", {
 
       window.addEventListener("message", handleMessage);
 
-      vscode.postMessage({ command: "webviewReady" });
       vscode.postMessage({ command: "getSelection" });
-      vscode.postMessage({ command: "getProviders" });
       vscode.postMessage({ command: "getRelated" });
 
       setTimeout(() => {

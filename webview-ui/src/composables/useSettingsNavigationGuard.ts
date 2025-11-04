@@ -78,6 +78,7 @@ export function useSettingsNavigationGuard(
     };
 
     await waitForSaving();
+    await settings.flushPendingTimers();
     await settings.waitForPendingOperations(3000);
     await waitForApiKeysRefresh();
   };

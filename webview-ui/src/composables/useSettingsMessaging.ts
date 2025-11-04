@@ -110,12 +110,6 @@ export function useSettingsMessaging(
     if (messageHandler) {
       window.addEventListener("message", messageHandler);
     }
-
-    setTimeout(() => {
-      if (centralizedProviderConfigs.value.length === 0) {
-        logger.error("Provider configs not received within timeout");
-      }
-    }, 15000);
   };
 
   const cleanup = () => {

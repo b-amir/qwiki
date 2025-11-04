@@ -53,7 +53,7 @@ export function useProviderConfigs(
       if (existing) {
         mergedProviders.set(config.id, {
           ...existing,
-          name: config.name || existing.name,
+          name: existing.name,
           apiKeyUrl: config.apiKeyUrl,
           apiKeyInput: config.apiKeyInput,
           additionalInfo: config.additionalInfo,
@@ -66,7 +66,7 @@ export function useProviderConfigs(
         const wikiProvider = wikiMap.get(config.id);
         mergedProviders.set(config.id, {
           id: config.id,
-          name: config.name,
+          name: wikiProvider?.name || config.name,
           apiKeyUrl: config.apiKeyUrl,
           apiKeyInput: config.apiKeyInput,
           additionalInfo: config.additionalInfo,

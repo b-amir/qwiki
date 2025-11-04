@@ -368,9 +368,7 @@ export const useSettingsStore = defineStore("settings", {
 
       try {
         logger.debug("Sending initialization messages");
-        vscode.postMessage({ command: "webviewReady" });
         vscode.postMessage({ command: "getApiKeys" });
-        vscode.postMessage({ command: "getProviders" });
         vscode.postMessage({ command: "getConfigurationTemplates" });
         vscode.postMessage({ command: "getConfigurationBackups" });
         loadingStore.advance({ context: "settings", step: "fetching" });
@@ -777,6 +775,30 @@ export const useSettingsStore = defineStore("settings", {
       }
       this.autoSaveTimers = {};
       this.deleteTimers = {};
+    },
+    async flushPendingTimers(): Promise<void> {
+      const pendingOperations: Promise<void>[] = [];
+
+      for (const [providerId, timerId] of Object.entries(this.autoSaveTimers)) {
+        clearTimeout(timerId);
+        const apiKey = this.apiKeyInputs[providerId];
+        if (apiKey) {
+          pendingOperations.push(this.saveApiKey(providerId, apiKey));
+        }
+      }
+
+      for (const [providerId, timerId] of Object.entries(this.deleteTimers)) {
+        clearTimeout(timerId);
+        pendingOperations.push(this.deleteApiKey(providerId));
+      }
+
+      this.autoSaveTimers = {};
+      this.deleteTimers = {};
+
+      if (pendingOperations.length > 0) {
+        logger.debug(`Flushing ${pendingOperations.length} pending timer operations`);
+        await Promise.all(pendingOperations);
+      }
     },
     cancelPendingActions() {
       this.loading = false;

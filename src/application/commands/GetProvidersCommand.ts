@@ -66,63 +66,59 @@ export class GetProvidersCommand implements Command<void> {
       const statusesStartTime = Date.now();
       this.logDebug("Processing provider statuses");
 
+      const providerIds = list.map((p) => (typeof p.id === "string" ? p.id : String(p.id || "")));
+      const apiKeyChecks = await Promise.allSettled(
+        providerIds.map(async (providerId) => {
+          const hasSecretKey = await this.apiKeyRepository.has(providerId as ProviderId);
+          const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+          const hasConfigKey = Boolean(providerConfig?.apiKey);
+          return { providerId, hasKey: hasSecretKey || hasConfigKey };
+        }),
+      );
+
+      const apiKeyMap = new Map<string, boolean>();
+      apiKeyChecks.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          apiKeyMap.set(result.value.providerId, result.value.hasKey);
+        } else {
+          apiKeyMap.set(providerIds[index], false);
+        }
+      });
+
       const statuses = await Promise.allSettled(
         list.map(async (p) => {
           const providerProcessStartTime = Date.now();
           let providerId = "";
           let providerName = "";
           let models: string[] = [];
-          let hasKey = false;
 
           try {
             providerId = typeof p.id === "string" ? p.id : String(p.id || "");
-            providerName = typeof p.name === "string" ? p.name : String(p.name || "");
 
-            try {
+            const provider = this.llmRegistry.getProvider(providerId as ProviderId);
+            if (provider) {
+              providerName = provider.name;
+              try {
+                const providerModels = provider.listModels?.() || [];
+                if (Array.isArray(providerModels) && providerModels.length > 0) {
+                  models = providerModels.filter(
+                    (m): m is string => typeof m === "string" && m.length > 0,
+                  );
+                }
+              } catch (error) {
+                this.logError(`Error getting models for provider ${providerId}`, error);
+              }
+            } else {
+              providerName = typeof p.name === "string" ? p.name : String(p.name || "");
               const initialModels = p.models || [];
               if (Array.isArray(initialModels)) {
                 models = initialModels.filter(
                   (m): m is string => typeof m === "string" && m.length > 0,
                 );
               }
-            } catch (error) {
-              this.logError(
-                `Error processing initial models for provider ${providerId} after ${Date.now() - providerProcessStartTime}ms`,
-                error,
-              );
             }
 
-            try {
-              const provider = this.llmRegistry.getProvider(providerId as ProviderId);
-              if (provider) {
-                const providerModels = provider.listModels?.() || [];
-                if (Array.isArray(providerModels) && providerModels.length > 0) {
-                  const validModels = providerModels.filter(
-                    (m): m is string => typeof m === "string" && m.length > 0,
-                  );
-                  if (validModels.length > 0) {
-                    models = validModels;
-                  }
-                }
-              }
-            } catch (error) {
-              this.logError(
-                `Error getting models for provider ${providerId} after ${Date.now() - providerProcessStartTime}ms`,
-                error,
-              );
-            }
-
-            try {
-              const hasSecretKey = await this.apiKeyRepository.has(providerId as ProviderId);
-              const providerConfig = await this.configurationManager.getProviderConfig(providerId);
-              const hasConfigKey = Boolean(providerConfig?.apiKey);
-              hasKey = hasSecretKey || hasConfigKey;
-            } catch (error) {
-              this.logError(
-                `Error checking API key status for provider ${providerId} after ${Date.now() - providerProcessStartTime}ms`,
-                error,
-              );
-            }
+            const hasKey = apiKeyMap.get(providerId) || false;
 
             const providerProcessEndTime = Date.now();
             this.logDebug(
