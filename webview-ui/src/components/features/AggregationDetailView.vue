@@ -97,7 +97,7 @@ const formatSize = (bytes: number) => {
           <h3 class="mb-2 font-semibold">{{ wiki.title }}</h3>
           <div class="text-muted-foreground mb-2 text-xs">{{ wiki.filePath }}</div>
           <div class="prose prose-sm max-w-none">
-            <div class="text-sm" v-html="wiki.content.substring(0, 500) + '...'"></div>
+            <div class="text-sm">{{ wiki.content.substring(0, 500) }}...</div>
           </div>
         </div>
       </div>

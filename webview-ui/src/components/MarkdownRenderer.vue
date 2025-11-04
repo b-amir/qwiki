@@ -2,11 +2,11 @@
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import MarkdownIt from "markdown-it";
 import { vscode } from "@/utilities/vscode";
-import { loadLanguage, highlightCode } from "@/utils/highlightLoader";
+import { hljs, ensureLanguageLoaded } from "@/utilities/highlightLanguageLoader";
+import { detectLanguagesInMarkdown, detectCodeBlocks } from "@/utilities/markdownLanguageDetector";
 
 const props = defineProps<{ content: string }>();
 const container = ref<HTMLElement | null>(null);
-const languagesLoading = ref<Set<string>>(new Set());
 
 const commonLanguages = [
   "typescript",
@@ -31,27 +31,43 @@ const commonLanguages = [
   "jsx",
 ];
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function highlightCode(str: string, lang: string | null): string {
+  try {
+    if (lang) {
+      const normalized = lang.toLowerCase().trim();
+      const langDef = hljs.getLanguage(normalized);
+      if (langDef) {
+        return `<pre class="hljs"><code>${hljs.highlight(str, { language: normalized, ignoreIllegals: true }).value}</code></pre>`;
+      }
+    }
+
+    try {
+      const autoResult = hljs.highlightAuto(str);
+      if (autoResult && autoResult.value) {
+        return `<pre class="hljs"><code>${autoResult.value}</code></pre>`;
+      }
+    } catch {}
+
+    return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
+  } catch {
+    return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
+  }
+}
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
-  highlight(str: string, lang?: string): string {
-    try {
-      if (lang) {
-        const normalizedLang = lang.toLowerCase().trim();
-        if (normalizedLang && !languagesLoading.value.has(normalizedLang)) {
-          languagesLoading.value.add(normalizedLang);
-          loadLanguage(normalizedLang).catch(() => {
-            languagesLoading.value.delete(normalizedLang);
-          });
-        }
-      }
-      const highlighted = highlightCode(str, lang);
-      return `<pre class="hljs"><code>${highlighted}</code></pre>`;
-    } catch {
-      return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`;
-    }
-  },
+  highlight: highlightCode,
 });
 
 function linkifyFiles(input: string): string {
@@ -95,27 +111,30 @@ async function render() {
       content = String(content || "");
     }
     content = content.replace(/^#\s+.+$/m, "");
-    const linked = linkifyFiles(content);
 
-    const codeBlockRegex = /```(\w+)?[\r\n][\s\S]*?```/g;
-    const codeBlocks = linked.match(codeBlockRegex);
-    if (codeBlocks) {
-      const languagesToLoad = new Set<string>();
-      for (const block of codeBlocks) {
-        const langMatch = block.match(/```(\w+)/);
-        if (langMatch && langMatch[1]) {
-          const lang = langMatch[1].toLowerCase().trim();
-          if (lang && lang.length > 0) {
-            languagesToLoad.add(lang);
-          }
-        }
-      }
-      if (languagesToLoad.size > 0) {
-        await Promise.all(
-          Array.from(languagesToLoad).map((lang) => loadLanguage(lang).catch(() => {})),
-        );
-      }
+    const languages = detectLanguagesInMarkdown(content);
+    const codeBlocks = detectCodeBlocks(content);
+
+    const languagesToLoad = new Set<string>();
+    for (const lang of languages) {
+      languagesToLoad.add(lang);
     }
+
+    const hasUntaggedBlocks = codeBlocks.some((block) => !block.lang);
+    if (hasUntaggedBlocks || codeBlocks.length === 0) {
+      languagesToLoad.add("javascript");
+      languagesToLoad.add("typescript");
+      languagesToLoad.add("css");
+      languagesToLoad.add("json");
+      languagesToLoad.add("html");
+      languagesToLoad.add("xml");
+      languagesToLoad.add("bash");
+    }
+
+    const loadPromises = Array.from(languagesToLoad).map((lang) => ensureLanguageLoaded(lang));
+    await Promise.all(loadPromises);
+
+    const linked = linkifyFiles(content);
 
     container.value.innerHTML = md.render(linked);
   }
@@ -159,7 +178,7 @@ function handleLinkClicks(e: MouseEvent) {
 }
 
 onMounted(async () => {
-  await Promise.all(commonLanguages.map((lang) => loadLanguage(lang).catch(() => {})));
+  await Promise.all(commonLanguages.map((lang) => ensureLanguageLoaded(lang)));
   container.value?.addEventListener("click", handleLinkClicks);
   await render();
 });

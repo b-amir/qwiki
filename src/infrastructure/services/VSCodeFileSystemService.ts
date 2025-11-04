@@ -28,14 +28,25 @@ export class VSCodeFileSystemService {
     });
   }
 
-  async readFile(filePath: string): Promise<string> {
+  async readFile(filePath: string, skipSanitization: boolean = false): Promise<string> {
+    let sanitizedPath = filePath;
+
+    if (!skipSanitization) {
+      const { PathSanitizer } = await import("../../utilities/pathSanitizer");
+      const sanitizationResult = PathSanitizer.sanitizePath(filePath);
+      if (!sanitizationResult.isValid) {
+        throw new Error(`Invalid file path: ${sanitizationResult.warnings.join(", ")}`);
+      }
+      sanitizedPath = sanitizationResult.sanitized;
+    }
+
     try {
-      const uri = Uri.file(filePath);
+      const uri = Uri.file(sanitizedPath);
       const bytes = await workspace.fs.readFile(uri);
       return Buffer.from(bytes).toString("utf-8");
     } catch (error) {
-      this.logger.error(`Failed to read file ${filePath}`, error);
-      throw new Error(`Failed to read file ${filePath}: ${error}`);
+      this.logger.error(`Failed to read file ${sanitizedPath}`, error);
+      throw new Error(`Failed to read file ${sanitizedPath}: ${error}`);
     }
   }
 
@@ -75,14 +86,29 @@ export class VSCodeFileSystemService {
     });
   }
 
-  async writeFile(filePath: string, content: string): Promise<void> {
+  async writeFile(
+    filePath: string,
+    content: string,
+    skipSanitization: boolean = false,
+  ): Promise<void> {
+    let sanitizedPath = filePath;
+
+    if (!skipSanitization) {
+      const { PathSanitizer } = await import("../../utilities/pathSanitizer");
+      const sanitizationResult = PathSanitizer.sanitizePath(filePath);
+      if (!sanitizationResult.isValid) {
+        throw new Error(`Invalid file path: ${sanitizationResult.warnings.join(", ")}`);
+      }
+      sanitizedPath = sanitizationResult.sanitized;
+    }
+
     try {
-      const uri = Uri.file(filePath);
+      const uri = Uri.file(sanitizedPath);
       await workspace.fs.writeFile(uri, Buffer.from(content, "utf-8"));
-      this.invalidateStatCache(filePath);
+      this.invalidateStatCache(sanitizedPath);
     } catch (error) {
-      this.logger.error(`Failed to write file ${filePath}`, error);
-      throw new Error(`Failed to write file ${filePath}: ${error}`);
+      this.logger.error(`Failed to write file ${sanitizedPath}`, error);
+      throw new Error(`Failed to write file ${sanitizedPath}: ${error}`);
     }
   }
 

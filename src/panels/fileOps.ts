@@ -6,6 +6,7 @@ import {
   PathStrings,
   VSCodeCommands,
 } from "../constants";
+import { PathSanitizer } from "../utilities/pathSanitizer";
 
 export async function tryOpenFile(path: string, line?: number) {
   try {
@@ -13,6 +14,13 @@ export async function tryOpenFile(path: string, line?: number) {
       window.showWarningMessage(MessageTemplates.cannotResolvePath(String(path || "")));
       return false;
     }
+
+    const sanitizationResult = PathSanitizer.sanitizePath(path);
+    if (!sanitizationResult.isValid) {
+      window.showWarningMessage(`Invalid file path: ${sanitizationResult.warnings.join(", ")}`);
+      return false;
+    }
+    path = sanitizationResult.sanitized;
     const folders = workspace.workspaceFolders;
     let targetUri: Uri | undefined;
     const cleaned = path.replace(PathPatterns.currentDirRegex, "");

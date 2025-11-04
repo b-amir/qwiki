@@ -27,7 +27,7 @@ export class ProviderFileSystemService {
         throw new Error(`Manifest file not found: ${manifestPath}`);
       }
 
-      const manifestContent = await this.vscodeFileSystem.readFile(manifestPath);
+      const manifestContent = await this.vscodeFileSystem.readFile(manifestPath, true);
       const manifest = JSON.parse(manifestContent);
 
       if (!this.isValidManifest(manifest)) {
@@ -62,7 +62,7 @@ export class ProviderFileSystemService {
         return { isValid: false, errors, warnings };
       }
 
-      const fileContent = await this.vscodeFileSystem.readFile(filePath);
+      const fileContent = await this.vscodeFileSystem.readFile(filePath, true);
 
       if (filePath.endsWith(".js") || filePath.endsWith(".ts")) {
         if (fileContent.includes("eval(") || fileContent.includes("Function(")) {
@@ -141,7 +141,7 @@ export class ProviderFileSystemService {
 
   async calculateChecksum(filePath: string): Promise<string> {
     try {
-      const fileContent = await this.vscodeFileSystem.readFile(filePath);
+      const fileContent = await this.vscodeFileSystem.readFile(filePath, true);
       return crypto.createHash("sha256").update(fileContent).digest("hex");
     } catch (error) {
       throw new Error(`Failed to calculate checksum for ${filePath}: ${error}`);
@@ -150,7 +150,7 @@ export class ProviderFileSystemService {
 
   private async validateManifestFile(manifestPath: string): Promise<ValidationResult> {
     try {
-      const manifestContent = await this.vscodeFileSystem.readFile(manifestPath);
+      const manifestContent = await this.vscodeFileSystem.readFile(manifestPath, true);
       const manifest = JSON.parse(manifestContent);
 
       return this.validateManifestStructure(manifest);
@@ -234,14 +234,18 @@ export class ProviderFileSystemService {
     };
 
     const manifestPath = path.join(providerDir, "manifest.json");
-    await this.vscodeFileSystem.writeFile(manifestPath, JSON.stringify(manifestTemplate, null, 2));
+    await this.vscodeFileSystem.writeFile(
+      manifestPath,
+      JSON.stringify(manifestTemplate, null, 2),
+      true,
+    );
 
     if (templatePath) {
       const templateExists = await this.vscodeFileSystem.fileExists(templatePath);
       if (templateExists) {
-        const templateContent = await this.vscodeFileSystem.readFile(templatePath);
+        const templateContent = await this.vscodeFileSystem.readFile(templatePath, true);
         const indexPath = path.join(providerDir, "index.js");
-        await this.vscodeFileSystem.writeFile(indexPath, templateContent);
+        await this.vscodeFileSystem.writeFile(indexPath, templateContent, true);
       }
     }
 

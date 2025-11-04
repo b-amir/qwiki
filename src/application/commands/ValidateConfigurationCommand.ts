@@ -22,6 +22,7 @@ export class ValidateConfigurationCommand implements Command<ValidateConfigurati
         validationResult = this.configurationValidator.validateProviderConfig(
           payload.providerId,
           payload.config,
+          undefined,
         );
       } else {
         validationResult = this.configurationValidator.validateGlobalConfig(payload.config);

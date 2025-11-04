@@ -97,6 +97,28 @@ export class ConfigurationValidationEngineService {
     }
   }
 
+  addProviderValidationRules(providerId: string, rules: ValidationRule[]): void {
+    for (const rule of rules) {
+      const ruleId = `${providerId}-${rule.id}`;
+      this.rules.set(ruleId, { ...rule, id: ruleId });
+      this.statistics.totalRules++;
+      if (rule.enabled) {
+        this.statistics.enabledRules++;
+      }
+    }
+  }
+
+  getProviderRules(providerId: string): ValidationRule[] {
+    const prefix = `${providerId}-`;
+    const providerRules: ValidationRule[] = [];
+    for (const [ruleId, rule] of this.rules) {
+      if (ruleId.startsWith(prefix)) {
+        providerRules.push(rule);
+      }
+    }
+    return providerRules.sort((a, b) => a.priority - b.priority);
+  }
+
   removeValidationRule(ruleId: string): void {
     const rule = this.rules.get(ruleId);
     if (rule) {
@@ -150,7 +172,11 @@ export class ConfigurationValidationEngineService {
     };
   }
 
-  validateProviderConfig(providerId: string, config: any): ValidationResult {
+  validateProviderConfig(
+    providerId: string,
+    config: any,
+    availableModels?: string[],
+  ): ValidationResult {
     const context: ValidationContext = {
       configuration: config,
       providerId,
@@ -164,7 +190,35 @@ export class ConfigurationValidationEngineService {
       dependencies: [],
     };
 
-    return this.validateConfiguration(config, emptySchema, context);
+    const baseResult = this.validateConfiguration(config, emptySchema, context);
+
+    if (config.model && availableModels && availableModels.length > 0) {
+      const modelErrors: ValidationError[] = [];
+      const modelWarnings: ValidationWarning[] = [];
+
+      if (typeof config.model !== "string") {
+        modelErrors.push({
+          field: "model",
+          code: "MODEL_INVALID_TYPE",
+          message: "Model must be a string",
+          severity: "error",
+        });
+      } else if (!availableModels.includes(config.model)) {
+        modelWarnings.push({
+          field: "model",
+          code: "MODEL_NOT_IN_LIST",
+          message: `Model "${config.model}" is not in the provider's available models. Available models: ${availableModels.slice(0, 5).join(", ")}${availableModels.length > 5 ? "..." : ""}`,
+        });
+      }
+
+      return {
+        isValid: baseResult.isValid && modelErrors.length === 0,
+        errors: [...baseResult.errors, ...modelErrors],
+        warnings: [...baseResult.warnings, ...modelWarnings],
+      };
+    }
+
+    return baseResult;
   }
 
   validateGlobalConfig(config: any): ValidationResult {

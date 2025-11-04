@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from "vue";
 import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
@@ -10,8 +10,11 @@ import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
 import ReadmeConfirmDialog from "@/components/features/ReadmeConfirmDialog.vue";
 import Button from "@/components/ui/button.vue";
+import SearchInput from "@/components/ui/SearchInput.vue";
+import EmptyState from "@/components/ui/EmptyState.vue";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
+import { useDebouncedRef } from "@/composables/useDebouncedRef";
 import type { ReadmePreview } from "../../../../src/domain/entities/ReadmeUpdate";
 
 interface SavedWiki {
@@ -27,11 +30,12 @@ const vscode = useVscode();
 const logger = createLogger("SavedWikisPage");
 const navigationStatus = useNavigationStatusStore();
 const wikiStore = useWikiStore();
-const savedWikis = ref<SavedWiki[]>([]);
+const savedWikis = shallowRef<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const errorModalOpen = ref(false);
 const searchQuery = ref("");
+const debouncedSearchQuery = useDebouncedRef(searchQuery, 300);
 const previewWiki = ref<SavedWiki | null>(null);
 const updateReadmeState = ref<"idle" | "loading" | "done">("idle");
 const undoReadmeState = ref<"idle" | "loading">("idle");
@@ -59,17 +63,26 @@ const { currentPage } = useNavigation();
 let hasLoadedOnce = false;
 
 const filteredWikis = computed(() => {
-  if (!searchQuery.value.trim()) {
+  if (!debouncedSearchQuery.value.trim()) {
     return savedWikis.value;
   }
 
-  const query = searchQuery.value.toLowerCase();
-  return savedWikis.value.filter(
-    (wiki) =>
-      wiki.title.toLowerCase().includes(query) ||
-      wiki.content.toLowerCase().includes(query) ||
-      wiki.tags.some((tag) => tag.toLowerCase().includes(query)),
-  );
+  const queryLower = debouncedSearchQuery.value.toLowerCase();
+  const wikis = savedWikis.value;
+  const result: SavedWiki[] = [];
+
+  for (let i = 0; i < wikis.length; i++) {
+    const wiki = wikis[i];
+    if (
+      wiki.title.toLowerCase().includes(queryLower) ||
+      wiki.content.toLowerCase().includes(queryLower) ||
+      wiki.tags.some((tag) => tag.toLowerCase().includes(queryLower))
+    ) {
+      result.push(wiki);
+    }
+  }
+
+  return result;
 });
 
 const groupedWikis = computed(() => {
@@ -306,12 +319,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full flex-col">
     <div class="border-border flex-shrink-0 border-b px-4 py-4">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Search wikis..."
-        class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-      />
+      <SearchInput v-model="searchQuery" placeholder="Search wikis..." />
     </div>
 
     <div class="flex-1 overflow-hidden">
@@ -319,29 +327,18 @@ onBeforeUnmount(() => {
         <LoadingState context="savedWikis" />
       </div>
 
-      <div
+      <EmptyState
         v-else-if="filteredWikis.length === 0"
-        class="flex h-full w-full flex-col items-center justify-center px-4 py-6"
-      >
-        <div class="text-center">
-          <div class="text-foreground mb-2 text-lg font-medium">
-            {{ searchQuery ? "No wikis found" : "No saved wikis yet" }}
-          </div>
-          <div class="text-muted-foreground mb-4 text-sm">
-            {{
-              searchQuery
-                ? "Try a different search term."
-                : "Generate and save some wikis to see them here."
-            }}
-          </div>
-          <button
-            class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
-            @click="() => loadSavedWikis(true)"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
+        :title="debouncedSearchQuery ? 'No wikis found' : 'No saved wikis yet'"
+        :description="
+          debouncedSearchQuery
+            ? 'Try a different search term.'
+            : 'Generate and save some wikis to see them here.'
+        "
+        :show-action="!debouncedSearchQuery"
+        action-text="Refresh"
+        @action="() => loadSavedWikis(true)"
+      />
 
       <div v-else class="relative h-full overflow-y-auto">
         <div
@@ -358,6 +355,7 @@ onBeforeUnmount(() => {
             <WikiListItem
               v-for="wiki in wikis"
               :key="wiki.id"
+              v-memo="[wiki.id, wiki.title, wiki.tags.length]"
               :wiki="wiki"
               :selected="false"
               @preview="showPreview"

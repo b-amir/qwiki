@@ -146,7 +146,11 @@ export class LLMRegistry {
       return cachedResult;
     }
 
-    const errorRecoveryService = new ErrorRecoveryService(this.eventBus);
+    const errorRecoveryService = new ErrorRecoveryService(
+      this.eventBus,
+      undefined,
+      this.loggingService,
+    );
 
     try {
       const result = await errorRecoveryService.executeWithRetry(

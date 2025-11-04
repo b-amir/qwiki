@@ -15,7 +15,7 @@ export function getWebviewHtml(webview: Webview, extensionUri: Uri) {
     WebviewPaths.indexJs,
   ]);
   const nonce = getNonce();
-  return `
+  const html = `
       <!DOCTYPE html>
       <html lang="en">
         <head>
@@ -31,4 +31,5 @@ export function getWebviewHtml(webview: Webview, extensionUri: Uri) {
         </body>
       </html>
     `;
+  return html;
 }

@@ -1,7 +1,12 @@
 import type { Command } from "./Command";
-import type { ConfigurationManagerService } from "../services";
+import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
 import type { MessageBusService } from "../services/MessageBusService";
 import { OutboundEvents } from "../../constants/Events";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../../infrastructure/services/LoggingService";
 
 interface SaveApiKeyPayload {
   providerId: string;
@@ -9,31 +14,28 @@ interface SaveApiKeyPayload {
 }
 
 export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
+  private logger: Logger;
+
   constructor(
-    private configManager: ConfigurationManagerService,
+    private apiKeyRepository: ApiKeyRepository,
     private messageBus: MessageBusService,
-  ) {}
+    private loggingService: LoggingService = new LoggingService({
+      enabled: false,
+      level: "error",
+      includeTimestamp: true,
+      includeService: true,
+    }),
+  ) {
+    this.logger = createLogger("SaveApiKeyCommand", loggingService);
+  }
 
   async execute(payload: SaveApiKeyPayload): Promise<void> {
-    const providerConfig = await this.configManager.getProviderConfig(payload.providerId);
-    const updatedConfig = {
-      id: payload.providerId,
-      name: providerConfig?.name || payload.providerId,
-      enabled: providerConfig?.enabled ?? true,
-      apiKey: payload.apiKey,
-      model: providerConfig?.model,
-      temperature: providerConfig?.temperature,
-      maxTokens: providerConfig?.maxTokens,
-      topP: providerConfig?.topP,
-      frequencyPenalty: providerConfig?.frequencyPenalty,
-      presencePenalty: providerConfig?.presencePenalty,
-      customFields: providerConfig?.customFields,
-      rateLimitPerMinute: providerConfig?.rateLimitPerMinute,
-      timeout: providerConfig?.timeout,
-      retryAttempts: providerConfig?.retryAttempts,
-      fallbackProviderIds: providerConfig?.fallbackProviderIds,
-    };
-    await this.configManager.setProviderConfig(payload.providerId, updatedConfig);
+    if (!payload.apiKey || payload.apiKey.trim().length === 0) {
+      this.logger.warn(`Attempted to save empty API key for provider ${payload.providerId}`);
+      return;
+    }
+
+    await this.apiKeyRepository.save(payload.providerId, payload.apiKey);
     this.messageBus.postSuccess(OutboundEvents.apiKeySaved, { providerId: payload.providerId });
   }
 }
