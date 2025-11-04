@@ -1,26 +1,41 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
-import hljs from "highlight.js/lib/common";
 import MarkdownIt from "markdown-it";
 import { vscode } from "@/utilities/vscode";
+import { hljs, ensureLanguageLoaded } from "@/utilities/highlightLanguageLoader";
+import { detectLanguagesInMarkdown } from "@/utilities/markdownLanguageDetector";
 
 const props = defineProps<{ content: string }>();
 const container = ref<HTMLElement | null>(null);
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function highlightCode(str: string, lang: string | null): string {
+  try {
+    if (lang) {
+      const normalized = lang.toLowerCase().trim();
+      if (hljs.getLanguage(normalized)) {
+        return `<pre class="hljs"><code>${hljs.highlight(str, { language: normalized, ignoreIllegals: true }).value}</code></pre>`;
+      }
+    }
+    return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
+  } catch {
+    return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
+  }
+}
 
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
-  highlight(str, lang) {
-    try {
-      if (lang && hljs.getLanguage(lang)) {
-        return `<pre class="hljs"><code>${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
-      }
-      return `<pre class="hljs"><code>${hljs.highlightAuto(str).value}</code></pre>`;
-    } catch (e) {
-      return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`;
-    }
-  },
+  highlight: highlightCode,
 });
 
 function linkifyFiles(input: string): string {
@@ -46,7 +61,6 @@ function linkifyFiles(input: string): string {
       const m = line.match(bracketFileLine);
       if (m) {
         const label = m[1];
-        const after = line.slice(m[0].length);
         const href = `openfile:${encode(label)}`;
         return line.replace(bracketFileLine, `[${label}](${href})`);
       }
@@ -58,13 +72,18 @@ function linkifyFiles(input: string): string {
     .join("\n");
 }
 
-function render() {
+async function render() {
   if (container.value) {
     let content = props.content || "";
     if (typeof content !== "string") {
       content = String(content || "");
     }
     content = content.replace(/^#\s+.+$/m, "");
+
+    const languages = detectLanguagesInMarkdown(content);
+    const loadPromises = Array.from(languages).map((lang) => ensureLanguageLoaded(lang));
+    await Promise.all(loadPromises);
+
     const linked = linkifyFiles(content);
     container.value.innerHTML = md.render(linked);
   }
