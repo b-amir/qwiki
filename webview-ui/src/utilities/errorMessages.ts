@@ -92,7 +92,6 @@ export const ErrorMessages: Record<string, { message: string; suggestion: string
     suggestion: [
       "Go to Settings and select a provider from the available options.",
       "If no providers are available, you may need to configure one with an API key.",
-      "Click on 'Change model' button below to open settings.",
     ],
   },
   [ErrorCodes.MISSING_SNIPPET]: {

@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useNavigation } from "@/composables/useNavigation";
 import { useErrorCategory } from "@/composables/useErrorCategory";
 import { ErrorTitles } from "@/utilities/errorMessages";
+import { getErrorAction } from "@/utilities/errorActions";
 import Modal from "@/components/ui/Modal.vue";
 import ModalHeader from "@/components/ui/ModalHeader.vue";
 import ModalContent from "@/components/ui/ModalContent.vue";
@@ -30,7 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
-const { setPage } = useNavigation();
+const { setPage, currentPage } = useNavigation();
 
 const { category: errorCategory } = useErrorCategory(props.errorCode);
 
@@ -102,11 +103,25 @@ const parsedSuggestions = computed(() => {
     };
   });
 });
+
+const errorAction = computed(() => {
+  return getErrorAction(props.errorCode, currentPage.value);
+});
+
+const handleAction = () => {
+  if (!errorAction.value) return;
+
+  if (errorAction.value.action === "navigate" && errorAction.value.target) {
+    setPage(errorAction.value.target as any);
+  } else if (errorAction.value.action === "none") {
+    handleClose();
+  }
+};
 </script>
 
 <template>
   <Modal v-model="isOpen" max-width="max-w-2xl">
-    <template #default="{ close }">
+    <template #default>
       <ModalHeader @close="handleClose">
         <div class="min-w-0 flex-1">
           <h2 class="text-base font-semibold capitalize sm:text-lg">
@@ -193,10 +208,18 @@ const parsedSuggestions = computed(() => {
             Retry
           </button>
           <button
+            v-if="errorAction"
             class="text-muted-foreground hover:text-foreground rounded px-3 py-1.5 text-xs transition-colors sm:text-sm"
-            @click="setPage('settings')"
+            @click="handleAction"
           >
-            Change model
+            {{ errorAction.label }}
+          </button>
+          <button
+            v-if="!errorAction && (!retryable || !onRetry)"
+            class="text-muted-foreground hover:text-foreground rounded px-3 py-1.5 text-xs transition-colors sm:text-sm"
+            @click="handleClose"
+          >
+            Close
           </button>
         </div>
       </ModalFooter>
