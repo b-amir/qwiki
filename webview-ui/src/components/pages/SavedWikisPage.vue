@@ -14,6 +14,7 @@ import SearchInput from "@/components/ui/SearchInput.vue";
 import EmptyState from "@/components/ui/EmptyState.vue";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
+import { useDebouncedRef } from "@/composables/useDebouncedRef";
 import type { ReadmePreview } from "../../../../src/domain/entities/ReadmeUpdate";
 
 interface SavedWiki {
@@ -34,6 +35,7 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const errorModalOpen = ref(false);
 const searchQuery = ref("");
+const debouncedSearchQuery = useDebouncedRef(searchQuery, 300);
 const previewWiki = ref<SavedWiki | null>(null);
 const updateReadmeState = ref<"idle" | "loading" | "done">("idle");
 const undoReadmeState = ref<"idle" | "loading">("idle");
@@ -61,17 +63,26 @@ const { currentPage } = useNavigation();
 let hasLoadedOnce = false;
 
 const filteredWikis = computed(() => {
-  if (!searchQuery.value.trim()) {
+  if (!debouncedSearchQuery.value.trim()) {
     return savedWikis.value;
   }
 
-  const query = searchQuery.value.toLowerCase();
-  return savedWikis.value.filter(
-    (wiki) =>
-      wiki.title.toLowerCase().includes(query) ||
-      wiki.content.toLowerCase().includes(query) ||
-      wiki.tags.some((tag) => tag.toLowerCase().includes(query)),
-  );
+  const queryLower = debouncedSearchQuery.value.toLowerCase();
+  const wikis = savedWikis.value;
+  const result: SavedWiki[] = [];
+
+  for (let i = 0; i < wikis.length; i++) {
+    const wiki = wikis[i];
+    if (
+      wiki.title.toLowerCase().includes(queryLower) ||
+      wiki.content.toLowerCase().includes(queryLower) ||
+      wiki.tags.some((tag) => tag.toLowerCase().includes(queryLower))
+    ) {
+      result.push(wiki);
+    }
+  }
+
+  return result;
 });
 
 const groupedWikis = computed(() => {
@@ -318,13 +329,13 @@ onBeforeUnmount(() => {
 
       <EmptyState
         v-else-if="filteredWikis.length === 0"
-        :title="searchQuery ? 'No wikis found' : 'No saved wikis yet'"
+        :title="debouncedSearchQuery ? 'No wikis found' : 'No saved wikis yet'"
         :description="
-          searchQuery
+          debouncedSearchQuery
             ? 'Try a different search term.'
             : 'Generate and save some wikis to see them here.'
         "
-        :show-action="!searchQuery"
+        :show-action="!debouncedSearchQuery"
         action-text="Refresh"
         @action="() => loadSavedWikis(true)"
       />
