@@ -10,6 +10,8 @@ import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
 import ReadmeConfirmDialog from "@/components/features/ReadmeConfirmDialog.vue";
 import Button from "@/components/ui/button.vue";
+import SearchInput from "@/components/ui/SearchInput.vue";
+import EmptyState from "@/components/ui/EmptyState.vue";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
 import type { ReadmePreview } from "../../../../src/domain/entities/ReadmeUpdate";
@@ -85,8 +87,6 @@ const groupedWikis = computed(() => {
 
   return groups;
 });
-
-const needsVirtualScrolling = computed(() => filteredWikis.value.length > 50);
 
 const updateReadme = async () => {
   if (filteredWikis.value.length === 0 || updateReadmeState.value === "loading") return;
@@ -308,12 +308,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full flex-col">
     <div class="border-border flex-shrink-0 border-b px-4 py-4">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Search wikis..."
-        class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-      />
+      <SearchInput v-model="searchQuery" placeholder="Search wikis..." />
     </div>
 
     <div class="flex-1 overflow-hidden">
@@ -321,29 +316,18 @@ onBeforeUnmount(() => {
         <LoadingState context="savedWikis" />
       </div>
 
-      <div
+      <EmptyState
         v-else-if="filteredWikis.length === 0"
-        class="flex h-full w-full flex-col items-center justify-center px-4 py-6"
-      >
-        <div class="text-center">
-          <div class="text-foreground mb-2 text-lg font-medium">
-            {{ searchQuery ? "No wikis found" : "No saved wikis yet" }}
-          </div>
-          <div class="text-muted-foreground mb-4 text-sm">
-            {{
-              searchQuery
-                ? "Try a different search term."
-                : "Generate and save some wikis to see them here."
-            }}
-          </div>
-          <button
-            class="text-muted-foreground hover:text-muted-foreground/80 text-sm"
-            @click="() => loadSavedWikis(true)"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
+        :title="searchQuery ? 'No wikis found' : 'No saved wikis yet'"
+        :description="
+          searchQuery
+            ? 'Try a different search term.'
+            : 'Generate and save some wikis to see them here.'
+        "
+        :show-action="!searchQuery"
+        action-text="Refresh"
+        @action="() => loadSavedWikis(true)"
+      />
 
       <div v-else class="relative h-full overflow-y-auto">
         <div
