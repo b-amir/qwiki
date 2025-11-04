@@ -41,7 +41,7 @@ export class DependencyAnalysisService {
 
     let fileContent = "";
     try {
-      fileContent = await this.vscodeFileSystem.readFile(filePath);
+      fileContent = await this.vscodeFileSystem.readFile(filePath, true);
     } catch (error) {
       this.logger.debug(`Failed to read file ${filePath}`, error);
       return { imports: [], exports: [], dependencies: [], dependents: [] };
@@ -101,7 +101,7 @@ export class DependencyAnalysisService {
           if (candidatePath === filePath) continue;
 
           try {
-            const contentStr = await this.vscodeFileSystem.readFile(candidatePath);
+            const contentStr = await this.vscodeFileSystem.readFile(candidatePath, true);
             const candidateImports = this.extractImportsExports(contentStr);
 
             let isDependent = false;

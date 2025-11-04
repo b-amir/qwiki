@@ -87,8 +87,17 @@ export class LogSanitizer {
         sanitized[key] = this.sanitizePath(value as string);
       } else if (key === "pattern" || key === "regex") {
         sanitized[key] = this.sanitizePattern(value as string | RegExp);
-      } else if (key === "deduplicationKey" || key === "groupKey" || key.includes("Key")) {
-        sanitized[key] = typeof value === "string" ? this.sanitizeString(value) : value;
+      } else if (
+        key === "apiKey" ||
+        key === "api_key" ||
+        key === "API_KEY" ||
+        key === "apikey" ||
+        key.toLowerCase().includes("apikey") ||
+        key === "deduplicationKey" ||
+        key === "groupKey" ||
+        key.includes("Key")
+      ) {
+        sanitized[key] = typeof value === "string" ? "[REDACTED]" : value;
       } else if (
         key === "preview" &&
         typeof value === "string" &&

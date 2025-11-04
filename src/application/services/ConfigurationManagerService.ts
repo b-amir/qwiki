@@ -168,11 +168,29 @@ export class ConfigurationManagerService {
   }
 
   async setProviderConfig(providerId: string, config: ProviderConfiguration): Promise<void> {
-    const cacheKey = `provider.${providerId}`;
-    await this.configurationRepository.set(cacheKey, config);
-    this.configCache.set(cacheKey, config);
+    const schema = this.createProviderSchema(providerId);
+    const validationResult = await this.validateConfiguration(config, schema);
 
-    await this.eventBus.publish("providerConfigChanged", { providerId, config });
+    if (!validationResult.isValid) {
+      const errorMessages = validationResult.errors.map((e) => e.message).join(", ");
+      throw new Error(`Invalid provider configuration for ${providerId}: ${errorMessages}`);
+    }
+
+    const cacheKey = `provider.${providerId}`;
+    const configWithoutApiKey = { ...config };
+    if (configWithoutApiKey.apiKey !== undefined) {
+      delete configWithoutApiKey.apiKey;
+      this.logger.warn(
+        `API key in provider config for ${providerId} was removed. API keys must be stored in SecretStorage only.`,
+      );
+    }
+    await this.configurationRepository.set(cacheKey, configWithoutApiKey);
+    this.configCache.set(cacheKey, configWithoutApiKey);
+
+    await this.eventBus.publish("providerConfigChanged", {
+      providerId,
+      config: configWithoutApiKey,
+    });
   }
 
   async getGlobalConfig(): Promise<GlobalConfiguration> {

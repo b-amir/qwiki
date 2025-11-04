@@ -27,7 +27,7 @@ export class ReadmeFileService {
     const readmePath = join(workspaceRoot, this.readmeFileName);
 
     try {
-      return await this.vscodeFileSystem.readFile(readmePath);
+      return await this.vscodeFileSystem.readFile(readmePath, true);
     } catch {
       return "";
     }
@@ -41,7 +41,7 @@ export class ReadmeFileService {
 
     const readmePath = join(workspaceRoot, this.readmeFileName);
 
-    await this.vscodeFileSystem.writeFile(readmePath, content);
+    await this.vscodeFileSystem.writeFile(readmePath, content, true);
   }
 
   getReadmePath(): string | undefined {

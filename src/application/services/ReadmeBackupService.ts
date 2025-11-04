@@ -60,7 +60,7 @@ export class ReadmeBackupService {
       }
     }
 
-    await this.vscodeFileSystem.writeFile(backupPath, readmeContent);
+    await this.vscodeFileSystem.writeFile(backupPath, readmeContent, true);
     this.hasBackup = true;
 
     if (this.eventBus) {
@@ -83,7 +83,7 @@ export class ReadmeBackupService {
     }
 
     try {
-      const content = await this.vscodeFileSystem.readFile(backupPath);
+      const content = await this.vscodeFileSystem.readFile(backupPath, true);
 
       await writeReadme(content);
 

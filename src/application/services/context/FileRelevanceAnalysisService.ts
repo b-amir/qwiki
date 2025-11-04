@@ -53,7 +53,7 @@ export class FileRelevanceAnalysisService {
     let fileContent = "";
     let lastModified = new Date();
     try {
-      fileContent = await this.vscodeFileSystem.readFile(candidatePath);
+      fileContent = await this.vscodeFileSystem.readFile(candidatePath, true);
       const stat = await this.vscodeFileSystem.stat(candidatePath);
       lastModified = stat.mtime ? new Date(stat.mtime) : new Date();
     } catch (error) {
@@ -163,8 +163,8 @@ export class FileRelevanceAnalysisService {
     let content2 = "";
 
     try {
-      content1 = await this.vscodeFileSystem.readFile(file1);
-      content2 = await this.vscodeFileSystem.readFile(file2);
+      content1 = await this.vscodeFileSystem.readFile(file1, true);
+      content2 = await this.vscodeFileSystem.readFile(file2, true);
     } catch {
       return 0;
     }

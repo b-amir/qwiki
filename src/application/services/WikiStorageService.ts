@@ -53,7 +53,7 @@ export class WikiStorageService {
 
     const wikiContent = this.formatWikiContent(title, content, sourceFilePath);
 
-    await this.vscodeFileSystem.writeFile(wikiFilePath, wikiContent);
+    await this.vscodeFileSystem.writeFile(wikiFilePath, wikiContent, true);
 
     const savedWiki: SavedWiki = {
       id: timestamp,
@@ -90,7 +90,7 @@ export class WikiStorageService {
         if (type === 1 && name.endsWith(".md")) {
           try {
             const filePath = join(savedFolderPath, name);
-            const contentStr = await this.vscodeFileSystem.readFile(filePath);
+            const contentStr = await this.vscodeFileSystem.readFile(filePath, true);
             const parsed = this.parseWikiContent(contentStr, filePath);
             wikis.push(parsed);
           } catch (error) {

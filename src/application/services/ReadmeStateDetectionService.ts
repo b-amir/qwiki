@@ -206,7 +206,7 @@ export class ReadmeStateDetectionService {
     hasCustomContent: boolean;
   }> {
     try {
-      const text = await this.vscodeFileSystem.readFile(uri.fsPath);
+      const text = await this.vscodeFileSystem.readFile(uri.fsPath, true);
 
       const hasCustomContent = this.hasNonBoilerplateContent(text);
 

@@ -202,7 +202,8 @@ export class AppBootstrap {
 
     this.container.register(
       "apiKeyRepository",
-      () => new VSCodeApiKeyRepository(this.container.resolve("secrets") as any),
+      () =>
+        new VSCodeApiKeyRepository(this.container.resolve("secrets") as any, this.loggingService),
     );
 
     this.container.register("configurationRepository", () => new VSCodeConfigurationRepository());

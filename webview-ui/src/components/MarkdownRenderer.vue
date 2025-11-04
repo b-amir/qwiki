@@ -3,7 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import MarkdownIt from "markdown-it";
 import { vscode } from "@/utilities/vscode";
 import { hljs, ensureLanguageLoaded } from "@/utilities/highlightLanguageLoader";
-import { detectLanguagesInMarkdown } from "@/utilities/markdownLanguageDetector";
+import { detectLanguagesInMarkdown, detectCodeBlocks } from "@/utilities/markdownLanguageDetector";
 
 const props = defineProps<{ content: string }>();
 const container = ref<HTMLElement | null>(null);
@@ -21,10 +21,19 @@ function highlightCode(str: string, lang: string | null): string {
   try {
     if (lang) {
       const normalized = lang.toLowerCase().trim();
-      if (hljs.getLanguage(normalized)) {
+      const langDef = hljs.getLanguage(normalized);
+      if (langDef) {
         return `<pre class="hljs"><code>${hljs.highlight(str, { language: normalized, ignoreIllegals: true }).value}</code></pre>`;
       }
     }
+
+    try {
+      const autoResult = hljs.highlightAuto(str);
+      if (autoResult && autoResult.value) {
+        return `<pre class="hljs"><code>${autoResult.value}</code></pre>`;
+      }
+    } catch {}
+
     return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
   } catch {
     return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
@@ -81,7 +90,25 @@ async function render() {
     content = content.replace(/^#\s+.+$/m, "");
 
     const languages = detectLanguagesInMarkdown(content);
-    const loadPromises = Array.from(languages).map((lang) => ensureLanguageLoaded(lang));
+    const codeBlocks = detectCodeBlocks(content);
+
+    const languagesToLoad = new Set<string>();
+    for (const lang of languages) {
+      languagesToLoad.add(lang);
+    }
+
+    const hasUntaggedBlocks = codeBlocks.some((block) => !block.lang);
+    if (hasUntaggedBlocks || codeBlocks.length === 0) {
+      languagesToLoad.add("javascript");
+      languagesToLoad.add("typescript");
+      languagesToLoad.add("css");
+      languagesToLoad.add("json");
+      languagesToLoad.add("html");
+      languagesToLoad.add("xml");
+      languagesToLoad.add("bash");
+    }
+
+    const loadPromises = Array.from(languagesToLoad).map((lang) => ensureLanguageLoaded(lang));
     await Promise.all(loadPromises);
 
     const linked = linkifyFiles(content);

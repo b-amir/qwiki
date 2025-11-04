@@ -79,8 +79,9 @@ export class CommandFactory {
 
       case CommandIds.saveApiKey:
         return new SaveApiKeyCommand(
-          container.resolve("configurationManager"),
+          container.resolve("apiKeyRepository"),
           this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.getProviders:

@@ -13,6 +13,8 @@ import {
   type Logger,
 } from "../infrastructure/services/LoggingService";
 import type { WikiStorageService } from "../application/services/WikiStorageService";
+import { getNonce } from "../utilities/getNonce";
+import { getUri } from "../utilities/getUri";
 
 export class WikiCustomEditorProvider implements CustomTextEditorProvider {
   private logger: Logger;
@@ -61,11 +63,13 @@ export class WikiCustomEditorProvider implements CustomTextEditorProvider {
   }
 
   private getWebviewContent(content: string, webview: any): string {
+    const nonce = getNonce();
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:; font-src ${webview.cspSource};">
     <title>Qwiki Editor</title>
     <style>
         body {
@@ -108,12 +112,13 @@ export class WikiCustomEditorProvider implements CustomTextEditorProvider {
 <body>
     <h2>Qwiki Editor</h2>
     <textarea id="editor">${this.escapeHtml(content)}</textarea>
-    <button onclick="save()">Save</button>
+    <button id="save-button">Save</button>
     <div id="preview"></div>
-    <script>
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
         const editor = document.getElementById('editor');
         const preview = document.getElementById('preview');
+        const saveButton = document.getElementById('save-button');
         
         function save() {
             vscode.postMessage({
@@ -121,6 +126,8 @@ export class WikiCustomEditorProvider implements CustomTextEditorProvider {
                 content: editor.value
             });
         }
+        
+        saveButton.addEventListener('click', save);
         
         editor.addEventListener('input', () => {
             preview.innerHTML = marked.parse(editor.value);

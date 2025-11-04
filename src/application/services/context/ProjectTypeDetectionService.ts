@@ -75,7 +75,7 @@ export class ProjectTypeDetectionService {
           if (indicator.pattern === "package.json") {
             try {
               const fileUri = files[0];
-              const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath);
+              const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
               const packageJson = JSON.parse(contentStr);
 
               if (packageJson.dependencies) {
@@ -155,7 +155,7 @@ export class ProjectTypeDetectionService {
           const files = await workspace.findFiles(`**/${essential.path}`, FilePatterns.exclude, 1);
           if (files.length > 0) {
             const fileUri = files[0];
-            const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath);
+            const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
             const tokenCost = this.estimateTokenCount(contentStr);
 
             essentials.push({
@@ -187,7 +187,7 @@ export class ProjectTypeDetectionService {
           const files = await workspace.findFiles(`**/${essential.path}`, FilePatterns.exclude, 1);
           if (files.length > 0) {
             const fileUri = files[0];
-            const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath);
+            const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
             const tokenCost = this.estimateTokenCount(contentStr);
 
             essentials.push({
