@@ -67,7 +67,8 @@ export class ConfigurationValidationEngineService {
 
       if (rule.condition(config, context)) {
         executedCount++;
-        const result = rule.validator(config, context);
+        const fieldValue = rule.field ? this.getFieldValue(config, rule.field) : config;
+        const result = rule.validator(fieldValue, context);
 
         errors.push(...result.errors);
         warnings.push(...result.warnings);
@@ -190,7 +191,55 @@ export class ConfigurationValidationEngineService {
       dependencies: [],
     };
 
-    const baseResult = this.validateConfiguration(config, emptySchema, context);
+    const providerRules = this.getProviderRules(providerId);
+    const providerRuleIds = new Set(providerRules.map((r) => r.id));
+    const providerPrefix = `${providerId}-`;
+    const commonRules = Array.from(this.rules.values()).filter(
+      (rule) =>
+        !rule.id.startsWith(providerPrefix) &&
+        !providerRuleIds.has(rule.id) &&
+        !rule.id.includes("-"),
+    );
+
+    const startTime = Date.now();
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+    let executedCount = 0;
+
+    context.configuration = config;
+    context.schema = emptySchema;
+
+    const allRules = [...providerRules, ...commonRules];
+    for (const rule of allRules) {
+      if (!rule.enabled) continue;
+
+      if (rule.field && !this.hasField(config, rule.field)) {
+        continue;
+      }
+
+      if (rule.condition(config, context)) {
+        executedCount++;
+        const fieldValue = rule.field ? this.getFieldValue(config, rule.field) : config;
+        const result = rule.validator(fieldValue, context);
+
+        errors.push(...result.errors);
+        warnings.push(...result.warnings);
+
+        if (!result.isValid) {
+          this.statistics.failedRules++;
+        }
+      }
+    }
+
+    this.statistics.executedRules += executedCount;
+    const executionTime = Date.now() - startTime;
+    this.updateAverageExecutionTime(executionTime);
+
+    const baseResult: ValidationResult = {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
 
     if (config.model && availableModels && availableModels.length > 0) {
       const modelErrors: ValidationError[] = [];
@@ -249,6 +298,20 @@ export class ConfigurationValidationEngineService {
     }
 
     return current !== undefined;
+  }
+
+  private getFieldValue(config: any, fieldPath: string): any {
+    const parts = fieldPath.split(".");
+    let current = config;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      current = current[part];
+    }
+
+    return current;
   }
 
   private updateAverageExecutionTime(executionTime: number): void {

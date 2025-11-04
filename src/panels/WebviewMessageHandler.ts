@@ -70,12 +70,69 @@ export class WebviewMessageHandler {
               try {
                 const msg = payload?.message ?? "";
                 const level = payload?.level || "debug";
+                const source = payload?.source || "Frontend";
                 const data = payload?.data;
 
+                const spammySources = [
+                  "BatchBridge",
+                  "SettingsMessaging",
+                  "SettingsStore",
+                  "SettingsHandlers",
+                  "SettingsPage",
+                  "useNavigation",
+                  "SettingsInitialization",
+                ];
+
+                const spammyMessagePatterns = [
+                  /Batch received:/i,
+                  /Forwarded \d+ messages/i,
+                  /Batch performance stats/i,
+                  /High latency for/i,
+                  /Message .* processed in \d+ms/i,
+                  /Message batch processed in/i,
+                  /Received capabilities for \d+ providers/i,
+                  /Received \d+ provider configs/i,
+                  /Received \d+ configuration/i,
+                  /Updating API key for provider/i,
+                  /API key update completed in/i,
+                  /Changing provider to/i,
+                  /Provider change completed in/i,
+                  /setPage called/i,
+                  /No navigation guard set/i,
+                  /Navigation guard returned/i,
+                  /Navigation guard triggered/i,
+                  /Settings error watch triggered/i,
+                  /Settings errorInfo watch triggered/i,
+                  /Starting initialization/i,
+                  /Fetching provider data/i,
+                  /Provider data requests sent in/i,
+                  /Total initialization time:/i,
+                  /validateAndNavigate called/i,
+                  /Checking for API keys/i,
+                  /Message listener attached/i,
+                  /Sending initialization messages/i,
+                  /Navigation blocked by guard/i,
+                  /Already on page/i,
+                  /Calling navigation guard for/i,
+                ];
+
+                const isSpammySource = spammySources.includes(source);
+                const isSpammyMessage = spammyMessagePatterns.some((pattern) => pattern.test(msg));
+
                 if (level === "error") {
-                  this.logger.error(`Frontend: ${msg}`, data);
+                  this.loggingService.error(source, msg, data);
                 } else if (level === "warn") {
-                  this.logger.warn(`Frontend: ${msg}`, data);
+                  this.loggingService.warn(source, msg, data);
+                } else if (level === "info") {
+                  if (isSpammySource && isSpammyMessage) {
+                    return;
+                  }
+                  this.loggingService.info(source, msg, data);
+                } else {
+                  if (isSpammySource || isSpammyMessage) {
+                    return;
+                  }
+                  this.loggingService.debug(source, msg, data);
                 }
               } catch (e) {
                 this.logger.warn("Frontend log formatting error");
@@ -113,17 +170,24 @@ export class WebviewMessageHandler {
   }
 
   private handleWebviewReady(): void {
+    this.logger.info("handleWebviewReady called");
     if (this.navigationManager) {
+      this.logger.debug("Setting webview ready on NavigationManager");
       this.navigationManager.setWebviewReady(true);
       this.navigationManager.flushPendingNavigation();
       this.navigationManager.flushPendingSelection();
+    } else {
+      this.logger.warn("NavigationManager not available when webviewReady received");
     }
     if (this.messageBus) {
       try {
+        this.logger.debug("Sending webviewReady success response");
         this.messageBus.postSuccess(Outbound.webviewReady, { ready: true });
       } catch (error) {
         this.logger.error("Exception in handleWebviewReady", error);
       }
+    } else {
+      this.logger.warn("MessageBus not available when webviewReady received");
     }
   }
 
@@ -139,6 +203,9 @@ export class WebviewMessageHandler {
         "getConfigurationTemplates",
         "getConfigurationBackups",
         "getProviderCapabilities",
+        "getSavedWikis",
+        "checkReadmeBackupState",
+        "getProviderConfigs",
       ]);
       if (!ignoreCommands.has(command)) {
         this.logger.debug(`Command ${command} received before registry initialized, ignoring`);

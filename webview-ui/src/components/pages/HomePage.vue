@@ -1,17 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import { useWikiStore } from "@/stores/wiki";
-import { useSettingsStore } from "@/stores/settings";
-import { useEnvironmentStore } from "@/stores/environment";
-import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import Button from "@/components/ui/button.vue";
 import { stepCatalog } from "@/loading/stepCatalog";
 
 const wiki = useWikiStore();
-const settings = useSettingsStore();
-const environment = useEnvironmentStore();
-const navigationStatus = useNavigationStatusStore();
 const { setPage } = useNavigation();
 
 const buttonText = computed(() => {
@@ -20,10 +14,6 @@ const buttonText = computed(() => {
     return step?.text || "Loading...";
   }
   return "Generate Wiki";
-});
-
-onMounted(() => {
-  navigationStatus.finish("wiki");
 });
 </script>
 

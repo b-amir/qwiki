@@ -16,7 +16,10 @@ import { useNavigation } from "@/composables/useNavigation";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 import LoadingState from "@/components/features/LoadingState.vue";
 import { useLoading } from "@/loading/useLoading";
+import { createLogger } from "@/utilities/logging";
+import { vscode } from "@/utilities/vscode";
 
+const logger = createLogger("App");
 const { currentPage } = useNavigation();
 const wiki = useWikiStore();
 const settings = useSettingsStore();
@@ -27,6 +30,75 @@ wiki.init();
 settings.init();
 environment.init();
 useBatchMessageBridge();
+
+watch(
+  () => currentPage.value,
+  (newPage, oldPage) => {
+    logger.info("currentPage changed", { from: oldPage, to: newPage });
+    try {
+      vscode.postMessage({
+        command: "frontendLog",
+        payload: {
+          message: "App: currentPage changed",
+          data: { from: oldPage, to: newPage },
+        },
+      });
+    } catch {}
+  },
+  { immediate: true },
+);
+
+watch(
+  () => ({
+    currentPage: currentPage.value,
+    wikiContent: !!wiki.content,
+    wikiContentLength: wiki.content?.length || 0,
+    wikiLoading: wiki.loading,
+    wikiError: !!wiki.error,
+    wikiErrorMessage: wiki.error || "",
+    environmentLoading: environmentLoading.value,
+    wikiNavigationLoading: wikiNavigationLoading.value,
+    showWikiLoading: showWikiLoading.value,
+    shouldShowHomePage: !wiki.content && !wiki.loading && !wiki.error,
+    environmentStatus: environment.extensionStatus,
+    isEnvironmentReady: environment.isReady,
+  }),
+  (state) => {
+    logger.info("App render state", state);
+    try {
+      vscode.postMessage({
+        command: "frontendLog",
+        payload: {
+          message: "App: render state",
+          data: state,
+        },
+      });
+    } catch {}
+
+    if (state.currentPage === "wiki") {
+      const whichTemplate = state.environmentLoading
+        ? "environmentLoading"
+        : state.wikiNavigationLoading
+          ? "wikiNavigationLoading"
+          : state.showWikiLoading
+            ? "showWikiLoading"
+            : state.shouldShowHomePage
+              ? "HomePage"
+              : "WikiPage";
+      logger.info("Wiki page template branch", { whichTemplate, state });
+      try {
+        vscode.postMessage({
+          command: "frontendLog",
+          payload: {
+            message: "App: Wiki page template branch",
+            data: { whichTemplate, state },
+          },
+        });
+      } catch {}
+    }
+  },
+  { immediate: true, deep: true },
+);
 
 const environmentLoadingContext = useLoading("environment");
 const navigationLoadingContext = useLoading("navigation");
@@ -85,27 +157,77 @@ watch(
 
 const navigationTarget = computed(() => navigationStatus.target);
 
-const environmentLoading = computed(() => environmentLoadingContext.isActive.value);
-const wikiNavigationLoading = computed(
-  () =>
+const environmentLoading = computed(() => {
+  const result = environmentLoadingContext.isActive.value;
+  if (result) {
+    logger.debug("environmentLoading computed", { result });
+  }
+  return result;
+});
+const wikiNavigationLoading = computed(() => {
+  const result =
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "wiki" &&
-    navigationStatus.isBackNavigation,
-);
-const settingsNavigationLoading = computed(
-  () =>
+    navigationStatus.isBackNavigation;
+  if (result) {
+    logger.debug("wikiNavigationLoading computed", {
+      navigationLoadingContextActive: navigationLoadingContext.isActive.value,
+      navigationTarget: navigationTarget.value,
+      isBackNavigation: navigationStatus.isBackNavigation,
+      result,
+    });
+  } else if (
+    !result &&
+    navigationTarget.value === "wiki" &&
+    navigationStatus.isBackNavigation &&
+    navigationStatus.busy
+  ) {
+    navigationStatus.finish("wiki");
+  }
+  return result;
+});
+const settingsNavigationLoading = computed(() => {
+  const result =
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "settings" &&
-    navigationStatus.isBackNavigation,
-);
-const errorHistoryNavigationLoading = computed(
-  () =>
+    navigationStatus.isBackNavigation;
+  if (
+    !result &&
+    navigationTarget.value === "settings" &&
+    navigationStatus.isBackNavigation &&
+    navigationStatus.busy
+  ) {
+    navigationStatus.finish("settings");
+  }
+  return result;
+});
+const errorHistoryNavigationLoading = computed(() => {
+  const result =
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "errorHistory" &&
-    navigationStatus.isBackNavigation,
-);
+    navigationStatus.isBackNavigation;
+  if (
+    !result &&
+    navigationTarget.value === "errorHistory" &&
+    navigationStatus.isBackNavigation &&
+    navigationStatus.busy
+  ) {
+    navigationStatus.finish("errorHistory");
+  }
+  return result;
+});
 
-const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
+const showWikiLoading = computed(() => {
+  const result = wiki.loading || wikiLoadingContext.isActive.value;
+  if (result) {
+    logger.debug("showWikiLoading computed", {
+      wikiLoading: wiki.loading,
+      wikiLoadingContextActive: wikiLoadingContext.isActive.value,
+      result,
+    });
+  }
+  return result;
+});
 </script>
 
 <template>
@@ -136,8 +258,12 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
 
     <div class="flex-1 overflow-auto">
       <div v-if="currentPage === 'wiki'" class="flex h-full flex-col">
-        <LoadingState v-if="environmentLoading" class="flex-1" context="environment" />
-        <LoadingState v-else-if="wikiNavigationLoading" class="flex-1" context="navigation" />
+        <template v-if="wikiNavigationLoading">
+          <LoadingState class="flex-1" context="navigation" />
+          <div class="flex justify-center pb-2">
+            <span class="text-muted-foreground text-xs">Navigation loading...</span>
+          </div>
+        </template>
         <template v-else-if="showWikiLoading">
           <LoadingState class="flex-1" context="wiki" />
           <div class="flex justify-center pb-4">
@@ -150,15 +276,8 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
           </div>
         </template>
         <template v-else>
-          <Suspense>
-            <template #default>
-              <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
-              <WikiPage v-else />
-            </template>
-            <template #fallback>
-              <LoadingState class="flex-1" context="wiki" />
-            </template>
-          </Suspense>
+          <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
+          <WikiPage v-else />
         </template>
       </div>
 
@@ -169,14 +288,7 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
           class="flex-1"
           context="settings"
         />
-        <Suspense v-else>
-          <template #default>
-            <SettingsPage class="flex-1" />
-          </template>
-          <template #fallback>
-            <LoadingState class="flex-1" context="settings" />
-          </template>
-        </Suspense>
+        <SettingsPage v-else class="flex-1" />
       </div>
 
       <div v-else-if="currentPage === 'errorHistory'" class="flex h-full">
@@ -186,25 +298,11 @@ const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActi
           class="flex-1"
           context="errorHistory"
         />
-        <Suspense v-else>
-          <template #default>
-            <ErrorHistoryPage class="flex-1" />
-          </template>
-          <template #fallback>
-            <LoadingState class="flex-1" context="errorHistory" />
-          </template>
-        </Suspense>
+        <ErrorHistoryPage v-else class="flex-1" />
       </div>
 
       <div v-else-if="currentPage === 'savedWikis'" class="flex h-full">
-        <Suspense>
-          <template #default>
-            <SavedWikisPage class="flex-1" />
-          </template>
-          <template #fallback>
-            <LoadingState class="flex-1" context="savedWikis" />
-          </template>
-        </Suspense>
+        <SavedWikisPage class="flex-1" />
       </div>
     </div>
   </main>

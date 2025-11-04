@@ -96,12 +96,6 @@ export class QwikiPanel {
       return;
     }
 
-    this.environmentStatusManager?.setExtensionStatus({
-      ready: true,
-      message: "Qwiki services ready.",
-      reason: "ready",
-    });
-
     try {
       this.errorHandler = this.bootstrap.getErrorHandler() as ErrorHandler;
       this.logInfo("errorHandler retrieved successfully");
@@ -116,6 +110,7 @@ export class QwikiPanel {
   }
 
   public async resolveWebviewView(webviewView: WebviewView) {
+    this.logInfo("resolveWebviewView called - setting up webview");
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
@@ -126,7 +121,9 @@ export class QwikiPanel {
 
     this.view = webviewView;
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
+    this.logInfo("Webview HTML set, creating MessageBus");
     this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
+    this.logInfo("Initializing managers");
     this.initializeManagers(webviewView.webview);
     (async () => {
       try {
@@ -136,7 +133,11 @@ export class QwikiPanel {
         this.setupWikiWatcherListener();
         this.updateWebviewMessageHandler();
       } catch (e) {
-        this.logError("createCommandRegistry failed", e);
+        this.logError("createCommandRegistry failed", {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+          errorType: e?.constructor?.name,
+        });
         this.createFallbackCommandRegistry(webviewView.webview);
       }
     })();
@@ -154,6 +155,7 @@ export class QwikiPanel {
   }
 
   private initializeManagers(webview: any): void {
+    this.logInfo("Creating EnvironmentStatusManager");
     this.environmentStatusManager = new EnvironmentStatusManager(
       this.messageBus,
       this.view,
@@ -173,7 +175,8 @@ export class QwikiPanel {
     });
     this.languageStatusMonitor.startMonitoring();
 
-    this.navigationManager = new NavigationManager(this.messageBus, this.view);
+    this.logInfo("Creating NavigationManager");
+    this.navigationManager = new NavigationManager(this.messageBus, this.view, this.loggingService);
 
     this.webviewMessageHandler = new WebviewMessageHandler(
       webview,
@@ -194,6 +197,42 @@ export class QwikiPanel {
     this.webviewMessageHandler.setupMessageListener();
 
     this.environmentStatusManager.flushEnvironmentStatus();
+
+    const updateStatusWhenReady = () => {
+      this.logInfo("Initialization complete, setting extension status to ready");
+      if (this.environmentStatusManager) {
+        this.environmentStatusManager.setExtensionStatus({
+          ready: true,
+          message: "Qwiki services ready.",
+          reason: "ready",
+        });
+      }
+    };
+
+    const handleInitError = (error: any) => {
+      this.logError("Initialization failed", error);
+      if (this.environmentStatusManager) {
+        this.environmentStatusManager.setExtensionStatus({
+          ready: false,
+          message: "Failed to initialize Qwiki services.",
+          reason: "error",
+        });
+      }
+    };
+
+    this._initPromise.then(updateStatusWhenReady).catch(handleInitError);
+
+    this._initPromise.finally(() => {
+      setTimeout(() => {
+        if (
+          this.environmentStatusManager &&
+          !this.environmentStatusManager.getLatestEnvironmentStatus()?.extension?.ready
+        ) {
+          this.logInfo("Initialization finished but status not set, setting it now");
+          updateStatusWhenReady();
+        }
+      }, 100);
+    });
   }
 
   private updateWebviewMessageHandler(): void {
@@ -206,12 +245,12 @@ export class QwikiPanel {
         this._initPromise,
         this.loggingService,
         async () => {
-        try {
-          await this.cancelActiveGeneration();
-        } catch (error) {
-          this.logError("Failed to cancel active generation", error);
-        }
-      },
+          try {
+            await this.cancelActiveGeneration();
+          } catch (error) {
+            this.logError("Failed to cancel active generation", error);
+          }
+        },
         this.navigationManager,
       );
       this.webviewMessageHandler.setupMessageListener();

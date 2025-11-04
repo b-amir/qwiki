@@ -13,6 +13,7 @@ export const ErrorCodes = {
   customFieldMissing: "error.customFieldMissing",
   providerNotConfigured: "error.providerNotConfigured",
   validationFailed: "error.validationFailed",
+  noApiKeysConfigured: "error.noApiKeysConfigured",
 } as const;
 
 export const ErrorMessages = {
@@ -30,4 +31,5 @@ export const ErrorMessages = {
   [ErrorCodes.customFieldMissing]: "Custom field is missing",
   [ErrorCodes.providerNotConfigured]: "Provider is not configured",
   [ErrorCodes.validationFailed]: "Validation failed",
+  [ErrorCodes.noApiKeysConfigured]: "At least one API key is required for the extension to work",
 } as const;

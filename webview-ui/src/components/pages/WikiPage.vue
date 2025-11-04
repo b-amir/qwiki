@@ -5,14 +5,12 @@ import ErrorModal from "@/components/features/ErrorModal.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import Button from "@/components/ui/button.vue";
 import { useWikiStore } from "@/stores/wiki";
-import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useVscode } from "@/composables/useVscode";
 import { useLoading } from "@/loading/useLoading";
 import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
 const logger = createLogger("WikiPage");
-const navigationStatus = useNavigationStatusStore();
 const vscode = useVscode();
 const wikiLoadingContext = useLoading("wiki");
 const isSaving = ref(false);
@@ -91,8 +89,6 @@ onMounted(() => {
     }
   };
   window.addEventListener("message", messageHandler);
-
-  navigationStatus.finish("wiki");
 });
 
 onBeforeUnmount(() => {

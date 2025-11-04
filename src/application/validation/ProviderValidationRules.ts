@@ -16,20 +16,19 @@ export function createGoogleAIStudioValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value, context) =>
-        context.operation === "create" || context.operation === "update",
+      condition: (value, context) => {
+        if (context.operation !== "create" && context.operation !== "update") return false;
+        return value !== undefined && value !== null && value !== "";
+      },
       validator: (value, context) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
         if (!value || typeof value !== "string" || value.trim().length === 0) {
-          errors.push({
-            field: "apiKey",
-            code: "API_KEY_REQUIRED",
-            message: "Google AI Studio API key is required",
-            severity: "error",
-          });
-        } else if (value.length < 20) {
+          return { isValid: true, errors, warnings };
+        }
+
+        if (value.length < 20) {
           errors.push({
             field: "apiKey",
             code: "API_KEY_TOO_SHORT",
@@ -147,20 +146,19 @@ export function createZAIValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value, context) =>
-        context.operation === "create" || context.operation === "update",
+      condition: (value, context) => {
+        if (context.operation !== "create" && context.operation !== "update") return false;
+        return value !== undefined && value !== null && value !== "";
+      },
       validator: (value, context) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
         if (!value || typeof value !== "string" || value.trim().length === 0) {
-          errors.push({
-            field: "apiKey",
-            code: "API_KEY_REQUIRED",
-            message: "Z.ai API key is required",
-            severity: "error",
-          });
-        } else if (value.length < 10) {
+          return { isValid: true, errors, warnings };
+        }
+
+        if (value.length < 10) {
           errors.push({
             field: "apiKey",
             code: "API_KEY_TOO_SHORT",
@@ -258,20 +256,19 @@ export function createOpenRouterValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value, context) =>
-        context.operation === "create" || context.operation === "update",
+      condition: (value, context) => {
+        if (context.operation !== "create" && context.operation !== "update") return false;
+        return value !== undefined && value !== null && value !== "";
+      },
       validator: (value, context) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
         if (!value || typeof value !== "string" || value.trim().length === 0) {
-          errors.push({
-            field: "apiKey",
-            code: "API_KEY_REQUIRED",
-            message: "OpenRouter API key is required",
-            severity: "error",
-          });
-        } else if (value.length < 20) {
+          return { isValid: true, errors, warnings };
+        }
+
+        if (value.length < 20) {
           errors.push({
             field: "apiKey",
             code: "API_KEY_TOO_SHORT",
@@ -330,20 +327,19 @@ export function createCohereValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value, context) =>
-        context.operation === "create" || context.operation === "update",
+      condition: (value, context) => {
+        if (context.operation !== "create" && context.operation !== "update") return false;
+        return value !== undefined && value !== null && value !== "";
+      },
       validator: (value, context) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
         if (!value || typeof value !== "string" || value.trim().length === 0) {
-          errors.push({
-            field: "apiKey",
-            code: "API_KEY_REQUIRED",
-            message: "Cohere API key is required",
-            severity: "error",
-          });
-        } else if (value.length < 20) {
+          return { isValid: true, errors, warnings };
+        }
+
+        if (value.length < 20) {
           errors.push({
             field: "apiKey",
             code: "API_KEY_TOO_SHORT",
@@ -398,20 +394,19 @@ export function createHuggingFaceValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value, context) =>
-        context.operation === "create" || context.operation === "update",
+      condition: (value, context) => {
+        if (context.operation !== "create" && context.operation !== "update") return false;
+        return value !== undefined && value !== null && value !== "";
+      },
       validator: (value, context) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
         if (!value || typeof value !== "string" || value.trim().length === 0) {
-          errors.push({
-            field: "apiKey",
-            code: "API_KEY_REQUIRED",
-            message: "Hugging Face API key is required",
-            severity: "error",
-          });
-        } else if (value.length < 10) {
+          return { isValid: true, errors, warnings };
+        }
+
+        if (value.length < 10) {
           errors.push({
             field: "apiKey",
             code: "API_KEY_TOO_SHORT",

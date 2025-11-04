@@ -1,6 +1,11 @@
 import type { Webview } from "vscode";
 import { Outbound, Page } from "./constants";
 import { MessageBusService } from "../application/services/MessageBusService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../infrastructure/services/LoggingService";
 
 export type SelectionPayload = {
   text: string;
@@ -13,25 +18,58 @@ export class NavigationManager {
   private _pendingSelection: { payload: SelectionPayload; autoGenerate: boolean } | undefined;
   private _lastSelection: SelectionPayload | undefined;
   private _webviewReady = false;
+  private logger: Logger;
 
   constructor(
     private messageBus: MessageBusService | undefined,
     private view: { webview?: Webview } | undefined,
-  ) {}
+    loggingService?: LoggingService,
+  ) {
+    this.logger = createLogger(
+      "NavigationManager",
+      loggingService ||
+        new LoggingService({
+          enabled: false,
+          level: "error",
+          includeTimestamp: true,
+          includeService: true,
+        }),
+    );
+  }
 
   setWebviewReady(ready: boolean): void {
+    this.logger.info("setWebviewReady called", { ready, hadPendingPage: !!this._pendingPage });
     this._webviewReady = ready;
+    if (ready) {
+      this.flushPendingNavigation();
+    }
   }
 
   queueNavigation(page: Page): void {
+    this.logger.info("queueNavigation called", { page, webviewReady: this._webviewReady });
     this._pendingPage = page;
     this.flushPendingNavigation();
   }
 
   flushPendingNavigation(): void {
+    this.logger.debug("flushPendingNavigation called", {
+      hasPendingPage: !!this._pendingPage,
+      pendingPage: this._pendingPage,
+      webviewReady: this._webviewReady,
+      hasWebview: !!this.view?.webview,
+      hasMessageBus: !!this.messageBus,
+    });
     if (!this._pendingPage || !this._webviewReady || !this.view?.webview) {
+      if (!this._pendingPage) {
+        this.logger.debug("No pending page to flush");
+      } else if (!this._webviewReady) {
+        this.logger.debug("Webview not ready, cannot flush navigation");
+      } else if (!this.view?.webview) {
+        this.logger.debug("No webview available, cannot flush navigation");
+      }
       return;
     }
+    this.logger.info("Flushing navigation", { page: this._pendingPage });
     this.messageBus?.postMessage(Outbound.navigate, { page: this._pendingPage });
     this._pendingPage = undefined;
   }
@@ -60,5 +98,9 @@ export class NavigationManager {
 
   setLastSelection(selection: SelectionPayload | undefined): void {
     this._lastSelection = selection;
+  }
+
+  hasPendingNavigation(): boolean {
+    return !!this._pendingPage;
   }
 }

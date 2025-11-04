@@ -66,4 +66,8 @@ export const ServiceLimits = {
   readmeWikiTruncateLength: 5000,
   readmeWikiTruncateKeepLength: 4000,
   readmeMaxWikisPerUpdate: 20,
+  apiKeySaveDebounceDelay: 1500,
+  apiKeyDeleteDebounceDelay: 3000,
+  apiKeyValidationCacheTTL: 5000,
+  pendingOperationsMaxWait: 3000,
 } as const;

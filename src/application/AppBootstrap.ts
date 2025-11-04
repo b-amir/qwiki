@@ -83,8 +83,16 @@ import { ExtensionContextStorageService } from "../infrastructure/services/Exten
 import { LLMRegistry } from "../llm";
 import { CommandFactory } from "../factories";
 import { EventBusImpl, SelectionEventHandler, WikiEventHandler, type EventBus } from "../events";
-import { OutboundEvents, LoadingContexts } from "../constants";
+import { OutboundEvents } from "../constants";
 import type { ExtensionContext, Webview } from "vscode";
+import {
+  createGoogleAIStudioValidationRules,
+  createZAIValidationRules,
+  createOpenRouterValidationRules,
+  createCohereValidationRules,
+  createHuggingFaceValidationRules,
+  createCommonValidationRules,
+} from "./validation/ProviderValidationRules";
 
 export class AppBootstrap {
   private container = new Container();
@@ -177,12 +185,6 @@ export class AppBootstrap {
     this.container.registerInstance("context", this.context);
     this.container.registerInstance("secrets", this.context.secrets);
 
-    this.container.setLoadingCallback((serviceKey: string, step: string) => {
-      eventBus.publish(OutboundEvents.loadingStep, {
-        context: LoadingContexts.wiki,
-        step: `Initializing ${serviceKey}...`,
-      });
-    });
     this.container.registerInstance(
       "extensionContextStorageService",
       new ExtensionContextStorageService(this.context, loggingService),
@@ -226,10 +228,11 @@ export class AppBootstrap {
         ),
     );
 
-    this.container.register(
-      "configurationValidationEngine",
-      () => new ConfigurationValidationEngineService(),
-    );
+    this.container.register("configurationValidationEngine", () => {
+      const engine = new ConfigurationValidationEngineService();
+      this.initializeValidationRules(engine);
+      return engine;
+    });
 
     this.container.register("configurationValidator", () =>
       this.container.resolve("configurationValidationEngine"),
@@ -891,6 +894,24 @@ export class AppBootstrap {
 
   getErrorHandler() {
     return this.container.resolve("errorHandler");
+  }
+
+  private initializeValidationRules(engine: ConfigurationValidationEngineService): void {
+    engine.addProviderValidationRules("google-ai-studio", createGoogleAIStudioValidationRules());
+    engine.addProviderValidationRules("zai", createZAIValidationRules());
+    engine.addProviderValidationRules("openrouter", createOpenRouterValidationRules());
+    engine.addProviderValidationRules("cohere", createCohereValidationRules());
+    engine.addProviderValidationRules("huggingface", createHuggingFaceValidationRules());
+
+    const commonRules = createCommonValidationRules();
+    for (const rule of commonRules) {
+      engine.addValidationRule(rule);
+    }
+
+    this.logger.debug("Validation rules initialized", {
+      providerRules: 5,
+      commonRules: commonRules.length,
+    });
   }
 
   async dispose(): Promise<void> {

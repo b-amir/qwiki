@@ -4,7 +4,7 @@ import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 
-const { currentPage, setPage } = useNavigation();
+const { currentPage, isValidating, setPage } = useNavigation();
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 
@@ -22,10 +22,10 @@ const wikiTitle = computed(() => {
   return "Wiki";
 });
 
-const goToHomePage = () => {
+const goToHomePage = async () => {
   settings.cancelPendingActions();
   wiki.cancelPendingActions();
-  setPage("wiki", false);
+  await setPage("wiki", false);
 };
 
 const hasWikiContent = computed(() => Boolean(wiki.content || wiki.loading || wiki.error));
@@ -35,6 +35,7 @@ const isHomePage = computed(() => currentPage.value === "wiki" && !hasWikiConten
 const showBorder = computed(() => !isHomePage.value);
 
 const pageTitle = computed(() => {
+  if (isValidating.value) return "validating...";
   if (currentPage.value === "settings") return "Settings";
   if (currentPage.value === "savedWikis") return "Project Wiki Collection";
   if (currentPage.value === "errorHistory") return "Error History";
@@ -44,6 +45,14 @@ const pageTitle = computed(() => {
 
 const buttonClass =
   "text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2";
+
+const navigateToSettings = async () => {
+  await setPage("settings");
+};
+
+const navigateToSavedWikis = async () => {
+  await setPage("savedWikis");
+};
 </script>
 
 <template>
@@ -52,8 +61,34 @@ const buttonClass =
     :class="[isHomePage ? 'justify-end' : 'justify-between pl-3', showBorder ? 'border-b' : '']"
   >
     <div v-if="!isHomePage" class="flex items-center gap-2">
-      <a :class="buttonClass" title="Back to homepage" @click="goToHomePage">
-        <svg class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+      <a
+        :class="[buttonClass, isValidating ? 'cursor-not-allowed opacity-50' : '']"
+        :title="isValidating ? 'Validating...' : 'Back to homepage'"
+        @click="!isValidating && goToHomePage()"
+      >
+        <svg
+          v-if="isValidating"
+          class="h-5 w-5 animate-spin"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+            fill="none"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
+        </svg>
+        <svg v-else class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
           <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" fill="currentColor" />
           <path
             d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"
@@ -65,7 +100,7 @@ const buttonClass =
     </div>
 
     <div class="flex items-center gap-1">
-      <button :class="buttonClass" title="Settings" @click="() => setPage('settings')">
+      <button :class="buttonClass" title="Settings" @click="navigateToSettings">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             stroke-linecap="round"
@@ -75,7 +110,7 @@ const buttonClass =
           />
         </svg>
       </button>
-      <button :class="buttonClass" title="Saved Wikis" @click="() => setPage('savedWikis')">
+      <button :class="buttonClass" title="Saved Wikis" @click="navigateToSavedWikis">
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             stroke-linecap="round"

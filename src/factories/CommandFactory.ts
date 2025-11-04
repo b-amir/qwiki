@@ -18,6 +18,7 @@ import {
   GetConfigurationCommand,
   UpdateConfigurationCommand,
   ValidateConfigurationCommand,
+  ValidateApiKeysCommand,
   ApplyConfigurationTemplateCommand,
   GetConfigurationTemplatesCommand,
   CreateConfigurationBackupCommand,
@@ -81,6 +82,8 @@ export class CommandFactory {
         return new SaveApiKeyCommand(
           container.resolve("apiKeyRepository"),
           this.messageBus,
+          await container.resolveLazy("llmRegistry"),
+          await container.resolveLazy("providerValidationService"),
           this.loggingService,
         ) as Command<T>;
 
@@ -109,6 +112,8 @@ export class CommandFactory {
         return new DeleteApiKeyCommand(
           container.resolve("apiKeyRepository"),
           this.messageBus,
+          await container.resolveLazy("providerValidationService"),
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.getApiKeys:
@@ -147,6 +152,13 @@ export class CommandFactory {
         return new ValidateConfigurationCommand(
           container.resolve("configurationValidator"),
           this.messageBus,
+        ) as Command<T>;
+
+      case CommandIds.validateApiKeys:
+        return new ValidateApiKeysCommand(
+          await container.resolveLazy("providerValidationService"),
+          this.messageBus,
+          this.loggingService,
         ) as Command<T>;
 
       case CommandIds.applyConfigurationTemplate:

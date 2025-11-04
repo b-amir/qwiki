@@ -109,6 +109,14 @@ export class LLMRegistry {
     return this.providers.get(providerId);
   }
 
+  getAllProviders(): Record<string, LLMProvider> {
+    const result: Record<string, LLMProvider> = {};
+    for (const [id, provider] of this.providers.entries()) {
+      result[id] = provider;
+    }
+    return result;
+  }
+
   async generate(providerId: ProviderId, params: GenerateParams): Promise<GenerateResult> {
     const startTime = Date.now();
     const provider = this.providers.get(providerId);

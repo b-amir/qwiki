@@ -2,6 +2,8 @@ import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
 import { createLogger } from "@/utilities/logging";
 import { useLoadingStore } from "./loading";
+import { useErrorHistoryStore } from "./errorHistory";
+import { ApiKeyTimings } from "@/constants/apiKeyTimings";
 
 const logger = createLogger("SettingsStore");
 
@@ -19,6 +21,15 @@ export const useSettingsStore = defineStore("settings", {
     originalApiKeys: {} as Record<string, string>,
     unsavedProviders: new Set<string>(),
     autoSaveTimers: {} as Record<string, number>,
+    deleteTimers: {} as Record<string, number>,
+    pendingApiKeyOperations: {} as Record<string, Promise<"save" | "delete">>,
+    savingStates: {} as Record<string, "saving" | "saved" | "error">,
+    providersRequiringKeys: [] as string[],
+    validationState: {
+      isValidating: false,
+      lastValidationTime: 0,
+      validationCache: {} as Record<string, any>,
+    },
     configurationTemplates: [] as any[],
     availableBackups: [] as any[],
     providerHealthStatus: {} as any,
@@ -26,13 +37,41 @@ export const useSettingsStore = defineStore("settings", {
     validationErrors: [] as string[],
     validationWarnings: [] as string[],
     providerCapabilities: {} as Record<string, any>,
+    providerValidationErrors: {} as Record<
+      string,
+      Array<{ field?: string; code?: string; message: string; severity?: string }>
+    >,
+    error: "",
+    errorInfo: null as {
+      message: string;
+      code?: string;
+      suggestions?: string[];
+      retryable?: boolean;
+      timestamp?: string;
+      context?: string;
+      originalError?: string;
+    } | null,
     loadingPhase: {
       providersResolved: false,
       apiKeysResolved: false,
       preparingAnnounced: false,
       completed: false,
     },
+    initTimeoutId: undefined as number | undefined,
   }),
+  getters: {
+    hasAtLeastOneApiKey(): boolean {
+      if (this.providersRequiringKeys.length === 0) {
+        return true;
+      }
+
+      const allKeys = { ...this.originalApiKeys, ...this.apiKeyInputs };
+      return this.providersRequiringKeys.some((id) => {
+        const key = allKeys[id];
+        return key && key.trim().length > 0;
+      });
+    },
+  },
   actions: {
     async init() {
       if (this.initialized) return;
@@ -40,6 +79,12 @@ export const useSettingsStore = defineStore("settings", {
         logger.debug("Initialization already in progress, skipping");
         return;
       }
+
+      if (this.initTimeoutId) {
+        clearTimeout(this.initTimeoutId);
+        this.initTimeoutId = undefined;
+      }
+
       const initStartTime = Date.now();
       logger.debug("Starting initialization");
       this.loadingPhase = {
@@ -59,7 +104,6 @@ export const useSettingsStore = defineStore("settings", {
       const loadingStore = useLoadingStore();
       loadingStore.start({ context: "settings", step: "loading" });
 
-      let timeoutId: number | undefined;
       const handleMessage = (event: MessageEvent) => {
         const message = event.data;
         const messageStartTime = Date.now();
@@ -93,6 +137,12 @@ export const useSettingsStore = defineStore("settings", {
               this.initialized = true;
               this.loading = false;
               this.loadingPhase.apiKeysResolved = true;
+
+              if (this.initTimeoutId) {
+                clearTimeout(this.initTimeoutId);
+                this.initTimeoutId = undefined;
+              }
+
               this.ensurePreparingPhase(loadingStore);
               this.tryCompleteLoading(loadingStore);
               try {
@@ -102,11 +152,6 @@ export const useSettingsStore = defineStore("settings", {
                 });
               } catch {}
               if (this.loadingPhase.completed) {
-                if ((handleMessage as any).timeoutId) {
-                  clearTimeout((handleMessage as any).timeoutId);
-                }
-                window.removeEventListener("message", handleMessage);
-                this.listenerAttached = false;
                 const initEndTime = Date.now();
                 logger.debug(`Initialization completed in ${initEndTime - initStartTime}ms`);
               }
@@ -123,6 +168,22 @@ export const useSettingsStore = defineStore("settings", {
                 vscode.postMessage({ command: "getProviders" });
                 vscode.postMessage({ command: "getApiKeys" });
               } catch {}
+              return;
+            }
+            case "apiKeyDeleted": {
+              const providerId = message.payload?.providerId;
+              if (providerId) {
+                logger.debug(`API key deleted for provider ${providerId}`);
+                delete this.originalApiKeys[providerId];
+                delete this.apiKeyInputs[providerId];
+                this.unsavedProviders.delete(providerId);
+                delete this.autoSaveTimers[providerId];
+
+                try {
+                  vscode.postMessage({ command: "getProviders" });
+                  vscode.postMessage({ command: "getApiKeys" });
+                } catch {}
+              }
               return;
             }
             case "settingSaved": {
@@ -142,25 +203,40 @@ export const useSettingsStore = defineStore("settings", {
                 this.selectedProvider = withKey?.id || providers[0]?.id || "google-ai-studio";
               }
 
+              this.updateProvidersRequiringKeys(providers);
+
               this.loadingPhase.providersResolved = true;
               this.ensurePreparingPhase(loadingStore);
               this.tryCompleteLoading(loadingStore);
-              if (this.loadingPhase.completed) {
-                if ((handleMessage as any).timeoutId) {
-                  clearTimeout((handleMessage as any).timeoutId);
+              if (this.loadingPhase.completed && this.initialized) {
+                if (this.initTimeoutId) {
+                  clearTimeout(this.initTimeoutId);
+                  this.initTimeoutId = undefined;
                 }
-                window.removeEventListener("message", handleMessage);
-                this.listenerAttached = false;
                 const initEndTime = Date.now();
                 logger.debug(`Initialization completed in ${initEndTime - initStartTime}ms`);
               }
               return;
             }
             case "configurationValidated": {
-              const { isValid, errors = [], warnings = [] } = message.payload || {};
+              const { isValid, errors = [], warnings = [], providerId } = message.payload || {};
               logger.debug(
-                `Configuration validation - Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
+                `Configuration validation - Provider: ${providerId}, Valid: ${isValid}, Errors: ${errors.length}, Warnings: ${warnings.length}`,
               );
+
+              if (providerId) {
+                const formattedErrors = errors.map((e: any) => {
+                  if (typeof e === "string") return { message: e, severity: "error" };
+                  return {
+                    field: e?.field,
+                    code: e?.code,
+                    message: e?.message || e?.error || JSON.stringify(e),
+                    severity: e?.severity || "error",
+                  };
+                });
+                this.providerValidationErrors[providerId] = formattedErrors;
+              }
+
               this.savedMessage = isValid
                 ? "Configuration is valid"
                 : `Configuration validation failed: ${errors.join(", ")}`;
@@ -168,8 +244,10 @@ export const useSettingsStore = defineStore("settings", {
               this.validationWarnings = warnings;
               setTimeout(() => {
                 this.savedMessage = "";
-                this.validationErrors = [];
-                this.validationWarnings = [];
+                if (!providerId) {
+                  this.validationErrors = [];
+                  this.validationWarnings = [];
+                }
               }, 5000);
               return;
             }
@@ -232,6 +310,37 @@ export const useSettingsStore = defineStore("settings", {
               }, 3000);
               return;
             }
+            case "error": {
+              const errorCode = message.payload?.code;
+              logger.debug(`Error received in settings store: ${errorCode}`, {
+                message: message.payload?.message,
+                hasSuggestions: !!(message.payload?.suggestions || message.payload?.suggestion),
+              });
+
+              this.error = message.payload?.message || "Unknown error";
+              const suggestions =
+                message.payload?.suggestions ||
+                (message.payload?.suggestion ? [message.payload.suggestion] : undefined);
+              this.errorInfo = {
+                message: message.payload?.message || "Unknown error",
+                code: message.payload?.code,
+                suggestions,
+                retryable: message.payload?.retryable || false,
+                timestamp: message.payload?.timestamp,
+                context: message.payload?.context,
+                originalError: message.payload?.originalError,
+              };
+
+              const errorHistory = useErrorHistoryStore();
+              errorHistory.addError({
+                ...this.errorInfo,
+                timestamp: message.payload?.timestamp || new Date().toISOString(),
+              });
+
+              logger.debug(`Error set in settings store: ${this.error}`);
+
+              return;
+            }
           }
 
           const messageEndTime = Date.now();
@@ -243,9 +352,13 @@ export const useSettingsStore = defineStore("settings", {
         }
       };
 
-      window.addEventListener("message", handleMessage);
-      this.listenerAttached = true;
-      logger.debug("Message listener attached");
+      if (!this.listenerAttached) {
+        window.addEventListener("message", handleMessage);
+        this.listenerAttached = true;
+        logger.debug("Message listener attached");
+      } else {
+        logger.debug("Message listener already attached, skipping");
+      }
       try {
         vscode.postMessage({
           command: "frontendLog",
@@ -265,17 +378,40 @@ export const useSettingsStore = defineStore("settings", {
         logger.error("Error sending initialization messages:", error);
       }
 
-      timeoutId = window.setTimeout(() => {
+      this.initTimeoutId = window.setTimeout(() => {
         if (this.loading && !this.initialized) {
-          logger.error("Initialization timeout - settings not loaded within 5 seconds");
-          this.loading = false;
-          this.listenerAttached = false;
-          window.removeEventListener("message", handleMessage);
-          loadingStore.fail({ context: "settings", error: "Settings initialization timed out" });
-        }
-      }, 5000);
+          logger.debug("Initialization taking longer than expected, retrying commands", {
+            initialized: this.initialized,
+            loading: this.loading,
+            apiKeysResolved: this.loadingPhase.apiKeysResolved,
+            providersResolved: this.loadingPhase.providersResolved,
+          });
 
-      (handleMessage as any).timeoutId = timeoutId;
+          try {
+            vscode.postMessage({ command: "getApiKeys" });
+            vscode.postMessage({ command: "getProviders" });
+            logger.debug("Retried initialization commands");
+          } catch (error) {
+            logger.error("Error retrying initialization commands:", error);
+          }
+
+          this.initTimeoutId = window.setTimeout(() => {
+            if (this.loading && !this.initialized) {
+              logger.error("Initialization timeout - settings not loaded within 45 seconds");
+              this.loading = false;
+              this.initTimeoutId = undefined;
+              loadingStore.fail({
+                context: "settings",
+                error: "Settings initialization timed out",
+              });
+            } else {
+              this.initTimeoutId = undefined;
+            }
+          }, 15000);
+        } else {
+          this.initTimeoutId = undefined;
+        }
+      }, 45000);
     },
     ensurePreparingPhase(loadingStore: ReturnType<typeof useLoadingStore>) {
       if (
@@ -342,31 +478,70 @@ export const useSettingsStore = defineStore("settings", {
         clearTimeout(this.autoSaveTimers[providerId]);
       }
 
+      const hasErrors = this.providerValidationErrors[providerId]?.some(
+        (e) => e.severity === "error",
+      );
+      if (hasErrors) {
+        logger.debug(`Skipping auto-save for ${providerId} due to validation errors`);
+        return;
+      }
+
       this.autoSaveTimers[providerId] = window.setTimeout(() => {
-        this.saveApiKey(providerId, apiKey);
+        const savePromise = this.saveApiKey(providerId, apiKey);
+        this.pendingApiKeyOperations[providerId] = savePromise.then(() => "save" as const);
         delete this.autoSaveTimers[providerId];
-      }, 2000);
+      }, ApiKeyTimings.saveDebounceDelay);
     },
     async saveApiKey(providerId: string, apiKey: string) {
-      if (!apiKey) {
-        logger.warn(`Attempted to save empty API key for provider ${providerId}`);
+      const trimmedKey = apiKey?.trim() || "";
+      const originalKey = this.originalApiKeys[providerId]?.trim() || "";
+
+      if (trimmedKey === originalKey) {
+        logger.debug(`Skipping save for ${providerId} - value unchanged`);
+        return;
+      }
+
+      const hadOriginalKey = Boolean(originalKey.length > 0);
+
+      if (!trimmedKey) {
+        if (hadOriginalKey) {
+          logger.debug(`API key cleared for provider ${providerId}, deleting saved key`);
+          await this.deleteApiKey(providerId);
+        } else {
+          logger.warn(`Attempted to save empty API key for provider ${providerId}`);
+        }
+        return;
+      }
+
+      const hasErrors = this.providerValidationErrors[providerId]?.some(
+        (e) => e.severity === "error",
+      );
+      if (hasErrors) {
+        logger.warn(`Prevented saving API key for ${providerId} due to validation errors`);
+        this.savingStates[providerId] = "error";
         return;
       }
 
       const saveStartTime = Date.now();
       logger.debug(`Saving API key for provider ${providerId}`);
+      this.savingStates[providerId] = "saving";
 
       try {
         this.saving = true;
 
         vscode.postMessage({
           command: "saveApiKey",
-          payload: { providerId, apiKey },
+          payload: { providerId, apiKey: trimmedKey },
         });
 
-        this.apiKeyInputs[providerId] = apiKey;
-        this.originalApiKeys[providerId] = apiKey;
+        this.apiKeyInputs[providerId] = trimmedKey;
+        this.originalApiKeys[providerId] = trimmedKey;
         this.unsavedProviders.delete(providerId);
+        this.savingStates[providerId] = "saved";
+
+        setTimeout(() => {
+          delete this.savingStates[providerId];
+        }, 2000);
 
         const saveEndTime = Date.now();
         logger.debug(
@@ -374,8 +549,72 @@ export const useSettingsStore = defineStore("settings", {
         );
       } catch (error) {
         logger.error(`Error saving API key for provider ${providerId}:`, error);
+        this.savingStates[providerId] = "error";
+        setTimeout(() => {
+          delete this.savingStates[providerId];
+        }, 3000);
       } finally {
         this.saving = false;
+        delete this.pendingApiKeyOperations[providerId];
+      }
+    },
+    autoDeleteApiKey(providerId: string) {
+      if (this.deleteTimers[providerId]) {
+        clearTimeout(this.deleteTimers[providerId]);
+      }
+
+      if (this.autoSaveTimers[providerId]) {
+        clearTimeout(this.autoSaveTimers[providerId]);
+        delete this.autoSaveTimers[providerId];
+      }
+
+      this.deleteTimers[providerId] = window.setTimeout(() => {
+        const deletePromise = this.deleteApiKey(providerId);
+        this.pendingApiKeyOperations[providerId] = deletePromise.then(() => "delete" as const);
+        delete this.deleteTimers[providerId];
+      }, ApiKeyTimings.deleteDebounceDelay);
+    },
+    async deleteApiKey(providerId: string) {
+      const hadOriginalKey = Boolean(
+        this.originalApiKeys[providerId] && this.originalApiKeys[providerId].trim().length > 0,
+      );
+
+      if (!hadOriginalKey) {
+        logger.debug(`No API key to delete for provider ${providerId}`);
+        return;
+      }
+
+      const deleteStartTime = Date.now();
+      logger.debug(`Deleting API key for provider ${providerId}`);
+
+      try {
+        this.saving = true;
+        this.savingStates[providerId] = "saving";
+
+        vscode.postMessage({
+          command: "deleteApiKey",
+          payload: { providerId },
+        });
+
+        delete this.apiKeyInputs[providerId];
+        delete this.originalApiKeys[providerId];
+        this.unsavedProviders.delete(providerId);
+        delete this.autoSaveTimers[providerId];
+        delete this.savingStates[providerId];
+
+        const deleteEndTime = Date.now();
+        logger.debug(
+          `API key for provider ${providerId} deleted in ${deleteEndTime - deleteStartTime}ms`,
+        );
+      } catch (error) {
+        logger.error(`Error deleting API key for provider ${providerId}:`, error);
+        this.savingStates[providerId] = "error";
+        setTimeout(() => {
+          delete this.savingStates[providerId];
+        }, 3000);
+      } finally {
+        this.saving = false;
+        delete this.pendingApiKeyOperations[providerId];
       }
     },
     async saveAll() {
@@ -472,6 +711,73 @@ export const useSettingsStore = defineStore("settings", {
         payload: { backupId },
       });
     },
+    clearError() {
+      this.error = "";
+      this.errorInfo = null;
+    },
+    clearProviderValidationErrors(providerId: string) {
+      delete this.providerValidationErrors[providerId];
+    },
+    clearValidationErrors() {
+      this.validationErrors = [];
+      this.validationWarnings = [];
+      this.providerValidationErrors = {};
+      this.validationState.isValidating = false;
+    },
+    shouldRevalidate(providerId: string): boolean {
+      const cacheKey = `${providerId}:${this.apiKeyInputs[providerId] || ""}`;
+      const cached = this.validationState.validationCache[cacheKey];
+      if (!cached) return true;
+
+      const cacheAge = Date.now() - cached.timestamp;
+      return cacheAge > ApiKeyTimings.validationCacheTTL;
+    },
+    async waitForPendingOperations(
+      maxWaitMs: number = ApiKeyTimings.pendingOperationsMaxWait,
+    ): Promise<void> {
+      const operationPromises = Object.values(this.pendingApiKeyOperations);
+      if (operationPromises.length === 0) {
+        return;
+      }
+
+      try {
+        await Promise.race([
+          Promise.all(operationPromises),
+          new Promise<void>((resolve) => setTimeout(resolve, maxWaitMs)),
+        ]);
+      } catch (error) {
+        logger.error("Error waiting for pending operations:", error);
+      }
+    },
+    getProvidersRequiringKeys(): string[] {
+      return this.providersRequiringKeys;
+    },
+    updateProvidersRequiringKeys(providers: any[]): void {
+      this.providersRequiringKeys = providers
+        .filter((p: any) => p.requiresApiKey !== false)
+        .map((p: any) => p.id);
+    },
+    checkAllApiKeysStatus(): Record<string, boolean> {
+      const allKeys = { ...this.originalApiKeys, ...this.apiKeyInputs };
+      const status: Record<string, boolean> = {};
+
+      for (const providerId of this.providersRequiringKeys) {
+        const key = allKeys[providerId];
+        status[providerId] = Boolean(key && key.trim().length > 0);
+      }
+
+      return status;
+    },
+    clearAllTimers() {
+      for (const timerId of Object.values(this.autoSaveTimers)) {
+        clearTimeout(timerId);
+      }
+      for (const timerId of Object.values(this.deleteTimers)) {
+        clearTimeout(timerId);
+      }
+      this.autoSaveTimers = {};
+      this.deleteTimers = {};
+    },
     cancelPendingActions() {
       this.loading = false;
       this.loadingProviders = false;
@@ -479,6 +785,15 @@ export const useSettingsStore = defineStore("settings", {
       this.savedMessage = "";
       this.validationErrors = [];
       this.validationWarnings = [];
+      this.error = "";
+      this.errorInfo = null;
+
+      this.clearAllTimers();
+
+      if (this.initTimeoutId) {
+        clearTimeout(this.initTimeoutId);
+        this.initTimeoutId = undefined;
+      }
 
       this.loadingPhase = {
         providersResolved: false,

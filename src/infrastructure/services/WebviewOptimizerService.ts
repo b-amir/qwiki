@@ -109,7 +109,12 @@ export class WebviewOptimizerService {
     try {
       this.webview.postMessage(message);
       const command = message?.command ?? "unknown";
-      const importantCommands = new Set(["error", "loadingStep", "generationCancelled"]);
+      const importantCommands = new Set([
+        "error",
+        "loadingStep",
+        "generationCancelled",
+        "environmentStatus",
+      ]);
       if (importantCommands.has(command)) {
         try {
           const size = message?.payload ? JSON.stringify(message.payload).length : 0;

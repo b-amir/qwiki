@@ -14,6 +14,7 @@ export { OpenExternalCommand } from "./OpenExternalCommand";
 export { SaveApiKeyCommand } from "./SaveApiKeyCommand";
 export { SaveSettingCommand } from "./SaveSettingCommand";
 export { ValidateConfigurationCommand } from "./ValidateConfigurationCommand";
+export { ValidateApiKeysCommand } from "./ValidateApiKeysCommand";
 export { ApplyConfigurationTemplateCommand } from "./ApplyConfigurationTemplateCommand";
 export { GetConfigurationTemplatesCommand } from "./GetConfigurationTemplatesCommand";
 export { CreateConfigurationBackupCommand } from "./CreateConfigurationBackupCommand";

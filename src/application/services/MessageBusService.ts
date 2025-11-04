@@ -47,6 +47,9 @@ export class MessageBusService {
   }
 
   postMessage(command: string, payload?: any): void {
+    if (command === "navigate") {
+      this.logger.info("postMessage: navigate", { page: payload?.page });
+    }
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
     } else {

@@ -215,7 +215,7 @@ export const useWikiStore = defineStore("wiki", {
           };
           useLoadingStore().fail({ context: "wiki", error: this.error });
         }
-      }, 10000);
+      }, 30000);
     },
     async generate() {
       vscode.postMessage({

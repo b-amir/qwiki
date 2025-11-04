@@ -39,8 +39,17 @@ export class EnvironmentStatusManager {
   }
 
   setExtensionStatus(status: ExtensionStatus): void {
+    this.logger.info("setExtensionStatus called", {
+      ready: status.ready,
+      message: status.message,
+      reason: status.reason,
+    });
     this._extensionStatus = status;
-    this.broadcastEnvironmentStatus();
+    if (status.ready) {
+      this.flushEnvironmentStatus();
+    } else {
+      this.broadcastEnvironmentStatus();
+    }
   }
 
   broadcastEnvironmentStatus(): void {
@@ -79,10 +88,17 @@ export class EnvironmentStatusManager {
 
   private postEnvironmentStatus(payload: EnvironmentStatusPayload): void {
     if (!this.view?.webview) {
+      this.logger.warn("Cannot post environment status - no webview available");
       return;
     }
     try {
-      this.messageBus?.postMessage(Outbound.environmentStatus, payload);
+      this.logger.info("Posting environment status", {
+        extensionReady: payload.extension.ready,
+        extensionMessage: payload.extension.message,
+        languageServerReady: payload.languageServer.ready,
+        hasMessageBus: !!this.messageBus,
+      });
+      this.messageBus?.postImmediate(Outbound.environmentStatus, payload);
     } catch (error) {
       this.logger.error("Failed to post environment status", error);
     }

@@ -206,17 +206,88 @@ const getCustomFieldValue = (fieldId: string) => {
             >
               API Key
             </label>
-            <input
-              :value="getApiKeyInput(provider.id)"
-              type="password"
-              placeholder="Enter your API key"
-              class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 rounded-lg border px-2.5 py-2 text-sm leading-normal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2.5 md:px-3.5 md:py-3"
-              @focus="emit('api-key-focus', provider.id)"
-              @blur="emit('api-key-blur', provider.id)"
-              @input="
-                emit('api-key-change', provider.id, ($event.target as HTMLInputElement).value)
+            <div class="relative">
+              <input
+                :value="getApiKeyInput(provider.id)"
+                type="password"
+                placeholder="Enter your API key"
+                :class="[
+                  'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 rounded-lg border px-2.5 py-2 pr-8 text-sm leading-normal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2.5 sm:pr-9 md:px-3.5 md:py-3 md:pr-10',
+                  settings.providerValidationErrors[provider.id]?.some(
+                    (e) => e.field === 'apiKey' && e.severity === 'error',
+                  )
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : '',
+                ]"
+                @focus="emit('api-key-focus', provider.id)"
+                @blur="emit('api-key-blur', provider.id)"
+                @input="
+                  emit('api-key-change', provider.id, ($event.target as HTMLInputElement).value)
+                "
+              />
+              <div
+                v-if="settings.savingStates[provider.id]"
+                class="absolute right-2 top-1/2 -translate-y-1/2"
+              >
+                <svg
+                  v-if="settings.savingStates[provider.id] === 'saving'"
+                  class="text-primary h-4 w-4 animate-spin sm:h-5 sm:w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  />
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <svg
+                  v-else-if="settings.savingStates[provider.id] === 'saved'"
+                  class="h-4 w-4 text-green-500 sm:h-5 sm:w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <svg
+                  v-else-if="settings.savingStates[provider.id] === 'error'"
+                  class="text-destructive h-4 w-4 sm:h-5 sm:w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            </div>
+            <p
+              v-if="
+                settings.providerValidationErrors[provider.id]?.some(
+                  (e) => e.field === 'apiKey' && e.severity === 'error',
+                )
               "
-            />
+              class="text-destructive text-xs"
+            >
+              {{
+                settings.providerValidationErrors[provider.id].find(
+                  (e) => e.field === "apiKey" && e.severity === "error",
+                )?.message || "Invalid API key"
+              }}
+            </p>
           </div>
 
           <div

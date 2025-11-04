@@ -1,22 +1,107 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, nextTick, watch, provide, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ValidationErrors from "@/components/features/ValidationErrors.vue";
 import ProviderConfigItem from "@/components/features/ProviderConfigItem.vue";
+import ErrorModal from "@/components/features/ErrorModal.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
-import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useLoading } from "@/loading/useLoading";
 import { useSettingsMessaging } from "@/composables/useSettingsMessaging";
 import { useProviderConfigs } from "@/composables/useProviderConfigs";
 import { useSettingsHandlers } from "@/composables/useSettingsHandlers";
 import { useSettingsInitialization } from "@/composables/useSettingsInitialization";
+import { useSettingsNavigationGuard } from "@/composables/useSettingsNavigationGuard";
+import { useNavigation, type PageType } from "@/composables/useNavigation";
+import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
-const navigationStatus = useNavigationStatusStore();
+const { setNavigationGuard } = useNavigation();
+const logger = createLogger("SettingsPage");
 const settingsLoading = ref(false);
 const settingsLoadingContext = useLoading("settings");
+const errorModalOpen = ref(false);
+
+watch(
+  () => settings.error,
+  (newError, oldError) => {
+    logger.debug("Settings error watch triggered", {
+      newError,
+      oldError,
+      hasErrorInfo: !!settings.errorInfo,
+      errorModalOpen: errorModalOpen.value,
+    });
+    if (newError && newError !== oldError) {
+      errorModalOpen.value = true;
+      logger.debug("Error detected, opening error modal", {
+        error: newError,
+        errorInfo: settings.errorInfo,
+        errorModalOpen: errorModalOpen.value,
+      });
+    } else if (!newError) {
+      errorModalOpen.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => settings.errorInfo,
+  (newErrorInfo, oldErrorInfo) => {
+    logger.debug("Settings errorInfo watch triggered", {
+      newErrorInfo: !!newErrorInfo,
+      oldErrorInfo: !!oldErrorInfo,
+      hasError: !!settings.error,
+      errorModalOpen: errorModalOpen.value,
+    });
+    if (newErrorInfo && settings.error) {
+      errorModalOpen.value = true;
+      logger.debug("ErrorInfo set, opening error modal", {
+        error: settings.error,
+        errorInfo: newErrorInfo,
+        errorModalOpen: errorModalOpen.value,
+      });
+    } else if (!newErrorInfo && !settings.error) {
+      errorModalOpen.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => errorModalOpen.value,
+  (isOpen) => {
+    if (isOpen && settings.error) {
+      logger.debug("Error modal opened", { error: settings.error });
+    }
+  },
+);
+
+const shouldShowErrorModal = computed(() => {
+  if (!settings.errorInfo?.context) return true;
+  try {
+    const context = JSON.parse(settings.errorInfo.context);
+    const errorProviderId = context?.providerId;
+    const isGlobalError = context?.globalError === true;
+    return isGlobalError || !errorProviderId || errorProviderId === settings.selectedProvider;
+  } catch {
+    return true;
+  }
+});
+
+const errorModalMessage = computed(() => {
+  if (!settings.errorInfo?.context) return settings.error;
+  try {
+    const context = JSON.parse(settings.errorInfo.context);
+    if (context?.providerId && context.providerId !== settings.selectedProvider) {
+      return "";
+    }
+  } catch {
+    return settings.error;
+  }
+  return settings.error;
+});
 
 const centralizedProviderConfigs = ref<
   Array<{
@@ -78,7 +163,6 @@ const calculateContentHeight = async (providerId: string) => {
 };
 
 const {
-  validateCurrentConfiguration,
   handleProviderChange,
   handleApiKeyChange,
   handleApiKeyFocus,
@@ -97,33 +181,28 @@ const {
   getApiKeyInput,
 );
 
-const { setupMessageListener } = useSettingsMessaging(
+const navigationGuard = useSettingsNavigationGuard(
+  wiki,
+  settings,
+  providerConfigs,
+  getApiKeyInput,
+  validating,
+  lastValidationValid,
+  showValidationErrors,
+  validationErrors,
+  validationWarnings,
+);
+
+provide("settingsNavigationGuard", navigationGuard);
+
+const { setupMessageListener, cleanup: cleanupMessageListener } = useSettingsMessaging(
   centralizedProviderConfigs,
   providerCapabilities,
   calculateContentHeight,
   providerConfigs,
   {
     onConfigurationValidated: (isValid, errors, warnings) => {
-      validating.value = false;
-      lastValidationValid.value = isValid;
-      showValidationErrors.value = !isValid;
-      validationErrors.value = errors.map((e: any) => {
-        if (typeof e === "string") return e;
-        return {
-          field: e?.field,
-          code: e?.code,
-          message: e?.message || e?.error || JSON.stringify(e),
-          severity: e?.severity,
-        };
-      });
-      validationWarnings.value = warnings.map((w: any) => {
-        if (typeof w === "string") return w;
-        return {
-          field: w?.field,
-          code: w?.code,
-          message: w?.message || w?.warning || JSON.stringify(w),
-        };
-      });
+      navigationGuard.handleValidationComplete(isValid, errors, warnings);
     },
   },
 );
@@ -145,26 +224,81 @@ onMounted(() => {
   setupMessageListener();
   initSettings();
 
+  const guard = async (target: PageType, isBack: boolean): Promise<boolean> => {
+    if (target === "settings") {
+      return true;
+    }
+    logger.debug(`Navigation guard triggered - target: ${target}, isBack: ${isBack}`);
+    try {
+      const result = await navigationGuard.validateAndNavigate(target, isBack);
+      logger.debug(
+        `Navigation guard result - isValid: ${result.isValid}, errors: ${result.errors.length}`,
+        {
+          errors: result.errors,
+          warnings: result.warnings,
+        },
+      );
+      if (!result.isValid) {
+        logger.debug(`Navigation blocked due to validation errors`);
+
+        if (result.errors.length > 0) {
+          const firstError = result.errors[0];
+          const errorMessage = typeof firstError === "string" ? firstError : firstError.message;
+          const errorCode =
+            typeof firstError === "string"
+              ? "VALIDATION_ERROR"
+              : firstError.code || "VALIDATION_ERROR";
+
+          logger.debug(`Setting error in navigation guard`, {
+            errorMessage,
+            errorCode,
+            currentError: settings.error,
+          });
+
+          if (!settings.error || settings.error !== errorMessage) {
+            settings.error = errorMessage;
+            settings.errorInfo = {
+              message: errorMessage,
+              code: errorCode,
+              suggestions: [
+                "Please review the validation errors above",
+                "Fix the errors before continuing",
+              ],
+              retryable: false,
+              timestamp: new Date().toISOString(),
+              context: JSON.stringify({ providerId: settings.selectedProvider }),
+            };
+
+            logger.debug(`Error set in settings store from navigation guard`, {
+              error: settings.error,
+              errorInfo: settings.errorInfo,
+            });
+          }
+        }
+        return false;
+      }
+      return true;
+    } catch (error) {
+      logger.error("Navigation guard error", error);
+      return true;
+    }
+  };
+
+  logger.debug("Registering navigation guard");
+  setNavigationGuard(guard);
+  logger.debug("Navigation guard registered successfully");
+
   setTimeout(() => {
-    providerConfigs.value.forEach((provider) => {
+    providerConfigs.value.forEach((provider: { id: string }) => {
       calculateContentHeight(provider.id);
     });
   }, 100);
-
-  if (!settings.loading && !settingsLoading.value && settings.initialized) {
-    navigationStatus.finish("settings");
-  }
 });
 
-watch(
-  () => settings.loading || settingsLoading.value,
-  (loading) => {
-    if (!loading && settings.initialized) {
-      navigationStatus.finish("settings");
-    }
-  },
-  { immediate: true },
-);
+onBeforeUnmount(() => {
+  cleanupMessageListener();
+  setNavigationGuard(null);
+});
 </script>
 
 <template>
@@ -233,17 +367,43 @@ watch(
             >
               LLM Provider
             </h3>
-            <button
-              class="text-primary hover:text-primary/80 whitespace-nowrap text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:text-right sm:text-xs md:text-sm"
-              :disabled="validating"
-              :aria-busy="validating ? 'true' : 'false'"
-              @click="validateCurrentConfiguration"
-            >
-              {{ validating ? "Validating…" : "Validate Configuration" }}
-            </button>
+          </div>
+
+          <div
+            v-if="navigationGuard.showSuccessMessage.value"
+            class="rounded-lg border border-emerald-500/30 bg-emerald-50/50 p-3 sm:p-4 dark:bg-emerald-950/20"
+          >
+            <div class="flex items-start gap-2 sm:items-center sm:gap-3">
+              <svg
+                class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 sm:mt-0 sm:h-5 sm:w-5 dark:text-emerald-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div class="min-w-0 flex-1">
+                <p
+                  class="break-words text-sm font-semibold leading-snug text-emerald-900 sm:text-[0.875rem] dark:text-emerald-100"
+                >
+                  Settings saved successfully
+                </p>
+                <p
+                  class="mt-0.5 break-words text-xs leading-normal text-emerald-700 sm:text-xs dark:text-emerald-300"
+                >
+                  Your configuration has been validated and saved.
+                </p>
+              </div>
+            </div>
           </div>
 
           <ValidationErrors
+            v-if="!settings.error"
             :is-valid="lastValidationValid === true"
             :show-errors="showValidationErrors"
             :errors="validationErrors"
@@ -276,5 +436,23 @@ watch(
         Keys are stored securely in VS Code Secret Storage.
       </footer>
     </section>
+
+    <ErrorModal
+      v-if="settings.error && settings.errorInfo && shouldShowErrorModal"
+      v-model="errorModalOpen"
+      :error="errorModalMessage"
+      :error-code="settings.errorInfo.code"
+      :suggestions="settings.errorInfo.suggestions"
+      :retryable="settings.errorInfo.retryable"
+      :timestamp="settings.errorInfo.timestamp"
+      :context="settings.errorInfo.context"
+      :original-error="settings.errorInfo.originalError"
+      @close="
+        () => {
+          errorModalOpen = false;
+          settings.clearError();
+        }
+      "
+    />
   </div>
 </template>

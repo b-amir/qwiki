@@ -41,6 +41,56 @@ class FrontendLogger {
       return;
     }
 
+    this.output(level, message, data);
+  }
+
+  private shouldLog(level: LogLevel) {
+    return levelWeight[level] >= levelWeight[this.config.level];
+  }
+
+  private async output(level: LogLevel, message: string, data?: unknown) {
+    const formattedMessage = this.formatMessage(message);
+
+    switch (level) {
+      case "debug":
+        data === undefined
+          ? console.debug(formattedMessage)
+          : console.debug(formattedMessage, data);
+        break;
+      case "info":
+        data === undefined ? console.info(formattedMessage) : console.info(formattedMessage, data);
+        break;
+      case "warn":
+        data === undefined ? console.warn(formattedMessage) : console.warn(formattedMessage, data);
+        break;
+      case "error":
+      default:
+        data === undefined
+          ? console.error(formattedMessage)
+          : console.error(formattedMessage, data);
+        break;
+    }
+
+    try {
+      import("./vscode")
+        .then(({ vscode }) => {
+          if (vscode && typeof vscode.postMessage === "function") {
+            vscode.postMessage({
+              command: "frontendLog",
+              payload: {
+                source: this.source,
+                level,
+                message,
+                data,
+              },
+            });
+          }
+        })
+        .catch(() => {});
+    } catch {}
+  }
+
+  private formatMessage(message: string): string {
     const parts: string[] = [];
 
     if (this.config.includeTimestamp) {
@@ -54,36 +104,8 @@ class FrontendLogger {
     }
 
     parts.push(message);
-    const payload = parts.join(" | ");
 
-    if (data === undefined) {
-      this.output(level, payload);
-      return;
-    }
-
-    this.output(level, payload, data);
-  }
-
-  private shouldLog(level: LogLevel) {
-    return levelWeight[level] >= levelWeight[this.config.level];
-  }
-
-  private output(level: LogLevel, message: string, data?: unknown) {
-    switch (level) {
-      case "debug":
-        data === undefined ? console.debug(message) : console.debug(message, data);
-        break;
-      case "info":
-        data === undefined ? console.info(message) : console.info(message, data);
-        break;
-      case "warn":
-        data === undefined ? console.warn(message) : console.warn(message, data);
-        break;
-      case "error":
-      default:
-        data === undefined ? console.error(message) : console.error(message, data);
-        break;
-    }
+    return parts.join(" | ");
   }
 }
 

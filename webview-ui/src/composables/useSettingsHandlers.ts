@@ -69,6 +69,7 @@ export function useSettingsHandlers(
     logger.debug(`Changing provider to ${providerId}`);
 
     try {
+      settings.clearValidationErrors();
       wiki.providerId = providerId;
       settings.autoSaveProviderSelection(providerId);
 
@@ -85,16 +86,33 @@ export function useSettingsHandlers(
 
     try {
       const config = providerConfigs.value.find((p) => p.id === providerId);
-      if (config) {
-        settings.apiKeyInputs[providerId] = newValue;
-        settings.trackApiKeyChange(providerId, newValue);
-        settings.autoSaveApiKey(providerId, newValue);
-
-        const changeEndTime = Date.now();
-        logger.debug(`API key update completed in ${changeEndTime - changeStartTime}ms`);
-      } else {
+      if (!config) {
         logger.error(`Provider config not found for ${providerId}`);
+        return;
       }
+
+      settings.apiKeyInputs[providerId] = newValue;
+      settings.trackApiKeyChange(providerId, newValue);
+
+      const trimmedValue = newValue.trim();
+      const originalKey = settings.originalApiKeys[providerId]?.trim() || "";
+
+      if (trimmedValue.length === 0) {
+        if (originalKey.length > 0) {
+          settings.clearProviderValidationErrors(providerId);
+          settings.autoDeleteApiKey(providerId);
+        } else {
+          settings.clearProviderValidationErrors(providerId);
+        }
+      } else {
+        settings.clearProviderValidationErrors(providerId);
+        if (trimmedValue !== originalKey) {
+          settings.autoSaveApiKey(providerId, newValue);
+        }
+      }
+
+      const changeEndTime = Date.now();
+      logger.debug(`API key update completed in ${changeEndTime - changeStartTime}ms`);
     } catch (error) {
       logger.error(`Error updating API key for provider ${providerId}:`, error);
     }
@@ -113,12 +131,36 @@ export function useSettingsHandlers(
 
   const handleApiKeyBlur = (providerId: string) => {
     const input = settings.apiKeyInputs[providerId] || "";
-    const hasSavedKey =
-      settings.originalApiKeys[providerId] &&
-      settings.originalApiKeys[providerId].length > 0 &&
-      input === settings.originalApiKeys[providerId];
-    if (hasSavedKey) {
-      settings.apiKeyInputs[providerId] = settings.originalApiKeys[providerId];
+    const trimmedInput = input.trim();
+    const originalKey = settings.originalApiKeys[providerId]?.trim() || "";
+
+    if (trimmedInput === originalKey) {
+      return;
+    }
+
+    if (trimmedInput.length === 0) {
+      if (originalKey.length > 0) {
+        settings.clearProviderValidationErrors(providerId);
+        settings.autoDeleteApiKey(providerId);
+      } else {
+        settings.clearProviderValidationErrors(providerId);
+      }
+      return;
+    }
+
+    const config = providerConfigs.value.find((p) => p.id === providerId);
+    if (config) {
+      const validationConfig = {
+        id: config.id,
+        name: config.name || providerId,
+        enabled: true,
+        apiKey: trimmedInput,
+        model: wiki.model,
+      };
+      validating.value = true;
+      lastValidationValid.value = null;
+      settings.validateConfiguration(validationConfig, providerId);
+      showValidationErrors.value = true;
     }
   };
 

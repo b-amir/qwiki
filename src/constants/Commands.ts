@@ -14,6 +14,7 @@ export const CommandIds = {
   getConfiguration: "getConfiguration",
   updateConfiguration: "updateConfiguration",
   validateConfiguration: "validateConfiguration",
+  validateApiKeys: "validateApiKeys",
   applyConfigurationTemplate: "applyConfigurationTemplate",
   getConfigurationTemplates: "getConfigurationTemplates",
   createConfigurationBackup: "createConfigurationBackup",

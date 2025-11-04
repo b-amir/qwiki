@@ -51,9 +51,15 @@ export function useSettingsMessaging(
   handlers?: MessageHandlers,
 ) {
   const logger = createLogger("SettingsMessaging");
+  let messageHandler: ((event: MessageEvent) => void) | null = null;
 
   const setupMessageListener = () => {
-    const handleMessage = (event: MessageEvent) => {
+    if (messageHandler) {
+      window.removeEventListener("message", messageHandler);
+      messageHandler = null;
+    }
+
+    messageHandler = (event: MessageEvent) => {
       const message = event.data;
       const messageStartTime = Date.now();
 
@@ -101,14 +107,23 @@ export function useSettingsMessaging(
       }
     };
 
-    window.addEventListener("message", handleMessage);
+    if (messageHandler) {
+      window.addEventListener("message", messageHandler);
+    }
 
     setTimeout(() => {
       if (centralizedProviderConfigs.value.length === 0) {
         logger.error("Provider configs not received within timeout");
       }
-    }, 5000);
+    }, 15000);
   };
 
-  return { setupMessageListener };
+  const cleanup = () => {
+    if (messageHandler) {
+      window.removeEventListener("message", messageHandler);
+      messageHandler = null;
+    }
+  };
+
+  return { setupMessageListener, cleanup };
 }
