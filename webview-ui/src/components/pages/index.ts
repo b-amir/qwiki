@@ -1,4 +1,5 @@
 export { default as WikiPage } from "./WikiPage.vue";
 export { default as HomePage } from "./HomePage.vue";
 export { default as SettingsPage } from "./SettingsPage.vue";
-export { ErrorHistoryPage, SavedWikisPage } from "./lazy";
+export { default as SavedWikisPage } from "./SavedWikisPage.vue";
+export { default as ErrorHistoryPage } from "./ErrorHistoryPage.vue";

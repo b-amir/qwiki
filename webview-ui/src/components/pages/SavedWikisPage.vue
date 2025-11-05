@@ -4,6 +4,7 @@ import { useVscode } from "@/composables/useVscode";
 import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
+import { useEnvironmentStore } from "@/stores/environment";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ErrorModal from "@/components/features/ErrorModal.vue";
 import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
@@ -30,6 +31,7 @@ const vscode = useVscode();
 const logger = createLogger("SavedWikisPage");
 const navigationStatus = useNavigationStatusStore();
 const wikiStore = useWikiStore();
+const environmentStore = useEnvironmentStore();
 const savedWikis = shallowRef<SavedWiki[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -60,7 +62,6 @@ const isReadmeUpdateLoading = computed(
 
 const isLoading = ref(false);
 const { currentPage } = useNavigation();
-let hasLoadedOnce = false;
 
 const filteredWikis = computed(() => {
   if (!debouncedSearchQuery.value.trim()) {
@@ -142,13 +143,8 @@ const showPreview = (wiki: SavedWiki, event: Event) => {
   previewWiki.value = wiki;
 };
 
-const loadSavedWikis = async (force: boolean = false) => {
-  if (isLoading.value || (hasLoadedOnce && !force)) {
-    logger.debug("Already loading or already loaded, skipping request", {
-      isLoading: isLoading.value,
-      hasLoadedOnce,
-      force,
-    });
+const loadSavedWikis = async () => {
+  if (isLoading.value) {
     return;
   }
 
@@ -158,7 +154,6 @@ const loadSavedWikis = async (force: boolean = false) => {
     error.value = null;
     savedWikisLoadingContext.start("loading");
     vscode.postMessage({ command: "getSavedWikis" });
-    hasLoadedOnce = true;
   } catch {
     error.value = "Failed to load saved wikis";
     errorModalOpen.value = true;
@@ -176,10 +171,10 @@ const openWiki = (wiki: SavedWiki) => {
   });
 };
 
-const deleteWiki = async (wikiId: string, event: Event) => {
+const deleteWiki = (wikiId: string, event: Event) => {
   event.stopPropagation();
   try {
-    await vscode.postMessage({
+    vscode.postMessage({
       command: "deleteWiki",
       payload: { wikiId },
     });
@@ -295,12 +290,17 @@ const handleMessage = (event: MessageEvent) => {
   }
 };
 
+const checkAndLoadWikis = () => {
+  if (currentPage.value === "savedWikis" && environmentStore.extensionStatus.ready) {
+    loadSavedWikis();
+  }
+};
+
 watch(
-  () => currentPage.value,
-  (newPage, oldPage) => {
-    if (newPage === "savedWikis" && oldPage !== "savedWikis" && !hasLoadedOnce) {
-      logger.debug("Page activated, loading wikis");
-      loadSavedWikis();
+  [currentPage, () => environmentStore.extensionStatus.ready],
+  ([newPage, isReady]) => {
+    if (newPage === "savedWikis" && isReady) {
+      checkAndLoadWikis();
     }
   },
   { immediate: true },
@@ -309,6 +309,7 @@ watch(
 onMounted(() => {
   window.addEventListener("message", handleMessage);
   vscode.postMessage({ command: "checkReadmeBackupState" });
+  checkAndLoadWikis();
 });
 
 onBeforeUnmount(() => {
@@ -337,7 +338,7 @@ onBeforeUnmount(() => {
         "
         :show-action="!debouncedSearchQuery"
         action-text="Refresh"
-        @action="() => loadSavedWikis(true)"
+        @action="loadSavedWikis"
       />
 
       <div v-else class="relative h-full overflow-y-auto">
