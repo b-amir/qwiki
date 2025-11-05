@@ -22,18 +22,7 @@
         state === 'pending' && 'text-transparent',
       ]"
     >
-      <template v-if="state === 'active'">
-        <StepSpinner />
-      </template>
-      <template v-else-if="state === 'completed'">
-        <StepCheckIcon />
-      </template>
-      <template v-else>
-        <span
-          class="bg-border h-1.5 w-1.5 flex-shrink-0 rounded-sm opacity-40 sm:h-[7px] sm:w-[7px] sm:rounded-[1.5px]"
-          aria-hidden="true"
-        ></span>
-      </template>
+      <StepSpinner v-if="state === 'active'" />
     </div>
 
     <div class="min-w-0 flex-1 overflow-hidden">
@@ -48,7 +37,7 @@
       >
         {{ text }}
       </span>
-      <SkeletonLine v-else :style="skeletonStyle" />
+      <NextStepSkeleton v-else :style="skeletonStyle" />
     </div>
   </div>
 </template>
@@ -56,8 +45,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import StepSpinner from "./StepSpinner.vue";
-import StepCheckIcon from "./StepCheckIcon.vue";
-import SkeletonLine from "./SkeletonLine.vue";
+import NextStepSkeleton from "./NextStepSkeleton.vue";
 
 type StepState = "completed" | "active" | "pending";
 

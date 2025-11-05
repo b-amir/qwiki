@@ -25,10 +25,9 @@ export function useStepStates(
 
   function generateSkeletonStyle(text: string) {
     const trimmedLength = Math.max(4, text.replace(/\s+/g, " ").trim().length);
-    const offsetForPadding = 4;
     const minChars = 12;
     const maxChars = 68;
-    const estimatedChars = Math.round(trimmedLength * 0.9) + offsetForPadding;
+    const estimatedChars = Math.round(trimmedLength * 0.95);
     const clamped = Math.min(maxChars, Math.max(minChars, estimatedChars));
 
     return {

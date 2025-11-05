@@ -6,7 +6,7 @@
     aria-hidden="true"
     focusable="false"
   >
-    <rect x="1" y="1" rx="1" width="10" height="10" fill="url(#qwikiAnimatedGradient)">
+    <DotShape fill="url(#qwikiAnimatedGradient)">
       <animate
         id="spinner_FFyM"
         begin="0;spinner_HDCY.end"
@@ -39,8 +39,8 @@
         values="13;1"
         fill="freeze"
       />
-    </rect>
-    <rect x="1" y="13" rx="1" width="10" height="10" fill="url(#qwikiAnimatedGradient)">
+    </DotShape>
+    <DotShape fill="url(#qwikiAnimatedGradient)" x="1" y="13">
       <animate
         id="spinner_1FwE"
         begin="spinner_FFyM.end"
@@ -73,6 +73,10 @@
         values="13;1"
         fill="freeze"
       />
-    </rect>
+    </DotShape>
   </svg>
 </template>
+
+<script setup lang="ts">
+import DotShape from "./DotShape.vue";
+</script>
