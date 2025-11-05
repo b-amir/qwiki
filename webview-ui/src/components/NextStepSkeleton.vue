@@ -16,7 +16,6 @@ const computedStyle = computed(() => {
   const skeletonCh = props.style?.["--skeleton-ch"];
   const charCount = skeletonCh ? parseInt(skeletonCh, 10) : 20;
   const width = `${charCount}ch`;
-
   return {
     ...props.style,
     width,

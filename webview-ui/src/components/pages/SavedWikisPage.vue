@@ -6,6 +6,7 @@ import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
 import { useEnvironmentStore } from "@/stores/environment";
 import LoadingState from "@/components/features/LoadingState.vue";
+import TimelineLoader from "@/components/TimelineLoader.vue";
 import ErrorModal from "@/components/features/ErrorModal.vue";
 import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
@@ -391,7 +392,10 @@ onBeforeUnmount(() => {
             class="readme-loading-content will-change-opacity absolute inset-0 z-50 flex items-center justify-center"
           >
             <div class="w-full max-w-md px-4">
-              <LoadingState context="readmeUpdate" />
+              <TimelineLoader
+                :steps="readmeUpdateLoadingContext.steps.value"
+                :current-step="readmeUpdateLoadingContext.state.value.step || 'analyzingWikis'"
+              />
             </div>
           </div>
         </Transition>
