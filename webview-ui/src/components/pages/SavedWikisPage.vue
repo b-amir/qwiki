@@ -73,7 +73,15 @@ const { displayLoading: isReadmeUpdateLoading } = useDelayedLoadingState(
 
 const isLoading = ref(false);
 const loadTimeoutId = ref<ReturnType<typeof setTimeout> | null>(null);
+const scrollableContainer = ref<HTMLElement | null>(null);
 const { currentPage } = useNavigation();
+
+const preventScroll = (event: Event) => {
+  if (isReadmeUpdateLoading.value) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+};
 
 const filteredWikis = computed(() => {
   if (!debouncedSearchQuery.value.trim()) {
@@ -385,7 +393,7 @@ onBeforeUnmount(() => {
       <SearchInput v-model="searchQuery" placeholder="Search wikis..." />
     </div>
 
-    <div class="flex-1 overflow-hidden">
+    <div class="flex flex-1 flex-col overflow-hidden">
       <div v-if="isSavedWikisLoading" class="flex h-full w-full">
         <LoadingState context="savedWikis" />
       </div>
@@ -403,7 +411,16 @@ onBeforeUnmount(() => {
         @action="loadSavedWikis"
       />
 
-      <div v-else class="relative h-full overflow-y-auto">
+      <div
+        v-else
+        ref="scrollableContainer"
+        :class="[
+          'relative min-h-0 flex-1',
+          isReadmeUpdateLoading ? 'overflow-hidden' : 'overflow-y-auto',
+        ]"
+        @wheel="preventScroll"
+        @touchmove="preventScroll"
+      >
         <div
           v-for="(wikis, date) in groupedWikis"
           :key="date"
@@ -437,7 +454,10 @@ onBeforeUnmount(() => {
         >
           <div
             v-if="isReadmeUpdateLoading"
-            class="readme-loading-backdrop bg-muted/95 absolute inset-0 z-50 backdrop-blur-md will-change-[opacity,backdrop-filter]"
+            class="readme-loading-backdrop bg-muted/95 absolute inset-0 z-50 touch-none backdrop-blur-md will-change-[opacity,backdrop-filter]"
+            @wheel.prevent
+            @touchmove.prevent
+            @scroll.prevent
           ></div>
         </Transition>
         <Transition
@@ -450,7 +470,10 @@ onBeforeUnmount(() => {
         >
           <div
             v-if="isReadmeUpdateLoading"
-            class="readme-loading-content will-change-opacity absolute inset-0 z-50 flex items-center justify-center"
+            class="readme-loading-content will-change-opacity absolute inset-0 z-50 flex touch-none items-center justify-center"
+            @wheel.prevent
+            @touchmove.prevent
+            @scroll.prevent
           >
             <div class="w-full max-w-md px-4">
               <LoadingView
