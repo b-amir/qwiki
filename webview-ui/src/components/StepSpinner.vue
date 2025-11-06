@@ -6,7 +6,7 @@
     aria-hidden="true"
     focusable="false"
   >
-    <DotShape fill="url(#qwikiAnimatedGradient)">
+    <DotShape fill="url(#qwikiAnimatedGradient)" x="7" y="7" :dot-size="10">
       <animate
         id="spinner_FFyM"
         begin="0;spinner_HDCY.end"
@@ -40,7 +40,7 @@
         fill="freeze"
       />
     </DotShape>
-    <DotShape fill="url(#qwikiAnimatedGradient)" x="1" y="13">
+    <DotShape fill="url(#qwikiAnimatedGradient)" x="7" y="7" :dot-size="10">
       <animate
         id="spinner_1FwE"
         begin="spinner_FFyM.end"

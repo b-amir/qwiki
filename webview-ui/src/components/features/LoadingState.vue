@@ -6,8 +6,8 @@
         { 'flex !w-auto !max-w-none items-center justify-center': isSingleStep },
       ]"
     >
-      <TimelineLoader
-        v-if="useTimeline"
+      <LoadingView
+        v-if="useLoadingView"
         :steps="resolvedSteps"
         :current-step="resolvedCurrentStep"
       />
@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import DynamicSkeleton from "@/components/DynamicSkeleton.vue";
-import TimelineLoader from "@/components/TimelineLoader.vue";
+import LoadingView from "@/components/LoadingView.vue";
 import type { LoadingContext, LoadingDensity, LoadingStepDefinition } from "@/loading/types";
 import { isKnownContext } from "@/loading/types";
 import { getStepsForContext } from "@/loading/stepCatalog";
@@ -68,5 +68,5 @@ const resolvedDensity = computed<LoadingDensity>(() => {
 
 const isSingleStep = computed(() => resolvedSteps.value.length === 1);
 
-const useTimeline = computed(() => !isSingleStep.value);
+const useLoadingView = computed(() => !isSingleStep.value);
 </script>
