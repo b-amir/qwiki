@@ -203,6 +203,8 @@ export class WebviewMessageHandler {
       "getProviderCapabilities",
       "getProviderConfigs",
       "getSelection",
+      "validateConfiguration",
+      "validateApiKeyHealth",
     ]);
 
     if (!this.commandRegistry) {

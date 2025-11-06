@@ -14,6 +14,9 @@ export const ErrorCodes = {
   providerNotConfigured: "error.providerNotConfigured",
   validationFailed: "error.validationFailed",
   noApiKeysConfigured: "error.noApiKeysConfigured",
+  apiKeyHealthCheckFailed: "error.apiKeyHealthCheckFailed",
+  apiKeyHealthCheckTimeout: "error.apiKeyHealthCheckTimeout",
+  providerNoHealthCheck: "error.providerNoHealthCheck",
 } as const;
 
 export const ErrorMessages = {
@@ -32,6 +35,9 @@ export const ErrorMessages = {
   [ErrorCodes.providerNotConfigured]: "Provider is not configured",
   [ErrorCodes.validationFailed]: "Validation failed",
   [ErrorCodes.noApiKeysConfigured]: "At least one API key is required for the extension to work",
+  [ErrorCodes.apiKeyHealthCheckFailed]: "Unable to verify API key - connection failed",
+  [ErrorCodes.apiKeyHealthCheckTimeout]: "API key validation timed out",
+  [ErrorCodes.providerNoHealthCheck]: "Unable to validate API key for this provider",
 } as const;
 
 export const ErrorTitles = {
@@ -50,4 +56,7 @@ export const ErrorTitles = {
   [ErrorCodes.providerNotConfigured]: "Provider Not Configured",
   [ErrorCodes.validationFailed]: "Validation Failed",
   [ErrorCodes.noApiKeysConfigured]: "No API Keys Configured",
+  [ErrorCodes.apiKeyHealthCheckFailed]: "API Key Health Check Failed",
+  [ErrorCodes.apiKeyHealthCheckTimeout]: "API Key Validation Timeout",
+  [ErrorCodes.providerNoHealthCheck]: "Provider Health Check Unavailable",
 } as const;

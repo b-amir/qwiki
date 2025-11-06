@@ -311,6 +311,30 @@ export const useSettingsStore = defineStore("settings", {
               this.providerCapabilities = capabilities;
               return;
             }
+            case "apiKeyHealthValidated": {
+              const { providerId, isValid, isHealthy, error, responseTime, errorCode } =
+                message.payload || {};
+              logger.debug("API key health validated", {
+                providerId,
+                isValid,
+                isHealthy,
+                hasError: !!error,
+                responseTime,
+              });
+
+              const event = new CustomEvent("apiKeyHealthValidated", {
+                detail: {
+                  providerId,
+                  isValid,
+                  isHealthy,
+                  error,
+                  responseTime,
+                  errorCode,
+                },
+              });
+              window.dispatchEvent(event);
+              return;
+            }
             case "configurationBackupRestored": {
               logger.debug("Configuration backup restored successfully");
               this.savedMessage = "Configuration backup restored successfully";
@@ -692,6 +716,13 @@ export const useSettingsStore = defineStore("settings", {
       vscode.postMessage({
         command: "getProviderPerformance",
         payload: { providerId },
+      });
+    },
+    async validateApiKeyHealth(providerId: string, apiKey: string) {
+      logger.debug("Requesting API key health validation", { providerId });
+      vscode.postMessage({
+        command: "validateApiKeyHealth",
+        payload: { providerId, apiKey },
       });
     },
     async getProviderCapabilities() {

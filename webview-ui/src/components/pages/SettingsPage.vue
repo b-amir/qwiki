@@ -157,6 +157,10 @@ const getApiKeyInput = (providerId: string) => {
     : input;
 };
 
+const getActualApiKey = (providerId: string) => {
+  return settings.apiKeyInputs[providerId] || "";
+};
+
 const contentHeights = ref<Record<string, number>>({});
 
 const calculateContentHeight = async (providerId: string) => {
@@ -183,14 +187,14 @@ const {
   showValidationErrors,
   validationErrors,
   validationWarnings,
-  getApiKeyInput,
+  getActualApiKey,
 );
 
 const navigationGuard = useSettingsNavigationGuard(
   wiki,
   settings,
   providerConfigs,
-  getApiKeyInput,
+  getActualApiKey,
   validating,
   lastValidationValid,
   showValidationErrors,

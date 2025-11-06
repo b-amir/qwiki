@@ -34,6 +34,7 @@ import {
   UndoReadmeCommand,
   CheckReadmeBackupCommand,
   ToggleOutputChannelCommand,
+  ValidateApiKeyHealthCommand,
 } from "../application/commands";
 import { MessageBusService } from "../application/services/MessageBusService";
 import { CommandIds } from "../constants";
@@ -260,6 +261,13 @@ export class CommandFactory {
           container.resolve("loggingService") as LoggingService,
         ) as Command<T>;
 
+      case CommandIds.validateApiKeyHealth:
+        return new ValidateApiKeyHealthCommand(
+          await container.resolveLazy("llmRegistry"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
       default:
         return undefined;
     }
@@ -299,6 +307,7 @@ export class CommandFactory {
       CommandIds.undoReadme,
       CommandIds.checkReadmeBackupState,
       CommandIds.toggleOutputChannel,
+      CommandIds.validateApiKeyHealth,
     ];
 
     for (const commandId of commandIds) {

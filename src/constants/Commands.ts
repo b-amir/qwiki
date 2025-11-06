@@ -30,6 +30,7 @@ export const CommandIds = {
   undoReadme: "undoReadme",
   checkReadmeBackupState: "checkReadmeBackupState",
   toggleOutputChannel: "toggleOutputChannel",
+  validateApiKeyHealth: "validateApiKeyHealth",
 } as const;
 
 export const VSCodeCommandIds = {

@@ -208,13 +208,40 @@ export class LLMRegistry {
         apiKey = providerConfig?.apiKey;
       }
 
+      return await this.healthCheckProviderWithKey(providerId, apiKey || undefined);
+    } catch (error: any) {
+      const responseTime = Date.now() - start;
+      return {
+        isHealthy: false,
+        responseTime,
+        error: error?.message || String(error),
+        lastChecked: new Date(),
+      };
+    }
+  }
+
+  async healthCheckProviderWithKey(
+    providerId: ProviderId,
+    apiKey?: string,
+  ): Promise<HealthCheckResult> {
+    const provider = this.providers.get(providerId);
+    if (!provider) {
+      return {
+        isHealthy: false,
+        responseTime: 0,
+        error: `Provider ${providerId} not found`,
+        lastChecked: new Date(),
+      };
+    }
+
+    const start = Date.now();
+    try {
       const maybeWithKey = (provider as any).healthCheckWithKey as
         | ((apiKey?: string) => Promise<HealthCheckResult>)
         | undefined;
 
       if (maybeWithKey) {
-        const res = await maybeWithKey.call(provider, apiKey || undefined);
-        // Ensure responseTime populated
+        const res = await maybeWithKey.call(provider, apiKey);
         if (typeof res.responseTime !== "number") {
           res.responseTime = Date.now() - start;
         }
