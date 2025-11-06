@@ -35,9 +35,25 @@ export const useWikiStore = defineStore("wiki", {
             this.languageId = languageId || "";
             this.filePath = filePath || "";
             vscode.postMessage({ command: "getRelated" });
-            if (this.pendingAutoGenerate && this.snippet?.trim()) {
+            if (this.pendingAutoGenerate) {
               this.pendingAutoGenerate = false;
-              this.generate();
+              if (this.snippet?.trim()) {
+                await this._doGenerate();
+              } else {
+                const errorInfo = getErrorMessage(ErrorCodes.MISSING_SNIPPET);
+                const { useErrorStore } = await import("./error");
+                const errorStore = useErrorStore();
+                errorStore.setError({
+                  message: errorInfo.message,
+                  code: ErrorCodes.MISSING_SNIPPET,
+                  suggestions: errorInfo.suggestions,
+                  retryable: false,
+                  context: {
+                    page: "wiki",
+                    operation: "generate",
+                  },
+                });
+              }
             }
             return;
           }
@@ -209,10 +225,14 @@ export const useWikiStore = defineStore("wiki", {
         },
       });
 
+      this.pendingAutoGenerate = true;
+      vscode.postMessage({ command: "getSelection" });
+    },
+    async _doGenerate() {
       if (!this.snippet?.trim()) {
         vscode.postMessage({
           command: "frontendLog",
-          payload: { message: "WikiStore: generate() aborted - missing snippet" },
+          payload: { message: "WikiStore: _doGenerate() aborted - missing snippet" },
         });
         const errorInfo = getErrorMessage(ErrorCodes.MISSING_SNIPPET);
         const { useErrorStore } = await import("./error");
@@ -233,7 +253,7 @@ export const useWikiStore = defineStore("wiki", {
       if (!this.providerId?.trim()) {
         vscode.postMessage({
           command: "frontendLog",
-          payload: { message: "WikiStore: generate() aborted - no provider selected" },
+          payload: { message: "WikiStore: _doGenerate() aborted - no provider selected" },
         });
         const errorInfo = getErrorMessage(ErrorCodes.PROVIDER_NOT_SELECTED);
         this.loading = false;
@@ -262,7 +282,8 @@ export const useWikiStore = defineStore("wiki", {
         vscode.postMessage({
           command: "frontendLog",
           payload: {
-            message: "WikiStore: generate() - loading already active, cancelling previous request",
+            message:
+              "WikiStore: _doGenerate() - loading already active, cancelling previous request",
             data: { existingRequestId: this.generateRequestId },
           },
         });
@@ -279,7 +300,7 @@ export const useWikiStore = defineStore("wiki", {
 
       vscode.postMessage({
         command: "frontendLog",
-        payload: { message: "WikiStore: generate() setting loading state" },
+        payload: { message: "WikiStore: _doGenerate() setting loading state" },
       });
 
       this.loading = true;
@@ -292,7 +313,7 @@ export const useWikiStore = defineStore("wiki", {
       vscode.postMessage({
         command: "frontendLog",
         payload: {
-          message: "WikiStore: generate() sending generateWiki command",
+          message: "WikiStore: _doGenerate() sending generateWiki command",
           data: {
             providerId: this.providerId,
             snippetLength: this.snippet.length,
