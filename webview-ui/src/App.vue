@@ -16,6 +16,7 @@ import { useNavigation } from "@/composables/useNavigation";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 import LoadingState from "@/components/features/LoadingState.vue";
 import { useLoading } from "@/loading/useLoading";
+import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { createLogger } from "@/utilities/logging";
 import { vscode } from "@/utilities/vscode";
 
@@ -160,14 +161,20 @@ watch(
 
 const navigationTarget = computed(() => navigationStatus.target);
 
-const environmentLoading = computed(() => {
+const environmentLoadingRaw = computed(() => {
   const result = environmentLoadingContext.isActive.value;
   if (result) {
     logger.debug("environmentLoading computed", { result });
   }
   return result;
 });
-const wikiNavigationLoading = computed(() => {
+const { displayLoading: environmentLoading } = useDelayedLoadingState(
+  environmentLoadingRaw,
+  computed(() => environmentLoadingContext.steps.value.length),
+  { minDisplayTime: 300, perStepDelay: 100 },
+);
+
+const wikiNavigationLoadingRaw = computed(() => {
   const result =
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "wiki" &&
@@ -189,7 +196,13 @@ const wikiNavigationLoading = computed(() => {
   }
   return result;
 });
-const settingsNavigationLoading = computed(() => {
+const { displayLoading: wikiNavigationLoading } = useDelayedLoadingState(
+  wikiNavigationLoadingRaw,
+  computed(() => navigationLoadingContext.steps.value.length),
+  { minDisplayTime: 200, perStepDelay: 100 },
+);
+
+const settingsNavigationLoadingRaw = computed(() => {
   const result =
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "settings" &&
@@ -204,7 +217,13 @@ const settingsNavigationLoading = computed(() => {
   }
   return result;
 });
-const errorHistoryNavigationLoading = computed(() => {
+const { displayLoading: settingsNavigationLoading } = useDelayedLoadingState(
+  settingsNavigationLoadingRaw,
+  computed(() => navigationLoadingContext.steps.value.length),
+  { minDisplayTime: 200, perStepDelay: 100 },
+);
+
+const errorHistoryNavigationLoadingRaw = computed(() => {
   const result =
     navigationLoadingContext.isActive.value &&
     navigationTarget.value === "errorHistory" &&
@@ -219,8 +238,13 @@ const errorHistoryNavigationLoading = computed(() => {
   }
   return result;
 });
+const { displayLoading: errorHistoryNavigationLoading } = useDelayedLoadingState(
+  errorHistoryNavigationLoadingRaw,
+  computed(() => navigationLoadingContext.steps.value.length),
+  { minDisplayTime: 200, perStepDelay: 100 },
+);
 
-const showWikiLoading = computed(() => {
+const showWikiLoadingRaw = computed(() => {
   const result = wiki.loading || wikiLoadingContext.isActive.value;
   if (result) {
     logger.debug("showWikiLoading computed", {
@@ -231,6 +255,11 @@ const showWikiLoading = computed(() => {
   }
   return result;
 });
+const { displayLoading: showWikiLoading } = useDelayedLoadingState(
+  showWikiLoadingRaw,
+  computed(() => wikiLoadingContext.steps.value.length),
+  { minDisplayTime: 400, perStepDelay: 100 },
+);
 </script>
 
 <template>

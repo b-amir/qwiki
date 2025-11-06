@@ -102,7 +102,7 @@ export const useSettingsStore = defineStore("settings", {
 
       this.loading = true;
       const loadingStore = useLoadingStore();
-      loadingStore.start({ context: "settings", step: "loading" });
+      loadingStore.start({ context: "settings", step: "loadingSettings" });
 
       const handleMessage = (event: MessageEvent) => {
         const message = event.data;
@@ -135,7 +135,6 @@ export const useSettingsStore = defineStore("settings", {
               this.unsavedProviders.clear();
 
               this.initialized = true;
-              this.loading = false;
               this.loadingPhase.apiKeysResolved = true;
 
               if (this.initTimeoutId) {
@@ -143,6 +142,11 @@ export const useSettingsStore = defineStore("settings", {
                 this.initTimeoutId = undefined;
               }
 
+              if (!this.loadingPhase.providersResolved) {
+                loadingStore.advance({ context: "settings", step: "fetchingConfiguration" });
+              }
+
+              this.loading = false;
               this.ensurePreparingPhase(loadingStore);
               this.tryCompleteLoading(loadingStore);
               try {
@@ -197,6 +201,11 @@ export const useSettingsStore = defineStore("settings", {
             case "providers": {
               const providers = message.payload || [];
               logger.debug(`Received ${providers.length} providers`);
+
+              // Advance to fetching step when providers are received
+              if (this.loading && !this.loadingPhase.providersResolved) {
+                loadingStore.advance({ context: "settings", step: "fetchingConfiguration" });
+              }
 
               if (!this.selectedProvider && providers.length > 0) {
                 const withKey = providers.find((p: any) => p.hasKey);
@@ -369,9 +378,9 @@ export const useSettingsStore = defineStore("settings", {
       try {
         logger.debug("Sending initialization messages");
         vscode.postMessage({ command: "getApiKeys" });
+        vscode.postMessage({ command: "getProviders" });
         vscode.postMessage({ command: "getConfigurationTemplates" });
         vscode.postMessage({ command: "getConfigurationBackups" });
-        loadingStore.advance({ context: "settings", step: "fetching" });
       } catch (error) {
         logger.error("Error sending initialization messages:", error);
       }
@@ -417,7 +426,7 @@ export const useSettingsStore = defineStore("settings", {
         this.loadingPhase.apiKeysResolved &&
         !this.loadingPhase.preparingAnnounced
       ) {
-        loadingStore.advance({ context: "settings", step: "preparing" });
+        loadingStore.advance({ context: "settings", step: "renderingSettings" });
         this.loadingPhase.preparingAnnounced = true;
       }
     },
@@ -428,7 +437,7 @@ export const useSettingsStore = defineStore("settings", {
       if (!bothResolved) return;
 
       if (!this.loadingPhase.preparingAnnounced) {
-        loadingStore.advance({ context: "settings", step: "preparing" });
+        loadingStore.advance({ context: "settings", step: "renderingSettings" });
         this.loadingPhase.preparingAnnounced = true;
         setTimeout(() => {
           if (!this.loadingPhase.completed) {

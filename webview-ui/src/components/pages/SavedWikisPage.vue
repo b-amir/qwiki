@@ -15,6 +15,7 @@ import Button from "@/components/ui/button.vue";
 import SearchInput from "@/components/ui/SearchInput.vue";
 import EmptyState from "@/components/ui/EmptyState.vue";
 import { useLoading } from "@/loading/useLoading";
+import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { createLogger } from "@/utilities/logging";
 import { useDebouncedRef } from "@/composables/useDebouncedRef";
 import type { ReadmePreview } from "../../../../src/domain/entities/ReadmeUpdate";
@@ -54,14 +55,27 @@ const changeSummary = ref<{
 
 const savedWikisLoadingContext = useLoading("savedWikis");
 const readmeUpdateLoadingContext = useLoading("readmeUpdate");
-const isSavedWikisLoading = computed(
+
+const isSavedWikisLoadingRaw = computed(
   () => loading.value || savedWikisLoadingContext.isActive.value,
 );
-const isReadmeUpdateLoading = computed(
+const { displayLoading: isSavedWikisLoading } = useDelayedLoadingState(
+  isSavedWikisLoadingRaw,
+  computed(() => savedWikisLoadingContext.steps.value.length),
+  { minDisplayTime: 300, perStepDelay: 100 },
+);
+
+const isReadmeUpdateLoadingRaw = computed(
   () => updateReadmeState.value === "loading" || readmeUpdateLoadingContext.isActive.value,
+);
+const { displayLoading: isReadmeUpdateLoading } = useDelayedLoadingState(
+  isReadmeUpdateLoadingRaw,
+  computed(() => readmeUpdateLoadingContext.steps.value.length),
+  { minDisplayTime: 500, perStepDelay: 100 },
 );
 
 const isLoading = ref(false);
+const loadTimeoutId = ref<ReturnType<typeof setTimeout> | null>(null);
 const { currentPage } = useNavigation();
 
 const filteredWikis = computed(() => {
@@ -150,12 +164,36 @@ const loadSavedWikis = async () => {
   }
 
   try {
+    if (loadTimeoutId.value) {
+      clearTimeout(loadTimeoutId.value);
+      loadTimeoutId.value = null;
+    }
+
     isLoading.value = true;
     loading.value = true;
     error.value = null;
-    savedWikisLoadingContext.start("loading");
+    savedWikisLoadingContext.start("loadingWikis");
+    savedWikisLoadingContext.advance("fetchingWikiData");
+
+    loadTimeoutId.value = setTimeout(() => {
+      if (isLoading.value) {
+        logger.warn("getSavedWikis command timed out");
+        error.value = "Failed to load saved wikis: Request timed out";
+        errorModalOpen.value = true;
+        loading.value = false;
+        isLoading.value = false;
+        navigationStatus.finish("savedWikis");
+        savedWikisLoadingContext.fail("Failed to load saved wikis: Request timed out");
+        loadTimeoutId.value = null;
+      }
+    }, 10000);
+
     vscode.postMessage({ command: "getSavedWikis" });
   } catch {
+    if (loadTimeoutId.value) {
+      clearTimeout(loadTimeoutId.value);
+      loadTimeoutId.value = null;
+    }
     error.value = "Failed to load saved wikis";
     errorModalOpen.value = true;
     loading.value = false;
@@ -218,7 +256,13 @@ const handleMessage = (event: MessageEvent) => {
 
   switch (message.command) {
     case "savedWikisLoaded":
+      if (loadTimeoutId.value) {
+        clearTimeout(loadTimeoutId.value);
+        loadTimeoutId.value = null;
+      }
       savedWikis.value = message.payload.wikis;
+      savedWikisLoadingContext.advance("sortingWikis");
+      savedWikisLoadingContext.advance("renderingWikis");
       loading.value = false;
       isLoading.value = false;
       navigationStatus.finish("savedWikis");
@@ -275,6 +319,10 @@ const handleMessage = (event: MessageEvent) => {
       break;
     case "showNotification":
       if (message.payload.type === "error") {
+        if (loadTimeoutId.value) {
+          clearTimeout(loadTimeoutId.value);
+          loadTimeoutId.value = null;
+        }
         error.value = message.payload.message;
         errorModalOpen.value = true;
         loading.value = false;
@@ -315,6 +363,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("message", handleMessage);
+  if (loadTimeoutId.value) {
+    clearTimeout(loadTimeoutId.value);
+    loadTimeoutId.value = null;
+  }
 });
 </script>
 

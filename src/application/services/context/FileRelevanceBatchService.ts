@@ -65,7 +65,7 @@ export class FileRelevanceBatchService {
       targetFilePath,
       progressUpdateInterval: progressInterval,
     });
-    onProgress?.(LoadingSteps.analyzingProject);
+    onProgress?.(LoadingSteps.analyzingFileRelevance);
 
     for (const fileUri of allFiles) {
       const filePath = fileUri.fsPath;
@@ -78,7 +78,7 @@ export class FileRelevanceBatchService {
         analyzedCount++;
 
         if (analyzedCount % progressInterval === 0) {
-          onProgress?.(LoadingSteps.analyzingProject);
+          onProgress?.(LoadingSteps.analyzingFileRelevance);
           const elapsed = Date.now() - analyzeStart;
           const avgTimePerFile = elapsed / analyzedCount;
           const estimatedRemaining = avgTimePerFile * (totalFilesToAnalyze - analyzedCount);

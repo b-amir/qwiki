@@ -1,12 +1,25 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useErrorHistoryStore, type ErrorHistoryEntry } from "@/stores/errorHistory";
+import { useLoading } from "@/loading/useLoading";
 import Button from "@/components/ui/button.vue";
 import { createLogger } from "@/utilities/logging";
 
 const errorHistory = useErrorHistoryStore();
 const showDetails = ref<string[]>([]);
 const logger = createLogger("ErrorHistory");
+const errorHistoryLoadingContext = useLoading("errorHistory");
+
+onMounted(() => {
+  errorHistoryLoadingContext.start("loadingHistory");
+  errorHistoryLoadingContext.advance("fetchingErrors");
+  setTimeout(() => {
+    errorHistoryLoadingContext.advance("renderingHistory");
+    setTimeout(() => {
+      errorHistoryLoadingContext.complete();
+    }, 100);
+  }, 100);
+});
 
 const sortedErrors = computed(() => {
   return [...errorHistory.errors].sort(

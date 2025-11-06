@@ -70,7 +70,7 @@ export class ReadmeUpdateService {
 
     let backupPath: string | undefined;
     try {
-      this.emitProgress(LoadingSteps.analyzingWikis, 10);
+      this.emitProgress(LoadingSteps.loadingSavedWikis, 10);
 
       const allWikis = await this.wikiStorageService.getAllSavedWikis();
       const wikis = allWikis.filter((w) => wikiIds.includes(w.id));
@@ -80,7 +80,6 @@ export class ReadmeUpdateService {
       }
 
       this.emitProgress(LoadingSteps.detectingReadmeState, 20);
-
       const currentReadme = await this.fileService.readReadme();
       const readmePath = this.fileService.getReadmePath();
       const stateResult = readmePath
@@ -102,13 +101,12 @@ export class ReadmeUpdateService {
         isBoilerplate,
       });
 
-      this.emitProgress(LoadingSteps.detectingReadmeState, 30);
-
       if (config.backupOriginal) {
+        this.emitProgress(LoadingSteps.creatingBackup, 30);
         backupPath = await this.backupService.createBackup(currentReadme);
       }
 
-      this.emitProgress(LoadingSteps.optimizingSelection, 40);
+      this.emitProgress(LoadingSteps.optimizingWikiSelection, 40);
 
       const optimized = await this.promptOptimizationService.optimizeWikiSelection(
         wikis,
@@ -117,7 +115,7 @@ export class ReadmeUpdateService {
         currentReadme.length,
       );
 
-      this.emitProgress(LoadingSteps.buildingPrompt, 50);
+      this.emitProgress(LoadingSteps.buildingReadmePrompt, 50);
 
       const sortedWikiIds = [...wikiIds].sort();
       const cachedContent = await this.cacheService.getCachedReadme(sortedWikiIds, currentReadme);
@@ -128,7 +126,6 @@ export class ReadmeUpdateService {
         this.logger.info("Using cached README generation result", {
           wikiCount: sortedWikiIds.length,
         });
-        this.emitProgress(LoadingSteps.processingResponse, 90);
         generatedContent = cachedContent;
       } else {
         const readmeState = stateResult?.state ?? ReadmeState.BOILERPLATE;
@@ -140,11 +137,9 @@ export class ReadmeUpdateService {
           readmeState,
         );
 
-        this.emitProgress(LoadingSteps.preparingLLMRequest, 55);
-
         const timeout = config.timeout ?? ServiceLimits.readmeTimeoutDefault;
 
-        this.emitProgress(LoadingSteps.sendingRequest, 60);
+        this.emitProgress(LoadingSteps.generatingReadmeContent, 60);
 
         const generatePromise = this.llmRegistry.generate(config.providerId, {
           model: config.model,
@@ -157,11 +152,8 @@ export class ReadmeUpdateService {
           setTimeout(() => reject(new Error("Request timeout")), timeout),
         );
 
-        this.emitProgress(LoadingSteps.waitingForResponse, 65);
-
         const result = await Promise.race([generatePromise, timeoutPromise]);
 
-        this.emitProgress(LoadingSteps.processingResponse, 90);
         generatedContent = result.content;
 
         await this.cacheService.cacheReadme(sortedWikiIds, currentReadme, generatedContent);
@@ -200,11 +192,9 @@ export class ReadmeUpdateService {
         };
       }
 
-      this.emitProgress(LoadingSteps.writingReadme, 95);
+      this.emitProgress(LoadingSteps.writingReadmeFile, 95);
 
       await this.fileService.writeReadme(generatedContent);
-
-      this.emitProgress(LoadingSteps.writingReadme, 100);
 
       if (this.eventBus) {
         this.eventBus.publish("readme-updated", {
@@ -246,11 +236,9 @@ export class ReadmeUpdateService {
     const { generatedContent, config, wikiIds } = this.pendingUpdate;
 
     try {
-      this.emitProgress(LoadingSteps.writingReadme, 95);
+      this.emitProgress(LoadingSteps.writingReadmeFile, 95);
 
       await this.fileService.writeReadme(generatedContent);
-
-      this.emitProgress(LoadingSteps.writingReadme, 100);
 
       if (this.eventBus) {
         this.eventBus.publish("readmeUpdateApproved", {});

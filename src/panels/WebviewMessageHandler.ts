@@ -192,25 +192,43 @@ export class WebviewMessageHandler {
   }
 
   private async handleCommand(command: string, payload: any, receiveTs: number): Promise<void> {
+    const commandsThatCanWait = new Set([
+      "getSavedWikis",
+      "checkReadmeBackupState",
+      "getProviders",
+      "getRelated",
+      "getApiKeys",
+      "getConfigurationTemplates",
+      "getConfigurationBackups",
+      "getProviderCapabilities",
+      "getProviderConfigs",
+      "getSelection",
+    ]);
+
     if (!this.commandRegistry) {
-      const ignoreCommands = new Set([
-        "webviewReady",
-        "frontendLog",
-        "getSelection",
-        "getProviders",
-        "getRelated",
-        "getApiKeys",
-        "getConfigurationTemplates",
-        "getConfigurationBackups",
-        "getProviderCapabilities",
-        "getSavedWikis",
-        "checkReadmeBackupState",
-        "getProviderConfigs",
-      ]);
-      if (!ignoreCommands.has(command)) {
-        this.logger.debug(`Command ${command} received before registry initialized, ignoring`);
+      if (commandsThatCanWait.has(command)) {
+        try {
+          await this.initPromise;
+          if (!this.commandRegistry) {
+            this.logger.warn(
+              `Command ${command} received but registry still not available after init`,
+            );
+            return;
+          }
+        } catch (e) {
+          this.logger.error("Initialization failed before command execution", {
+            command,
+            error: e,
+          });
+          return;
+        }
+      } else {
+        const ignoreCommands = new Set(["webviewReady", "frontendLog"]);
+        if (!ignoreCommands.has(command)) {
+          this.logger.debug(`Command ${command} received before registry initialized, ignoring`);
+        }
+        return;
       }
-      return;
     }
 
     if (!this.commandRegistry.has(command)) {

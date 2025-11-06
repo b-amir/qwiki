@@ -56,9 +56,9 @@ export class WikiGenerationExecutor {
     const startTime = Date.now();
 
     try {
-      const validatingMessage = getProgressMessageForStep(LoadingSteps.validating);
+      const validatingMessage = getProgressMessageForStep(LoadingSteps.validatingProvider);
       this.updateStatusBar(validatingMessage);
-      this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.validating });
+      this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.validatingProvider });
 
       if (cancellationToken.isCancellationRequested) {
         throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
@@ -118,9 +118,9 @@ export class WikiGenerationExecutor {
       snippetLength: payload?.snippet?.length || 0,
       languageId: payload?.languageId,
     });
-    const buildingContextMessage = getProgressMessageForStep(LoadingSteps.buildingContext);
+    const buildingContextMessage = getProgressMessageForStep(LoadingSteps.initializingContext);
     this.updateStatusBar(buildingContextMessage);
-    this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.buildingContext });
+    this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.initializingContext });
 
     const projectContext = await this.projectContextService.buildContext(
       payload?.snippet || "",

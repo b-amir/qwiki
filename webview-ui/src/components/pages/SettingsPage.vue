@@ -6,6 +6,7 @@ import ErrorModal from "@/components/features/ErrorModal.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useLoading } from "@/loading/useLoading";
+import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { useSettingsMessaging } from "@/composables/useSettingsMessaging";
 import { useProviderConfigs } from "@/composables/useProviderConfigs";
 import { useSettingsHandlers } from "@/composables/useSettingsHandlers";
@@ -134,8 +135,13 @@ const validationWarnings = ref<Array<string | { field?: string; code?: string; m
   [],
 );
 
-const isSettingsLoading = computed(
+const isSettingsLoadingRaw = computed(
   () => settingsLoadingContext.isActive.value || settingsLoading.value || settings.loading,
+);
+const { displayLoading: isSettingsLoading } = useDelayedLoadingState(
+  isSettingsLoadingRaw,
+  computed(() => settingsLoadingContext.steps.value.length),
+  { minDisplayTime: 300, perStepDelay: 100 },
 );
 
 const { providerConfigs } = useProviderConfigs(wiki, settings, centralizedProviderConfigs);

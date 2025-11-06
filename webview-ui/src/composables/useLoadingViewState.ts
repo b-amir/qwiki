@@ -1,5 +1,6 @@
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, ref, watch, nextTick, type Ref } from "vue";
 import { LoadingViewAnimations } from "@/constants/loadingViewAnimations";
+import { createLogger } from "@/utilities/logging";
 
 export interface LoadingStepDefinition {
   key: string;
@@ -7,6 +8,8 @@ export interface LoadingStepDefinition {
 }
 
 export type StepState = "completed" | "active" | "pending";
+
+const logger = createLogger("useLoadingViewState");
 
 export function useLoadingViewState(
   steps: Ref<LoadingStepDefinition[]> | LoadingStepDefinition[],
@@ -26,6 +29,7 @@ export function useLoadingViewState(
   });
 
   const displayedStepIndex = ref(0);
+  let isInitialized = false;
 
   let isAnimating = false;
   let currentTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -36,6 +40,10 @@ export function useLoadingViewState(
 
     if (current >= target) {
       isAnimating = false;
+      if (currentTimeout) {
+        clearTimeout(currentTimeout);
+        currentTimeout = null;
+      }
       return;
     }
 
@@ -51,27 +59,51 @@ export function useLoadingViewState(
       delay = LoadingViewAnimations.moderateCatchUpDelay;
     }
 
+    if (currentTimeout) {
+      clearTimeout(currentTimeout);
+    }
     currentTimeout = setTimeout(() => {
+      currentTimeout = null;
       animateToNextStep();
     }, delay);
   };
 
+  const initializeDisplayedStep = () => {
+    if (isInitialized) return;
+    const target = targetStepIndex.value;
+    displayedStepIndex.value = target;
+    isInitialized = true;
+  };
+
+  nextTick(() => {
+    initializeDisplayedStep();
+  });
+
   watch(
     targetStepIndex,
     (newIndex) => {
+      if (!isInitialized) {
+        initializeDisplayedStep();
+        return;
+      }
+
       const startIndex = displayedStepIndex.value;
 
       if (newIndex > startIndex) {
         if (!isAnimating) {
+          if (currentTimeout) {
+            clearTimeout(currentTimeout);
+            currentTimeout = null;
+          }
+          isAnimating = false;
           animateToNextStep();
         }
       } else if (newIndex < startIndex) {
-        if (currentTimeout) {
-          clearTimeout(currentTimeout);
-          currentTimeout = null;
-        }
-        isAnimating = false;
-        displayedStepIndex.value = newIndex;
+        logger.warn("Prevented backward step progression", {
+          newIndex,
+          startIndex,
+          targetStep: currentStepRef.value,
+        });
       }
     },
     { immediate: false },

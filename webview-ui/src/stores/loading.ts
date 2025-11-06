@@ -13,6 +13,7 @@ import {
 } from "@/loading/types";
 import { getContextTimeout } from "@/loading/config";
 import { getStepsForContext } from "@/loading/stepCatalog";
+import { createLogger } from "@/utilities/logging";
 
 type TimeoutHandle = ReturnType<typeof setTimeout> | null;
 
@@ -25,6 +26,8 @@ const defaultSnapshot = (): LoadingStateSnapshot => ({
   error: null,
   cancelled: false,
 });
+
+const logger = createLogger("LoadingStore");
 
 export const useLoadingStore = defineStore("loading", {
   state: () => ({
@@ -47,12 +50,24 @@ export const useLoadingStore = defineStore("loading", {
   },
   actions: {
     handleMessage(message: LoadingMessage) {
+      const receiveTime = Date.now();
       const percent = typeof message.percent === "number" ? message.percent : null;
       const currentState = this.getState(message.context);
 
       if (!currentState.active) {
         this.start({ context: message.context, step: message.step });
       } else {
+        if (currentState.startedAt) {
+          const latency = receiveTime - currentState.startedAt;
+          if (latency > 200) {
+            logger.warn("High latency detected for loading step", {
+              context: message.context,
+              step: message.step,
+              latency,
+              threshold: 200,
+            });
+          }
+        }
         this.advance({ context: message.context, step: message.step, percent });
       }
     },
@@ -88,7 +103,26 @@ export const useLoadingStore = defineStore("loading", {
       }
 
       if (current.step && this.isStepBefore(options.context, options.step, current.step)) {
+        logger.warn("Ignoring backward step progression", {
+          context: options.context,
+          attemptedStep: options.step,
+          currentStep: current.step,
+        });
         return;
+      }
+
+      if (current.step && options.step && current.step !== options.step) {
+        const steps = isKnownContext(options.context) ? getStepsForContext(options.context) : [];
+        const currentIndex = steps.findIndex((s) => s.key === current.step);
+        const newIndex = steps.findIndex((s) => s.key === options.step);
+        if (currentIndex >= 0 && newIndex >= 0 && newIndex > currentIndex + 1) {
+          logger.warn("Step skipped in sequence", {
+            context: options.context,
+            fromStep: current.step,
+            toStep: options.step,
+            skippedSteps: steps.slice(currentIndex + 1, newIndex).map((s) => s.key),
+          });
+        }
       }
 
       current.step = options.step;

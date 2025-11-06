@@ -7,6 +7,7 @@ import Button from "@/components/ui/button.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useVscode } from "@/composables/useVscode";
 import { useLoading } from "@/loading/useLoading";
+import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
@@ -17,7 +18,12 @@ const isSaving = ref(false);
 const saveState = ref<"idle" | "saving" | "saved" | "error">("idle");
 let messageHandler: ((event: MessageEvent) => void) | null = null;
 
-const showWikiLoading = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
+const isLoadingRaw = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
+const { displayLoading: showWikiLoading } = useDelayedLoadingState(
+  isLoadingRaw,
+  computed(() => wikiLoadingContext.steps.value.length),
+  { minDisplayTime: 400, perStepDelay: 100 },
+);
 
 const wikiContentWithoutTitle = computed(() => {
   if (wiki.content && typeof wiki.content === "string") {

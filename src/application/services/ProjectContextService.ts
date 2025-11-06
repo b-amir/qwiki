@@ -102,10 +102,10 @@ export class ProjectContextService {
     }
 
     if (webview) {
-      this.logger.debug("Sending loading step to webview", { step: LoadingSteps.finding });
+      this.logger.debug("Sending loading step to webview", { step: LoadingSteps.buildingContextSummary });
       webview.postMessage({
         command: OutboundEvents.loadingStep,
-        payload: { step: LoadingSteps.finding },
+        payload: { step: LoadingSteps.buildingContextSummary },
       });
     }
 

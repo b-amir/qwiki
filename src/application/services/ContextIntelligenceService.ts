@@ -103,9 +103,9 @@ export class ContextIntelligenceService {
     });
 
     try {
+      onProgress?.(LoadingSteps.validatingProvider);
       const providerStart = Date.now();
       this.logger.info("Getting provider", { providerId });
-      onProgress?.(LoadingSteps.analyzingProject);
       const provider = this.llmRegistry.getProvider(providerId);
       if (!provider) {
         throw new Error(`Provider ${providerId} not found`);
@@ -125,9 +125,9 @@ export class ContextIntelligenceService {
         capabilities = provider.capabilities;
       }
 
+      onProgress?.(LoadingSteps.calculatingTokenBudget);
       const tokenBudgetStart = Date.now();
       this.logger.info("Calculating token budget");
-      onProgress?.(LoadingSteps.analyzingProject);
       const tokenBudget = this.calculateTokenBudget(capabilities);
       const tokenBudgetDuration = Date.now() - tokenBudgetStart;
       this.logger.info("Token budget calculated", {
@@ -137,13 +137,13 @@ export class ContextIntelligenceService {
         utilizationTarget: tokenBudget.utilizationTarget,
       });
 
+      onProgress?.(LoadingSteps.detectingProjectType);
       const projectTypeStart = Date.now();
       this.logger.info("Entering analyzingProject phase: Detecting project type", {
         targetFilePath,
         providerId,
         model,
       });
-      onProgress?.(LoadingSteps.analyzingProject);
       const projectType = await this.projectTypeDetectionService.detectProjectType();
       const projectTypeDuration = Date.now() - projectTypeStart;
       this.logger.info("Project type detected", {
@@ -173,7 +173,6 @@ export class ContextIntelligenceService {
       const findFilesStart = Date.now();
       const maxFiles = ServiceLimits.contextIntelligenceMaxFileAnalysis;
       this.logger.info("Getting indexed files", { maxFiles });
-      onProgress?.(LoadingSteps.analyzingProject);
       const indexedFiles = await this.projectIndexService.getIndexedFiles();
       const allFiles = indexedFiles.slice(0, maxFiles).map((f) => f.uri);
       const findFilesDuration = Date.now() - findFilesStart;
@@ -189,6 +188,7 @@ export class ContextIntelligenceService {
         });
       }
 
+      onProgress?.(LoadingSteps.analyzingFileRelevance);
       const fileRelevanceScores =
         await this.fileRelevanceBatchService.getOrAnalyzeFileRelevanceScores(
           targetFilePath,
@@ -206,6 +206,7 @@ export class ContextIntelligenceService {
       });
 
       const availableTokens = tokenBudget.availableForContext * tokenBudget.utilizationTarget;
+      onProgress?.(LoadingSteps.optimizingContextSelection);
       const selectionResult = this.fileSelectionService.selectFilesByTokenBudget(
         fileRelevanceScores,
         availableTokens,

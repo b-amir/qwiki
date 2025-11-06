@@ -86,8 +86,8 @@ export class WikiService {
     });
 
     try {
-      this.logger.debug("Setting loading step to validating");
-      onProgress?.(LoadingSteps.validating);
+      this.logger.debug("Setting loading step to validatingProvider");
+      onProgress?.(LoadingSteps.validatingProvider);
 
       if (cancellationToken?.isCancellationRequested) {
         throw new WikiError("missingSnippet", "Generation cancelled");
@@ -115,8 +115,8 @@ export class WikiService {
 
       if (cachedResult) {
         this.logger.debug("Using cached result");
-        onProgress?.(LoadingSteps.processing);
-        onProgress?.(LoadingSteps.finalizing);
+        onProgress?.(LoadingSteps.processingLLMOutput);
+        onProgress?.(LoadingSteps.finalizingDocumentation);
         return {
           content: cachedResult.content,
           success: true,

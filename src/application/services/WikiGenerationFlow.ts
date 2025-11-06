@@ -72,6 +72,27 @@ export class WikiGenerationFlow {
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
   ): Promise<WikiGenerationResult> {
+    const stepStartTimes = new Map<LoadingStep, number>();
+    const emitStep = (step: LoadingStep) => {
+      const timestamp = Date.now();
+      stepStartTimes.set(step, timestamp);
+      this.logger.debug("Loading step emitted", { step, timestamp });
+      onProgress?.(step);
+    };
+    const completeStep = (step: LoadingStep) => {
+      const startTime = stepStartTimes.get(step);
+      if (startTime) {
+        const duration = Date.now() - startTime;
+        this.logger.debug("Loading step completed", { step, duration, durationMs: duration });
+        stepStartTimes.delete(step);
+      }
+    };
+
+    emitStep(LoadingSteps.validatingProvider);
+    if (cancellationToken?.isCancellationRequested) {
+      throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
+    }
+
     let enhancedContext = projectContext;
     const startTime = Date.now();
     this.logger.debug("executeGenerationFlow started", {
@@ -80,6 +101,7 @@ export class WikiGenerationFlow {
       intelligentContextEnabled: this.intelligentContextEnabled,
     });
 
+    emitStep(LoadingSteps.initializingContext);
     try {
       enhancedContext = await this.enhanceContext(
         request,
@@ -87,6 +109,7 @@ export class WikiGenerationFlow {
         onProgress,
         cancellationToken,
       );
+      completeStep(LoadingSteps.initializingContext);
     } catch (error: any) {
       if (error?.code === ErrorCodes.GENERATION_CANCELLED) {
         throw error;
@@ -98,50 +121,57 @@ export class WikiGenerationFlow {
         filePath: request.filePath,
       });
       enhancedContext = projectContext;
+      completeStep(LoadingSteps.initializingContext);
     }
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.analyzingSnippet);
     const analysis = WikiTransformer.analyzeSnippet(request.snippet, request.languageId);
-    onProgress?.(LoadingSteps.analyzing);
+    completeStep(LoadingSteps.analyzingSnippet);
     await this.yieldForUi();
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.buildingContextSummary);
     const contextSummary = WikiTransformer.summarizeContext(enhancedContext);
-    onProgress?.(LoadingSteps.finding);
+    completeStep(LoadingSteps.buildingContextSummary);
     await this.yieldForUi();
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.preparingGenerationInput);
     const generationInput = WikiTransformer.prepareGenerationInput(
       request,
       enhancedContext,
       analysis,
       contextSummary,
     );
-    onProgress?.(LoadingSteps.preparing);
+    completeStep(LoadingSteps.preparingGenerationInput);
     await this.yieldForUi();
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.buildingPrompt);
     const promptSeed = WikiTransformer.buildPromptSeed(generationInput);
-    onProgress?.(LoadingSteps.buildingPrompt);
+    completeStep(LoadingSteps.buildingPrompt);
     await this.yieldForUi();
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.collectingSemanticInfo);
     const semanticInfo = await this.collectSemanticInfo(request, cancellationToken);
+    completeStep(LoadingSteps.collectingSemanticInfo);
 
     const rawResult = await this.callLLM(
       request,
@@ -155,20 +185,22 @@ export class WikiGenerationFlow {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.processingLLMOutput);
     const processed = WikiTransformer.processGenerationResult(
       rawResult.content,
       generationInput.metadata,
       promptSeed,
     );
-    onProgress?.(LoadingSteps.processing);
+    completeStep(LoadingSteps.processingLLMOutput);
     await this.yieldForUi();
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
     }
 
+    emitStep(LoadingSteps.finalizingDocumentation);
     const finalContent = WikiTransformer.finalizeContent(processed, generationInput.metadata);
-    onProgress?.(LoadingSteps.finalizing);
+    completeStep(LoadingSteps.finalizingDocumentation);
     await this.yieldForUi();
 
     if (cancellationToken?.isCancellationRequested) {
@@ -238,7 +270,6 @@ export class WikiGenerationFlow {
       providerId: request.providerId,
       model: request.model,
     });
-    onProgress?.(LoadingSteps.selectingContext);
 
     const contextTimer = this.performanceMonitor?.startTimer("selectOptimalContext", {
       filePath: request.filePath,
@@ -330,7 +361,8 @@ export class WikiGenerationFlow {
       model: request.model,
       hasSemanticInfo: !!semanticInfo,
     });
-    onProgress?.(LoadingSteps.sendingRequest);
+    const sendStepStart = Date.now();
+    onProgress?.(LoadingSteps.sendingLLMRequest);
 
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
@@ -345,11 +377,22 @@ export class WikiGenerationFlow {
       semanticInfo,
       project: generationInput.project,
     });
+    const sendStepDuration = Date.now() - sendStepStart;
+    this.logger.debug("Sending LLM request step completed", {
+      step: LoadingSteps.sendingLLMRequest,
+      duration: sendStepDuration,
+    });
 
     this.logger.info("Waiting for LLM response");
-    onProgress?.(LoadingSteps.waitingForResponse);
+    const waitStepStart = Date.now();
+    onProgress?.(LoadingSteps.waitingForLLMResponse);
     try {
       const rawResult = await generationPromise;
+      const waitStepDuration = Date.now() - waitStepStart;
+      this.logger.debug("Waiting for LLM response step completed", {
+        step: LoadingSteps.waitingForLLMResponse,
+        duration: waitStepDuration,
+      });
 
       if (cancellationToken?.isCancellationRequested) {
         throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
