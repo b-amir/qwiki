@@ -18,13 +18,12 @@ export class GetProviderConfigsCommand implements Command<void> {
     private configurationManager: ConfigurationManagerService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("GetProviderConfigsCommand", loggingService);
+    this.logger = createLogger("GetProviderConfigsCommand");
   }
 
   private logDebug(message: string, data?: unknown): void {

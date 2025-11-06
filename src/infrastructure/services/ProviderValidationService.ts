@@ -31,7 +31,7 @@ export class ProviderValidationService {
     private apiKeyRepository: ApiKeyRepository,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ProviderValidationService", loggingService);
+    this.logger = createLogger("ProviderValidationService");
   }
 
   async validateBeforeGeneration(providerId: string, model?: string): Promise<ValidationResult> {

@@ -20,13 +20,12 @@ export class GetProvidersCommand implements Command<void> {
     private configurationManager: ConfigurationManagerService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("GetProvidersCommand", loggingService);
+    this.logger = createLogger("GetProvidersCommand");
   }
 
   private logDebug(message: string, data?: unknown): void {

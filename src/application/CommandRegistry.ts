@@ -13,13 +13,12 @@ export class CommandRegistry {
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("CommandRegistry", loggingService);
+    this.logger = createLogger("CommandRegistry");
   }
 
   private logDebug(message: string, data?: unknown): void {

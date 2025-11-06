@@ -15,7 +15,7 @@ export class ReadmeFileService {
     private vscodeFileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ReadmeFileService", loggingService);
+    this.logger = createLogger("ReadmeFileService");
   }
 
   async readReadme(): Promise<string> {

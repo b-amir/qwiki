@@ -21,7 +21,7 @@ export class FileRelevanceBatchService {
     private fileRelevanceAnalysisService: FileRelevanceAnalysisService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("FileRelevanceBatchService", loggingService);
+    this.logger = createLogger("FileRelevanceBatchService");
   }
 
   async getOrAnalyzeFileRelevanceScores(

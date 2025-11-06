@@ -28,13 +28,12 @@ export class ProviderLifecycleManagerService {
     private providerDiscoveryService: ProviderDiscoveryService,
     private eventBus: EventBus,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ProviderLifecycleManagerService", loggingService);
+    this.logger = createLogger("ProviderLifecycleManagerService");
   }
 
   async initializeProvider(providerId: string): Promise<void> {

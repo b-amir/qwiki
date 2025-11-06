@@ -16,7 +16,7 @@ export class WikiSummarizationService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("WikiSummarizationService", loggingService);
+    this.logger = createLogger("WikiSummarizationService");
   }
 
   summarizeExcludedWikis(excludedWikis: SavedWiki[]): string {

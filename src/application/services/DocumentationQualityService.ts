@@ -24,7 +24,7 @@ export class DocumentationQualityService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("DocumentationQualityService", loggingService);
+    this.logger = createLogger("DocumentationQualityService");
   }
 
   calculateQualityMetrics(content: string, snippet: string): DocumentationQualityMetrics {
@@ -34,8 +34,7 @@ export class DocumentationQualityService {
     const examples = this.measureExamples(content);
     const codeReferences = this.measureCodeReferences(content, snippet);
 
-    const overallScore =
-      (completeness + clarity + structure + examples + codeReferences) / 5;
+    const overallScore = (completeness + clarity + structure + examples + codeReferences) / 5;
 
     this.logger.debug("Quality metrics calculated", {
       completeness,
@@ -119,16 +118,18 @@ export class DocumentationQualityService {
       }
     }
 
-    const symbolCoverage = snippetSymbols.length > 0 ? referencedSymbols / snippetSymbols.length : 1;
+    const symbolCoverage =
+      snippetSymbols.length > 0 ? referencedSymbols / snippetSymbols.length : 1;
 
     const hasDescription = content.length > 100;
     const hasUsage = /usage|how to|example|how/i.test(content);
     const hasParameters = /parameter|argument|input|option/i.test(content);
     const hasReturn = /return|output|result/i.test(content);
 
-    const sectionsScore = [hasDescription, hasUsage, hasParameters, hasReturn].filter(Boolean).length / 4;
+    const sectionsScore =
+      [hasDescription, hasUsage, hasParameters, hasReturn].filter(Boolean).length / 4;
 
-    return Math.min(1.0, (symbolCoverage * 0.5 + sectionsScore * 0.5));
+    return Math.min(1.0, symbolCoverage * 0.5 + sectionsScore * 0.5);
   }
 
   private measureClarity(content: string): number {
@@ -223,4 +224,3 @@ export class DocumentationQualityService {
     return Array.from(symbols).slice(0, 10);
   }
 }
-

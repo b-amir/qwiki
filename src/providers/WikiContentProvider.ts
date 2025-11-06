@@ -23,17 +23,14 @@ export class WikiContentProvider implements TextDocumentContentProvider {
     private wikiStorageService: WikiStorageService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("WikiContentProvider", loggingService);
+    this.logger = createLogger("WikiContentProvider");
   }
 
   get onDidChange(): Event<Uri> {
     return this._onDidChange.event;
   }
 
-  async provideTextDocumentContent(
-    uri: Uri,
-    token: CancellationToken,
-  ): Promise<string> {
+  async provideTextDocumentContent(uri: Uri, token: CancellationToken): Promise<string> {
     try {
       if (token.isCancellationRequested) {
         return "";

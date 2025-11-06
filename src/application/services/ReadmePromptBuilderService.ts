@@ -19,7 +19,7 @@ export class ReadmePromptBuilderService {
     private projectTypeDetectionService: ProjectTypeDetectionService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ReadmePromptBuilderService", loggingService);
+    this.logger = createLogger("ReadmePromptBuilderService");
   }
 
   async buildPrompt(
@@ -58,10 +58,7 @@ ${currentReadme}
 \`\`\``
       : "";
 
-    const projectOverviewSection = this.buildProjectOverviewSection(
-      projectContext,
-      projectType,
-    );
+    const projectOverviewSection = this.buildProjectOverviewSection(projectContext, projectType);
 
     const instructions = this.getInstructionsForState(state, isBoilerplate);
 
@@ -193,7 +190,13 @@ ${ReadmePromptTemplates.getInstructionsForExistingReadme()}`;
 
   private buildProjectOverviewSection(
     projectContext: { rootName: string; overview: string; filesSample: string[] },
-    projectType: { primaryLanguage: string; framework?: string; buildSystem?: string; packageManager?: string; confidence: number },
+    projectType: {
+      primaryLanguage: string;
+      framework?: string;
+      buildSystem?: string;
+      packageManager?: string;
+      confidence: number;
+    },
   ): string {
     const sections: string[] = [];
 
@@ -238,4 +241,3 @@ ${sections.join("\n\n")}
 Use this project context to understand the full scope and structure of the project. The saved wikis document specific components - integrate them appropriately within the broader project context.`;
   }
 }
-

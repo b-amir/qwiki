@@ -25,7 +25,7 @@ export class StructureAnalysisService {
     private loggingService: LoggingService,
     private patternExtractionService: PatternExtractionService,
   ) {
-    this.logger = createLogger("StructureAnalysisService", loggingService);
+    this.logger = createLogger("StructureAnalysisService");
   }
 
   analyzeCodeStructure(snippet: string, language: string, lines?: string[]): CodeStructure {

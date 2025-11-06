@@ -6,7 +6,7 @@ export class FileMetadataExtractionService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("FileMetadataExtractionService", loggingService);
+    this.logger = createLogger("FileMetadataExtractionService");
   }
 
   async extractFileMetadata(uri: Uri, size: number): Promise<IndexedFile> {

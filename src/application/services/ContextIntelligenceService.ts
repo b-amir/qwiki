@@ -51,7 +51,7 @@ export class ContextIntelligenceService {
     private projectIndexService: ProjectIndexService,
     private contextSuggestionService?: ContextSuggestionService,
   ) {
-    this.logger = createLogger("ContextIntelligenceService", loggingService);
+    this.logger = createLogger("ContextIntelligenceService");
   }
 
   private logDebug(message: string, data?: unknown): void {

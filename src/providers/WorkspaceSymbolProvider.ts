@@ -21,7 +21,7 @@ export class QwikiWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
     private wikiStorageService: WikiStorageService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("QwikiWorkspaceSymbolProvider", loggingService);
+    this.logger = createLogger("QwikiWorkspaceSymbolProvider");
   }
 
   async provideWorkspaceSymbols(query: string): Promise<SymbolInformation[]> {

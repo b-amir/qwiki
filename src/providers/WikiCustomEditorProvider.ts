@@ -23,7 +23,7 @@ export class WikiCustomEditorProvider implements CustomTextEditorProvider {
     private wikiStorageService: WikiStorageService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("WikiCustomEditorProvider", loggingService);
+    this.logger = createLogger("WikiCustomEditorProvider");
   }
 
   async resolveCustomTextEditor(

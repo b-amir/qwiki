@@ -57,8 +57,7 @@ export class CommandFactory {
       this.loggingService = this.dependencies.container.resolve("loggingService") as LoggingService;
     } catch {
       this.loggingService = new LoggingService({
-        enabled: false,
-        level: "error",
+        mode: "none",
         includeTimestamp: true,
         includeService: true,
       });

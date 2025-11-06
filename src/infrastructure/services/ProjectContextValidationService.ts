@@ -11,7 +11,7 @@ export class ProjectContextValidationService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ProjectContextValidationService", loggingService);
+    this.logger = createLogger("ProjectContextValidationService");
   }
 
   async validateMetadata(

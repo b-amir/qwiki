@@ -62,7 +62,7 @@ export class SmartProviderSelectionService {
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("SmartProviderSelectionService", loggingService);
+    this.logger = createLogger("SmartProviderSelectionService");
   }
 
   async selectOptimalProvider(

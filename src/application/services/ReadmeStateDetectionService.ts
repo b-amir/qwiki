@@ -39,7 +39,7 @@ export class ReadmeStateDetectionService {
     private gitChangeDetectionService: GitChangeDetectionService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ReadmeStateDetectionService", loggingService);
+    this.logger = createLogger("ReadmeStateDetectionService");
     this.initializeGitAPI();
   }
 

@@ -31,7 +31,7 @@ export class ProjectContextCacheService {
     private loggingService: LoggingService,
     useGlobalState: boolean = false,
   ) {
-    this.logger = createLogger("ProjectContextCacheService", loggingService);
+    this.logger = createLogger("ProjectContextCacheService");
     this.memento = useGlobalState ? extensionContext.globalState : extensionContext.workspaceState;
   }
 

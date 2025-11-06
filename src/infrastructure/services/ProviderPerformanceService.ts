@@ -41,13 +41,12 @@ export class ProviderPerformanceService {
     private statisticsCalculationService: StatisticsCalculationService,
     private performanceMonitoringService: PerformanceMonitoringService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ProviderPerformanceService", loggingService);
+    this.logger = createLogger("ProviderPerformanceService");
   }
 
   recordGenerationStart(providerId: string): string {

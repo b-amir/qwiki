@@ -26,7 +26,7 @@ export class DocumentationImprovementService {
   private qualityService: DocumentationQualityService;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("DocumentationImprovementService", loggingService);
+    this.logger = createLogger("DocumentationImprovementService");
     this.qualityService = new DocumentationQualityService(loggingService);
   }
 

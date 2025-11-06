@@ -47,7 +47,7 @@ export class DocumentationCompletionProvider implements CompletionItemProvider {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("DocumentationCompletionProvider", loggingService);
+    this.logger = createLogger("DocumentationCompletionProvider");
   }
 
   async provideCompletionItems(

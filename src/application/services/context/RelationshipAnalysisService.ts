@@ -11,7 +11,7 @@ export class RelationshipAnalysisService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("RelationshipAnalysisService", loggingService);
+    this.logger = createLogger("RelationshipAnalysisService");
   }
 
   analyzeCodeRelationships(

@@ -17,7 +17,7 @@ export class StatisticsCalculationService {
     private llmRegistry: LLMRegistry,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("StatisticsCalculationService", loggingService);
+    this.logger = createLogger("StatisticsCalculationService");
   }
 
   private logDebug(message: string, data?: unknown): void {

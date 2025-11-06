@@ -167,13 +167,13 @@ export class AppBootstrap {
 
   private async registerServices(): Promise<void> {
     const loggingService = new LoggingService({
-      enabled: true,
-      level: "debug",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     });
+    LoggingService.setInstance(loggingService);
     this.loggingService = loggingService;
-    this.logger = createLogger("AppBootstrap", loggingService);
+    this.logger = createLogger("AppBootstrap");
     this.container.registerInstance("loggingService", loggingService);
     this.container.registerInstance(
       "vscodeFileSystemService",
@@ -798,6 +798,7 @@ export class AppBootstrap {
     }
 
     const messageBus = new MessageBusService(webview, this.loggingService);
+    this.container.registerInstance("messageBus", messageBus);
 
     commandRegistry.addDisposer(() => {
       try {

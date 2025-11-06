@@ -15,7 +15,7 @@ export class ApproveReadmeUpdateCommand implements Command<void> {
     private messageBus: MessageBusService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ApproveReadmeUpdateCommand", loggingService);
+    this.logger = createLogger("ApproveReadmeUpdateCommand");
   }
 
   async execute(): Promise<void> {

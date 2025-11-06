@@ -22,7 +22,7 @@ export class GenerateWikiCommand implements Command<GenerateWikiPayload> {
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("GenerateWikiCommand", loggingService);
+    this.logger = createLogger("GenerateWikiCommand");
   }
 
   async execute(payload: GenerateWikiPayload): Promise<void> {

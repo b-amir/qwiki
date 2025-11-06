@@ -10,13 +10,12 @@ export class VSCodeApiKeyRepository implements ApiKeyRepository {
   constructor(
     private secrets: SecretStorage,
     loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("VSCodeApiKeyRepository", loggingService);
+    this.logger = createLogger("VSCodeApiKeyRepository");
     this.validator = new SecretStorageValidator(secrets, loggingService);
   }
 

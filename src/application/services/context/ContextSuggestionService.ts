@@ -27,7 +27,7 @@ export class ContextSuggestionService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ContextSuggestionService", loggingService);
+    this.logger = createLogger("ContextSuggestionService");
   }
 
   analyzeContext(request: WikiGenerationRequest, projectContext: ProjectContext): ContextAnalysis {

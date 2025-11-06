@@ -25,16 +25,7 @@ export class NavigationManager {
     private view: { webview?: Webview } | undefined,
     loggingService?: LoggingService,
   ) {
-    this.logger = createLogger(
-      "NavigationManager",
-      loggingService ||
-        new LoggingService({
-          enabled: false,
-          level: "error",
-          includeTimestamp: true,
-          includeService: true,
-        }),
-    );
+    this.logger = createLogger("NavigationManager");
   }
 
   setWebviewReady(ready: boolean): void {

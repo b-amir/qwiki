@@ -1,6 +1,8 @@
 import hljs from "highlight.js/lib/core";
 import type { LanguageFn } from "highlight.js";
+import { createLogger } from "../utilities/logging";
 
+const logger = createLogger("HighlightLoader");
 const loadedLanguages = new Set<string>();
 
 const languageMap: Record<string, () => Promise<{ default: LanguageFn }>> = {
@@ -40,7 +42,7 @@ export async function loadLanguage(lang: string): Promise<void> {
       hljs.registerLanguage(normalizedLang, language);
       loadedLanguages.add(normalizedLang);
     } catch (error) {
-      console.warn(`Failed to load highlight.js language: ${normalizedLang}`, error);
+      logger.warn(`Failed to load highlight.js language: ${normalizedLang}`, error);
     }
   }
 }

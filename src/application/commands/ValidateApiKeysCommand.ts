@@ -18,13 +18,12 @@ export class ValidateApiKeysCommand implements Command<ValidateApiKeysPayload> {
     private providerValidationService: ProviderValidationService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ValidateApiKeysCommand", loggingService);
+    this.logger = createLogger("ValidateApiKeysCommand");
   }
 
   async execute(payload: ValidateApiKeysPayload): Promise<void> {

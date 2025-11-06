@@ -19,7 +19,7 @@ export class FileLevelCacheHandler {
     private memento: Memento,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("FileLevelCacheHandler", loggingService);
+    this.logger = createLogger("FileLevelCacheHandler");
   }
 
   async getFileRelevanceScores(targetFilePath: string): Promise<FileRelevanceScore[] | null> {

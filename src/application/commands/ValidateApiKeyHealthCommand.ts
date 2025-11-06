@@ -21,7 +21,7 @@ export class ValidateApiKeyHealthCommand implements Command<ValidateApiKeyHealth
     private messageBus: MessageBusService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ValidateApiKeyHealthCommand", loggingService);
+    this.logger = createLogger("ValidateApiKeyHealthCommand");
   }
 
   async execute(payload: ValidateApiKeyHealthPayload): Promise<void> {

@@ -35,7 +35,7 @@ export class AdvancedPromptService {
     private contextAnalysisService?: ContextAnalysisService,
     private eventBus?: EventBus,
   ) {
-    this.logger = createLogger("AdvancedPromptService", loggingService);
+    this.logger = createLogger("AdvancedPromptService");
     this.qualityAnalyzer = new PromptQualityAnalyzer();
     this.adaptiveHelpers = new AdaptivePromptHelpers();
     this.sectionBuilder = new PromptSectionBuilder();

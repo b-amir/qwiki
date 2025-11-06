@@ -22,13 +22,12 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
     private messageBus: MessageBusService,
     private configurationManager: ConfigurationManagerService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: true,
-      level: "debug",
+      mode: "development",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("UpdateReadmeCommand", loggingService);
+    this.logger = createLogger("UpdateReadmeCommand");
   }
 
   private logDebug(message: string, data?: unknown): void {

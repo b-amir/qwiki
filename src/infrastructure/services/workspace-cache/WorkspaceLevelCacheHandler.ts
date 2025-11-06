@@ -21,7 +21,7 @@ export class WorkspaceLevelCacheHandler {
     private memento: Memento,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("WorkspaceLevelCacheHandler", loggingService);
+    this.logger = createLogger("WorkspaceLevelCacheHandler");
   }
 
   async getWorkspaceStructure(workspaceRoot: string): Promise<{

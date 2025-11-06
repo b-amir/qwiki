@@ -52,4 +52,3 @@ const emit = defineEmits<Emits>();
     </select>
   </div>
 </template>
-

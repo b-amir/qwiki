@@ -30,13 +30,12 @@ export class WikiEventHandler {
     private errorLoggingService: ErrorLoggingService,
     private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("WikiEventHandler", loggingService);
+    this.logger = createLogger("WikiEventHandler");
     WikiEventHandler.instance = this;
     this.initializeGenerationExecutor();
   }

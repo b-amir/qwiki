@@ -25,13 +25,12 @@ export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
     private llmRegistry: LLMRegistry,
     private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("SaveApiKeyCommand", loggingService);
+    this.logger = createLogger("SaveApiKeyCommand");
   }
 
   async execute(payload: SaveApiKeyPayload): Promise<void> {

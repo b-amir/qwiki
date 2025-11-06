@@ -50,7 +50,7 @@ export class ReadmeUpdateService {
     private loggingService: LoggingService,
     private eventBus?: EventBus,
   ) {
-    this.logger = createLogger("ReadmeUpdateService", loggingService);
+    this.logger = createLogger("ReadmeUpdateService");
   }
 
   private emitProgress(step: string, percent?: number): void {

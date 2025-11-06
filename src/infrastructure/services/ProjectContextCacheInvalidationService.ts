@@ -17,7 +17,7 @@ export class ProjectContextCacheInvalidationService {
     private loggingService: LoggingService,
     private debouncingService: DebouncingService,
   ) {
-    this.logger = createLogger("ProjectContextCacheInvalidationService", loggingService);
+    this.logger = createLogger("ProjectContextCacheInvalidationService");
   }
 
   startWatching(): void {

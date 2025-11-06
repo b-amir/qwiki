@@ -52,7 +52,7 @@ export class WorkspaceStructureCacheService {
     private loggingService: LoggingService,
     useGlobalState: boolean = false,
   ) {
-    this.logger = createLogger("WorkspaceStructureCacheService", loggingService);
+    this.logger = createLogger("WorkspaceStructureCacheService");
     const memento = useGlobalState ? extensionContext.globalState : extensionContext.workspaceState;
     this.workspaceCache = new WorkspaceLevelCacheHandler(memento, loggingService);
     this.fileCache = new FileLevelCacheHandler(memento, loggingService);

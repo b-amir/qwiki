@@ -12,13 +12,12 @@ export class ProviderFileSystemService {
   constructor(
     private vscodeFileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ProviderFileSystemService", loggingService);
+    this.logger = createLogger("ProviderFileSystemService");
   }
   async readProviderManifest(manifestPath: string): Promise<ProviderManifest> {
     try {

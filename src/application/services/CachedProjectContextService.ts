@@ -28,7 +28,7 @@ export class CachedProjectContextService {
     private projectContextService: ProjectContextService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("CachedProjectContextService", loggingService);
+    this.logger = createLogger("CachedProjectContextService");
   }
 
   async buildContext(

@@ -16,13 +16,12 @@ export class SecretStorageValidator {
   constructor(
     private secretStorage: SecretStorage,
     loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("SecretStorageValidator", loggingService);
+    this.logger = createLogger("SecretStorageValidator");
   }
 
   validateKeyName(key: string): boolean {

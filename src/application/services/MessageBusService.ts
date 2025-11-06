@@ -21,13 +21,12 @@ export class MessageBusService {
   constructor(
     webview: Webview,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("MessageBusService", loggingService);
+    this.logger = createLogger("MessageBusService");
     this.optimizer = new WebviewOptimizerService(webview, this.loggingService);
     this.debouncingService = new DebouncingService();
     this.debouncedPostMessage = this.debouncingService.debounce(

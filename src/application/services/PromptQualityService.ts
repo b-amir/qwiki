@@ -35,7 +35,7 @@ export class PromptQualityService {
     private loggingService: LoggingService,
     private eventBus?: EventBus,
   ) {
-    this.logger = createLogger("PromptQualityService", loggingService);
+    this.logger = createLogger("PromptQualityService");
     this.qualityAnalyzer = new PromptQualityAnalyzer();
   }
 

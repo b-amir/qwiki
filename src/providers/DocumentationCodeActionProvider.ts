@@ -10,7 +10,7 @@ export class DocumentationCodeActionProvider implements CodeActionProvider {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("DocumentationCodeActionProvider", loggingService);
+    this.logger = createLogger("DocumentationCodeActionProvider");
   }
 
   provideCodeActions(document: TextDocument, range: Range): CodeAction[] {

@@ -29,16 +29,7 @@ export class ErrorRecoveryService {
     this.eventBus = eventBus;
     this.memoryOptimizationService = memoryOptimizationService;
     this.retryStrategies = createRetryStrategies();
-    this.logger = createLogger(
-      "ErrorRecoveryService",
-      loggingService ||
-        new LoggingService({
-          enabled: false,
-          level: "error",
-          includeTimestamp: true,
-          includeService: true,
-        }),
-    );
+    this.logger = createLogger("ErrorRecoveryService");
   }
 
   canRetry(error: ProviderError): boolean {

@@ -16,13 +16,12 @@ export class GetSavedWikisCommand implements Command<GetSavedWikisPayload> {
     private wikiStorageService: WikiStorageService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("GetSavedWikisCommand", loggingService);
+    this.logger = createLogger("GetSavedWikisCommand");
   }
 
   private logDebug(message: string, data?: unknown): void {

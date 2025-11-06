@@ -28,8 +28,10 @@ export class ReadmePromptTemplates {
       sections.splice(3, 0, "3. **Prerequisites** - Required software versions, dependencies");
       sections[4] = "4. **Installation** - Step-by-step setup instructions";
       sections[5] = "5. **Usage** - How to use the project with examples";
-      sections[6] = "6. **Features** - Key features and capabilities (incorporate wiki documentation here)";
-      sections[7] = "7. **Project Structure** - Overview of directory organization and key files/folders";
+      sections[6] =
+        "6. **Features** - Key features and capabilities (incorporate wiki documentation here)";
+      sections[7] =
+        "7. **Project Structure** - Overview of directory organization and key files/folders";
     }
 
     if (isWebProject) {
@@ -103,4 +105,3 @@ Section Integration Guidelines:
 Follow the style and structure of the existing README. Preserve the user's voice and formatting preferences.`;
   }
 }
-

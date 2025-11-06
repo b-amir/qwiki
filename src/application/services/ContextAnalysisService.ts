@@ -98,7 +98,7 @@ export class ContextAnalysisService {
     private structureAnalysisService: StructureAnalysisService,
     private relationshipAnalysisService: RelationshipAnalysisService,
   ) {
-    this.logger = createLogger("ContextAnalysisService", loggingService);
+    this.logger = createLogger("ContextAnalysisService");
   }
 
   private logDebug(message: string, data?: unknown): void {

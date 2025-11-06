@@ -43,7 +43,7 @@ export class LanguageServerIntegrationService {
     private debouncingService?: DebouncingService,
     private cachingService?: CachingService,
   ) {
-    this.logger = createLogger("LanguageServerIntegrationService", loggingService);
+    this.logger = createLogger("LanguageServerIntegrationService");
   }
 
   async getSemanticInfoForSelection(

@@ -12,7 +12,7 @@ export class IndexCacheService {
     private extensionContext: any,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("IndexCacheService", loggingService);
+    this.logger = createLogger("IndexCacheService");
   }
 
   async loadIndexFromCache(): Promise<ProjectIndexCache | null> {

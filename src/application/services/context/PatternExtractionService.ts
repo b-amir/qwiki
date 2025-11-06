@@ -10,7 +10,7 @@ export class PatternExtractionService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("PatternExtractionService", loggingService);
+    this.logger = createLogger("PatternExtractionService");
   }
 
   extractCodePatterns(snippet: string, language: string): CodePattern[] {

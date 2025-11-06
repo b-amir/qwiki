@@ -10,7 +10,11 @@ import {
 } from "vscode";
 import type { SavedWiki } from "../application/services/WikiStorageService";
 import { WikiStorageService } from "../application/services/WikiStorageService";
-import { LoggingService, createLogger, type Logger } from "../infrastructure/services/LoggingService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "../infrastructure/services/LoggingService";
 import { EventBus } from "../events/EventBus";
 
 export class WikiTreeItem extends TreeItem {
@@ -44,7 +48,7 @@ export class SavedWikisTreeDataProvider implements TreeDataProvider<WikiTreeItem
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("SavedWikisTreeDataProvider", loggingService);
+    this.logger = createLogger("SavedWikisTreeDataProvider");
     this.setupEventListeners();
   }
 
@@ -82,4 +86,3 @@ export class SavedWikisTreeDataProvider implements TreeDataProvider<WikiTreeItem
     this._onDidChangeTreeData.dispose();
   }
 }
-

@@ -1,10 +1,4 @@
-import {
-  DocumentLinkProvider,
-  DocumentLink,
-  TextDocument,
-  Range,
-  Uri,
-} from "vscode";
+import { DocumentLinkProvider, DocumentLink, TextDocument, Range, Uri } from "vscode";
 import {
   LoggingService,
   createLogger,
@@ -18,7 +12,7 @@ export class WikiDocumentLinkProvider implements DocumentLinkProvider {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("WikiDocumentLinkProvider", loggingService);
+    this.logger = createLogger("WikiDocumentLinkProvider");
   }
 
   provideDocumentLinks(document: TextDocument): DocumentLink[] {

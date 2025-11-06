@@ -53,7 +53,7 @@ export class ProviderSelectionService {
     private providerHealthService: ProviderHealthService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ProviderSelectionService", loggingService);
+    this.logger = createLogger("ProviderSelectionService");
     this.smartProviderSelectionService = new SmartProviderSelectionService(
       this,
       this.contextAnalysisService,

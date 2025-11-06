@@ -20,7 +20,7 @@ export class DependencyAnalysisService {
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("DependencyAnalysisService", loggingService);
+    this.logger = createLogger("DependencyAnalysisService");
   }
 
   async analyzeCodeDependencies(filePath: string): Promise<DependencyMap> {

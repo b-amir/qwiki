@@ -14,13 +14,12 @@ export class ErrorHandlerImpl implements ErrorHandler {
   constructor(
     private eventBus: EventBus,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ErrorHandler", loggingService);
+    this.logger = createLogger("ErrorHandler");
   }
 
   private logDebug(message: string, data?: unknown): void {

@@ -15,7 +15,7 @@ export class UndoReadmeCommand implements Command<void> {
     private messageBus: MessageBusService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("UndoReadmeCommand", loggingService);
+    this.logger = createLogger("UndoReadmeCommand");
   }
 
   async execute(): Promise<void> {

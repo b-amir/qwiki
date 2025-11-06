@@ -38,14 +38,13 @@ export class LLMRegistry {
   constructor(
     private eventBus: EventBus,
     loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
     this.loggingService = loggingService;
-    this.logger = createLogger("LegacyLLMRegistry", loggingService);
+    this.logger = createLogger("LegacyLLMRegistry");
     this.cachingService = new CachingService({ maxSize: 50, defaultTtl: 300000 });
     const vscodeFileSystem = new VSCodeFileSystemService(loggingService);
     this.providerFileSystemService = new ProviderFileSystemService(

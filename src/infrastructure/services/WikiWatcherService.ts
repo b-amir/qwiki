@@ -22,7 +22,7 @@ export class WikiWatcherService {
     private debouncingService: DebouncingService,
     private gitChangeDetectionService?: GitChangeDetectionService,
   ) {
-    this.logger = createLogger("WikiWatcherService", loggingService);
+    this.logger = createLogger("WikiWatcherService");
     this.initializeSavedFolderPath();
   }
 

@@ -11,7 +11,7 @@ export class TextUsageSearchService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("TextUsageSearchService", loggingService);
+    this.logger = createLogger("TextUsageSearchService");
   }
 
   async findTextUsages(

@@ -43,13 +43,12 @@ export class WikiGenerationFlow {
     private languageServerIntegrationService?: LanguageServerIntegrationService,
   ) {
     this.logger = loggingService
-      ? createLogger("WikiGenerationFlow", loggingService)
+      ? createLogger("WikiGenerationFlow")
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
     this.qualityService = new DocumentationQualityService(
       loggingService ||
         new LoggingService({
-          enabled: false,
-          level: "error",
+          mode: "none",
           includeTimestamp: true,
           includeService: true,
         }),
@@ -57,8 +56,7 @@ export class WikiGenerationFlow {
     this.improvementService = new DocumentationImprovementService(
       loggingService ||
         new LoggingService({
-          enabled: false,
-          level: "error",
+          mode: "none",
           includeTimestamp: true,
           includeService: true,
         }),

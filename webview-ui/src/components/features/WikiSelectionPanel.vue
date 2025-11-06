@@ -94,7 +94,7 @@ const updateSearchQuery = (value: string) => {
       </div>
     </div>
     <div class="flex-1 overflow-y-auto">
-      <div v-if="filteredWikis.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+      <div v-if="filteredWikis.length === 0" class="text-muted-foreground p-4 text-center text-sm">
         No wikis available
       </div>
       <div v-else class="divide-border divide-y">
@@ -127,4 +127,3 @@ const updateSearchQuery = (value: string) => {
     </div>
   </div>
 </template>
-

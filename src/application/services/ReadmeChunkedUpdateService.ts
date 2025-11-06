@@ -23,7 +23,7 @@ export class ReadmeChunkedUpdateService {
     private readmeUpdateService: ReadmeUpdateService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ReadmeChunkedUpdateService", loggingService);
+    this.logger = createLogger("ReadmeChunkedUpdateService");
   }
 
   async updateReadmeInChunks(

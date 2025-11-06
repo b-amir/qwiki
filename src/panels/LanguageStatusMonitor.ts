@@ -25,7 +25,7 @@ export class LanguageStatusMonitor {
   private onStatusChange: (status: LanguageStatus) => void;
 
   constructor(loggingService: LoggingService, onStatusChange: (status: LanguageStatus) => void) {
-    this.logger = createLogger("LanguageStatusMonitor", loggingService);
+    this.logger = createLogger("LanguageStatusMonitor");
     this.onStatusChange = onStatusChange;
   }
 

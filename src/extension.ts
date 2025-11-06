@@ -14,6 +14,11 @@ import { SelectProviderCommand } from "./application/commands/SelectProviderComm
 import { SavedWikisTreeDataProvider } from "./views/SavedWikisTreeView";
 import { WikiEventHandler } from "./events/handlers/WikiEventHandler";
 import {
+  createLogger,
+  LoggingService,
+  type LogMode,
+} from "./infrastructure/services/LoggingService";
+import {
   QwikiWorkspaceSymbolProvider,
   DocumentationHoverProvider,
   DocumentationCodeActionProvider,
@@ -35,6 +40,8 @@ let customEditorProvider: WikiCustomEditorProvider | undefined;
 export let qwikiStatusBarItem: StatusBarItem | null = null;
 
 export const HAS_ACTIVE_GENERATION_CONTEXT = "qwiki.hasActiveGeneration";
+
+const logger = createLogger("Extension");
 
 export function activate(context: ExtensionContext) {
   commands.executeCommand("setContext", HAS_ACTIVE_GENERATION_CONTEXT, false);
@@ -65,7 +72,7 @@ export function activate(context: ExtensionContext) {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Failed to initialize tree view:", errorMessage);
+      logger.error("Failed to initialize tree view", { error: errorMessage });
     }
   };
 
@@ -74,7 +81,7 @@ export function activate(context: ExtensionContext) {
       await initializeTreeView();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Failed to initialize tree view:", errorMessage);
+      logger.error("Failed to initialize tree view", { error: errorMessage });
     }
   }, ServiceLimits.treeViewInitializationDelay);
 
@@ -130,7 +137,7 @@ export function activate(context: ExtensionContext) {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Failed to initialize providers:", errorMessage);
+      logger.error("Failed to initialize providers", { error: errorMessage });
     }
   };
 
@@ -139,7 +146,7 @@ export function activate(context: ExtensionContext) {
       await initializeProviders();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Failed to initialize providers:", errorMessage);
+      logger.error("Failed to initialize providers", { error: errorMessage });
     }
   }, ServiceLimits.treeViewInitializationDelay);
 
@@ -249,6 +256,11 @@ export function activate(context: ExtensionContext) {
         command: VSCodeCommandIds.toggleOutputChannel,
         description: "Show or hide Qwiki output channel",
       },
+      {
+        label: "Toggle Logging Mode",
+        command: VSCodeCommandIds.toggleLoggingMode,
+        description: "Cycle through logging modes: None → Minimal → Development",
+      },
     ];
 
     if (WikiEventHandler.instance?.hasActiveGeneration()) {
@@ -311,6 +323,44 @@ export function activate(context: ExtensionContext) {
     },
   );
 
+  const toggleLoggingModeCommand = commands.registerCommand(
+    VSCodeCommandIds.toggleLoggingMode,
+    async () => {
+      try {
+        const loggingService = LoggingService.getInstance();
+        const currentMode = loggingService.getMode();
+        const modes: LogMode[] = ["none", "minimal", "development"];
+        const currentIndex = modes.indexOf(currentMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        const nextMode = modes[nextIndex];
+
+        loggingService.setMode(nextMode);
+
+        const modeLabels: Record<LogMode, string> = {
+          none: "No Logs",
+          minimal: "Minimal Logs (Warnings & Errors)",
+          development: "Development Mode (All Logs)",
+        };
+
+        window.showInformationMessage(`Qwiki: Logging mode set to "${modeLabels[nextMode]}"`);
+
+        if (qwikiProvider) {
+          try {
+            const container = qwikiProvider.getContainer();
+            const messageBus = container.resolve("messageBus") as any;
+            if (messageBus && typeof messageBus.postImmediate === "function") {
+              messageBus.postImmediate("setLoggingMode", { mode: nextMode });
+            }
+          } catch {}
+        }
+      } catch (error) {
+        window.showErrorMessage(
+          `Failed to toggle logging mode: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+      }
+    },
+  );
+
   context.subscriptions.push(
     showQwikiCommand,
     showSettingsCommand,
@@ -322,6 +372,7 @@ export function activate(context: ExtensionContext) {
     cancelGenerationCommand,
     cancelActiveRequestCommand,
     toggleOutputChannelCommand,
+    toggleLoggingModeCommand,
   );
 }
 

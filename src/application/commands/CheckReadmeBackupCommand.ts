@@ -15,7 +15,7 @@ export class CheckReadmeBackupCommand implements Command<void> {
     private messageBus: MessageBusService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("CheckReadmeBackupCommand", loggingService);
+    this.logger = createLogger("CheckReadmeBackupCommand");
   }
 
   async execute(): Promise<void> {

@@ -9,7 +9,7 @@ export class ReadmeDiffService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ReadmeDiffService", loggingService);
+    this.logger = createLogger("ReadmeDiffService");
   }
 
   generatePreview(original: string, updated: string): ReadmePreview {

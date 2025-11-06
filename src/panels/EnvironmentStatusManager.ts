@@ -35,7 +35,7 @@ export class EnvironmentStatusManager {
     private languageStatusMonitor: { getLanguageStatus: () => LanguageStatus },
     loggingService: LoggingService,
   ) {
-    this.logger = createLogger("EnvironmentStatusManager", loggingService);
+    this.logger = createLogger("EnvironmentStatusManager");
   }
 
   setExtensionStatus(status: ExtensionStatus): void {

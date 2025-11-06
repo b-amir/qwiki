@@ -20,13 +20,12 @@ export class WebviewOptimizerService {
   constructor(
     private webview: Webview,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("WebviewOptimizerService", loggingService);
+    this.logger = createLogger("WebviewOptimizerService");
   }
 
   private logDebug(message: string, data?: unknown): void {

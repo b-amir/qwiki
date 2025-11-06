@@ -24,7 +24,7 @@ export class ReadmeCacheService {
     private cachingService: CachingService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ReadmeCacheService", loggingService);
+    this.logger = createLogger("ReadmeCacheService");
   }
 
   async getCachedReadme(wikiIds: string[], currentReadme: string): Promise<string | null> {

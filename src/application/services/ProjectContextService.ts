@@ -22,7 +22,7 @@ export class ProjectContextService {
     private textUsageSearchService: TextUsageSearchService,
     private projectOverviewService: ProjectOverviewService,
   ) {
-    this.logger = createLogger("ProjectContextService", loggingService);
+    this.logger = createLogger("ProjectContextService");
   }
   async buildContext(
     snippet: string,
@@ -102,7 +102,9 @@ export class ProjectContextService {
     }
 
     if (webview) {
-      this.logger.debug("Sending loading step to webview", { step: LoadingSteps.buildingContextSummary });
+      this.logger.debug("Sending loading step to webview", {
+        step: LoadingSteps.buildingContextSummary,
+      });
       webview.postMessage({
         command: OutboundEvents.loadingStep,
         payload: { step: LoadingSteps.buildingContextSummary },

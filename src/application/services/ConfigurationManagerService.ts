@@ -56,7 +56,7 @@ export class ConfigurationManagerService {
     private loggingService?: LoggingService,
   ) {
     this.logger = loggingService
-      ? createLogger("ConfigurationManagerService", loggingService)
+      ? createLogger("ConfigurationManagerService")
       : {
           debug: () => {},
           info: () => {},

@@ -44,6 +44,7 @@ export const VSCodeCommandIds = {
   cancelGeneration: "qwiki.cancelGeneration",
   cancelActiveRequest: "qwiki.cancelActiveRequest",
   toggleOutputChannel: "qwiki.toggleOutputChannel",
+  toggleLoggingMode: "qwiki.toggleLoggingMode",
   openPanelView: "workbench.view.extension.qwiki",
   wikiViewId: "qwiki.wikiView",
 } as const;

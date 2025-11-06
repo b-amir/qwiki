@@ -43,13 +43,12 @@ export class QwikiPanel {
         .resolve("loggingService") as LoggingService;
     } catch {
       this.loggingService = new LoggingService({
-        enabled: false,
-        level: "error",
+        mode: "none",
         includeTimestamp: true,
         includeService: true,
       });
     }
-    this.logger = createLogger("QwikiPanel", this.loggingService);
+    this.logger = createLogger("QwikiPanel");
     this._initPromise = this.initializeAsync();
   }
 

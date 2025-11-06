@@ -3,6 +3,8 @@ import { LogSanitizer } from "./LogSanitizer";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
+export type LogMode = "none" | "minimal" | "development";
+
 export interface LogEntry {
   timestamp: Date;
   level: LogLevel;
@@ -12,8 +14,7 @@ export interface LogEntry {
 }
 
 export interface LoggerConfig {
-  enabled: boolean;
-  level: LogLevel;
+  mode: LogMode;
   includeTimestamp: boolean;
   includeService: boolean;
 }
@@ -32,6 +33,27 @@ const levelOrder: Record<LogLevel, number> = {
   warn: 30,
   error: 40,
 };
+
+const defaultConfig: LoggerConfig = {
+  mode: "none",
+  includeTimestamp: true,
+  includeService: true,
+};
+
+function getLogLevelForMode(mode: LogMode): LogLevel {
+  switch (mode) {
+    case "none":
+      return "error";
+    case "minimal":
+      return "warn";
+    case "development":
+      return "debug";
+  }
+}
+
+function isLoggingEnabled(mode: LogMode): boolean {
+  return mode !== "none";
+}
 
 class ConsoleOutput implements LogOutput {
   constructor(private formatter: LogFormatter) {}
@@ -119,10 +141,22 @@ class DefaultFormatter implements LogFormatter {
 }
 
 export class LoggingService {
+  private static instance: LoggingService;
   private outputs: LogOutput[] = [];
   private formatter: LogFormatter;
   private outputChannelOutput?: OutputChannelOutput;
   private outputChannelVisible: boolean = false;
+
+  static getInstance(): LoggingService {
+    if (!LoggingService.instance) {
+      LoggingService.instance = new LoggingService(defaultConfig);
+    }
+    return LoggingService.instance;
+  }
+
+  static setInstance(service: LoggingService): void {
+    LoggingService.instance = service;
+  }
 
   constructor(
     private config: LoggerConfig,
@@ -144,28 +178,28 @@ export class LoggingService {
   }
 
   debug(service: string, message: string, data?: unknown): void {
-    if (!this.shouldLog("debug")) {
+    if (!isLoggingEnabled(this.config.mode) || !this.shouldLog("debug")) {
       return;
     }
     this.log({ timestamp: new Date(), level: "debug", service, message, data });
   }
 
   info(service: string, message: string, data?: unknown): void {
-    if (!this.shouldLog("info")) {
+    if (!isLoggingEnabled(this.config.mode) || !this.shouldLog("info")) {
       return;
     }
     this.log({ timestamp: new Date(), level: "info", service, message, data });
   }
 
   warn(service: string, message: string, data?: unknown): void {
-    if (!this.shouldLog("warn")) {
+    if (!isLoggingEnabled(this.config.mode) || !this.shouldLog("warn")) {
       return;
     }
     this.log({ timestamp: new Date(), level: "warn", service, message, data });
   }
 
   error(service: string, message: string, data?: unknown): void {
-    if (!this.shouldLog("error")) {
+    if (!isLoggingEnabled(this.config.mode) || !this.shouldLog("error")) {
       return;
     }
     this.log({ timestamp: new Date(), level: "error", service, message, data });
@@ -178,18 +212,21 @@ export class LoggingService {
     }
   }
 
+  setMode(mode: LogMode): void {
+    this.config.mode = mode;
+  }
+
+  getMode(): LogMode {
+    return this.config.mode;
+  }
+
   private log(entry: LogEntry): void {
-    if (!this.config.enabled) {
-      return;
-    }
-
-    const sanitizedEntry: LogEntry = {
-      ...entry,
-      data: entry.data ? LogSanitizer.sanitizeData(entry.data) : undefined,
-    };
-
     for (const output of this.outputs) {
       try {
+        const sanitizedEntry: LogEntry = {
+          ...entry,
+          data: entry.data ? LogSanitizer.sanitizeData(entry.data) : undefined,
+        };
         output.write(sanitizedEntry);
       } catch (error) {
         try {
@@ -200,10 +237,11 @@ export class LoggingService {
   }
 
   private shouldLog(level: LogLevel): boolean {
-    if (!this.config.enabled) {
+    if (!isLoggingEnabled(this.config.mode)) {
       return false;
     }
-    return levelOrder[level] >= levelOrder[this.config.level];
+    const minLevel = getLogLevelForMode(this.config.mode);
+    return levelOrder[level] >= levelOrder[minLevel];
   }
 
   showOutputChannel(): void {
@@ -240,7 +278,8 @@ export class LoggingService {
   }
 }
 
-export function createLogger(serviceName: string, loggingService: LoggingService) {
+export function createLogger(serviceName: string) {
+  const loggingService = LoggingService.getInstance();
   return {
     debug: (message: string, data?: unknown) => loggingService.debug(serviceName, message, data),
     info: (message: string, data?: unknown) => loggingService.info(serviceName, message, data),

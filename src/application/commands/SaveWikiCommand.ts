@@ -20,13 +20,12 @@ export class SaveWikiCommand implements Command<SaveWikiPayload> {
     private wikiStorageService: WikiStorageService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: true,
-      level: "debug",
+      mode: "development",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("SaveWikiCommand", loggingService);
+    this.logger = createLogger("SaveWikiCommand");
   }
 
   private logDebug(message: string, data?: unknown): void {

@@ -9,7 +9,7 @@ export class CodeExtractionService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("CodeExtractionService", loggingService);
+    this.logger = createLogger("CodeExtractionService");
   }
 
   async extractKeyInformation(content: string, fileType: string): Promise<KeyInfo[]> {
@@ -21,7 +21,8 @@ export class CodeExtractionService {
     const classPattern = /^(?:export\s+)?class\s+([a-zA-Z_][a-zA-Z0-9_]*)/;
     const interfacePattern = /^(?:export\s+)?interface\s+([a-zA-Z_][a-zA-Z0-9_]*)/;
     const importPattern = /^import\s+.+from\s+['"].+['"]/;
-    const exportPattern = /^export\s+(?:const|let|var|function|class|interface)\s+([a-zA-Z_][a-zA-Z0-9_]*)/;
+    const exportPattern =
+      /^export\s+(?:const|let|var|function|class|interface)\s+([a-zA-Z_][a-zA-Z0-9_]*)/;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -87,7 +88,10 @@ export class CodeExtractionService {
     return keyInfo;
   }
 
-  private extractFunction(lines: string[], startIndex: number): { content: string; endIndex: number } | null {
+  private extractFunction(
+    lines: string[],
+    startIndex: number,
+  ): { content: string; endIndex: number } | null {
     let braceCount = 0;
     let inFunction = false;
 
@@ -113,7 +117,10 @@ export class CodeExtractionService {
     return null;
   }
 
-  private extractClass(lines: string[], startIndex: number): { content: string; endIndex: number } | null {
+  private extractClass(
+    lines: string[],
+    startIndex: number,
+  ): { content: string; endIndex: number } | null {
     let braceCount = 0;
     let inClass = false;
 
@@ -139,7 +146,10 @@ export class CodeExtractionService {
     return null;
   }
 
-  private extractInterface(lines: string[], startIndex: number): { content: string; endIndex: number } | null {
+  private extractInterface(
+    lines: string[],
+    startIndex: number,
+  ): { content: string; endIndex: number } | null {
     let braceCount = 0;
     let inInterface = false;
 
@@ -165,4 +175,3 @@ export class CodeExtractionService {
     return null;
   }
 }
-

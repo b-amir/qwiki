@@ -19,7 +19,7 @@ export class ReadmeBackupService {
     private loggingService: LoggingService,
     private eventBus?: EventBus,
   ) {
-    this.logger = createLogger("ReadmeBackupService", loggingService);
+    this.logger = createLogger("ReadmeBackupService");
     this.initializeBackupState();
   }
 

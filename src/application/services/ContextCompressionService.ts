@@ -16,7 +16,7 @@ export class ContextCompressionService {
   private codeExtractionService: CodeExtractionService;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ContextCompressionService", loggingService);
+    this.logger = createLogger("ContextCompressionService");
     this.codeExtractionService = new CodeExtractionService(loggingService);
   }
 
@@ -319,4 +319,3 @@ export class ContextCompressionService {
     return preserved.join("\n");
   }
 }
-

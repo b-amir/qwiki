@@ -25,7 +25,7 @@ export class WikiStorageService {
     private vscodeFileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("WikiStorageService", loggingService);
+    this.logger = createLogger("WikiStorageService");
   }
 
   async saveWiki(title: string, content: string, sourceFilePath?: string): Promise<SavedWiki> {

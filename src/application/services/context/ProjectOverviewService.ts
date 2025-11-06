@@ -10,7 +10,7 @@ export class ProjectOverviewService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ProjectOverviewService", loggingService);
+    this.logger = createLogger("ProjectOverviewService");
   }
 
   async readOverview(): Promise<string> {

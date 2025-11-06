@@ -23,7 +23,7 @@ export class ProjectTypeDetectionService {
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ProjectTypeDetectionService", loggingService);
+    this.logger = createLogger("ProjectTypeDetectionService");
   }
 
   private logDebug(message: string, data?: unknown): void {

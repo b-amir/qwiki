@@ -13,7 +13,7 @@ export class MetricsCollectionService {
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("MetricsCollectionService", loggingService);
+    this.logger = createLogger("MetricsCollectionService");
   }
 
   private logDebug(message: string, data?: unknown): void {

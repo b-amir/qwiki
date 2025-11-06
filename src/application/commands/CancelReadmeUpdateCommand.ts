@@ -15,7 +15,7 @@ export class CancelReadmeUpdateCommand implements Command<void> {
     private messageBus: MessageBusService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("CancelReadmeUpdateCommand", loggingService);
+    this.logger = createLogger("CancelReadmeUpdateCommand");
   }
 
   async execute(): Promise<void> {

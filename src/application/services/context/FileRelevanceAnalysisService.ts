@@ -27,7 +27,7 @@ export class FileRelevanceAnalysisService {
     private dependencyAnalysisService: DependencyAnalysisService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("FileRelevanceAnalysisService", loggingService);
+    this.logger = createLogger("FileRelevanceAnalysisService");
   }
 
   private logDebug(message: string, data?: unknown): void {

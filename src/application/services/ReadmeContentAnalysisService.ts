@@ -42,7 +42,7 @@ export class ReadmeContentAnalysisService {
   ];
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ReadmeContentAnalysisService", loggingService);
+    this.logger = createLogger("ReadmeContentAnalysisService");
   }
 
   analyze(content: string): ContentAnalysisResult {

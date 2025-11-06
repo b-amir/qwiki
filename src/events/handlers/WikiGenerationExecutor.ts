@@ -31,7 +31,7 @@ export class WikiGenerationExecutor {
     private updateStatusBar: (message: string) => void,
     private resetStatusBar: () => void,
   ) {
-    this.logger = createLogger("WikiGenerationExecutor", loggingService);
+    this.logger = createLogger("WikiGenerationExecutor");
   }
 
   async execute(

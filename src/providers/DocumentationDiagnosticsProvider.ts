@@ -21,7 +21,7 @@ export class DocumentationDiagnosticsProvider {
     private wikiStorageService: WikiStorageService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("DocumentationDiagnosticsProvider", loggingService);
+    this.logger = createLogger("DocumentationDiagnosticsProvider");
     this.diagnosticCollection = languages.createDiagnosticCollection("qwiki");
   }
 

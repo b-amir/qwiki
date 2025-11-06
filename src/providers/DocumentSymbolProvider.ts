@@ -21,7 +21,7 @@ export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
   private lastLogTime = new Map<string, number>();
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("QwikiDocumentSymbolProvider", loggingService);
+    this.logger = createLogger("QwikiDocumentSymbolProvider");
   }
 
   async provideDocumentSymbols(document: TextDocument): Promise<SymbolInformation[]> {

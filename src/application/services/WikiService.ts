@@ -51,7 +51,7 @@ export class WikiService {
     private languageServerIntegrationService?: LanguageServerIntegrationService,
   ) {
     this.logger = loggingService
-      ? createLogger("WikiService", loggingService)
+      ? createLogger("WikiService")
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
     this.debouncedGenerate = this.debouncingService.debounce(
       this.performGeneration.bind(this),

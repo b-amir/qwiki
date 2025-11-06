@@ -50,7 +50,7 @@ export class ProjectIndexService {
     private debouncingService: DebouncingService,
     gitChangeDetectionService?: GitChangeDetectionService,
   ) {
-    this.logger = createLogger("ProjectIndexService", loggingService);
+    this.logger = createLogger("ProjectIndexService");
     this.metadataExtractor = new FileMetadataExtractionService(loggingService);
     this.cacheService = new IndexCacheService(extensionContext, loggingService);
     this.gitChangeDetectionService = gitChangeDetectionService || null;

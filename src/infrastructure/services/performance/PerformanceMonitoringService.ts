@@ -9,7 +9,7 @@ export class PerformanceMonitoringService {
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("PerformanceMonitoringService", loggingService);
+    this.logger = createLogger("PerformanceMonitoringService");
   }
 
   private logDebug(message: string, data?: unknown): void {

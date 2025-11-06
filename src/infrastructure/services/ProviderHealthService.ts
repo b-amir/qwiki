@@ -23,7 +23,7 @@ export class ProviderHealthService {
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ProviderHealthService", loggingService);
+    this.logger = createLogger("ProviderHealthService");
   }
 
   private logDebug(message: string, data?: unknown): void {

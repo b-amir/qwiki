@@ -8,4 +8,3 @@ export class ToggleOutputChannelCommand implements Command<void> {
     this.loggingService.toggleOutputChannel();
   }
 }
-

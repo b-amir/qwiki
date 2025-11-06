@@ -20,13 +20,12 @@ export class DeleteWikiCommand implements Command<DeleteWikiPayload> {
     private readmeCacheService: ReadmeCacheService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("DeleteWikiCommand", loggingService);
+    this.logger = createLogger("DeleteWikiCommand");
   }
 
   private logDebug(message: string, data?: unknown): void {

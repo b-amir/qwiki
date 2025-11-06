@@ -22,13 +22,12 @@ export class ProviderDiscoveryService {
     private providerFileSystemService: ProviderFileSystemService,
     private vscodeFileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ProviderDiscoveryService", loggingService);
+    this.logger = createLogger("ProviderDiscoveryService");
   }
 
   private logDebug(message: string, data?: unknown): void {

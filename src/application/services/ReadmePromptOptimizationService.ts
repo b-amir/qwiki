@@ -29,7 +29,7 @@ export class ReadmePromptOptimizationService {
     private llmRegistry: LLMRegistry,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ReadmePromptOptimizationService", loggingService);
+    this.logger = createLogger("ReadmePromptOptimizationService");
   }
 
   async optimizeWikiSelection(

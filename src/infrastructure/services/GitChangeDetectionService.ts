@@ -22,7 +22,7 @@ export class GitChangeDetectionService {
     private eventBus?: EventBus,
     private extensionContext?: ExtensionContext,
   ) {
-    this.logger = createLogger("GitChangeDetectionService", loggingService);
+    this.logger = createLogger("GitChangeDetectionService");
     this.initializeGitExtension();
   }
 

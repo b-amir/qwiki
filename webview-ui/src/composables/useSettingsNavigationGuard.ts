@@ -388,7 +388,7 @@ export function createSettingsNavigationGuard(
 ): NavigationGuard {
   return async (target: PageType, direction: "forward" | "back"): Promise<ValidationResult> => {
     const navigationStore = useNavigationStore();
-    
+
     // Validate when navigating away from settings (any direction)
     if (navigationStore.currentPage === "settings" && target !== "settings") {
       logger.debug("Navigating away from settings - validating", { target, direction });

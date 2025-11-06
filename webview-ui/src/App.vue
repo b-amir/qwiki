@@ -16,7 +16,7 @@ import { usePageLoading } from "@/composables/usePageLoading";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 import LoadingState from "@/components/features/LoadingState.vue";
 import GlobalErrorModal from "@/components/features/GlobalErrorModal.vue";
-import { createLogger } from "@/utilities/logging";
+import { createLogger, FrontendLoggingService, type LogMode } from "@/utilities/logging";
 import { vscode } from "@/utilities/vscode";
 
 const logger = createLogger("App");
@@ -27,6 +27,19 @@ const environment = useEnvironmentStore();
 
 vscode.postMessage({ command: "webviewReady" });
 vscode.postMessage({ command: "getProviders" });
+
+const handleMessage = (event: MessageEvent) => {
+  const message = event.data;
+  if (message.command === "setLoggingMode") {
+    const mode = message.payload?.mode as LogMode;
+    if (mode && ["none", "minimal", "development"].includes(mode)) {
+      const frontendLoggingService = FrontendLoggingService.getInstance();
+      frontendLoggingService.setMode(mode);
+    }
+  }
+};
+
+window.addEventListener("message", handleMessage);
 
 wiki.init();
 settings.init();

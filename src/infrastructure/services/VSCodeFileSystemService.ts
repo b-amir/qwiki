@@ -21,7 +21,7 @@ export class VSCodeFileSystemService {
   private readonly STAT_CACHE_TTL = 5000;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("VSCodeFileSystemService", loggingService);
+    this.logger = createLogger("VSCodeFileSystemService");
     this.statCache = new CachingService({
       maxSize: 1000,
       defaultTtl: this.STAT_CACHE_TTL,

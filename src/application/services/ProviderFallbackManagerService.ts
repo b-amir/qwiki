@@ -82,7 +82,7 @@ export class ProviderFallbackManagerService {
     private eventBus: EventBus,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ProviderFallbackManagerService", loggingService);
+    this.logger = createLogger("ProviderFallbackManagerService");
   }
 
   async executeWithFallback<T>(

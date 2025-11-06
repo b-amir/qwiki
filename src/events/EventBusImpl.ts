@@ -11,13 +11,12 @@ export class EventBusImpl implements EventBus {
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("EventBus", loggingService);
+    this.logger = createLogger("EventBus");
   }
 
   subscribe<T>(event: string, handler: EventHandler<T>): () => void {

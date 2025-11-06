@@ -9,7 +9,7 @@ export class ComplexityCalculationService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("ComplexityCalculationService", loggingService);
+    this.logger = createLogger("ComplexityCalculationService");
   }
 
   estimateContextComplexity(

@@ -22,13 +22,12 @@ export class DeleteApiKeyCommand implements Command<DeleteApiKeyPayload> {
     private messageBus: MessageBusService,
     private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("DeleteApiKeyCommand", loggingService);
+    this.logger = createLogger("DeleteApiKeyCommand");
   }
 
   async execute(payload: DeleteApiKeyPayload): Promise<void> {

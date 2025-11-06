@@ -23,7 +23,7 @@ export class DocumentationHoverProvider implements HoverProvider {
     private loggingService: LoggingService,
     private extensionUri?: Uri,
   ) {
-    this.logger = createLogger("DocumentationHoverProvider", loggingService);
+    this.logger = createLogger("DocumentationHoverProvider");
   }
 
   async provideHover(document: TextDocument, position: Position): Promise<Hover | null> {

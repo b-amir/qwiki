@@ -8,7 +8,7 @@ export class ExtensionContextStorageService {
     private context: ExtensionContext,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("ExtensionContextStorageService", loggingService);
+    this.logger = createLogger("ExtensionContextStorageService");
   }
 
   get globalState(): Memento {

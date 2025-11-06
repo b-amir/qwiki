@@ -27,13 +27,12 @@ export class ErrorLoggingService {
 
   constructor(
     private loggingService: LoggingService = new LoggingService({
-      enabled: false,
-      level: "error",
+      mode: "none",
       includeTimestamp: true,
       includeService: true,
     }),
   ) {
-    this.logger = createLogger("ErrorLoggingService", loggingService);
+    this.logger = createLogger("ErrorLoggingService");
     this.loadFromStorage();
   }
 
@@ -170,5 +169,4 @@ export class ErrorLoggingService {
       Array.isArray(data.recentErrors)
     );
   }
-
 }

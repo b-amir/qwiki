@@ -12,7 +12,7 @@ export class FileSelectionService {
   private logger: Logger;
 
   constructor(private loggingService: LoggingService) {
-    this.logger = createLogger("FileSelectionService", loggingService);
+    this.logger = createLogger("FileSelectionService");
   }
 
   selectFilesByTokenBudget(

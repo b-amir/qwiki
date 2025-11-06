@@ -46,7 +46,7 @@ export class RequestBatchingService extends EventEmitter {
   constructor(loggingService?: LoggingService) {
     super();
     this.logger = loggingService
-      ? createLogger("RequestBatchingService", loggingService)
+      ? createLogger("RequestBatchingService")
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
   }
 

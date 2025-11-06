@@ -21,7 +21,7 @@ export class SelectProviderCommand {
     private configurationManager: ConfigurationManagerService,
     private loggingService: LoggingService,
   ) {
-    this.logger = createLogger("SelectProviderCommand", loggingService);
+    this.logger = createLogger("SelectProviderCommand");
   }
 
   async execute(): Promise<string | undefined> {

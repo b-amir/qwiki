@@ -54,7 +54,9 @@ const preview = () => {
         <select
           :value="config.mergeStrategy"
           class="border-input bg-muted text-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-          @change="updateConfig({ mergeStrategy: ($event.target as HTMLSelectElement).value as any })"
+          @change="
+            updateConfig({ mergeStrategy: ($event.target as HTMLSelectElement).value as any })
+          "
         >
           <option value="sequential">Sequential</option>
           <option value="categorical">Categorical</option>
@@ -68,7 +70,9 @@ const preview = () => {
         <select
           :value="config.outputFormat"
           class="border-input bg-muted text-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
-          @change="updateConfig({ outputFormat: ($event.target as HTMLSelectElement).value as any })"
+          @change="
+            updateConfig({ outputFormat: ($event.target as HTMLSelectElement).value as any })
+          "
         >
           <option value="markdown">Markdown</option>
           <option value="html">HTML</option>
@@ -81,7 +85,9 @@ const preview = () => {
             :checked="config.includeSummaries"
             type="checkbox"
             class="rounded"
-            @change="updateConfig({ includeSummaries: ($event.target as HTMLInputElement).checked })"
+            @change="
+              updateConfig({ includeSummaries: ($event.target as HTMLInputElement).checked })
+            "
           />
           <span class="text-sm">Include Summaries</span>
         </label>
@@ -89,14 +95,14 @@ const preview = () => {
       <div class="flex gap-2">
         <button
           :disabled="selectedCount === 0 || previewing || creating"
-          class="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-md px-4 py-2 text-sm font-medium transition-colors"
+          class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
           @click="preview"
         >
           {{ previewing ? "Previewing..." : "Preview" }}
         </button>
         <button
           :disabled="selectedCount === 0 || creating || previewing"
-          class="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-md px-4 py-2 text-sm font-medium transition-colors"
+          class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
           @click="create"
         >
           {{ creating ? "Creating..." : "Create Aggregation" }}
@@ -105,4 +111,3 @@ const preview = () => {
     </div>
   </div>
 </template>
-

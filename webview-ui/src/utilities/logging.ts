@@ -1,8 +1,9 @@
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-export interface FrontendLoggerConfig {
-  enabled: boolean;
-  level: LogLevel;
+export type LogMode = "none" | "minimal" | "development";
+
+interface FrontendLoggerConfig {
+  mode: LogMode;
   includeTimestamp: boolean;
   includeSource: boolean;
 }
@@ -14,43 +15,95 @@ const levelWeight: Record<LogLevel, number> = {
   error: 40,
 };
 
-class FrontendLogger {
-  constructor(
-    private config: FrontendLoggerConfig,
-    private source: string,
-  ) {}
+const defaultConfig: FrontendLoggerConfig = {
+  mode: "none",
+  includeTimestamp: true,
+  includeSource: true,
+};
 
-  debug(message: string, data?: unknown) {
-    this.log("debug", message, data);
+function getLogLevelForMode(mode: LogMode): LogLevel {
+  switch (mode) {
+    case "none":
+      return "error";
+    case "minimal":
+      return "warn";
+    case "development":
+      return "debug";
+  }
+}
+
+function isLoggingEnabled(mode: LogMode): boolean {
+  return mode !== "none";
+}
+
+export class FrontendLoggingService {
+  private static instance: FrontendLoggingService;
+  private config: FrontendLoggerConfig;
+
+  static getInstance(): FrontendLoggingService {
+    if (!FrontendLoggingService.instance) {
+      FrontendLoggingService.instance = new FrontendLoggingService(defaultConfig);
+    }
+    return FrontendLoggingService.instance;
   }
 
-  info(message: string, data?: unknown) {
-    this.log("info", message, data);
+  static setInstance(service: FrontendLoggingService): void {
+    FrontendLoggingService.instance = service;
   }
 
-  warn(message: string, data?: unknown) {
-    this.log("warn", message, data);
+  constructor(config: FrontendLoggerConfig) {
+    this.config = config;
   }
 
-  error(message: string, data?: unknown) {
-    this.log("error", message, data);
+  updateConfig(config: Partial<FrontendLoggerConfig>): void {
+    this.config = { ...this.config, ...config };
   }
 
-  private log(level: LogLevel, message: string, data?: unknown) {
-    if (!this.config.enabled || !this.shouldLog(level)) {
+  log(level: LogLevel, service: string, message: string, data?: unknown): void {
+    if (!isLoggingEnabled(this.config.mode) || !this.shouldLog(level)) {
       return;
     }
 
-    this.output(level, message, data);
+    const formattedMessage = this.formatMessage(service, message);
+    this.outputToConsole(level, formattedMessage, data);
+    this.forwardToBackend(level, service, message, data);
   }
 
-  private shouldLog(level: LogLevel) {
-    return levelWeight[level] >= levelWeight[this.config.level];
+  private shouldLog(level: LogLevel): boolean {
+    if (!isLoggingEnabled(this.config.mode)) {
+      return false;
+    }
+    const minLevel = getLogLevelForMode(this.config.mode);
+    return levelWeight[level] >= levelWeight[minLevel];
   }
 
-  private async output(level: LogLevel, message: string, data?: unknown) {
-    const formattedMessage = this.formatMessage(message);
+  setMode(mode: LogMode): void {
+    this.config.mode = mode;
+  }
 
+  getMode(): LogMode {
+    return this.config.mode;
+  }
+
+  private formatMessage(service: string, message: string): string {
+    const parts: string[] = [];
+
+    if (this.config.includeTimestamp) {
+      parts.push(new Date().toISOString());
+    }
+
+    parts.push("qwiki");
+
+    if (this.config.includeSource) {
+      parts.push(service);
+    }
+
+    parts.push(message);
+
+    return parts.join(" | ");
+  }
+
+  private outputToConsole(level: LogLevel, formattedMessage: string, data?: unknown): void {
     switch (level) {
       case "debug":
         data === undefined
@@ -70,52 +123,44 @@ class FrontendLogger {
           : console.error(formattedMessage, data);
         break;
     }
-
-    try {
-      import("./vscode")
-        .then(({ vscode }) => {
-          if (vscode && typeof vscode.postMessage === "function") {
-            vscode.postMessage({
-              command: "frontendLog",
-              payload: {
-                source: this.source,
-                level,
-                message,
-                data,
-              },
-            });
-          }
-        })
-        .catch(() => {});
-    } catch {}
   }
 
-  private formatMessage(message: string): string {
-    const parts: string[] = [];
-
-    if (this.config.includeTimestamp) {
-      parts.push(new Date().toISOString());
-    }
-
-    parts.push("qwiki");
-
-    if (this.config.includeSource) {
-      parts.push(this.source);
-    }
-
-    parts.push(message);
-
-    return parts.join(" | ");
+  private forwardToBackend(
+    level: LogLevel,
+    service: string,
+    message: string,
+    data?: unknown,
+  ): void {
+    setTimeout(() => {
+      try {
+        import("./vscode")
+          .then(({ vscode }) => {
+            if (vscode && typeof vscode.postMessage === "function") {
+              vscode.postMessage({
+                command: "frontendLog",
+                payload: {
+                  level,
+                  source: service,
+                  message,
+                  data,
+                },
+              });
+            }
+          })
+          .catch(() => {});
+      } catch {}
+    }, 0);
   }
 }
 
-const defaultConfig: FrontendLoggerConfig = {
-  enabled: true,
-  level: "debug",
-  includeTimestamp: true,
-  includeSource: true,
-};
+export function createLogger(serviceName: string) {
+  const service = FrontendLoggingService.getInstance();
+  return {
+    debug: (message: string, data?: unknown) => service.log("debug", serviceName, message, data),
+    info: (message: string, data?: unknown) => service.log("info", serviceName, message, data),
+    warn: (message: string, data?: unknown) => service.log("warn", serviceName, message, data),
+    error: (message: string, data?: unknown) => service.log("error", serviceName, message, data),
+  };
+}
 
-export const createLogger = (source: string, overrides?: Partial<FrontendLoggerConfig>) => {
-  return new FrontendLogger({ ...defaultConfig, ...overrides }, source);
-};
+export type Logger = ReturnType<typeof createLogger>;
