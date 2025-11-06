@@ -29,7 +29,13 @@
           class="transition-all"
           :style="{ transitionDuration: `${config.duration.base}ms` }"
         >
-          <DotShape fill="currentColor" x="7" y="7" :dot-size="10" class="text-muted-foreground" />
+          <DotShape
+            fill="currentColor"
+            x="7.5"
+            y="7.5"
+            :dot-size="9"
+            class="text-muted-foreground"
+          />
         </svg>
         <svg
           v-else
@@ -40,7 +46,13 @@
           class="transition-all"
           :style="{ transitionDuration: `${config.duration.base}ms` }"
         >
-          <DotShape fill="currentColor" x="7" y="7" :dot-size="10" class="text-muted-foreground" />
+          <DotShape
+            fill="currentColor"
+            x="7.5"
+            y="7.5"
+            :dot-size="9"
+            class="text-muted-foreground"
+          />
         </svg>
       </div>
 
