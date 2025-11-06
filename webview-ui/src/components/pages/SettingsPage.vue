@@ -20,7 +20,7 @@ const wiki = useWikiStore();
 const settings = useSettingsStore();
 const navigationStore = useNavigationStore();
 const errorStore = useErrorStore();
-const { setNavigationGuard, isValidating } = useNavigation();
+const { setNavigationGuard } = useNavigation();
 const logger = createLogger("SettingsPage");
 const settingsLoading = ref(false);
 const settingsLoadingContext = useLoading("settings");
@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
               <h2
                 class="text-foreground text-sm font-semibold leading-snug sm:text-base md:text-lg lg:text-xl"
               >
-                {{ isValidating ? "Validating" : "Providers" }}
+                Providers
               </h2>
             </div>
             <p class="text-muted-foreground text-xs leading-relaxed sm:text-sm md:text-sm">
