@@ -288,6 +288,10 @@
       {
         "command": "qwiki.toggleOutputChannel",
         "title": "Qwiki: Toggle Output Channel"
+      },
+      {
+        "command": "qwiki.toggleLoggingMode",
+        "title": "Qwiki: Toggle Logging Mode"
       }
     ],
     "menus": {
