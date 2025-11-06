@@ -204,10 +204,26 @@ const textClasses = computed(() => {
 .loading-step-spinner {
   display: block;
   transform: scale(0.58);
+  will-change: transform;
+  transition: none;
+}
+
+.loading-step-node.scale-110 .loading-step-spinner {
+  transform: scale(calc(0.58 / 1.1));
+}
+
+.loading-step-node.scale-125 .loading-step-spinner {
+  transform: scale(calc(0.58 / 1.25));
 }
 
 .loading-step-spinner-compact {
   transform: scale(0.42);
+  will-change: transform;
+  transition: none;
+}
+
+.loading-step-node.scale-110 .loading-step-spinner-compact {
+  transform: scale(calc(0.42 / 1.1));
 }
 
 .loading-step-connector {

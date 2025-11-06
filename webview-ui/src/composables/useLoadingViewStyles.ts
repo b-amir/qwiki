@@ -1,6 +1,7 @@
 import { computed, type Ref } from "vue";
 import type { LoadingViewVariant } from "@/loading/loadingViewConfig";
 import { loadingViewConfig } from "@/loading/loadingViewConfig";
+import { LoadingViewAnimations } from "@/constants/loadingViewAnimations";
 
 export function useLoadingViewStyles(
   variant: Ref<LoadingViewVariant> | LoadingViewVariant,
@@ -18,9 +19,15 @@ export function useLoadingViewStyles(
   const containerStyle = computed(() => {
     const style: Record<string, string> = {};
     const distance = Math.abs(distanceRef.value);
-    if (distance > 2) {
-      const blurAmount = Math.min((distance - 2) * 0.3, 1.5);
-      const opacityReduction = Math.max(1 - (distance - 2) * 0.15, 0.3);
+    if (distance > 1) {
+      const blurAmount = Math.min(
+        (distance - 1) * LoadingViewAnimations.blurMultiplier,
+        LoadingViewAnimations.maxBlurAmount,
+      );
+      const opacityReduction = Math.max(
+        1 - (distance - 1) * LoadingViewAnimations.opacityReductionMultiplier,
+        LoadingViewAnimations.minOpacity,
+      );
       style.filter = `blur(${blurAmount}px)`;
       style.opacity = opacityReduction.toString();
     }
@@ -36,17 +43,20 @@ export function useLoadingViewStyles(
     const baseStyle: Record<string, string> = {};
     baseStyle.filter =
       variantRef.value === "full"
-        ? "drop-shadow(0 0 10px rgba(139, 92, 246, 0.5))"
-        : "drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))";
+        ? LoadingViewAnimations.dropShadowFull
+        : LoadingViewAnimations.dropShadowCompact;
     return baseStyle;
   };
 
   const connectorStyle = computed(() => {
     const style: Record<string, string> = {};
-    style.opacity = "0.07";
+    style.opacity = LoadingViewAnimations.connectorOpacity.toString();
     const distance = Math.abs(distanceRef.value);
-    if (distance > 2) {
-      const blurAmount = Math.min((distance - 2) * 0.3, 1.5);
+    if (distance > 1) {
+      const blurAmount = Math.min(
+        (distance - 1) * LoadingViewAnimations.blurMultiplier,
+        LoadingViewAnimations.maxBlurAmount,
+      );
       style.filter = `blur(${blurAmount}px)`;
     }
     return style;
