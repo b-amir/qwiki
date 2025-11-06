@@ -4,9 +4,9 @@ import { useVscode } from "@/composables/useVscode";
 import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
 import { useEnvironmentStore } from "@/stores/environment";
+import { useErrorStore } from "@/stores/error";
 import LoadingState from "@/components/features/LoadingState.vue";
 import LoadingView from "@/components/LoadingView.vue";
-import ErrorModal from "@/components/features/ErrorModal.vue";
 import WikiPreviewModal from "@/components/features/WikiPreviewModal.vue";
 import WikiListItem from "@/components/features/WikiListItem.vue";
 import ReadmeConfirmDialog from "@/components/features/ReadmeConfirmDialog.vue";
@@ -32,10 +32,9 @@ const vscode = useVscode();
 const logger = createLogger("SavedWikisPage");
 const wikiStore = useWikiStore();
 const environmentStore = useEnvironmentStore();
+const errorStore = useErrorStore();
 const savedWikis = shallowRef<SavedWiki[]>([]);
 const loading = ref(true);
-const error = ref<string | null>(null);
-const errorModalOpen = ref(false);
 const searchQuery = ref("");
 const debouncedSearchQuery = useDebouncedRef(searchQuery, 300);
 const previewWiki = ref<SavedWiki | null>(null);
@@ -169,15 +168,20 @@ const loadSavedWikis = async () => {
 
     isLoading.value = true;
     loading.value = true;
-    error.value = null;
     savedWikisLoadingContext.start("loadingWikis");
     savedWikisLoadingContext.advance("fetchingWikiData");
 
     loadTimeoutId.value = setTimeout(() => {
       if (isLoading.value) {
         logger.warn("getSavedWikis command timed out");
-        error.value = "Failed to load saved wikis: Request timed out";
-        errorModalOpen.value = true;
+        errorStore.setError({
+          message: "Failed to load saved wikis: Request timed out",
+          code: "LOAD_TIMEOUT",
+          context: {
+            page: "savedWikis",
+            operation: "loadSavedWikis",
+          },
+        });
         loading.value = false;
         isLoading.value = false;
         savedWikisLoadingContext.fail("Failed to load saved wikis: Request timed out");
@@ -191,8 +195,14 @@ const loadSavedWikis = async () => {
       clearTimeout(loadTimeoutId.value);
       loadTimeoutId.value = null;
     }
-    error.value = "Failed to load saved wikis";
-    errorModalOpen.value = true;
+    errorStore.setError({
+      message: "Failed to load saved wikis",
+      code: "LOAD_ERROR",
+      context: {
+        page: "savedWikis",
+        operation: "loadSavedWikis",
+      },
+    });
     loading.value = false;
     isLoading.value = false;
     savedWikisLoadingContext.fail("Failed to load saved wikis");
@@ -318,8 +328,13 @@ const handleMessage = (event: MessageEvent) => {
           clearTimeout(loadTimeoutId.value);
           loadTimeoutId.value = null;
         }
-        error.value = message.payload.message;
-        errorModalOpen.value = true;
+        errorStore.setError({
+          message: message.payload.message,
+          code: "NOTIFICATION_ERROR",
+          context: {
+            page: "savedWikis",
+          },
+        });
         loading.value = false;
         isLoading.value = false;
         savedWikisLoadingContext.fail(message.payload.message);
@@ -550,18 +565,6 @@ onBeforeUnmount(() => {
     </div>
 
     <WikiPreviewModal :wiki="previewWiki" @close="previewWiki = null" />
-
-    <ErrorModal
-      v-if="error"
-      v-model="errorModalOpen"
-      :error="error"
-      @close="
-        () => {
-          error = null;
-          errorModalOpen = false;
-        }
-      "
-    />
 
     <ReadmeConfirmDialog
       v-if="showReadmeConfirmDialog && readmePreview && changeSummary"

@@ -15,6 +15,7 @@ import { useNavigation } from "@/composables/useNavigation";
 import { usePageLoading } from "@/composables/usePageLoading";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 import LoadingState from "@/components/features/LoadingState.vue";
+import GlobalErrorModal from "@/components/features/GlobalErrorModal.vue";
 import { createLogger } from "@/utilities/logging";
 import { vscode } from "@/utilities/vscode";
 
@@ -146,6 +147,7 @@ watch(
       </linearGradient>
     </defs>
   </svg>
+  <GlobalErrorModal />
   <main class="bg-background flex h-full w-full flex-col">
     <TopBar />
 
@@ -166,7 +168,7 @@ watch(
           </div>
         </template>
         <template v-else>
-          <HomePage v-if="!wiki.content && !wiki.loading && !wiki.error" />
+          <HomePage v-if="!wiki.content && !wiki.loading" />
           <WikiPage v-else />
         </template>
       </div>

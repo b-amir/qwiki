@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
-import ErrorModal from "@/components/features/ErrorModal.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import Button from "@/components/ui/button.vue";
 import { useWikiStore } from "@/stores/wiki";
@@ -39,16 +38,6 @@ const wikiTitle = computed(() => {
     return title.length > 36 ? title.substring(0, 33) + "..." : title;
   }
   return "Untitled Wiki";
-});
-
-const errorModalOpen = computed({
-  get: () => !!wiki.error,
-  set: (value: boolean) => {
-    if (!value) {
-      wiki.error = "";
-      wiki.errorInfo = null;
-    }
-  },
 });
 
 const saveWiki = async () => {
@@ -157,23 +146,5 @@ onBeforeUnmount(() => {
         {{ saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save Wiki" }}
       </Button>
     </div>
-
-    <ErrorModal
-      v-if="wiki.error"
-      v-model="errorModalOpen"
-      :error="wiki.error"
-      :error-code="wiki.errorInfo?.code"
-      :suggestions="wiki.errorInfo?.suggestions"
-      :retryable="wiki.errorInfo?.retryable"
-      :on-retry="wiki.retryGeneration"
-      :timestamp="wiki.errorInfo?.timestamp"
-      :context="wiki.errorInfo?.context"
-      :original-error="wiki.errorInfo?.originalError"
-      @close="
-        () => {
-          errorModalOpen = false;
-        }
-      "
-    />
   </div>
 </template>

@@ -6,6 +6,7 @@ export interface ErrorAction {
   action: "navigate" | "none" | "external";
   target?: PageType | string;
   condition?: (currentPage: PageType) => boolean;
+  handler?: () => void;
 }
 
 const ERROR_ACTIONS: Record<string, ErrorAction> = {

@@ -1,26 +1,14 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
-import { useErrorHistoryStore } from "./errorHistory";
 import { useLoadingStore } from "./loading";
 import { ErrorCodes, getErrorMessage } from "@/utilities/errorMessages";
 
 export type ProviderStatus = { id: string; name: string; hasKey: boolean; models: string[] };
 
-export interface ErrorInfo {
-  message: string;
-  code?: string;
-  suggestions?: string[];
-  retryable?: boolean;
-  timestamp?: string;
-  context?: string;
-  originalError?: string;
-}
-
 export const useWikiStore = defineStore("wiki", {
   state: () => ({
     loading: false as boolean,
     loadingStep: "" as string,
-    error: "" as string,
     content: "" as string,
     snippet: "" as string,
     languageId: "" as string,
@@ -33,12 +21,11 @@ export const useWikiStore = defineStore("wiki", {
     providerId: "" as string,
     model: "" as string,
     pendingAutoGenerate: false as boolean,
-    errorInfo: null as ErrorInfo | null,
     generateRequestId: null as string | null,
   }),
   actions: {
     init() {
-      const handleMessage = (event: MessageEvent) => {
+      const handleMessage = async (event: MessageEvent) => {
         const message = event.data;
         const loadingStore = useLoadingStore();
         switch (message.command) {
@@ -117,8 +104,6 @@ export const useWikiStore = defineStore("wiki", {
           case "wikiResult": {
             this.loading = false;
             this.loadingStep = "";
-            this.error = "";
-            this.errorInfo = null;
             this.content = message.payload?.content || "";
             loadingStore.complete({ context: "wiki" });
             return;
@@ -134,8 +119,6 @@ export const useWikiStore = defineStore("wiki", {
           case "generationCancelled": {
             this.loading = false;
             this.loadingStep = "";
-            this.error = "";
-            this.errorInfo = null;
             this.content = "";
             loadingStore.cancel({ context: "wiki", reason: "Generation cancelled" });
             return;
@@ -147,8 +130,6 @@ export const useWikiStore = defineStore("wiki", {
             if (isCancellation) {
               this.loading = false;
               this.loadingStep = "";
-              this.error = "";
-              this.errorInfo = null;
               this.content = "";
               loadingStore.cancel({ context: "wiki", reason: "Generation cancelled" });
               return;
@@ -156,27 +137,27 @@ export const useWikiStore = defineStore("wiki", {
 
             this.loading = false;
             this.loadingStep = "";
-            this.error = message.payload?.message || "Unknown error";
+            const errorMessage = message.payload?.message || "Unknown error";
             const suggestions =
               message.payload?.suggestions ||
               (message.payload?.suggestion ? [message.payload.suggestion] : undefined);
-            this.errorInfo = {
-              message: message.payload?.message || "Unknown error",
+
+            const { useErrorStore } = await import("./error");
+            const errorStore = useErrorStore();
+            errorStore.setError({
+              message: errorMessage,
               code: message.payload?.code,
               suggestions,
               retryable: message.payload?.retryable || false,
-              timestamp: message.payload?.timestamp,
-              context: message.payload?.context,
+              retryAction: () => this.generate(),
+              context: {
+                page: "wiki",
+                operation: "generate",
+              },
               originalError: message.payload?.originalError,
-            };
-
-            const errorHistory = useErrorHistoryStore();
-            errorHistory.addError({
-              ...this.errorInfo,
-              timestamp: message.payload?.timestamp || new Date().toISOString(),
             });
 
-            loadingStore.fail({ context: "wiki", error: this.error });
+            loadingStore.fail({ context: "wiki", error: errorMessage });
 
             return;
           }
@@ -198,20 +179,24 @@ export const useWikiStore = defineStore("wiki", {
       vscode.postMessage({ command: "getSelection" });
       vscode.postMessage({ command: "getRelated" });
 
-      setTimeout(() => {
+      setTimeout(async () => {
         if (this.loading) {
           this.loading = false;
           this.loadingStep = "";
           const errorInfo = getErrorMessage(ErrorCodes.INIT_TIMEOUT);
-          this.error = errorInfo.message;
-          this.errorInfo = {
+          const { useErrorStore } = await import("./error");
+          const errorStore = useErrorStore();
+          errorStore.setError({
             message: errorInfo.message,
             code: ErrorCodes.INIT_TIMEOUT,
             suggestions: errorInfo.suggestions,
             retryable: true,
-            timestamp: new Date().toISOString(),
-          };
-          useLoadingStore().fail({ context: "wiki", error: this.error });
+            context: {
+              page: "wiki",
+              operation: "init",
+            },
+          });
+          useLoadingStore().fail({ context: "wiki", error: errorInfo.message });
         }
       }, 30000);
     },
@@ -230,14 +215,18 @@ export const useWikiStore = defineStore("wiki", {
           payload: { message: "WikiStore: generate() aborted - missing snippet" },
         });
         const errorInfo = getErrorMessage(ErrorCodes.MISSING_SNIPPET);
-        this.error = errorInfo.message;
-        this.errorInfo = {
+        const { useErrorStore } = await import("./error");
+        const errorStore = useErrorStore();
+        errorStore.setError({
           message: errorInfo.message,
           code: ErrorCodes.MISSING_SNIPPET,
           suggestions: errorInfo.suggestions,
           retryable: false,
-          timestamp: new Date().toISOString(),
-        };
+          context: {
+            page: "wiki",
+            operation: "generate",
+          },
+        });
         return;
       }
 
@@ -249,16 +238,20 @@ export const useWikiStore = defineStore("wiki", {
         const errorInfo = getErrorMessage(ErrorCodes.PROVIDER_NOT_SELECTED);
         this.loading = false;
         this.loadingStep = "";
-        this.error = errorInfo.message;
-        this.errorInfo = {
+        const { useErrorStore } = await import("./error");
+        const errorStore = useErrorStore();
+        errorStore.setError({
           message: errorInfo.message,
           code: ErrorCodes.PROVIDER_NOT_SELECTED,
           suggestions: errorInfo.suggestions,
           retryable: false,
-          timestamp: new Date().toISOString(),
-        };
+          context: {
+            page: "wiki",
+            operation: "generate",
+          },
+        });
         const loadingStore = useLoadingStore();
-        loadingStore.fail({ context: "wiki", error: this.error });
+        loadingStore.fail({ context: "wiki", error: errorInfo.message });
         return;
       }
 
@@ -292,8 +285,6 @@ export const useWikiStore = defineStore("wiki", {
       this.loading = true;
       this.loadingStep = "validating";
       loadingStore.start({ context: "wiki", step: "validating" });
-      this.error = "";
-      this.errorInfo = null;
       this.content = "";
 
       this.generateRequestId = Math.random().toString(36).substring(7);
@@ -328,8 +319,6 @@ export const useWikiStore = defineStore("wiki", {
     },
     clearContent() {
       this.content = "";
-      this.error = "";
-      this.errorInfo = null;
       this.loadingStep = "";
       this.related = [];
       this.filesSample = [];
@@ -361,9 +350,7 @@ export const useWikiStore = defineStore("wiki", {
       }
     },
     retryGeneration() {
-      if (this.errorInfo?.retryable) {
-        this.generate();
-      }
+      this.generate();
     },
   },
 });

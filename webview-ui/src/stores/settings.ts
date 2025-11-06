@@ -2,7 +2,6 @@ import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
 import { createLogger } from "@/utilities/logging";
 import { useLoadingStore } from "./loading";
-import { useErrorHistoryStore } from "./errorHistory";
 import { ApiKeyTimings } from "@/constants/apiKeyTimings";
 
 const logger = createLogger("SettingsStore");
@@ -350,12 +349,14 @@ export const useSettingsStore = defineStore("settings", {
                 hasSuggestions: !!(message.payload?.suggestions || message.payload?.suggestion),
               });
 
-              this.error = message.payload?.message || "Unknown error";
+              const errorMessage = message.payload?.message || "Unknown error";
               const suggestions =
                 message.payload?.suggestions ||
                 (message.payload?.suggestion ? [message.payload.suggestion] : undefined);
+
+              this.error = errorMessage;
               this.errorInfo = {
-                message: message.payload?.message || "Unknown error",
+                message: errorMessage,
                 code: message.payload?.code,
                 suggestions,
                 retryable: message.payload?.retryable || false,
@@ -363,12 +364,6 @@ export const useSettingsStore = defineStore("settings", {
                 context: message.payload?.context,
                 originalError: message.payload?.originalError,
               };
-
-              const errorHistory = useErrorHistoryStore();
-              errorHistory.addError({
-                ...this.errorInfo,
-                timestamp: message.payload?.timestamp || new Date().toISOString(),
-              });
 
               logger.debug(`Error set in settings store: ${this.error}`);
 

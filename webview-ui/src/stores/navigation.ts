@@ -120,6 +120,10 @@ export const useNavigationStore = defineStore("navigation", {
       this.targetPage = page;
       this.direction = isBack ? "back" : "forward";
 
+      const { useErrorStore } = await import("./error");
+      const errorStore = useErrorStore();
+      errorStore.onNavigationStart(page);
+
       // If guard exists, transition to validating
       if (this.guard) {
         logger.debug("Guard exists, transitioning to validating state");
@@ -151,6 +155,7 @@ export const useNavigationStore = defineStore("navigation", {
 
       // Validation passed or no guard, proceed with navigation
       this._completeNavigation();
+      errorStore.onNavigationComplete(page);
       return true;
     },
 

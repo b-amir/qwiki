@@ -1,0 +1,240 @@
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useErrorStore } from "@/stores/error";
+import { useNavigation } from "@/composables/useNavigation";
+import { useErrorCategory } from "@/composables/useErrorCategory";
+import { ErrorTitles } from "@/utilities/errorMessages";
+import type { ErrorAction } from "@/utilities/errorActions";
+import Modal from "@/components/ui/Modal.vue";
+import ModalHeader from "@/components/ui/ModalHeader.vue";
+import ModalContent from "@/components/ui/ModalContent.vue";
+import ModalFooter from "@/components/ui/ModalFooter.vue";
+
+const errorStore = useErrorStore();
+const { navigateTo, currentPage } = useNavigation();
+
+const detailsExpanded = ref(false);
+
+const isOpen = computed({
+  get: () => errorStore.isModalOpen && !!errorStore.currentError,
+  set: (value: boolean) => {
+    if (!value && errorStore.currentError) {
+      errorStore.dismissError(errorStore.currentError.id);
+    }
+  },
+});
+
+const handleClose = () => {
+  if (errorStore.currentError) {
+    errorStore.dismissError(errorStore.currentError.id);
+  }
+};
+
+const handleAction = (action: ErrorAction) => {
+  if (action.action === "navigate" && action.target) {
+    navigateTo(action.target as any);
+    handleClose();
+  } else if (action.action === "none") {
+    if (action.handler) {
+      action.handler();
+    }
+    handleClose();
+  } else if (action.handler) {
+    action.handler();
+  }
+};
+
+const handleRetry = () => {
+  if (errorStore.currentError?.retryAction) {
+    const retryAction = errorStore.currentError.retryAction;
+    handleClose();
+    retryAction();
+  }
+};
+
+const visibleActions = computed(() => {
+  if (!errorStore.currentError) return [];
+
+  return (
+    errorStore.currentError.actions?.filter((action) => {
+      if (!action.condition) return true;
+      return action.condition(currentPage.value);
+    }) || []
+  );
+});
+
+const errorCategory = computed(() => {
+  const code = errorStore.currentError?.code || "";
+  const { category } = useErrorCategory(code);
+  return category.value;
+});
+
+const displayErrorCode = computed(() => {
+  if (!errorStore.currentError?.code) return undefined;
+  return ErrorTitles[errorStore.currentError.code] || errorStore.currentError.code;
+});
+
+const hasDuplicateDetails = computed(() => {
+  if (!errorStore.currentError) return false;
+  const { context, originalError } = errorStore.currentError;
+  if (!context || !originalError) return false;
+  try {
+    const contextStr = JSON.stringify(context);
+    const originalObj = JSON.parse(originalError);
+    return contextStr === JSON.stringify(originalObj);
+  } catch {
+    return JSON.stringify(context) === originalError;
+  }
+});
+
+const errorDetails = computed(() => {
+  if (!errorStore.currentError) return null;
+  const { context, originalError, message } = errorStore.currentError;
+
+  if (!context && !originalError) return null;
+
+  if (hasDuplicateDetails.value) {
+    return JSON.stringify(context) || originalError;
+  }
+
+  const parts: string[] = [];
+  if (context) parts.push(JSON.stringify(context, null, 2));
+  if (originalError && originalError !== message) {
+    parts.push(originalError);
+  }
+
+  return parts.length > 0 ? parts.join("\n\n") : null;
+});
+
+const parsedSuggestions = computed(() => {
+  if (!errorStore.currentError?.suggestions) return [];
+
+  return errorStore.currentError.suggestions.map((suggestion) => {
+    const urlMatch = suggestion.match(/^(.+?):\s*(https?:\/\/.+)$/);
+    if (urlMatch) {
+      return {
+        text: urlMatch[1],
+        url: urlMatch[2],
+        isLink: true,
+      };
+    }
+    return {
+      text: suggestion,
+      url: undefined,
+      isLink: false,
+    };
+  });
+});
+</script>
+
+<template>
+  <Modal v-model="isOpen" max-width="max-w-2xl">
+    <template v-if="errorStore.currentError" #default>
+      <ModalHeader @close="handleClose">
+        <div class="min-w-0 flex-1">
+          <h2 class="text-base font-semibold capitalize sm:text-lg">
+            {{ errorCategory.replace("-", " ") }} Error
+          </h2>
+          <div v-if="displayErrorCode" class="text-muted-foreground mt-1 text-xs">
+            <span class="font-mono">{{ displayErrorCode }}</span>
+          </div>
+        </div>
+      </ModalHeader>
+
+      <ModalContent>
+        <div class="space-y-4">
+          <div>
+            <p class="text-foreground whitespace-pre-wrap break-words text-sm leading-relaxed">
+              {{ errorStore.currentError.message }}
+            </p>
+          </div>
+
+          <div v-if="parsedSuggestions.length > 0" class="space-y-2">
+            <h4 class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+              Suggestions
+            </h4>
+            <ul class="space-y-1.5">
+              <li
+                v-for="(suggestion, index) in parsedSuggestions"
+                :key="index"
+                class="text-muted-foreground text-sm leading-relaxed"
+              >
+                <span v-if="!suggestion.isLink">• {{ suggestion.text }}</span>
+                <a
+                  v-else
+                  :href="suggestion.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-primary hover:text-primary/80 hover:underline"
+                >
+                  • {{ suggestion.text }}
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div v-if="errorDetails" class="space-y-2">
+            <button
+              class="text-muted-foreground hover:text-foreground flex w-full items-center justify-between text-xs font-medium uppercase tracking-wide transition-colors"
+              @click="detailsExpanded = !detailsExpanded"
+            >
+              <span>Details</span>
+              <svg
+                class="h-4 w-4 transition-transform"
+                :class="{ 'rotate-180': detailsExpanded }"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+            <div
+              class="overflow-hidden transition-all duration-300 ease-in-out"
+              :class="detailsExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'"
+            >
+              <div class="bg-muted/30 break-words rounded p-2.5 font-mono text-xs leading-relaxed">
+                {{ errorDetails }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalContent>
+
+      <ModalFooter>
+        <div class="flex w-full justify-center gap-2">
+          <button
+            v-if="errorStore.currentError.retryable && errorStore.currentError.retryAction"
+            class="bg-primary hover:bg-primary/90 text-primary-foreground rounded px-3 py-1.5 text-xs font-medium transition-colors sm:text-sm"
+            @click="handleRetry"
+          >
+            Retry
+          </button>
+          <button
+            v-for="action in visibleActions"
+            :key="action.label"
+            class="text-muted-foreground hover:text-foreground rounded px-3 py-1.5 text-xs transition-colors sm:text-sm"
+            @click="handleAction(action)"
+          >
+            {{ action.label }}
+          </button>
+          <button
+            v-if="
+              !visibleActions.length &&
+              (!errorStore.currentError.retryable || !errorStore.currentError.retryAction)
+            "
+            class="text-muted-foreground hover:text-foreground rounded px-3 py-1.5 text-xs transition-colors sm:text-sm"
+            @click="handleClose"
+          >
+            Close
+          </button>
+        </div>
+      </ModalFooter>
+    </template>
+  </Modal>
+</template>

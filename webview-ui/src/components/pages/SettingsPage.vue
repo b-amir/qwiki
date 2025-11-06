@@ -2,10 +2,10 @@
 import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ProviderConfigItem from "@/components/features/ProviderConfigItem.vue";
-import ErrorModal from "@/components/features/ErrorModal.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useNavigationStore } from "@/stores/navigation";
+import { useErrorStore } from "@/stores/error";
 import { useLoading } from "@/loading/useLoading";
 import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { useSettingsMessaging } from "@/composables/useSettingsMessaging";
@@ -19,119 +19,56 @@ import { createLogger } from "@/utilities/logging";
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 const navigationStore = useNavigationStore();
+const errorStore = useErrorStore();
 const { setNavigationGuard, isValidating } = useNavigation();
 const logger = createLogger("SettingsPage");
 const settingsLoading = ref(false);
 const settingsLoadingContext = useLoading("settings");
-const errorModalOpen = ref(false);
 
 watch(
   () => settings.error,
-  (newError, oldError) => {
-    logger.debug("Settings error watch triggered", {
-      newError,
-      oldError,
-      hasErrorInfo: !!settings.errorInfo,
-      errorModalOpen: errorModalOpen.value,
-    });
-    if (newError && newError !== oldError) {
-      errorModalOpen.value = true;
-      logger.debug("Error detected, opening error modal", {
-        error: newError,
-        errorInfo: settings.errorInfo,
-        errorModalOpen: errorModalOpen.value,
+  (newError) => {
+    if (newError && settings.errorInfo) {
+      errorStore.setError({
+        message: settings.errorInfo.message,
+        code: settings.errorInfo.code,
+        suggestions: settings.errorInfo.suggestions,
+        retryable: settings.errorInfo.retryable,
+        context: {
+          page: "settings",
+          component: "SettingsPage",
+        },
+        originalError: settings.errorInfo.originalError,
       });
-    } else if (!newError) {
-      errorModalOpen.value = false;
-    }
-  },
-  { immediate: true },
-);
-
-watch(
-  () => settings.errorInfo,
-  (newErrorInfo, oldErrorInfo) => {
-    logger.debug("Settings errorInfo watch triggered", {
-      newErrorInfo: !!newErrorInfo,
-      oldErrorInfo: !!oldErrorInfo,
-      hasError: !!settings.error,
-      errorModalOpen: errorModalOpen.value,
-    });
-    if (newErrorInfo && settings.error) {
-      errorModalOpen.value = true;
-      logger.debug("ErrorInfo set, opening error modal", {
-        error: settings.error,
-        errorInfo: newErrorInfo,
-        errorModalOpen: errorModalOpen.value,
-      });
-    } else if (!newErrorInfo && !settings.error) {
-      errorModalOpen.value = false;
-    }
-  },
-  { immediate: true },
-);
-
-watch(
-  () => errorModalOpen.value,
-  (isOpen) => {
-    if (isOpen && settings.error) {
-      logger.debug("Error modal opened", { error: settings.error });
+      settings.clearError();
     }
   },
 );
 
-// Watch for navigation validation errors
 watch(
   () => navigationStore.validationError,
   (validationError) => {
     if (validationError) {
       logger.debug("Navigation validation error detected", { validationError });
 
-      // Set error in settings store to display in error modal
-      settings.error = validationError.message;
-      settings.errorInfo = {
+      errorStore.setError({
         message: validationError.message,
         code: validationError.code,
         suggestions: validationError.suggestions,
         retryable: true,
-        timestamp: new Date().toISOString(),
-        context: JSON.stringify({ providerId: settings.selectedProvider }),
-      };
+        context: {
+          page: "settings",
+          component: "SettingsPage",
+          operation: "navigation",
+        },
+      });
 
-      errorModalOpen.value = true;
-
-      // Clear the navigation error after displaying
       setTimeout(() => {
         navigationStore.clearValidationError();
       }, 100);
     }
   },
 );
-
-const shouldShowErrorModal = computed(() => {
-  if (!settings.errorInfo?.context) return true;
-  try {
-    const context = JSON.parse(settings.errorInfo.context);
-    const errorProviderId = context?.providerId;
-    const isGlobalError = context?.globalError === true;
-    return isGlobalError || !errorProviderId || errorProviderId === settings.selectedProvider;
-  } catch {
-    return true;
-  }
-});
-
-const errorModalMessage = computed(() => {
-  if (!settings.errorInfo?.context) return settings.error;
-  try {
-    const context = JSON.parse(settings.errorInfo.context);
-    if (context?.providerId && context.providerId !== settings.selectedProvider) {
-      return "";
-    }
-  } catch {
-    return settings.error;
-  }
-  return settings.error;
-});
 
 const centralizedProviderConfigs = ref<
   Array<{
@@ -294,7 +231,7 @@ onBeforeUnmount(() => {
               <h2
                 class="text-foreground text-sm font-semibold leading-snug sm:text-base md:text-lg lg:text-xl"
               >
-                {{ isValidating.value ? "Validating" : "Providers" }}
+                {{ isValidating ? "Validating" : "Providers" }}
               </h2>
             </div>
             <p class="text-muted-foreground text-xs leading-relaxed sm:text-sm md:text-sm">
@@ -355,23 +292,5 @@ onBeforeUnmount(() => {
         Keys are stored securely in VS Code Secret Storage.
       </footer>
     </section>
-
-    <ErrorModal
-      v-if="settings.error && settings.errorInfo && shouldShowErrorModal"
-      v-model="errorModalOpen"
-      :error="errorModalMessage"
-      :error-code="settings.errorInfo.code"
-      :suggestions="settings.errorInfo.suggestions"
-      :retryable="settings.errorInfo.retryable"
-      :timestamp="settings.errorInfo.timestamp"
-      :context="settings.errorInfo.context"
-      :original-error="settings.errorInfo.originalError"
-      @close="
-        () => {
-          errorModalOpen = false;
-          settings.clearError();
-        }
-      "
-    />
   </div>
 </template>
