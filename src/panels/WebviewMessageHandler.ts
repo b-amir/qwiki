@@ -97,7 +97,7 @@ export class WebviewMessageHandler {
                   /API key update completed in/i,
                   /Changing provider to/i,
                   /Provider change completed in/i,
-                  /setPage called/i,
+                  /navigateTo called/i,
                   /No navigation guard set/i,
                   /Navigation guard returned/i,
                   /Navigation guard triggered/i,

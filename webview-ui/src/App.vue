@@ -11,12 +11,10 @@ import {
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 import { useEnvironmentStore } from "@/stores/environment";
-import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
+import { usePageLoading } from "@/composables/usePageLoading";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
 import LoadingState from "@/components/features/LoadingState.vue";
-import { useLoading } from "@/loading/useLoading";
-import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { createLogger } from "@/utilities/logging";
 import { vscode } from "@/utilities/vscode";
 
@@ -25,7 +23,6 @@ const { currentPage } = useNavigation();
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 const environment = useEnvironmentStore();
-const navigationStatus = useNavigationStatusStore();
 
 vscode.postMessage({ command: "webviewReady" });
 vscode.postMessage({ command: "getProviders" });
@@ -56,59 +53,25 @@ watch(
   () => ({
     currentPage: currentPage.value,
     wikiContent: !!wiki.content,
-    wikiContentLength: wiki.content?.length || 0,
     wikiLoading: wiki.loading,
-    wikiError: !!wiki.error,
-    wikiErrorMessage: wiki.error || "",
-    environmentLoading: environmentLoading.value,
-    wikiNavigationLoading: wikiNavigationLoading.value,
+    wikiNavigationLoading: wikiPageLoading.showNavigationLoading.value,
     showWikiLoading: showWikiLoading.value,
-    shouldShowHomePage: !wiki.content && !wiki.loading && !wiki.error,
-    environmentStatus: environment.extensionStatus,
-    isEnvironmentReady: environment.isReady,
   }),
   (state) => {
     logger.info("App render state", state);
-    try {
-      vscode.postMessage({
-        command: "frontendLog",
-        payload: {
-          message: "App: render state",
-          data: state,
-        },
-      });
-    } catch {}
-
-    if (state.currentPage === "wiki") {
-      const whichTemplate = state.environmentLoading
-        ? "environmentLoading"
-        : state.wikiNavigationLoading
-          ? "wikiNavigationLoading"
-          : state.showWikiLoading
-            ? "showWikiLoading"
-            : state.shouldShowHomePage
-              ? "HomePage"
-              : "WikiPage";
-      logger.info("Wiki page template branch", { whichTemplate, state });
-      try {
-        vscode.postMessage({
-          command: "frontendLog",
-          payload: {
-            message: "App: Wiki page template branch",
-            data: { whichTemplate, state },
-          },
-        });
-      } catch {}
-    }
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 );
 
-const environmentLoadingContext = useLoading("environment");
-const navigationLoadingContext = useLoading("navigation");
-const wikiLoadingContext = useLoading("wiki");
-const settingsLoadingContext = useLoading("settings");
-const errorHistoryLoadingContext = useLoading("errorHistory");
+// Use page loading composables for each page
+const wikiPageLoading = usePageLoading("wiki", "wiki");
+const settingsPageLoading = usePageLoading("settings", "settings");
+const errorHistoryPageLoading = usePageLoading("errorHistory", "errorHistory");
+
+// Wiki page also shows loading when wiki store is loading
+const showWikiLoading = computed(() => {
+  return wikiPageLoading.showPageLoading.value || wiki.loading;
+});
 
 const currentModels = computed(
   () => wiki.providers.find((p) => p.id === wiki.providerId)?.models || [],
@@ -158,108 +121,6 @@ watch(
   },
   { immediate: true },
 );
-
-const navigationTarget = computed(() => navigationStatus.target);
-
-const environmentLoadingRaw = computed(() => {
-  const result = environmentLoadingContext.isActive.value;
-  if (result) {
-    logger.debug("environmentLoading computed", { result });
-  }
-  return result;
-});
-const { displayLoading: environmentLoading } = useDelayedLoadingState(
-  environmentLoadingRaw,
-  computed(() => environmentLoadingContext.steps.value.length),
-  { minDisplayTime: 300, perStepDelay: 100 },
-);
-
-const wikiNavigationLoadingRaw = computed(() => {
-  const result =
-    navigationLoadingContext.isActive.value &&
-    navigationTarget.value === "wiki" &&
-    navigationStatus.isBackNavigation;
-  if (result) {
-    logger.debug("wikiNavigationLoading computed", {
-      navigationLoadingContextActive: navigationLoadingContext.isActive.value,
-      navigationTarget: navigationTarget.value,
-      isBackNavigation: navigationStatus.isBackNavigation,
-      result,
-    });
-  } else if (
-    !result &&
-    navigationTarget.value === "wiki" &&
-    navigationStatus.isBackNavigation &&
-    navigationStatus.busy
-  ) {
-    navigationStatus.finish("wiki");
-  }
-  return result;
-});
-const { displayLoading: wikiNavigationLoading } = useDelayedLoadingState(
-  wikiNavigationLoadingRaw,
-  computed(() => navigationLoadingContext.steps.value.length),
-  { minDisplayTime: 200, perStepDelay: 100 },
-);
-
-const settingsNavigationLoadingRaw = computed(() => {
-  const result =
-    navigationLoadingContext.isActive.value &&
-    navigationTarget.value === "settings" &&
-    navigationStatus.isBackNavigation;
-  if (
-    !result &&
-    navigationTarget.value === "settings" &&
-    navigationStatus.isBackNavigation &&
-    navigationStatus.busy
-  ) {
-    navigationStatus.finish("settings");
-  }
-  return result;
-});
-const { displayLoading: settingsNavigationLoading } = useDelayedLoadingState(
-  settingsNavigationLoadingRaw,
-  computed(() => navigationLoadingContext.steps.value.length),
-  { minDisplayTime: 200, perStepDelay: 100 },
-);
-
-const errorHistoryNavigationLoadingRaw = computed(() => {
-  const result =
-    navigationLoadingContext.isActive.value &&
-    navigationTarget.value === "errorHistory" &&
-    navigationStatus.isBackNavigation;
-  if (
-    !result &&
-    navigationTarget.value === "errorHistory" &&
-    navigationStatus.isBackNavigation &&
-    navigationStatus.busy
-  ) {
-    navigationStatus.finish("errorHistory");
-  }
-  return result;
-});
-const { displayLoading: errorHistoryNavigationLoading } = useDelayedLoadingState(
-  errorHistoryNavigationLoadingRaw,
-  computed(() => navigationLoadingContext.steps.value.length),
-  { minDisplayTime: 200, perStepDelay: 100 },
-);
-
-const showWikiLoadingRaw = computed(() => {
-  const result = wiki.loading || wikiLoadingContext.isActive.value;
-  if (result) {
-    logger.debug("showWikiLoading computed", {
-      wikiLoading: wiki.loading,
-      wikiLoadingContextActive: wikiLoadingContext.isActive.value,
-      result,
-    });
-  }
-  return result;
-});
-const { displayLoading: showWikiLoading } = useDelayedLoadingState(
-  showWikiLoadingRaw,
-  computed(() => wikiLoadingContext.steps.value.length),
-  { minDisplayTime: 400, perStepDelay: 100 },
-);
 </script>
 
 <template>
@@ -290,11 +151,8 @@ const { displayLoading: showWikiLoading } = useDelayedLoadingState(
 
     <div class="flex-1 overflow-auto">
       <div v-if="currentPage === 'wiki'" class="flex h-full flex-col">
-        <template v-if="wikiNavigationLoading">
+        <template v-if="wikiPageLoading.showNavigationLoading.value">
           <LoadingState class="flex-1" context="navigation" />
-          <div class="flex justify-center pb-2">
-            <span class="text-muted-foreground text-xs">Navigation loading...</span>
-          </div>
         </template>
         <template v-else-if="showWikiLoading">
           <LoadingState class="flex-1" context="wiki" />
@@ -314,9 +172,13 @@ const { displayLoading: showWikiLoading } = useDelayedLoadingState(
       </div>
 
       <div v-else-if="currentPage === 'settings'" class="settings-page-container flex h-full pb-4">
-        <LoadingState v-if="settingsNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
-          v-else-if="settingsLoadingContext.isActive.value"
+          v-if="settingsPageLoading.showNavigationLoading.value"
+          class="flex-1"
+          context="navigation"
+        />
+        <LoadingState
+          v-else-if="settingsPageLoading.showPageLoading.value"
           class="flex-1"
           context="settings"
         />
@@ -324,9 +186,13 @@ const { displayLoading: showWikiLoading } = useDelayedLoadingState(
       </div>
 
       <div v-else-if="currentPage === 'errorHistory'" class="flex h-full">
-        <LoadingState v-if="errorHistoryNavigationLoading" class="flex-1" context="navigation" />
         <LoadingState
-          v-else-if="errorHistoryLoadingContext.isActive.value"
+          v-if="errorHistoryPageLoading.showNavigationLoading.value"
+          class="flex-1"
+          context="navigation"
+        />
+        <LoadingState
+          v-else-if="errorHistoryPageLoading.showPageLoading.value"
           class="flex-1"
           context="errorHistory"
         />

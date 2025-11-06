@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch, provide, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import ProviderConfigItem from "@/components/features/ProviderConfigItem.vue";
 import ErrorModal from "@/components/features/ErrorModal.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
+import { useNavigationStore } from "@/stores/navigation";
 import { useLoading } from "@/loading/useLoading";
 import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { useSettingsMessaging } from "@/composables/useSettingsMessaging";
 import { useProviderConfigs } from "@/composables/useProviderConfigs";
 import { useSettingsHandlers } from "@/composables/useSettingsHandlers";
 import { useSettingsInitialization } from "@/composables/useSettingsInitialization";
-import { useSettingsNavigationGuard } from "@/composables/useSettingsNavigationGuard";
-import { useNavigation, type PageType } from "@/composables/useNavigation";
+import { createSettingsNavigationGuard } from "@/composables/useSettingsNavigationGuard";
+import { useNavigation } from "@/composables/useNavigation";
 import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
-const { setNavigationGuard } = useNavigation();
+const navigationStore = useNavigationStore();
+const { setNavigationGuard, isValidating } = useNavigation();
 const logger = createLogger("SettingsPage");
 const settingsLoading = ref(false);
 const settingsLoadingContext = useLoading("settings");
@@ -74,6 +76,34 @@ watch(
   (isOpen) => {
     if (isOpen && settings.error) {
       logger.debug("Error modal opened", { error: settings.error });
+    }
+  },
+);
+
+// Watch for navigation validation errors
+watch(
+  () => navigationStore.validationError,
+  (validationError) => {
+    if (validationError) {
+      logger.debug("Navigation validation error detected", { validationError });
+
+      // Set error in settings store to display in error modal
+      settings.error = validationError.message;
+      settings.errorInfo = {
+        message: validationError.message,
+        code: validationError.code,
+        suggestions: validationError.suggestions,
+        retryable: true,
+        timestamp: new Date().toISOString(),
+        context: JSON.stringify({ providerId: settings.selectedProvider }),
+      };
+
+      errorModalOpen.value = true;
+
+      // Clear the navigation error after displaying
+      setTimeout(() => {
+        navigationStore.clearValidationError();
+      }, 100);
     }
   },
 );
@@ -146,17 +176,6 @@ const { displayLoading: isSettingsLoading } = useDelayedLoadingState(
 
 const { providerConfigs } = useProviderConfigs(wiki, settings, centralizedProviderConfigs);
 
-const getApiKeyInput = (providerId: string) => {
-  const input = settings.apiKeyInputs[providerId] || "";
-  const hasSavedKey =
-    settings.originalApiKeys[providerId] &&
-    settings.originalApiKeys[providerId].length > 0 &&
-    input === settings.originalApiKeys[providerId];
-  return hasSavedKey
-    ? "•".repeat(Math.min(settings.originalApiKeys[providerId].length, 20))
-    : input;
-};
-
 const getActualApiKey = (providerId: string) => {
   return settings.apiKeyInputs[providerId] || "";
 };
@@ -190,20 +209,6 @@ const {
   getActualApiKey,
 );
 
-const navigationGuard = useSettingsNavigationGuard(
-  wiki,
-  settings,
-  providerConfigs,
-  getActualApiKey,
-  validating,
-  lastValidationValid,
-  showValidationErrors,
-  validationErrors,
-  validationWarnings,
-);
-
-provide("settingsNavigationGuard", navigationGuard);
-
 const { setupMessageListener, cleanup: cleanupMessageListener } = useSettingsMessaging(
   centralizedProviderConfigs,
   providerCapabilities,
@@ -211,7 +216,10 @@ const { setupMessageListener, cleanup: cleanupMessageListener } = useSettingsMes
   providerConfigs,
   {
     onConfigurationValidated: (isValid, errors, warnings) => {
-      navigationGuard.handleValidationComplete(isValid, errors, warnings);
+      // Configuration validation is now handled internally by the guard
+      lastValidationValid.value = isValid;
+      validationErrors.value = errors;
+      validationWarnings.value = warnings;
     },
   },
 );
@@ -233,65 +241,8 @@ onMounted(() => {
   setupMessageListener();
   initSettings();
 
-  const guard = async (target: PageType, isBack: boolean): Promise<boolean> => {
-    if (target === "settings") {
-      return true;
-    }
-    logger.debug(`Navigation guard triggered - target: ${target}, isBack: ${isBack}`);
-    try {
-      const result = await navigationGuard.validateAndNavigate(target, isBack);
-      logger.debug(
-        `Navigation guard result - isValid: ${result.isValid}, errors: ${result.errors.length}`,
-        {
-          errors: result.errors,
-          warnings: result.warnings,
-        },
-      );
-      if (!result.isValid) {
-        logger.debug(`Navigation blocked due to validation errors`);
-
-        if (result.errors.length > 0) {
-          const firstError = result.errors[0];
-          const errorMessage = typeof firstError === "string" ? firstError : firstError.message;
-          const errorCode =
-            typeof firstError === "string"
-              ? "VALIDATION_ERROR"
-              : firstError.code || "VALIDATION_ERROR";
-
-          logger.debug(`Setting error in navigation guard`, {
-            errorMessage,
-            errorCode,
-            currentError: settings.error,
-          });
-
-          if (!settings.error || settings.error !== errorMessage) {
-            settings.error = errorMessage;
-            settings.errorInfo = {
-              message: errorMessage,
-              code: errorCode,
-              suggestions: [
-                "Please review the validation errors above",
-                "Fix the errors before continuing",
-              ],
-              retryable: false,
-              timestamp: new Date().toISOString(),
-              context: JSON.stringify({ providerId: settings.selectedProvider }),
-            };
-
-            logger.debug(`Error set in settings store from navigation guard`, {
-              error: settings.error,
-              errorInfo: settings.errorInfo,
-            });
-          }
-        }
-        return false;
-      }
-      return true;
-    } catch (error) {
-      logger.error("Navigation guard error", error);
-      return true;
-    }
-  };
+  // Create and register the navigation guard
+  const guard = createSettingsNavigationGuard(settings, wiki, providerConfigs, getActualApiKey);
 
   logger.debug("Registering navigation guard");
   setNavigationGuard(guard);
@@ -343,7 +294,7 @@ onBeforeUnmount(() => {
               <h2
                 class="text-foreground text-sm font-semibold leading-snug sm:text-base md:text-lg lg:text-xl"
               >
-                Providers
+                {{ isValidating.value ? "Validating" : "Providers" }}
               </h2>
             </div>
             <p class="text-muted-foreground text-xs leading-relaxed sm:text-sm md:text-sm">

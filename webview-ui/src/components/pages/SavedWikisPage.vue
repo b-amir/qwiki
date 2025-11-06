@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from "vue";
 import { useVscode } from "@/composables/useVscode";
-import { useNavigationStatusStore } from "@/stores/navigationStatus";
 import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
 import { useEnvironmentStore } from "@/stores/environment";
@@ -31,7 +30,6 @@ interface SavedWiki {
 
 const vscode = useVscode();
 const logger = createLogger("SavedWikisPage");
-const navigationStatus = useNavigationStatusStore();
 const wikiStore = useWikiStore();
 const environmentStore = useEnvironmentStore();
 const savedWikis = shallowRef<SavedWiki[]>([]);
@@ -182,7 +180,6 @@ const loadSavedWikis = async () => {
         errorModalOpen.value = true;
         loading.value = false;
         isLoading.value = false;
-        navigationStatus.finish("savedWikis");
         savedWikisLoadingContext.fail("Failed to load saved wikis: Request timed out");
         loadTimeoutId.value = null;
       }
@@ -198,7 +195,6 @@ const loadSavedWikis = async () => {
     errorModalOpen.value = true;
     loading.value = false;
     isLoading.value = false;
-    navigationStatus.finish("savedWikis");
     savedWikisLoadingContext.fail("Failed to load saved wikis");
   }
 };
@@ -265,7 +261,6 @@ const handleMessage = (event: MessageEvent) => {
       savedWikisLoadingContext.advance("renderingWikis");
       loading.value = false;
       isLoading.value = false;
-      navigationStatus.finish("savedWikis");
       savedWikisLoadingContext.complete();
       break;
     case "wikiDeleted":
@@ -327,7 +322,6 @@ const handleMessage = (event: MessageEvent) => {
         errorModalOpen.value = true;
         loading.value = false;
         isLoading.value = false;
-        navigationStatus.finish("savedWikis");
         savedWikisLoadingContext.fail(message.payload.message);
         undoReadmeState.value = "idle";
         updateReadmeState.value = "idle";

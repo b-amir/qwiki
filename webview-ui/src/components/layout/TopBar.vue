@@ -4,7 +4,11 @@ import { useNavigation } from "@/composables/useNavigation";
 import { useWikiStore } from "@/stores/wiki";
 import { useSettingsStore } from "@/stores/settings";
 
-const { currentPage, isValidating, setPage } = useNavigation();
+const { currentPage, isValidating, navigateTo } = useNavigation();
+
+const isSettingsValidating = computed(() => {
+  return currentPage.value === "settings" && isValidating.value;
+});
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 
@@ -25,17 +29,16 @@ const wikiTitle = computed(() => {
 const goToHomePage = async () => {
   settings.cancelPendingActions();
   wiki.cancelPendingActions();
-  await setPage("wiki", false);
+  await navigateTo("wiki", false);
 };
 
 const hasWikiContent = computed(() => Boolean(wiki.content || wiki.loading || wiki.error));
 const isWikiDetail = computed(() => currentPage.value === "wiki" && hasWikiContent.value);
 const isHomePage = computed(() => currentPage.value === "wiki" && !hasWikiContent.value);
-
 const showBorder = computed(() => !isHomePage.value);
 
 const pageTitle = computed(() => {
-  if (isValidating.value) return "validating...";
+  if (isSettingsValidating.value) return "validating";
   if (currentPage.value === "settings") return "Settings";
   if (currentPage.value === "savedWikis") return "Project Wiki Collection";
   if (currentPage.value === "errorHistory") return "Error History";
@@ -47,11 +50,11 @@ const buttonClass =
   "text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md bg-transparent text-sm font-medium transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2";
 
 const navigateToSettings = async () => {
-  await setPage("settings");
+  await navigateTo("settings");
 };
 
 const navigateToSavedWikis = async () => {
-  await setPage("savedWikis");
+  await navigateTo("savedWikis");
 };
 </script>
 
@@ -62,12 +65,12 @@ const navigateToSavedWikis = async () => {
   >
     <div v-if="!isHomePage" class="flex items-center gap-2">
       <a
-        :class="[buttonClass, isValidating ? 'cursor-not-allowed opacity-50' : '']"
-        :title="isValidating ? 'Validating...' : 'Back to homepage'"
-        @click="!isValidating && goToHomePage()"
+        :class="[buttonClass, isSettingsValidating ? 'cursor-not-allowed opacity-50' : '']"
+        :title="isSettingsValidating ? 'Validating...' : 'Back to homepage'"
+        @click="!isSettingsValidating && goToHomePage()"
       >
         <svg
-          v-if="isValidating"
+          v-if="isSettingsValidating"
           class="h-5 w-5 animate-spin"
           viewBox="0 0 24 24"
           aria-hidden="true"

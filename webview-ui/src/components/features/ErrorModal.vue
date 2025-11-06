@@ -31,7 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
-const { setPage, currentPage } = useNavigation();
+const { navigateTo, currentPage } = useNavigation();
 
 const { category: errorCategory } = useErrorCategory(props.errorCode);
 
@@ -112,7 +112,7 @@ const handleAction = () => {
   if (!errorAction.value) return;
 
   if (errorAction.value.action === "navigate" && errorAction.value.target) {
-    setPage(errorAction.value.target as any);
+    navigateTo(errorAction.value.target as any);
   } else if (errorAction.value.action === "none") {
     handleClose();
   }

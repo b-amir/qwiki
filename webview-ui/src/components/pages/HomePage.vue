@@ -6,7 +6,7 @@ import Button from "@/components/ui/button.vue";
 import { stepCatalog } from "@/loading/stepCatalog";
 
 const wiki = useWikiStore();
-const { setPage } = useNavigation();
+const { navigateTo } = useNavigation();
 
 const buttonText = computed(() => {
   if (wiki.loading && wiki.loadingStep) {
@@ -84,7 +84,7 @@ const buttonText = computed(() => {
       <div class="flex justify-center">
         <button
           class="text-muted-foreground hover:text-muted-foreground/80 py-2 text-xs sm:text-sm"
-          @click="setPage('settings')"
+          @click="navigateTo('settings')"
         >
           Change model
         </button>
