@@ -77,8 +77,75 @@ export class ConfigurationManagerService {
     this.projectIndexService = projectIndexService;
   }
 
+  /**
+   * Set cache services synchronously without projectIndexService
+   * Used during critical initialization phase
+   */
+  setCacheServicesSync(
+    cacheInvalidationService?: ProjectContextCacheInvalidationService,
+    cachingService?: CachingService,
+    generationCacheService?: GenerationCacheService,
+  ): void {
+    this.cacheInvalidationService = cacheInvalidationService;
+    this.cachingService = cachingService;
+    this.generationCacheService = generationCacheService;
+  }
+
+  /**
+   * Set projectIndexService after it's initialized in background
+   */
+  setProjectIndexService(projectIndexService: ProjectIndexService): void {
+    this.projectIndexService = projectIndexService;
+  }
+
   setLlmRegistry(llmRegistry: LLMRegistry): void {
     this.llmRegistry = llmRegistry;
+  }
+
+  /**
+   * Load cached provider ID from extension context
+   * This is synchronous and fast (< 50ms)
+   */
+  async loadCachedProvider(): Promise<void> {
+    if (!this.ctx) {
+      return;
+    }
+
+    try {
+      const cachedProviderId = this.ctx.globalState.get<string>("lastProviderId");
+      if (cachedProviderId) {
+        this.logger.info("Loaded cached provider ID", { providerId: cachedProviderId });
+        // Store in cache for immediate access
+        this.configCache.set("cachedProviderId", cachedProviderId);
+      }
+    } catch (error) {
+      this.logger.warn("Failed to load cached provider", error);
+    }
+  }
+
+  /**
+   * Get cached provider ID (synchronous)
+   */
+  getCachedProviderId(): string | null {
+    return this.configCache.get("cachedProviderId") || null;
+  }
+
+  /**
+   * Set active provider and cache it
+   */
+  async setActiveProvider(providerId: string): Promise<void> {
+    this.configCache.set("cachedProviderId", providerId);
+
+    if (this.ctx) {
+      try {
+        await this.ctx.globalState.update("lastProviderId", providerId);
+        this.logger.info("Cached provider ID", { providerId });
+      } catch (error) {
+        this.logger.warn("Failed to persist lastProviderId", error);
+      }
+    }
+
+    await this.eventBus.publish("providerChanged", { providerId });
   }
 
   async initialize(): Promise<void> {

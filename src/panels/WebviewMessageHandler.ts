@@ -1,6 +1,7 @@
 import type { Webview } from "vscode";
 import { Inbound, Outbound } from "./constants";
 import { ServiceLimits } from "../constants";
+import { IMMEDIATE_COMMANDS, COMMAND_TIMEOUTS } from "../constants/ServiceTiers";
 import { tryOpenFile } from "./fileOps";
 import { CommandRegistry } from "../application";
 import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
@@ -11,6 +12,7 @@ import {
   type Logger,
 } from "../infrastructure/services/LoggingService";
 import type { NavigationManager } from "./NavigationManager";
+import type { ServiceReadinessManager } from "../infrastructure/services/ServiceReadinessManager";
 
 export class WebviewMessageHandler {
   private logger: Logger;
@@ -22,7 +24,8 @@ export class WebviewMessageHandler {
     private messageBus: MessageBusService | undefined,
     private commandRegistry: CommandRegistry | undefined,
     private errorHandler: ErrorHandler | undefined,
-    private initPromise: Promise<void>,
+    private criticalInitPromise: Promise<void>,
+    private readinessManager: ServiceReadinessManager | undefined,
     private loggingService: LoggingService,
     private onCancelGeneration: () => void,
     private navigationManager?: NavigationManager,
@@ -140,45 +143,51 @@ export class WebviewMessageHandler {
   }
 
   private async handleCommand(command: string, payload: any, receiveTs: number): Promise<void> {
-    const commandsThatCanWait = new Set([
-      "getSavedWikis",
-      "checkReadmeBackupState",
-      "getProviders",
-      "getRelated",
-      "getApiKeys",
-      "getConfigurationTemplates",
-      "getConfigurationBackups",
-      "getProviderCapabilities",
-      "getProviderConfigs",
-      "getSelection",
-      "validateConfiguration",
-      "validateApiKeyHealth",
-    ]);
-
-    if (!this.commandRegistry) {
-      if (commandsThatCanWait.has(command)) {
-        try {
-          await this.initPromise;
-          if (!this.commandRegistry) {
-            this.logger.warn(
-              `Command ${command} received but registry still not available after init`,
-            );
-            return;
-          }
-        } catch (e) {
-          this.logger.error("Initialization failed before command execution", {
-            command,
-            error: e,
-          });
-          return;
-        }
-      } else {
-        const ignoreCommands = new Set(["webviewReady", "frontendLog"]);
-        if (!ignoreCommands.has(command)) {
-          this.logger.debug(`Command ${command} received before registry initialized, ignoring`);
-        }
+    // Commands that work immediately (no service dependencies)
+    if (IMMEDIATE_COMMANDS.has(command)) {
+      if (!this.commandRegistry) {
+        this.logger.debug(`Command ${command} received before registry initialized, ignoring`);
         return;
       }
+
+      if (!this.commandRegistry.has(command)) {
+        this.logger.warn(`Command not found in registry`, { command });
+        return;
+      }
+
+      try {
+        await this.commandRegistry.execute(command, payload);
+      } catch (error) {
+        this.logger.error(`Immediate command ${command} failed`, error);
+        this.errorHandler?.handle(error as Error, { source: "webviewMessage", command });
+      }
+      return;
+    }
+
+    // Wait for critical services only (< 500ms)
+    try {
+      await this.criticalInitPromise;
+    } catch (e) {
+      this.logger.error("Critical services initialization failed", {
+        command,
+        error: e,
+      });
+      if (this.messageBus) {
+        this.messageBus.postError(
+          "Extension initialization failed. Please reload the window.",
+          "INIT_FAILED",
+          "Reload Window",
+          { command },
+        );
+      }
+      return;
+    }
+
+    if (!this.commandRegistry) {
+      this.logger.warn(
+        `Command ${command} received but registry not available after critical init`,
+      );
+      return;
     }
 
     if (!this.commandRegistry.has(command)) {
@@ -186,16 +195,48 @@ export class WebviewMessageHandler {
       return;
     }
 
-    const executeStart = Date.now();
-    try {
-      await this.initPromise;
-    } catch (e) {
-      this.logger.error("Initialization failed before command execution", {
-        command,
-        error: e,
-      });
+    // Check if command can execute now
+    if (this.readinessManager && !this.readinessManager.canExecuteCommand(command)) {
+      const requiredServices = this.readinessManager.getRequiredServices(command);
+      const unreadyServices = requiredServices.filter((s) => !this.readinessManager!.isReady(s));
+
+      this.logger.info(`Command ${command} waiting for services`, { unreadyServices });
+
+      // Show loading state in UI
+      if (this.messageBus) {
+        this.messageBus.postImmediate("commandWaiting", {
+          command,
+          waitingFor: unreadyServices,
+          message: `Initializing ${unreadyServices.join(", ")}...`,
+        });
+      }
+
+      // Wait for required services (with timeout)
+      const timeout = COMMAND_TIMEOUTS[command] || COMMAND_TIMEOUTS.default;
+      const waitPromises = unreadyServices.map((s) =>
+        this.readinessManager!.waitForService(s, timeout),
+      );
+
+      const ready = await Promise.race([
+        Promise.all(waitPromises),
+        new Promise<boolean[]>((resolve) => setTimeout(() => resolve([false]), timeout)),
+      ]);
+
+      if (!ready.every((r) => r)) {
+        this.logger.error(`Command ${command} timed out waiting for services`, { unreadyServices });
+        if (this.messageBus) {
+          this.messageBus.postError(
+            `Command timed out waiting for services: ${unreadyServices.join(", ")}`,
+            "SERVICE_TIMEOUT",
+            "Try again in a moment",
+            { command, unreadyServices },
+          );
+        }
+        return;
+      }
     }
 
+    const executeStart = Date.now();
     try {
       await this.commandRegistry.execute(command, payload);
       const totalDuration = Date.now() - receiveTs;

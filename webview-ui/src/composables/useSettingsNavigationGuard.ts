@@ -389,8 +389,12 @@ export function createSettingsNavigationGuard(
   return async (target: PageType, direction: "forward" | "back"): Promise<ValidationResult> => {
     const navigationStore = useNavigationStore();
 
+    // Check sourcePage (where we're coming from) instead of currentPage
+    // because currentPage is optimistically updated before validation
+    const fromPage = navigationStore.sourcePage || navigationStore.currentPage;
+
     // Validate when navigating away from settings (any direction)
-    if (navigationStore.currentPage === "settings" && target !== "settings") {
+    if (fromPage === "settings" && target !== "settings") {
       logger.debug("Navigating away from settings - validating", { target, direction });
       return await validateSettings(settings, wiki, providerConfigs, getApiKeyInput);
     }

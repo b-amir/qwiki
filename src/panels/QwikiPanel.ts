@@ -66,10 +66,11 @@ export class QwikiPanel {
 
   private async initializeAsync(): Promise<void> {
     try {
-      await this.bootstrap.initialize();
-      this.logInfo("bootstrap.initialize completed successfully");
+      // Wait for critical services only (< 500ms)
+      await this.bootstrap.getCriticalInitPromise();
+      this.logInfo("Critical services initialized successfully");
     } catch (e) {
-      this.logError("bootstrap.initialize failed", e);
+      this.logError("Critical services initialization failed", e);
       this.environmentStatusManager?.setExtensionStatus({
         ready: false,
         message: "Failed to initialize Qwiki services.",
@@ -102,6 +103,16 @@ export class QwikiPanel {
         },
       } as ErrorHandler;
     }
+
+    // Background services initialize asynchronously
+    this.bootstrap
+      .getBackgroundInitPromise()
+      .then(() => {
+        this.logInfo("Background services initialized successfully");
+      })
+      .catch((e) => {
+        this.logError("Background services initialization failed", e);
+      });
   }
 
   public async resolveWebviewView(webviewView: WebviewView) {
@@ -119,14 +130,20 @@ export class QwikiPanel {
     this.logInfo("Webview HTML set, creating MessageBus");
     this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
     this.logInfo("Initializing managers");
-    this.initializeManagers(webviewView.webview);
+
+    // Wait for critical services before creating command registry
     (async () => {
       try {
+        // Wait for critical services to be ready
+        await this.bootstrap.getCriticalInitPromise();
+
         const registry = await this.bootstrap.createCommandRegistry(webviewView.webview);
         this.commandRegistry = registry;
         this.logInfo("createCommandRegistry completed successfully");
         this.setupWikiWatcherListener();
-        this.updateWebviewMessageHandler();
+
+        // Now initialize managers with the registry available
+        this.initializeManagers(webviewView.webview);
       } catch (e) {
         this.logError("createCommandRegistry failed", {
           error: e instanceof Error ? e.message : String(e),
@@ -134,8 +151,11 @@ export class QwikiPanel {
           errorType: e?.constructor?.name,
         });
         this.createFallbackCommandRegistry(webviewView.webview);
+        // Initialize managers even with fallback registry
+        this.initializeManagers(webviewView.webview);
       }
     })();
+
     webviewView.onDidDispose(
       async () => {
         try {
@@ -170,6 +190,23 @@ export class QwikiPanel {
     });
     this.languageStatusMonitor.startMonitoring();
 
+    // Subscribe to background initialization progress
+    try {
+      const eventBus = this.bootstrap.getContainer().resolve("eventBus") as any;
+      if (eventBus && typeof eventBus.subscribe === "function") {
+        const unsubscribe = eventBus.subscribe(
+          "backgroundInitProgress",
+          (payload: { completed: number; total: number; percent: number }) => {
+            this.logDebug("Background init progress", payload);
+            this.environmentStatusManager?.setInitializationProgress(payload.percent);
+          },
+        );
+        this._disposables.push({ dispose: unsubscribe });
+      }
+    } catch (error) {
+      this.logError("Failed to subscribe to background init progress", error);
+    }
+
     this.logInfo("Creating NavigationManager");
     this.navigationManager = new NavigationManager(this.messageBus, this.view, this.loggingService);
 
@@ -178,7 +215,8 @@ export class QwikiPanel {
       this.messageBus,
       this.commandRegistry,
       this.errorHandler,
-      this._initPromise,
+      this.bootstrap.getCriticalInitPromise(),
+      this.bootstrap.getReadinessManager(),
       this.loggingService,
       async () => {
         try {
@@ -228,28 +266,6 @@ export class QwikiPanel {
         }
       }, 100);
     });
-  }
-
-  private updateWebviewMessageHandler(): void {
-    if (this.webviewMessageHandler && this.view?.webview) {
-      this.webviewMessageHandler = new WebviewMessageHandler(
-        this.view.webview,
-        this.messageBus,
-        this.commandRegistry,
-        this.errorHandler,
-        this._initPromise,
-        this.loggingService,
-        async () => {
-          try {
-            await this.cancelActiveGeneration();
-          } catch (error) {
-            this.logError("Failed to cancel active generation", error);
-          }
-        },
-        this.navigationManager,
-      );
-      this.webviewMessageHandler.setupMessageListener();
-    }
   }
 
   private setupWikiWatcherListener(): void {

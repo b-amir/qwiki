@@ -76,14 +76,11 @@ export function activate(context: ExtensionContext) {
     }
   };
 
-  setTimeout(async () => {
-    try {
-      await initializeTreeView();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to initialize tree view", { error: errorMessage });
-    }
-  }, ServiceLimits.treeViewInitializationDelay);
+  // Initialize tree view immediately - no delay needed
+  initializeTreeView().catch((error) => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to initialize tree view", { error: errorMessage });
+  });
 
   const initializeProviders = async () => {
     try {
@@ -141,14 +138,11 @@ export function activate(context: ExtensionContext) {
     }
   };
 
-  setTimeout(async () => {
-    try {
-      await initializeProviders();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to initialize providers", { error: errorMessage });
-    }
-  }, ServiceLimits.treeViewInitializationDelay);
+  // Initialize providers immediately - no delay needed
+  initializeProviders().catch((error) => {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Failed to initialize providers", { error: errorMessage });
+  });
 
   const showQwikiCommand = commands.registerCommand(VSCodeCommandIds.showPanel, () => {
     commands.executeCommand(VSCodeCommandIds.openPanelView);

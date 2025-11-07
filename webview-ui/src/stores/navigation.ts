@@ -38,24 +38,34 @@ export type NavigationGuard = (
   direction: NavigationDirection,
 ) => Promise<ValidationResult>;
 
+type PendingNavigation = {
+  page: PageType;
+  isBack: boolean;
+  resolve: (value: boolean) => void;
+};
+
 // Navigation state interface
 interface NavigationState {
   currentPage: PageType;
   targetPage: PageType | null;
+  sourcePage: PageType | null; // Track where we're navigating FROM for guard validation
   state: NavigationMachineState;
   direction: NavigationDirection | null;
   validationError: ValidationError | null;
   guard: NavigationGuard | null;
+  pendingQueue: PendingNavigation[];
 }
 
 export const useNavigationStore = defineStore("navigation", {
   state: (): NavigationState => ({
     currentPage: "wiki",
     targetPage: null,
+    sourcePage: null,
     state: "idle",
     direction: null,
     validationError: null,
     guard: null,
+    pendingQueue: [],
   }),
 
   getters: {
@@ -101,62 +111,72 @@ export const useNavigationStore = defineStore("navigation", {
         currentState: this.state,
       });
 
-      // If already on the page, do nothing
-      if (this.currentPage === page) {
+      // If already on the page and idle, do nothing
+      if (this.currentPage === page && this.state === "idle") {
         logger.debug("Already on target page, skipping navigation");
         return true;
       }
 
-      // If already navigating, reject
+      // If already navigating, queue the request
       if (this.state !== "idle") {
-        logger.warn("Navigation already in progress", { currentState: this.state });
-        return false;
+        logger.info("Navigation busy, queueing request", {
+          currentState: this.state,
+          page,
+        });
+        return await new Promise<boolean>((resolve) => {
+          this.pendingQueue.push({ page, isBack, resolve });
+        });
       }
 
-      // Clear previous validation error
-      this.validationError = null;
+      // Store source page for guard validation
+      const sourcePage = this.currentPage;
+      this.sourcePage = sourcePage;
 
-      // Set target and direction
-      this.targetPage = page;
-      this.direction = isBack ? "back" : "forward";
+      // Special case: leaving settings requires blocking validation
+      // Don't update currentPage optimistically, show skeleton on settings page
+      const isLeavingSettings = sourcePage === "settings" && page !== "settings";
 
-      const { useErrorStore } = await import("./error");
-      const errorStore = useErrorStore();
-      errorStore.onNavigationStart(page);
+      if (isLeavingSettings) {
+        // BLOCKING: Stay on settings, show loading skeleton, validate first
+        this.targetPage = page;
+        this.direction = isBack ? "back" : "forward";
 
-      // If guard exists, transition to validating
-      if (this.guard) {
-        logger.debug("Guard exists, transitioning to validating state");
-        this._transitionTo("validating");
+        const result = await this._beginNavigation(page, isBack);
 
-        try {
-          const result = await this.guard(page, this.direction);
-          logger.debug("Guard validation completed", { allowed: result.allowed });
-
-          if (!result.allowed) {
-            // Validation failed, transition to blocked
-            this._blockNavigation(
-              result.error || {
-                message: "Navigation blocked",
-                code: "VALIDATION_FAILED",
-              },
-            );
-            return false;
-          }
-        } catch (error) {
-          logger.error("Guard execution error", error);
-          this._blockNavigation({
-            message: "Navigation validation error",
-            code: "GUARD_ERROR",
+        if (!result) {
+          // Validation failed, clear target and stay on settings
+          logger.warn("Settings validation failed, staying on settings", {
+            attemptedTarget: page,
           });
-          return false;
+          this.targetPage = null;
+          this.direction = null;
         }
-      }
+        // If validation passed, currentPage was updated by _completeNavigation
 
-      // Validation passed or no guard, proceed with navigation
-      this._completeNavigation();
-      errorStore.onNavigationComplete(page);
-      return true;
+        this.sourcePage = null;
+        return result;
+      } else {
+        // OPTIMISTIC: Change page immediately for instant UI feedback
+        this.currentPage = page;
+        this.targetPage = page;
+        this.direction = isBack ? "back" : "forward";
+
+        const result = await this._beginNavigation(page, isBack);
+
+        // If validation failed, revert to source page
+        if (!result) {
+          logger.warn("Navigation validation failed, reverting", {
+            from: sourcePage,
+            attemptedTarget: page,
+          });
+          this.currentPage = sourcePage;
+          this.targetPage = null;
+          this.direction = null;
+        }
+
+        this.sourcePage = null;
+        return result;
+      }
     },
 
     // Handle backend navigation messages
@@ -210,7 +230,7 @@ export const useNavigationStore = defineStore("navigation", {
       // Transition to navigating state
       this._transitionTo("navigating");
 
-      // Update current page immediately
+      // Update current page after validation passed
       this.currentPage = this.targetPage;
 
       // Reset to idle
@@ -240,11 +260,77 @@ export const useNavigationStore = defineStore("navigation", {
       this.direction = null;
       this.state = "idle";
       // Note: validationError is NOT cleared here so it can be displayed
+      this._processPendingQueue();
     },
 
     // Clear validation error manually
     clearValidationError(): void {
       this.validationError = null;
+    },
+
+    async _beginNavigation(page: PageType, isBack: boolean): Promise<boolean> {
+      // Clear previous validation error
+      this.validationError = null;
+
+      // Set target and direction (may already be set by optimistic update)
+      this.targetPage = page;
+      this.direction = isBack ? "back" : "forward";
+
+      const { useErrorStore } = await import("./error");
+      const errorStore = useErrorStore();
+      errorStore.onNavigationStart(page);
+
+      if (this.guard) {
+        logger.debug("Guard exists, transitioning to validating state");
+        this._transitionTo("validating");
+
+        try {
+          const result = await this.guard(page, this.direction);
+          logger.debug("Guard validation completed", { allowed: result.allowed });
+
+          if (!result.allowed) {
+            this._blockNavigation(
+              result.error || {
+                message: "Navigation blocked",
+                code: "VALIDATION_FAILED",
+              },
+            );
+            errorStore.onNavigationComplete(page);
+            return false;
+          }
+        } catch (error) {
+          logger.error("Guard execution error", error);
+          this._blockNavigation({
+            message: "Navigation validation error",
+            code: "GUARD_ERROR",
+          });
+          errorStore.onNavigationComplete(page);
+          return false;
+        }
+      }
+
+      this._completeNavigation();
+      errorStore.onNavigationComplete(page);
+      return true;
+    },
+
+    _processPendingQueue(): void {
+      if (this.state !== "idle") {
+        return;
+      }
+      const next = this.pendingQueue.shift();
+      if (!next) {
+        return;
+      }
+      logger.debug("Processing queued navigation", { page: next.page });
+      this._beginNavigation(next.page, next.isBack)
+        .then((result) => {
+          next.resolve(result);
+        })
+        .catch((error) => {
+          logger.error("Queued navigation error", error);
+          next.resolve(false);
+        });
     },
   },
 });

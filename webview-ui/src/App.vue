@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, watch, onMounted } from "vue";
 import { TopBar } from "@/components/layout";
 import {
   HomePage,
@@ -25,8 +25,18 @@ const wiki = useWikiStore();
 const settings = useSettingsStore();
 const environment = useEnvironmentStore();
 
-vscode.postMessage({ command: "webviewReady" });
-vscode.postMessage({ command: "getProviders" });
+// Initialize stores synchronously
+wiki.init();
+settings.init();
+environment.init();
+useBatchMessageBridge();
+
+// Send webviewReady after Vue is mounted and app is hydrated
+onMounted(() => {
+  logger.info("App mounted, sending webviewReady");
+  vscode.postMessage({ command: "webviewReady" });
+  vscode.postMessage({ command: "getProviders" });
+});
 
 const handleMessage = (event: MessageEvent) => {
   const message = event.data;
@@ -40,11 +50,6 @@ const handleMessage = (event: MessageEvent) => {
 };
 
 window.addEventListener("message", handleMessage);
-
-wiki.init();
-settings.init();
-environment.init();
-useBatchMessageBridge();
 
 watch(
   () => currentPage.value,
@@ -161,6 +166,7 @@ watch(
     </defs>
   </svg>
   <GlobalErrorModal />
+
   <main class="bg-background flex h-full w-full flex-col">
     <TopBar />
 

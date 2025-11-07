@@ -38,6 +38,7 @@ export class ProjectIndexService {
   private debouncedUpdate: DebouncedFunction<(uri: Uri) => Promise<void>> | null = null;
   private disposables: IDisposable[] = [];
   private isInitialized = false;
+  private quickIndexComplete = false;
   private binaryPatterns: RegExp[];
   private metadataExtractor: FileMetadataExtractionService;
   private cacheService: IndexCacheService;
@@ -61,13 +62,17 @@ export class ProjectIndexService {
     ].map((pattern) => new RegExp(pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*")));
   }
 
-  async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      this.logger.debug("ProjectIndexService already initialized");
+  /**
+   * Quick initialization: Load from cache only (< 100ms)
+   * This allows immediate use of cached index data without blocking
+   */
+  async quickInit(): Promise<void> {
+    if (this.quickIndexComplete) {
+      this.logger.debug("Quick index already complete");
       return;
     }
 
-    this.logger.info("Initializing ProjectIndexService");
+    this.logger.info("Starting quick initialization (cache only)");
     const startTime = Date.now();
 
     try {
@@ -78,17 +83,46 @@ export class ProjectIndexService {
           ageMinutes: Math.round((Date.now() - cached.indexedAt) / 60000),
         });
         this.cacheService.restoreCache(cached);
+        this.quickIndexComplete = true;
       } else {
-        this.logger.debug("No valid cache found, starting fresh index");
+        this.logger.debug("No valid cache found, quick init complete with empty index");
+        this.quickIndexComplete = true;
       }
 
+      const duration = Date.now() - startTime;
+      this.logger.info("Quick initialization complete", { duration });
+    } catch (error) {
+      this.logger.warn("Quick initialization failed, continuing with empty index", error);
+      this.quickIndexComplete = true;
+    }
+  }
+
+  /**
+   * Full initialization: Scan workspace (20-30s, runs in background)
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      this.logger.debug("ProjectIndexService already initialized");
+      return;
+    }
+
+    this.logger.info("Initializing ProjectIndexService (full scan)");
+    const startTime = Date.now();
+
+    try {
+      // Quick init first if not already done
+      if (!this.quickIndexComplete) {
+        await this.quickInit();
+      }
+
+      // Then full scan
       await this.performInitialIndex();
       this.setupFileWatchers();
       this.setupGitBasedWatchers();
       this.isInitialized = true;
 
       const duration = Date.now() - startTime;
-      this.logger.info("ProjectIndexService initialized successfully", {
+      this.logger.info("ProjectIndexService fully initialized", {
         duration,
         fileCount: this.cacheService.getIndex().size,
         languageCount: this.cacheService.getLanguageIndex().size,
@@ -99,9 +133,17 @@ export class ProjectIndexService {
     }
   }
 
+  /**
+   * Check if quick index is available (for immediate use)
+   */
+  isQuickIndexReady(): boolean {
+    return this.quickIndexComplete;
+  }
+
   async getIndexedFiles(): Promise<IndexedFile[]> {
-    if (!this.isInitialized) {
-      await this.initialize();
+    // Use quick index if available, otherwise wait for full init
+    if (!this.quickIndexComplete && !this.isInitialized) {
+      await this.quickInit();
     }
     return Array.from(this.cacheService.getIndex().values());
   }

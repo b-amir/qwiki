@@ -415,7 +415,7 @@ onBeforeUnmount(() => {
         v-else
         ref="scrollableContainer"
         :class="[
-          'relative min-h-0 flex-1',
+          'relative flex min-h-0 flex-1 flex-col',
           isReadmeUpdateLoading ? 'overflow-hidden' : 'overflow-y-auto',
         ]"
         @wheel="preventScroll"
@@ -454,7 +454,7 @@ onBeforeUnmount(() => {
         >
           <div
             v-if="isReadmeUpdateLoading"
-            class="readme-loading-backdrop bg-muted/95 absolute inset-0 z-50 touch-none backdrop-blur-md will-change-[opacity,backdrop-filter]"
+            class="readme-loading-backdrop bg-muted/95 fixed inset-0 z-50 touch-none backdrop-blur-md will-change-[opacity,backdrop-filter]"
             @wheel.prevent
             @touchmove.prevent
             @scroll.prevent
@@ -470,7 +470,7 @@ onBeforeUnmount(() => {
         >
           <div
             v-if="isReadmeUpdateLoading"
-            class="readme-loading-content will-change-opacity absolute inset-0 z-50 flex touch-none items-center justify-center"
+            class="readme-loading-content will-change-opacity fixed inset-0 z-50 flex touch-none items-center justify-center"
             @wheel.prevent
             @touchmove.prevent
             @scroll.prevent

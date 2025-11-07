@@ -21,9 +21,12 @@ export function usePageLoading(
   const navigationStore = useNavigationStore();
   const loadingStore = useLoadingStore();
 
-  // Navigation loading: only when navigating TO this page
+  // Navigation loading: when navigating or validating TO this page
   const showNavigationLoading = computed(() => {
-    return navigationStore.isNavigating && navigationStore.targetPage === page;
+    return (
+      (navigationStore.isNavigating || navigationStore.isValidating) &&
+      navigationStore.targetPage === page
+    );
   });
 
   // Page loading: only when ON this page and page context is active

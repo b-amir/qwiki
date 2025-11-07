@@ -12,6 +12,7 @@ export interface ExtensionStatus {
   ready: boolean;
   message: string;
   reason?: string;
+  initializationProgress?: number;
 }
 
 export interface EnvironmentStatusPayload {
@@ -25,6 +26,7 @@ export class EnvironmentStatusManager {
     ready: false,
     message: "Preparing Qwiki services...",
     reason: "initializing",
+    initializationProgress: 0,
   };
   private _latestEnvironmentStatus: EnvironmentStatusPayload | undefined;
   private _lastBroadcastedStatus: string | undefined;
@@ -36,6 +38,14 @@ export class EnvironmentStatusManager {
     loggingService: LoggingService,
   ) {
     this.logger = createLogger("EnvironmentStatusManager");
+  }
+
+  /**
+   * Update initialization progress (0-100)
+   */
+  setInitializationProgress(progress: number): void {
+    this._extensionStatus.initializationProgress = progress;
+    this.broadcastEnvironmentStatus();
   }
 
   setExtensionStatus(status: ExtensionStatus): void {
@@ -81,6 +91,7 @@ export class EnvironmentStatusManager {
         ready: this._extensionStatus.ready,
         message: this._extensionStatus.message,
         reason: this._extensionStatus.reason,
+        initializationProgress: this._extensionStatus.initializationProgress,
       },
       languageServer: this.languageStatusMonitor.getLanguageStatus(),
     };

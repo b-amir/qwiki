@@ -1,4 +1,6 @@
 import { Container } from "../container/Container";
+import { ServiceReadinessManager } from "../infrastructure/services/ServiceReadinessManager";
+import { SERVICE_TIERS, COMMAND_REQUIREMENTS } from "../constants/ServiceTiers";
 import {
   CommandRegistry,
   SelectionService,
@@ -98,71 +100,286 @@ export class AppBootstrap {
   private container = new Container();
   private loggingService!: LoggingService;
   private logger!: Logger;
+  private readinessManager: ServiceReadinessManager;
+  private criticalInitPromise: Promise<void>;
+  private backgroundInitPromise: Promise<void>;
 
   constructor(private context: ExtensionContext) {
+    this.readinessManager = new ServiceReadinessManager();
+    this.registerServiceTiers();
     this.registerServices();
+    this.criticalInitPromise = this.initializeCriticalServices();
+    this.backgroundInitPromise = this.initializeBackgroundServices();
   }
 
-  async initialize(): Promise<void> {
-    const configManager = this.container.resolve(
-      "configurationManager",
-    ) as ConfigurationManagerService;
-
-    const cachingService = this.container.resolve("cachingService") as CachingService;
-    const generationCacheService = this.container.resolve(
-      "generationCacheService",
-    ) as GenerationCacheService;
-    const projectIndexService = (await this.container.resolveLazy(
-      "projectIndexService",
-    )) as ProjectIndexService;
-    const cacheInvalidationService = this.container.resolve(
-      "projectContextCacheInvalidationService",
-    ) as ProjectContextCacheInvalidationService;
-
-    configManager.setCacheServices(
-      cacheInvalidationService,
-      cachingService,
-      generationCacheService,
-      projectIndexService,
-    );
-
-    const llmRegistry = (await this.container.resolveLazy("llmRegistry")) as LLMRegistry;
-    configManager.setLlmRegistry(llmRegistry);
-
-    await configManager.initialize();
-
-    const migrationService = this.container.resolve(
-      "configurationMigrationService",
-    ) as ConfigurationMigrationService;
-    if (await migrationService.needsMigration()) {
-      await migrationService.migrateToVersion("1.4.0");
+  /**
+   * Register service tiers and command requirements
+   */
+  private registerServiceTiers(): void {
+    // Register services with their tiers
+    for (const [serviceId, config] of Object.entries(SERVICE_TIERS)) {
+      this.readinessManager.registerService(serviceId, config.tier, []);
     }
 
-    const healthService = (await this.container.resolveLazy(
-      "providerHealthService",
-    )) as ProviderHealthService;
-    healthService.startHealthMonitoring();
+    // Register command requirements
+    for (const requirement of COMMAND_REQUIREMENTS) {
+      this.readinessManager.registerCommandRequirements(requirement);
+    }
+  }
 
-    const memoryOptimizationService = this.container.resolve(
-      "memoryOptimizationService",
-    ) as MemoryOptimizationService;
-    memoryOptimizationService.setMemoryLimit(512 * 1024 * 1024);
-    memoryOptimizationService.scheduleCleanup(60000);
-    memoryOptimizationService.enableLeakDetection(true);
+  /**
+   * Initialize only critical services (< 500ms)
+   * - LoggingService
+   * - EventBus
+   * - ConfigurationManager (with cached provider)
+   * - MessageBus (registered but not instantiated yet)
+   * - CommandRegistry (registered but not instantiated yet)
+   */
+  private async initializeCriticalServices(): Promise<void> {
+    const startTime = Date.now();
+    this.logger.info("Starting critical services initialization");
 
-    const backgroundProcessingService = this.container.resolve(
-      "backgroundProcessingService",
-    ) as BackgroundProcessingService;
-    backgroundProcessingService.setMaxConcurrentTasks(3);
+    try {
+      // LoggingService and EventBus are already initialized in registerServices
+      this.readinessManager.markReady("loggingService");
+      this.readinessManager.markReady("eventBus");
 
-    projectIndexService.initialize().catch((err) => {
-      this.logger.error("Failed to initialize project index", err);
+      // Initialize ConfigurationManager
+      this.readinessManager.markInitializing("configurationManager");
+      const configManager = this.container.resolve(
+        "configurationManager",
+      ) as ConfigurationManagerService;
+
+      // Load cached provider synchronously
+      await configManager.loadCachedProvider();
+
+      const cachingService = this.container.resolve("cachingService") as CachingService;
+      const generationCacheService = this.container.resolve(
+        "generationCacheService",
+      ) as GenerationCacheService;
+
+      // Set up basic config without waiting for heavy services
+      const cacheInvalidationService = this.container.resolve(
+        "projectContextCacheInvalidationService",
+      ) as ProjectContextCacheInvalidationService;
+
+      // Don't await projectIndexService here - it will be initialized in background
+      configManager.setCacheServicesSync(
+        cacheInvalidationService,
+        cachingService,
+        generationCacheService,
+      );
+
+      // Initialize config manager (loads settings, not heavy)
+      await configManager.initialize();
+
+      // Run migration if needed
+      const migrationService = this.container.resolve(
+        "configurationMigrationService",
+      ) as ConfigurationMigrationService;
+      if (await migrationService.needsMigration()) {
+        await migrationService.migrateToVersion("1.4.0");
+      }
+
+      this.readinessManager.markReady("configurationManager");
+
+      // MessageBus and CommandRegistry are marked ready when created in createCommandRegistry
+      this.readinessManager.markReady("messageBus");
+      this.readinessManager.markReady("commandRegistry");
+
+      const duration = Date.now() - startTime;
+      this.logger.info("Critical services initialized", { duration });
+
+      if (duration > 500) {
+        this.logger.warn("Critical init exceeded 500ms", { duration });
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error("Critical services initialization failed", { error, duration });
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize background services (don't block UI)
+   * - ProjectIndexService
+   * - ProviderHealthService
+   * - ContextIntelligenceService
+   */
+  private async initializeBackgroundServices(): Promise<void> {
+    // Wait for critical services first
+    await this.criticalInitPromise;
+
+    this.logger.info("Starting background services initialization");
+
+    // Initialize in parallel, track progress
+    const backgroundTasks = [
+      this.initProjectIndexService(),
+      this.initProviderHealthService(),
+      this.initContextIntelligenceService(),
+    ];
+
+    // Track progress
+    let completed = 0;
+    const total = backgroundTasks.length;
+
+    backgroundTasks.forEach((task, index) => {
+      task
+        .then(() => {
+          completed++;
+          const percent = Math.round((completed / total) * 100);
+          this.logger.info(`Background service ${index + 1}/${total} ready`, { percent });
+
+          const eventBus = this.container.resolve("eventBus") as EventBus;
+          eventBus
+            .publish("backgroundInitProgress", {
+              completed,
+              total,
+              percent,
+            })
+            .catch((err) => {
+              this.logger.warn("Failed to publish backgroundInitProgress event", err);
+            });
+        })
+        .catch((error) => {
+          this.logger.error(`Background service ${index + 1} failed`, error);
+        });
     });
 
-    cacheInvalidationService.startWatching();
+    // Don't await - let them complete in background
+    Promise.all(backgroundTasks)
+      .then(() => {
+        this.logger.info("All background services initialized");
+      })
+      .catch((error) => {
+        this.logger.error("Some background services failed", error);
+      });
+  }
 
-    const wikiWatcherService = this.container.resolve("wikiWatcherService") as WikiWatcherService;
-    wikiWatcherService.startWatching();
+  private async initProjectIndexService(): Promise<void> {
+    try {
+      this.readinessManager.markInitializing("projectIndexService");
+      const startTime = Date.now();
+
+      const projectIndexService = (await this.container.resolveLazy(
+        "projectIndexService",
+      )) as ProjectIndexService;
+
+      // Quick init first (load from cache)
+      await projectIndexService.quickInit();
+
+      // Then full scan in background
+      projectIndexService
+        .initialize()
+        .then(() => {
+          const duration = Date.now() - startTime;
+          this.readinessManager.markReady("projectIndexService", { initDuration: duration });
+          this.logger.info("ProjectIndexService fully initialized", { duration });
+        })
+        .catch((err) => {
+          this.readinessManager.markFailed("projectIndexService", err);
+          this.logger.error("Failed to initialize project index", err);
+        });
+
+      // Mark as ready after quick init so commands can use cached data
+      const quickDuration = Date.now() - startTime;
+      this.readinessManager.markReady("projectIndexService", { initDuration: quickDuration });
+
+      // Set up cache invalidation
+      const cacheInvalidationService = this.container.resolve(
+        "projectContextCacheInvalidationService",
+      ) as ProjectContextCacheInvalidationService;
+      cacheInvalidationService.startWatching();
+
+      // Set up wiki watcher
+      const wikiWatcherService = this.container.resolve("wikiWatcherService") as WikiWatcherService;
+      wikiWatcherService.startWatching();
+    } catch (error) {
+      this.readinessManager.markFailed("projectIndexService", error as Error);
+      throw error;
+    }
+  }
+
+  private async initProviderHealthService(): Promise<void> {
+    try {
+      this.readinessManager.markInitializing("providerHealthService");
+      const startTime = Date.now();
+
+      const healthService = (await this.container.resolveLazy(
+        "providerHealthService",
+      )) as ProviderHealthService;
+      healthService.startHealthMonitoring();
+
+      const duration = Date.now() - startTime;
+      this.readinessManager.markReady("providerHealthService", { initDuration: duration });
+      this.logger.info("ProviderHealthService initialized", { duration });
+    } catch (error) {
+      this.readinessManager.markFailed("providerHealthService", error as Error);
+      this.logger.warn(
+        "ProviderHealthService failed, continuing with degraded functionality",
+        error,
+      );
+    }
+  }
+
+  private async initContextIntelligenceService(): Promise<void> {
+    try {
+      this.readinessManager.markInitializing("contextIntelligenceService");
+      const startTime = Date.now();
+
+      // Just resolve it to ensure it's ready
+      await this.container.resolveLazy("contextIntelligenceService");
+
+      // Set up memory optimization
+      const memoryOptimizationService = this.container.resolve(
+        "memoryOptimizationService",
+      ) as MemoryOptimizationService;
+      memoryOptimizationService.setMemoryLimit(512 * 1024 * 1024);
+      memoryOptimizationService.scheduleCleanup(60000);
+      memoryOptimizationService.enableLeakDetection(true);
+
+      // Set up background processing
+      const backgroundProcessingService = this.container.resolve(
+        "backgroundProcessingService",
+      ) as BackgroundProcessingService;
+      backgroundProcessingService.setMaxConcurrentTasks(3);
+
+      const duration = Date.now() - startTime;
+      this.readinessManager.markReady("contextIntelligenceService", { initDuration: duration });
+      this.logger.info("ContextIntelligenceService initialized", { duration });
+    } catch (error) {
+      this.readinessManager.markFailed("contextIntelligenceService", error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Legacy initialize method for backward compatibility
+   * Now just waits for critical services
+   */
+  async initialize(): Promise<void> {
+    await this.criticalInitPromise;
+  }
+
+  /**
+   * Get promise that resolves when critical services are ready
+   */
+  getCriticalInitPromise(): Promise<void> {
+    return this.criticalInitPromise;
+  }
+
+  /**
+   * Get promise that resolves when all background services are ready
+   */
+  getBackgroundInitPromise(): Promise<void> {
+    return this.backgroundInitPromise;
+  }
+
+  /**
+   * Get readiness manager for command execution checks
+   */
+  getReadinessManager(): ServiceReadinessManager {
+    return this.readinessManager;
   }
 
   private async registerServices(): Promise<void> {
@@ -921,6 +1138,10 @@ export class AppBootstrap {
       }
     } catch (error) {
       this.logger.warn("Error stopping health monitoring during disposal", error);
+    }
+
+    if (this.readinessManager) {
+      this.readinessManager.dispose();
     }
 
     if (this.loggingService && typeof this.loggingService.dispose === "function") {
