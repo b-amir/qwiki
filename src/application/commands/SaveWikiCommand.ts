@@ -19,11 +19,7 @@ export class SaveWikiCommand implements Command<SaveWikiPayload> {
   constructor(
     private wikiStorageService: WikiStorageService,
     private messageBus: MessageBusService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "development",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("SaveWikiCommand");
   }

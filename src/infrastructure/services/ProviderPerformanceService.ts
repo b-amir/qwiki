@@ -40,11 +40,7 @@ export class ProviderPerformanceService {
     private metricsCollectionService: MetricsCollectionService,
     private statisticsCalculationService: StatisticsCalculationService,
     private performanceMonitoringService: PerformanceMonitoringService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("ProviderPerformanceService");
   }

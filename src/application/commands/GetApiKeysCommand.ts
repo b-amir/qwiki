@@ -17,11 +17,7 @@ export class GetApiKeysCommand implements Command<void> {
     private apiKeyRepository: ApiKeyRepository,
     private configurationRepository: ConfigurationRepository,
     private messageBus: MessageBusService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("GetApiKeysCommand");
   }

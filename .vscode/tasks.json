@@ -18,10 +18,37 @@
       }
     },
     {
+      "type": "npm",
+      "script": "watch:verbose",
+      "problemMatcher": "$ts-webpack-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never",
+        "group": "watchers"
+      },
+      "group": "build"
+    },
+    {
       "label": "build-extension",
       "type": "shell",
       "command": "pnpm",
       "args": ["run", "compile"],
+      "problemMatcher": "$ts-webpack-watch",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    },
+    {
+      "label": "build-extension:verbose",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["run", "compile:verbose"],
       "problemMatcher": "$ts-webpack-watch",
       "group": "build",
       "presentation": {
@@ -52,6 +79,11 @@
     {
       "label": "build-all",
       "dependsOn": ["build-webview", "build-extension"],
+      "problemMatcher": []
+    },
+    {
+      "label": "build-all:verbose",
+      "dependsOn": ["build-webview", "build-extension:verbose"],
       "problemMatcher": []
     },
     {

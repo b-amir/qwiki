@@ -56,11 +56,7 @@ export class CommandFactory {
     try {
       this.loggingService = this.dependencies.container.resolve("loggingService") as LoggingService;
     } catch {
-      this.loggingService = new LoggingService({
-        mode: "none",
-        includeTimestamp: true,
-        includeService: true,
-      });
+      this.loggingService = new LoggingService();
     }
     this.messageBus = new MessageBusService(dependencies.webview, this.loggingService);
   }

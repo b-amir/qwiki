@@ -46,20 +46,10 @@ export class WikiGenerationFlow {
       ? createLogger("WikiGenerationFlow")
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
     this.qualityService = new DocumentationQualityService(
-      loggingService ||
-        new LoggingService({
-          mode: "none",
-          includeTimestamp: true,
-          includeService: true,
-        }),
+      loggingService || new LoggingService(),
     );
     this.improvementService = new DocumentationImprovementService(
-      loggingService ||
-        new LoggingService({
-          mode: "none",
-          includeTimestamp: true,
-          includeService: true,
-        }),
+      loggingService || new LoggingService(),
     );
   }
 

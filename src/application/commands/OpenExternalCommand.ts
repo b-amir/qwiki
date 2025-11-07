@@ -16,11 +16,7 @@ export class OpenExternalCommand implements Command<OpenExternalPayload> {
 
   constructor(
     private messageBus: MessageBusService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("OpenExternalCommand");
   }

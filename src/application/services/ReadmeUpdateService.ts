@@ -159,55 +159,36 @@ export class ReadmeUpdateService {
         await this.cacheService.cacheReadme(sortedWikiIds, currentReadme, generatedContent);
       }
 
-      if (stateResult?.state === ReadmeState.USER_CONTRIBUTED && config.backupOriginal !== false) {
-        const preview = this.diffService.generatePreview(currentReadme, generatedContent);
-        const changeSummary = this.diffService.summarizeChanges(preview.changes);
+      const preview = this.diffService.generatePreview(currentReadme, generatedContent);
+      const changeSummary = this.diffService.summarizeChanges(preview.changes);
 
-        this.pendingUpdate = {
-          wikiIds,
-          config,
-          generatedContent,
-          preview,
-        };
-
-        if (this.eventBus) {
-          this.eventBus.publish("readmeUpdatePreviewReady", {
-            preview,
-            changeSummary,
-            hasBackup: !!backupPath,
-          });
-          this.eventBus.publish("readmeUpdateApprovalRequested", {});
-        }
-
-        this.logger.info("README update preview generated, waiting for user approval", {
-          changes: changeSummary,
-          warnings: preview.warnings.length,
-        });
-
-        return {
-          success: false,
-          changes: [],
-          conflicts: ["Waiting for user approval"],
-          requiresApproval: true,
-        };
-      }
-
-      this.emitProgress(LoadingSteps.writingReadmeFile, 95);
-
-      await this.fileService.writeReadme(generatedContent);
+      this.pendingUpdate = {
+        wikiIds,
+        config,
+        generatedContent,
+        preview,
+      };
 
       if (this.eventBus) {
-        this.eventBus.publish("readme-updated", {
-          wikiCount: optimized.included.length,
-          excludedCount: optimized.excluded.length,
+        this.eventBus.publish("readmeUpdatePreviewReady", {
+          preview,
+          changeSummary,
+          hasBackup: !!backupPath,
         });
+        this.eventBus.publish("readmeUpdateApprovalRequested", {});
       }
 
+      this.logger.info("README update preview generated, waiting for user approval", {
+        changes: changeSummary,
+        warnings: preview.warnings.length,
+        state: stateResult?.state,
+      });
+
       return {
-        success: true,
-        changes: ["README updated successfully"],
-        backupPath,
-        conflicts: [],
+        success: false,
+        changes: [],
+        conflicts: ["Waiting for user approval"],
+        requiresApproval: true,
       };
     } catch (error) {
       this.logger.error("Failed to update README", error);

@@ -259,7 +259,7 @@ export function activate(context: ExtensionContext) {
       {
         label: "Toggle Logging Mode",
         command: VSCodeCommandIds.toggleLoggingMode,
-        description: "Cycle through logging modes: None → Minimal → Development",
+        description: "Cycle through logging modes: Normal ↔ Verbose",
       },
     ];
 
@@ -329,7 +329,7 @@ export function activate(context: ExtensionContext) {
       try {
         const loggingService = LoggingService.getInstance();
         const currentMode = loggingService.getMode();
-        const modes: LogMode[] = ["none", "minimal", "development"];
+        const modes: LogMode[] = ["normal", "verbose"];
         const currentIndex = modes.indexOf(currentMode);
         const nextIndex = (currentIndex + 1) % modes.length;
         const nextMode = modes[nextIndex];
@@ -337,9 +337,8 @@ export function activate(context: ExtensionContext) {
         loggingService.setMode(nextMode);
 
         const modeLabels: Record<LogMode, string> = {
-          none: "No Logs",
-          minimal: "Minimal Logs (Warnings & Errors)",
-          development: "Development Mode (All Logs)",
+          normal: "Normal Logs (Warnings & Errors)",
+          verbose: "Verbose Logs (All Levels)",
         };
 
         window.showInformationMessage(`Qwiki: Logging mode set to "${modeLabels[nextMode]}"`);

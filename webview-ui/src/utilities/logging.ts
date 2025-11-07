@@ -1,6 +1,6 @@
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-export type LogMode = "none" | "minimal" | "development";
+export type LogMode = "normal" | "verbose";
 
 interface FrontendLoggerConfig {
   mode: LogMode;
@@ -16,24 +16,23 @@ const levelWeight: Record<LogLevel, number> = {
 };
 
 const defaultConfig: FrontendLoggerConfig = {
-  mode: "none",
+  mode: "normal",
   includeTimestamp: true,
   includeSource: true,
 };
 
 function getLogLevelForMode(mode: LogMode): LogLevel {
   switch (mode) {
-    case "none":
-      return "error";
-    case "minimal":
-      return "warn";
-    case "development":
+    case "verbose":
       return "debug";
+    case "normal":
+    default:
+      return "warn";
   }
 }
 
-function isLoggingEnabled(mode: LogMode): boolean {
-  return mode !== "none";
+function isLoggingEnabled(): boolean {
+  return true;
 }
 
 export class FrontendLoggingService {
@@ -60,7 +59,7 @@ export class FrontendLoggingService {
   }
 
   log(level: LogLevel, service: string, message: string, data?: unknown): void {
-    if (!isLoggingEnabled(this.config.mode) || !this.shouldLog(level)) {
+    if (!isLoggingEnabled() || !this.shouldLog(level)) {
       return;
     }
 
@@ -70,9 +69,6 @@ export class FrontendLoggingService {
   }
 
   private shouldLog(level: LogLevel): boolean {
-    if (!isLoggingEnabled(this.config.mode)) {
-      return false;
-    }
     const minLevel = getLogLevelForMode(this.config.mode);
     return levelWeight[level] >= levelWeight[minLevel];
   }

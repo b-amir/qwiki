@@ -37,11 +37,7 @@ export class LLMRegistry {
 
   constructor(
     private eventBus: EventBus,
-    loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    loggingService: LoggingService = new LoggingService(),
   ) {
     this.loggingService = loggingService;
     this.logger = createLogger("LegacyLLMRegistry");

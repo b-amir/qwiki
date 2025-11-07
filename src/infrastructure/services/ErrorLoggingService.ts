@@ -26,11 +26,7 @@ export class ErrorLoggingService {
   };
 
   constructor(
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("ErrorLoggingService");
     this.loadFromStorage();

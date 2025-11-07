@@ -17,11 +17,7 @@ export class GetProviderConfigsCommand implements Command<void> {
     private llmRegistry: LLMRegistry,
     private configurationManager: ConfigurationManagerService,
     private messageBus: MessageBusService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("GetProviderConfigsCommand");
   }

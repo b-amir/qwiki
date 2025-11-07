@@ -36,5 +36,14 @@
     "cva\\(([^)]*)\\)",
     "clsx\\(([^)]*)\\)",
     "cn\\(([^)]*)\\)"
-  ]
+  ],
+  "terminal.integrated.env.windows": {
+    "LOG_MODE": "normal"
+  },
+  "terminal.integrated.env.linux": {
+    "LOG_MODE": "normal"
+  },
+  "terminal.integrated.env.osx": {
+    "LOG_MODE": "normal"
+  }
 }

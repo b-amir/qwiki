@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import ReadmeDiffView from "./ReadmeDiffView.vue";
-import type { ReadmePreview } from "../../../../src/domain/entities/ReadmeUpdate";
+import type { ReadmePreview, SectionChange } from "../../../../src/domain/entities/ReadmeUpdate";
 
 interface ChangeSummary {
   added: number;
@@ -25,7 +25,105 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
+type ViewMode = "full" | "section";
+const viewMode = ref<ViewMode>("full");
+const selectedSection = ref<string | null>(null);
+
 const showDiff = computed(() => !!props.preview);
+
+const sections = computed(() => {
+  if (!props.preview) return [];
+  return props.preview.changes;
+});
+
+const selectedSectionData = computed(() => {
+  if (!selectedSection.value || !props.preview) return null;
+  return sections.value.find((s) => s.section === selectedSection.value);
+});
+
+const extractSectionFromContent = (content: string, sectionName: string): string => {
+  const lines = content.split("\n");
+  const normalizedName = sectionName.toLowerCase();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+
+    if (headingMatch && headingMatch[2].trim().toLowerCase() === normalizedName) {
+      const sectionStart = i;
+      const nextSectionStart = lines.findIndex(
+        (line, index) => index > sectionStart && line.match(/^#{1,6}\s+/),
+      );
+      const sectionEnd = nextSectionStart === -1 ? lines.length : nextSectionStart;
+      return lines.slice(sectionStart, sectionEnd).join("\n");
+    }
+  }
+
+  return "";
+};
+
+const getSectionOriginalContent = (sectionName: string): string => {
+  if (!props.preview) return "";
+  const section = sections.value.find((s) => s.section === sectionName);
+  if (
+    section &&
+    (section.action === "removed" || section.action === "updated" || section.action === "preserved")
+  ) {
+    return extractSectionFromContent(props.preview.original, sectionName);
+  }
+  return "";
+};
+
+const getSectionUpdatedContent = (sectionName: string): string => {
+  if (!props.preview) return "";
+  const section = sections.value.find((s) => s.section === sectionName);
+  if (
+    section &&
+    (section.action === "added" || section.action === "updated" || section.action === "preserved")
+  ) {
+    if (section.content) {
+      return section.content;
+    }
+    return extractSectionFromContent(props.preview.updated, sectionName);
+  }
+  return "";
+};
+
+const getActionColor = (action: SectionChange["action"]) => {
+  switch (action) {
+    case "added":
+      return "text-green-600";
+    case "updated":
+      return "text-yellow-600";
+    case "removed":
+      return "text-red-600";
+    case "preserved":
+      return "text-muted-foreground";
+  }
+};
+
+const getActionIcon = (action: SectionChange["action"]) => {
+  switch (action) {
+    case "added":
+      return "+";
+    case "updated":
+      return "~";
+    case "removed":
+      return "-";
+    case "preserved":
+      return "✓";
+  }
+};
+
+const selectSection = (sectionName: string) => {
+  selectedSection.value = sectionName;
+  viewMode.value = "section";
+};
+
+const showFullDiff = () => {
+  viewMode.value = "full";
+  selectedSection.value = null;
+};
 </script>
 
 <template>
@@ -74,8 +172,80 @@ const showDiff = computed(() => !!props.preview);
           </div>
         </div>
 
-        <div v-if="showDiff && preview" class="h-[400px]">
-          <ReadmeDiffView :original="preview.original" :updated="preview.updated" />
+        <div v-if="showDiff && preview" class="space-y-4">
+          <div class="border-border flex items-center justify-between border-b pb-2">
+            <div class="flex gap-2">
+              <button
+                :class="[
+                  'rounded-md px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'full'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border-border hover:bg-accent border',
+                ]"
+                @click="showFullDiff"
+              >
+                Full Diff
+              </button>
+              <button
+                :class="[
+                  'rounded-md px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'section'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border-border hover:bg-accent border',
+                ]"
+                @click="viewMode = 'section'"
+              >
+                Section Preview
+              </button>
+            </div>
+          </div>
+
+          <div v-if="viewMode === 'full'" class="h-[400px]">
+            <ReadmeDiffView :original="preview.original" :updated="preview.updated" />
+          </div>
+
+          <div v-else class="space-y-4">
+            <div class="border-border rounded-lg border p-4">
+              <div class="text-muted-foreground mb-3 text-sm font-medium">Sections:</div>
+              <div class="space-y-2">
+                <button
+                  v-for="section in sections"
+                  :key="section.section"
+                  :class="[
+                    'border-border hover:bg-accent/50 flex w-full items-center justify-between rounded-md border p-3 text-left transition-colors',
+                    selectedSection === section.section ? 'bg-accent' : '',
+                  ]"
+                  @click="selectSection(section.section)"
+                >
+                  <div class="flex items-center gap-2">
+                    <span :class="['font-medium', getActionColor(section.action)]">
+                      {{ getActionIcon(section.action) }}
+                    </span>
+                    <span class="text-sm font-medium">{{ section.section }}</span>
+                  </div>
+                  <span :class="['text-xs', getActionColor(section.action)]">
+                    {{ section.action }}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="selectedSectionData" class="h-[400px]">
+              <div class="text-muted-foreground mb-2 text-sm font-medium">
+                Preview: {{ selectedSectionData.section }}
+              </div>
+              <ReadmeDiffView
+                :original="getSectionOriginalContent(selectedSectionData.section)"
+                :updated="getSectionUpdatedContent(selectedSectionData.section)"
+              />
+            </div>
+            <div
+              v-else
+              class="text-muted-foreground flex h-[400px] items-center justify-center text-sm"
+            >
+              Select a section to preview changes
+            </div>
+          </div>
         </div>
       </div>
 

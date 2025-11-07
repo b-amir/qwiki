@@ -24,11 +24,7 @@ export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
     private messageBus: MessageBusService,
     private llmRegistry: LLMRegistry,
     private providerValidationService: ProviderValidationService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("SaveApiKeyCommand");
   }

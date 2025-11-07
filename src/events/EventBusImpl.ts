@@ -10,11 +10,7 @@ export class EventBusImpl implements EventBus {
   private logger: Logger;
 
   constructor(
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("EventBus");
   }

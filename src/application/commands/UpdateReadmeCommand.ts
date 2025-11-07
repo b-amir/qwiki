@@ -21,11 +21,7 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
     private readmeUpdateService: ReadmeUpdateService,
     private messageBus: MessageBusService,
     private configurationManager: ConfigurationManagerService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "development",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("UpdateReadmeCommand");
   }

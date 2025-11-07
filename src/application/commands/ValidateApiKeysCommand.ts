@@ -17,11 +17,7 @@ export class ValidateApiKeysCommand implements Command<ValidateApiKeysPayload> {
   constructor(
     private providerValidationService: ProviderValidationService,
     private messageBus: MessageBusService,
-    private loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("ValidateApiKeysCommand");
   }

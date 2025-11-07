@@ -15,11 +15,7 @@ export class SecretStorageValidator {
 
   constructor(
     private secretStorage: SecretStorage,
-    loggingService: LoggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    }),
+    loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("SecretStorageValidator");
   }

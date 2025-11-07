@@ -6,12 +6,26 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Extension",
+      "name": "Run Extension (Normal Logs)",
       "type": "extensionHost",
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
-      "preLaunchTask": "build-all"
+      "preLaunchTask": "build-all",
+      "env": {
+        "LOG_MODE": "normal"
+      }
+    },
+    {
+      "name": "Run Extension (Verbose Logs)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "preLaunchTask": "build-all:verbose",
+      "env": {
+        "LOG_MODE": "verbose"
+      }
     }
   ]
 }

@@ -166,11 +166,7 @@ export class AppBootstrap {
   }
 
   private async registerServices(): Promise<void> {
-    const loggingService = new LoggingService({
-      mode: "none",
-      includeTimestamp: true,
-      includeService: true,
-    });
+    const loggingService = new LoggingService();
     LoggingService.setInstance(loggingService);
     this.loggingService = loggingService;
     this.logger = createLogger("AppBootstrap");

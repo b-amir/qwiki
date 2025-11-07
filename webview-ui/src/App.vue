@@ -32,7 +32,7 @@ const handleMessage = (event: MessageEvent) => {
   const message = event.data;
   if (message.command === "setLoggingMode") {
     const mode = message.payload?.mode as LogMode;
-    if (mode && ["none", "minimal", "development"].includes(mode)) {
+    if (mode && ["normal", "verbose"].includes(mode)) {
       const frontendLoggingService = FrontendLoggingService.getInstance();
       frontendLoggingService.setMode(mode);
     }
