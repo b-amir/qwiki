@@ -4,6 +4,17 @@
 
 The Qwiki VS Code extension follows a clean, modular architecture based on SOLID principles and design patterns. The architecture is organized into distinct layers with clear separation of concerns, making the codebase maintainable and extensible.
 
+For setup and day-to-day development workflows, refer to `docs/DEVELOPER_ONBOARDING.md`.
+
+## Bootstrap Responsiveness Architecture
+
+- `ServiceReadinessManager` (`src/infrastructure/services/ServiceReadinessManager.ts`) owns tier registration, readiness state, event subscriptions, progress calculations, and command dependency lookups.
+- `ServiceTiers` (`src/constants/ServiceTiers.ts`) defines critical (< 500ms) versus background (< 30s) services, immediate commands, command requirements, and timeout budgets used across the extension.
+- `AppBootstrap` (`src/application/AppBootstrap.ts`) registers tiers and command requirements, initializes critical services synchronously, starts background services in parallel, publishes `backgroundInitProgress`, and exposes `criticalInitPromise`, `backgroundInitPromise`, and the shared readiness manager.
+- `ProjectIndexService.quickInit()` hydrates cached index data in < 100ms so navigation, provider selection, and degraded wiki generation work before the full scan completes in the background.
+- `WebviewMessageHandler` (`src/panels/WebviewMessageHandler.ts`) enforces readiness-aware command execution, emits `commandWaiting` events for deferred commands, and surfaces timeouts through centralized error handling when dependencies remain unready.
+- `EnvironmentStatusManager` tracks readiness metrics, integrates with the event bus, and keeps the webview environment store informed so the UI can display initialization progress and degrade gracefully.
+
 ## Architecture Layers
 
 ### 1. Domain Layer
@@ -69,7 +80,13 @@ The application layer contains services, commands, and application-specific busi
     - `context/ProjectTypeDetectionService.ts`: Detects project type and framework
     - `context/ProjectOverviewService.ts`: Generates project summaries
     - `context/CodeExtractionService.ts`: Extracts code samples with context
+    - `context/ContextSuggestionService.ts`: Highlights missing context inputs and remediation steps
   - `ContextCompressionService.ts`: Compresses context to fit token budgets
+
+  **Documentation Feedback Services**:
+  - `DocumentationQualityService.ts`: Scores generated documentation for completeness, clarity, structure, examples, and code references.
+  - `DocumentationImprovementService.ts`: Produces prioritized improvement suggestions based on quality metrics.
+  - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results.
 
   **Prompt Engineering Services**:
   - `AdvancedPromptService.ts`: Advanced prompt construction and optimization
@@ -77,6 +94,12 @@ The application layer contains services, commands, and application-specific busi
   - `prompt/PromptSectionBuilder.ts`: Builds structured prompt sections
   - `prompt/PromptQualityAnalyzer.ts`: Analyzes prompt effectiveness
   - `prompt/AdaptivePromptHelpers.ts`: Provider-specific prompt adaptation
+
+  **Bootstrap & Readiness Services**:
+  - `ServiceReadinessManager.ts` (in `src/infrastructure/services/`): Tracks service readiness, dependencies, progress, and emits readiness events
+  - `AppBootstrap.ts`: Registers service tiers and command requirements, initializes critical services, queues background services, and exposes readiness primitives
+  - `ServiceTiers.ts` (in `src/constants/`): Declares service tiers, immediate commands, command requirements, and timeout budgets used by the readiness pipeline
+  - `EnvironmentStatusManager.ts`: Aggregates readiness details and environmental health for the webview
 
   **README Automation Services**:
   - `ReadmeUpdateService.ts`: Orchestrates README updates with approval workflow
@@ -134,6 +157,8 @@ The application layer contains services, commands, and application-specific busi
   - `GetProviderCapabilitiesCommand.ts`: Get provider capabilities
   - `GetProviderHealthCommand.ts`: Check provider health status
   - `GetProviderPerformanceCommand.ts`: Get provider performance metrics
+  - `ValidateApiKeysCommand.ts`: Validate configured provider API keys
+  - `ValidateApiKeyHealthCommand.ts`: Perform live API key health checks
 
   **Configuration Commands**:
   - `GetConfigurationCommand.ts`: Get current configuration
@@ -160,6 +185,7 @@ The application layer contains services, commands, and application-specific busi
   - `OpenFileCommand.ts`: Open file in editor
   - `OpenExternalCommand.ts`: Open external links
   - `SaveSettingCommand.ts`: Save extension settings
+  - `ToggleOutputChannelCommand.ts`: Toggle the Qwiki output channel visibility
 
 - **CommandRegistry.ts**: Registry for managing commands
 - `AppBootstrap.ts`: Application bootstrap and dependency injection setup
@@ -177,7 +203,7 @@ The application layer includes coordinated subsystems:
 - **Prompt Engineering** – Template lifecycle, validation, provider variants, dynamic adjustments, and library management work together to deliver resilient prompts across providers.
 - **Output Consistency** – Validation, normalization, consistency scoring, caching, and fallback services ensure generated documentation is reliable and recoverable.
 - **Wiki Aggregation** – Storage, aggregation, linking, indexing, search, and versioning combine to build comprehensive project documentation maps.
-- **Quality Assurance** – Metrics, improvement planning, and QA workflow services provide continuous insight and gated approval flows for documentation updates.
+- **Quality Assurance** – DocumentationQualityService, DocumentationImprovementService, and ProviderPerformanceService surface content scores, improvement plans, and provider scorecards that gate documentation updates.
 
 Each subsystem is registered in `AppBootstrap` so commands and webviews can resolve dependencies through the container.
 
@@ -200,7 +226,7 @@ The infrastructure layer contains implementations of domain interfaces and exter
   - `ErrorRecoveryService.ts`: Error recovery mechanisms
 
   **Logging & Monitoring Services**:
-  - `LoggingService.ts`: Structured logging service (replaces console.log)
+  - `LoggingService.ts`: Structured logging service with two log modes (replaces console.log)
   - `LogSanitizer.ts`: Sanitizes sensitive data from logs
   - `PerformanceMonitorService.ts`: Performance monitoring and metrics collection
   - `PerformanceMonitor.ts`: Performance tracking and measurement
@@ -287,17 +313,20 @@ The presentation layer handles user interface, user interactions, and VS Code ID
   - **Components** (`components/`):
     - `layout/`: TopBar and layout components
     - `pages/`: HomePage, WikiPage, SettingsPage, SavedWikisPage, ErrorHistoryPage
-    - `features/`: LoadingState, ErrorModal, ErrorDisplay, ValidationErrors, ReadmeDiffView, WikiListItem, etc.
+    - `features/`: LoadingState, GlobalErrorModal, ErrorDisplay, ValidationErrors, ReadmeDiffView, WikiListItem, etc.
     - `ui/`: Button, Card, Modal components (shadcn-vue style)
   - **Stores** (`stores/`):
     - `wiki.ts`: Wiki generation state
     - `settings.ts`: Settings and configuration state
     - `environment.ts`: Environment health monitoring
-    - `navigationStatus.ts`: Navigation state
-    - `errorHistory.ts`: Error tracking
+    - `navigation.ts`: Navigation state machine with guard validation
+    - `error.ts`: Centralized error state management with lifecycle and navigation integration
+    - `errorHistory.ts`: Error history tracking and archival
     - `loading.ts`: Centralized loading state management
   - **Composables** (`composables/`):
-    - `useNavigation.ts`: Navigation helpers
+    - `useNavigation.ts`: Navigation composable with reactive state
+    - `usePageLoading.ts`: Page-specific loading state composable
+    - `useError.ts`: Error reporting composable with automatic context injection
     - `useBatchMessageBridge.ts`: Message batching
     - `useVscodeMessaging.ts`: VS Code message bridge
     - `useSettingsHandlers.ts`: Settings event handlers
@@ -318,6 +347,22 @@ The presentation layer handles user interface, user interactions, and VS Code ID
 - Monitor environment health
 - Manage navigation and loading states
 
+## Service Access Points
+
+Common extension boundaries and the services that manage them:
+
+| Capability        | Primary entry point                                                                    | Usage notes                                                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Service readiness | `ServiceReadinessManager` (`src/infrastructure/services/ServiceReadinessManager.ts`)   | Register dependencies in `ServiceTiers.ts`, resolve via `AppBootstrap.getReadinessManager()`, and gate commands with `waitForService`/`canExecuteCommand`. |
+| Editor selection  | `SelectionService` (`src/application/services/SelectionService.ts`)                    | Returns the active editor selection and publishes it through `OutboundEvents.selection` when transported to the webview.                                   |
+| Project context   | `ProjectContextService` / `CachedProjectContextService`                                | Builds workspace overviews, related files, and samples using the limits defined in `FileLimits`, `FilePatterns`, and `PathPatterns`.                       |
+| Wiki generation   | `WikiService` / `CachedWikiService`                                                    | Combine project context with provider orchestration for documentation requests while leveraging caching for repeat calls.                                  |
+| Provider catalog  | `LLMRegistry` (`src/llm/index.ts`)                                                     | Lists providers, exposes UI configs, and routes generation through the provider registry and lifecycle services.                                           |
+| Secrets           | `VSCodeApiKeyRepository` (`src/infrastructure/repositories/VSCodeApiKeyRepository.ts`) | Persists provider API keys in VS Code `SecretStorage` using the `qwiki:apikey:<providerId>` convention.                                                    |
+| Configuration     | `ConfigurationManagerService` + `VSCodeConfigurationRepository`                        | Centralized read/write with validation, migration, templates, and cache invalidation hooks.                                                                |
+| Messaging bridge  | `MessageBusService` (`src/application/services/MessageBusService.ts`)                  | All extension ↔ webview traffic flows through the bus using constants from `src/constants/Events.ts`.                                                     |
+| Commands          | `CommandRegistry` + `CommandFactory`                                                   | Commands are registered once in `AppBootstrap`, resolved via the container, and invoked through VS Code command IDs from `src/constants/Commands.ts`.      |
+
 ## Key Architectural Features
 
 ### Context Intelligence Pipeline
@@ -332,6 +377,8 @@ The Context Intelligence Pipeline is a sophisticated system that optimizes conte
 - **FileRelevanceBatchService**: Batch-processes relevance scoring for performance
 - **FileSelectionService**: Selects optimal files within token budget
 - **ContextCompressionService**: Compresses context to fit provider limits
+- **ContextSuggestionService**: Highlights missing inputs (file path, related files, overview) that would improve generation
+- **LanguageServerIntegrationService**: Supplies semantic symbol metadata for downstream prompt construction
 
 **Workflow**:
 
@@ -339,8 +386,10 @@ The Context Intelligence Pipeline is a sophisticated system that optimizes conte
 2. **Relevance Ranking**: Files ranked by dependencies, imports, and symbol usage
 3. **Token Budget Calculation**: Provider capabilities determine available tokens
 4. **Optimal Selection**: Files selected to maximize relevance within budget
-5. **Context Compression**: Selected context compressed if needed
-6. **Provider-Specific Adaptation**: Context tailored for specific provider
+5. **Context Suggestions**: Missing context is surfaced to the UI for remediation when quality would suffer
+6. **Semantic Enrichment**: Language server metadata augments the request before prompt construction
+7. **Context Compression**: Selected context compressed if needed
+8. **Provider-Specific Adaptation**: Context tailored for specific provider
 
 **Performance Optimizations**:
 
@@ -348,6 +397,7 @@ The Context Intelligence Pipeline is a sophisticated system that optimizes conte
 - Workspace structure caching
 - File-level and workspace-level cache handlers
 - Incremental index updates via Git change detection
+- Cached language server capability detection and symbol lookups
 
 ### README Automation Workflow
 
@@ -379,6 +429,49 @@ Automated README updates with approval flow and rollback support:
 - `readmeBackupCreated`: Backup completion notification
 - `readmeUpdateApproved`: User approval received
 - `readmeDiffGenerated`: Diff ready for preview
+
+### Navigation System Architecture
+
+State machine-based navigation with guard validation and separated loading states:
+
+**Components**:
+
+- **Navigation Store** (`webview-ui/src/stores/navigation.ts`): Single source of truth for navigation state
+- **useNavigation Composable** (`webview-ui/src/composables/useNavigation.ts`): Reactive navigation API
+- **usePageLoading Composable** (`webview-ui/src/composables/usePageLoading.ts`): Page-specific loading state
+
+**State Machine**:
+
+The navigation system uses a finite state machine with four states:
+
+- `idle`: No navigation in progress
+- `validating`: Guard validation in progress
+- `navigating`: Navigation transition in progress
+- `blocked`: Navigation blocked by guard validation failure
+
+**Features**:
+
+- Single source of truth for navigation state
+- Pure navigation guards with validation results
+- Separation of navigation loading and page loading
+- Atomic state transitions
+- Backend navigation message handling
+- Validation error management
+
+**Navigation Guards**:
+
+Navigation guards are pure validation functions that return structured results:
+
+- Only validate when navigating away from protected pages
+- Return `{ allowed: boolean, error?: ValidationError }`
+- No state management or loading context management
+- Error display handled by pages, not guards
+
+**Loading State Separation**:
+
+- **Navigation Loading**: Shown during page transition (when navigating TO a page)
+- **Page Loading**: Shown when ON a page and page-specific loading is active
+- Mutually exclusive states managed by `usePageLoading` composable
 
 ### Loading System Architecture
 
@@ -467,19 +560,19 @@ Benefits:
 
 ### 3. Provider Registry (Current Implementation)
 
-Object creation uses a provider registry with static instantiation:
+Providers are resolved through the runtime registry while the legacy discovery utilities remain available for future plugin support:
 
-- **Providers Registry** (`src/llm/providers/registry.ts`): The single place that imports and registers all LLM providers. Uses hardcoded instantiation.
-- **LLMRegistry** (`src/llm/index.ts`): Loads providers from the registry and exposes generic operations (list, configs, generate) without provider knowledge.
-- **CommandFactory**: Creates command instances with lazy loading
+- **LLMRegistry** (`src/llm/index.ts`): Loads the built-in provider catalog via `loadProviders()`, reconciles configuration + secrets, exposes `list()`, `generate()`, `getProviderConfigs()`, and health-check helpers.
+- **Legacy Provider Registry** (`src/llm/providers/registry.ts`): Houses discovery, dependency resolution, and lifecycle utilities that back planned plugin scenarios.
+- **CommandFactory**: Creates command instances lazily and injects the active `LLMRegistry`.
 
-**Current Implementation**:
+**Current Implementation Highlights**:
 
-- **Enhanced Registry with Dynamic Discovery**: Providers can be discovered automatically
-- **Provider Lifecycle Management**: Proper initialization, disposal, and health monitoring
-- **Dependency Resolution**: Automatic resolution of provider dependencies
-- **Capability-Based Selection**: Smart provider selection based on code context
-- **Fallback Mechanisms**: Automatic fallback when providers fail
+- **Curated Provider Catalog**: Google AI Studio, Z.ai, OpenRouter, Cohere, and Hugging Face ship out of the box.
+- **Configuration & Secret Reconciliation**: Registry merges VS Code secret storage with persisted configuration to build provider status.
+- **Capability Introspection**: Each provider advertises `capabilities`, `listModels()`, and optional `getModelCapabilities()` for model-specific limits.
+- **Health & Validation Hooks**: Built-in helpers expose `healthCheck()` and API-key validators that feed `ProviderHealthService` and onboarding flows.
+- **Retry & Metrics Instrumentation**: `ErrorRecoveryService` and `ErrorLoggingService` wrap generation calls for consistent retry, logging, and telemetry.
 
 **Currently Supported Providers**:
 
@@ -495,12 +588,15 @@ Object creation uses a provider registry with static instantiation:
 - ✅ **README Automation**: Complete workflow with analysis, generation, preview, approval, backup, and rollback
 - ✅ **VS Code Language Features**: Hover, completions, diagnostics, code actions, document symbols, and custom editors
 - ✅ **Project Indexing**: Fast file index with metadata extraction and incremental updates
-- ✅ **Structured Logging**: All logging through LoggingService with log sanitization
+- ✅ **Language Server Integration**: `LanguageServerIntegrationService` enriches wiki generation with semantic symbol data and type metadata.
+- ✅ **Structured Logging**: All logging through LoggingService with two log modes (normal default, verbose opt-in via `LOG_MODE=verbose`) and log sanitization
 - ✅ **Orchestrator Pattern**: Services use focused sub-services for separation of concerns
   - ContextIntelligenceService orchestrates file relevance, selection, and compression
   - ContextAnalysisService orchestrates pattern, structure, relationship, and complexity analysis
   - ProviderPerformanceService orchestrates metrics, statistics, and monitoring
   - ReadmeUpdateService orchestrates state detection, content analysis, prompting, diffing, and backup
+- ✅ **Documentation Quality Feedback**: DocumentationQualityService and DocumentationImprovementService score generated content and surface actionable improvements before caching.
+- ✅ **Context Suggestions**: ContextSuggestionService analyzes incoming requests and flags missing context to improve generation quality.
 - ✅ **Loading System**: Centralized loading state with context-specific configurations and step catalog
 - ✅ **Environment Monitoring**: Real-time health tracking for language servers, providers, and background tasks
 - ✅ **Caching Infrastructure**: Multi-level caching (generation, project context, workspace structure, file metadata)
@@ -508,23 +604,10 @@ Object creation uses a provider registry with static instantiation:
 - ✅ **Prompt Engineering**: Advanced prompt services with quality analysis and provider-specific adaptation
 - ✅ **Separation of Concerns**: Data transformation extracted to WikiTransformer
 - ✅ **Validation Consolidation**: ConfigurationValidationEngineService provides rule-based validation
+- ✅ **Saved Wiki Storage**: WikiStorageService persists generated documentation and exposes commands for retrieval/deletion.
 - ✅ **Constants Management**: Hardcoded values extracted to ServiceLimits and loading step catalog
 - ✅ **Code Organization**: All files maintainable size (< 300 lines)
 - ✅ **Clean Architecture**: All services properly registered and utilized
-
-**Future Vision: Plugin Architecture**:
-
-- Dynamic provider discovery and registration
-- Providers register themselves instead of being registered
-- Runtime capability discovery
-- True plugin system for extensibility
-
-Benefits:
-
-- Centralized creation logic
-- Consistent object initialization
-- Easier maintenance of creation logic
-- **Future**: Extensible without core code changes
 
 ### 4. Dependency Injection
 
@@ -567,9 +650,9 @@ Benefits:
 
 Qwiki uses a **Hybrid Plugin-Registry architecture** that balances extensibility with VS Code extension constraints:
 
-- **Current**: Enhanced Registry with capability-based provider selection
-- **Evolution**: Gradual migration to full plugin system
-- **Focus**: Documentation generation optimized for VS Code integration
+- Enhanced registry with capability-based provider selection for the active provider set
+- Plugin-friendly extension points that allow packaged providers to register through discovery services
+- Architecture tuned for documentation generation while respecting VS Code performance boundaries
 
 ### Provider System Architecture
 
@@ -771,8 +854,8 @@ interface DocumentationParams extends GenerateParams {
 ### Request Flow
 
 1. User interacts with webview
-2. Webview sends message to `QwikiPanel`
-3. `QwikiPanel` forwards to `CommandRegistry`
+2. Webview sends message through the message bus to `WebviewMessageHandler`
+3. `WebviewMessageHandler` waits for critical initialization, checks `ServiceReadinessManager`, emits `commandWaiting` if dependencies are still initializing, and forwards ready commands to `CommandRegistry`
 4. `CommandRegistry` executes appropriate command
 5. Command uses services to perform business logic
 6. Services use repositories for data access
@@ -786,8 +869,8 @@ interface DocumentationParams extends GenerateParams {
 2. Services process and return to commands
 3. Commands return response to `CommandRegistry`
 4. `CommandRegistry` sends to `MessageBusService`
-5. `MessageBusService` sends response to webview
-6. Webview updates UI
+5. `MessageBusService` sends response or readiness status (`commandWaiting`, `commandResult`, `commandTimeout`) to the webview
+6. Webview updates UI and readiness indicators
 7. For LLM responses: Generated content is displayed in the webview with proper formatting
 
 ## Key Architectural Decisions
@@ -943,12 +1026,18 @@ Benefits:
 
 ## Error Handling
 
-Error handling is implemented through:
+Error handling is implemented through a centralized error management system:
 
-1. **Custom Error Classes**: Specific error types for different domains
-2. **Global Error Handler**: Centralized error processing
-3. **Error Recovery**: Automatic recovery mechanisms
-4. **User Feedback**: Clear error messages to users
+1. **Centralized Error Store** (`webview-ui/src/stores/error.ts`): Single source of truth for error state with lifecycle management
+2. **GlobalErrorModal Component**: Single error modal instance in App.vue that displays errors from the centralized store
+3. **useError Composable**: Convenience methods for components to report errors with automatic context injection
+4. **Navigation Integration**: Errors are automatically cleared when navigating away from pages
+5. **Error Lifecycle**: Errors transition through states: active → dismissed → archived
+6. **Error History**: Dismissed and cleared errors are preserved in error history for review
+7. **Configurable Actions**: Errors can have retry, navigate, or custom action buttons
+8. **Custom Error Classes**: Specific error types for different domains (backend)
+9. **Error Recovery**: Automatic recovery mechanisms (backend)
+10. **User Feedback**: Clear error messages with suggestions displayed through GlobalErrorModal
 
 ## Configuration Management
 
@@ -964,7 +1053,7 @@ Qwiki operates entirely within the user's VS Code IDE. There is no cloud hosting
 
 - **User's IDE**: VS Code extension API for all editor integration
 - **User's File System**: Local project files and configuration
-- **External LLM Providers**: User-configured APIs (OpenAI, Google, etc.) - code is sent to these services for documentation generation
+- **External LLM Providers**: User-configured APIs (Google AI Studio, Z.ai, OpenRouter, Cohere, Hugging Face) - code is sent to these services for documentation generation
 
 All processing, caching, and state management happens locally within VS Code.
 
@@ -980,13 +1069,12 @@ The architecture supports extensibility through:
 ## Benefits of This Architecture
 
 1. **Documentation-First Design**: Every architectural decision prioritizes documentation generation quality and speed
-2. **Hybrid Evolution Path**: Gradual migration from Registry to Plugin system without breaking existing functionality
+2. **Hybrid Registry Approach**: Enhanced registry delivers extensibility while preserving reliability of core services
 3. **VS Code Native Integration**: Deep integration with VS Code ecosystem while maintaining extension constraints
 4. **Capability-Based Selection**: Smart provider selection based on code context and requirements
 5. **Performance Optimized**: Intelligent caching, batching, and background processing for fast generation
 6. **Enterprise Ready**: Team management, security, and compliance features built from the ground up
 7. **Developer Experience**: Simple provider development with clear patterns
-8. **Future-Proof**: Architecture supports advanced AI features and emerging capabilities
 
 ## Why This Architecture for Qwiki
 
@@ -1009,137 +1097,4 @@ The architecture supports extensibility through:
 - **Performance**: Optimized for fast documentation generation and responsiveness
 - **Error Handling**: Standardized error management with user-friendly messages
 
-### **Future-Proof Design**
-
-- **Plugin System**: True extensibility without core code modifications
-- **AI Evolution**: Architecture supports emerging AI capabilities and models
-- **Enterprise Scale**: Designed for team usage and organizational requirements
-- **Performance**: Optimized for the next generation of AI models and capabilities
-
-## Future Considerations
-
-### Architecture Evolution Path
-
-The current architecture is designed for **gradual evolution** toward a more sophisticated plugin system while maintaining stability.
-
-### Foundation Stabilization
-
-**Objectives**: Fix current technical debt and establish solid foundations
-
-1. **Error Handling Standardization**
-   - Implement `ProviderError` base class for consistent error handling
-   - Create standardized error response format across all providers
-   - Add error recovery mechanisms and user-friendly error messages
-
-2. **Configuration Architecture Enhancement**
-   - Extract configuration logic to dedicated `ConfigurationManagerService`
-   - Implement configuration validation and type safety
-   - Add configuration migration system for version upgrades
-
-3. **Provider Capability System**
-   - Define `ProviderCapabilities` interface for provider features
-   - Implement capability-based provider selection
-   - Add provider validation and health checks
-
-### Enhanced Registry System
-
-**Objectives**: Add extensibility while maintaining current stability
-
-1. **Dynamic Provider Discovery**
-   - Implement provider auto-discovery within extension bundle
-   - Add provider lifecycle management (initialize, dispose)
-   - Create provider metadata and manifest system
-
-2. **Capability-Based Selection**
-   - Implement smart provider selection based on code context
-   - Add provider capability matching for optimal results
-   - Create provider fallback and retry mechanisms
-
-3. **Advanced Configuration Management**
-   - Add provider-specific configuration validation
-   - Implement configuration templates and presets
-   - Create configuration import/export functionality
-
-4. **Performance Optimization**
-   - Implement intelligent caching with TTL and invalidation
-   - Add request batching and debouncing for webview
-   - Create background processing queue for large generations
-
-### Plugin Architecture Implementation
-
-**Objectives**: True extensibility with hot-swappable providers
-
-1. **Plugin Loading System**
-   - Implement dynamic plugin loading and unloading
-   - Add plugin sandboxing for security
-   - Create plugin dependency management
-
-2. **Provider Marketplace Foundation**
-   - Design plugin package format and distribution
-   - Implement plugin versioning and compatibility checking
-   - Add plugin signing and verification
-
-3. **Advanced Provider Features**
-   - Implement streaming response support
-   - Add function calling and tool use capabilities
-   - Create provider chaining and composition
-
-4. **Enterprise Features**
-   - Add team-based configuration management
-   - Implement provider usage analytics and monitoring
-   - Create advanced security and compliance features
-
-### Advanced AI & Collaboration
-
-**Objectives**: Cutting-edge features and enterprise scalability
-
-1. **Multi-Provider Generation**
-   - Implement simultaneous generation from multiple providers
-   - Add result comparison and quality scoring
-   - Create provider ensemble and voting systems
-
-2. **Context-Aware Intelligence**
-   - Implement smart context suggestion algorithms
-   - Add project-specific learning and adaptation
-   - Create documentation style learning and customization
-
-3. **Collaboration Features**
-   - Add shared documentation templates and styles
-   - Implement team prompt libraries and best practices
-   - Create documentation review and approval workflows
-
-4. **Advanced AI Integration**
-   - Add custom model fine-tuning support
-   - Implement context-aware provider selection
-   - Create documentation quality metrics and improvement suggestions
-
-### Technical Debt Management
-
-**Priority Areas**:
-
-1. **Registry Pattern Evolution**
-   - Current: Hardcoded provider instantiation
-   - Target: Dynamic plugin discovery with hot-swapping
-   - Risk: Core architectural changes required
-
-2. **Error Handling Consistency**
-   - Current: Provider-specific error formats
-   - Target: Standardized error types with recovery
-   - Risk: Breaking changes to existing error handling
-
-3. **Configuration Architecture**
-   - Current: Mixed responsibilities and leakage
-   - Target: Centralized, validated configuration system
-   - Risk: Migration complexity for existing configurations
-
-### Architectural Principles
-
-**Guiding Principles for Evolution**:
-
-1. **Backward Compatibility**: Maintain existing provider compatibility during evolution
-2. **Gradual Migration**: Incremental approach to minimize disruption
-3. **Performance First**: Optimize for documentation generation speed and reliability
-4. **Developer Experience**: Ensure provider development remains simple and well-documented
-5. **VS Code Integration**: Deep integration with VS Code ecosystem and conventions
-6. **Security First**: Plugin sandboxing and secure configuration management
-7. **Enterprise Ready**: Design for team usage and organizational requirements
+For active improvement initiatives and roadmap items, see `docs/CHECKLIST.md`.

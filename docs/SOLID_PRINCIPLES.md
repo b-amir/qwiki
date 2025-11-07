@@ -234,13 +234,24 @@ All LLM provider implementations can be substituted for the LLMProvider interfac
 ```typescript
 // src/llm/types.ts
 export interface LLMProvider {
-  generate(prompt: string): Promise<string>;
-  validateApiKey(apiKey: string): Promise<boolean>;
+  id: string;
+  name: string;
+  requiresApiKey: boolean;
+  capabilities: ProviderCapabilities;
+  generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
+  listModels(): string[];
+  getUiConfig?(): ProviderUiConfig;
+  supportsCapability(capability: ProviderFeature): boolean;
+  validateConfig(config: any): ValidationResult;
+  getModelCapabilities?(model?: string): ProviderCapabilities;
+  initialize(): Promise<void>;
+  dispose(): Promise<void>;
+  healthCheck(): Promise<HealthCheckResult>;
 }
 
 // Any provider can be used interchangeably
-const provider: LLMProvider = new OpenAIProvider();
-const result = await provider.generate(prompt);
+const provider: LLMProvider = new GoogleAIStudioProvider();
+const result = await provider.generate({ snippet: "function greet() { return 'hi'; }" }, "api-key");
 ```
 
 ### Benefits

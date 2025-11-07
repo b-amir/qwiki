@@ -9,10 +9,12 @@ This document provides detailed API documentation for Qwiki's LLM providers and 
 1. [LLM Provider API](#llm-provider-api)
 2. [Extension Commands](#extension-commands)
 3. [Message Types](#message-types)
-4. [Configuration API](#configuration-api)
-5. [Error Handling](#error-handling)
-6. [Provider Services API](#provider-services-api)
-7. [Logging Infrastructure](#logging-infrastructure)
+4. [Initialization Readiness Events](#initialization-readiness-events)
+5. [Configuration API](#configuration-api)
+6. [Error Handling](#error-handling)
+7. [Provider Services API](#provider-services-api)
+8. [Navigation System API](#navigation-system-api)
+9. [Logging Infrastructure](#logging-infrastructure)
 
 ## LLM Provider API
 
@@ -29,16 +31,18 @@ interface LLMProvider {
   id: string;
   name: string;
   requiresApiKey: boolean;
+  capabilities: ProviderCapabilities;
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
+  supportsCapability(capability: ProviderFeature): boolean;
+  validateConfig(config: any): ValidationResult;
+  getModelCapabilities?(model?: string): ProviderCapabilities;
 
   // Lifecycle and monitoring capabilities
-  initialize?(): Promise<void>;
-  dispose?(): Promise<void>;
-  healthCheck?(): Promise<HealthCheckResult>;
-  getCapabilities?(): ProviderCapabilities;
-  getMetadata?(): ProviderMetadata;
+  initialize(): Promise<void>;
+  dispose(): Promise<void>;
+  healthCheck(): Promise<HealthCheckResult>;
 }
 ```
 
@@ -76,67 +80,52 @@ interface ProviderManifest extends ProviderMetadata {
 
 ### Provider Registration System
 
-**Current Implementation with Dynamic Discovery**:
+At runtime the extension resolves providers through `LLMRegistry` (`src/llm/index.ts`). The registry loads the built-in catalog via `loadProviders()` and exposes helper methods for configuration, health checks, and generation:
 
 ```typescript
-// src/llm/providers/registry.ts
-export class ProviderRegistry {
-  private discoveryService: ProviderDiscoveryService;
-  private lifecycleManager: ProviderLifecycleManagerService;
-  private dependencyResolver: ProviderDependencyResolverService;
+export class LLMRegistry {
+  private providers = new Map<string, LLMProvider>();
 
-  async loadProviders(getSetting: GetSetting): Promise<Record<string, LLMProvider>> {
-    // Dynamic provider discovery
-    const discoveredProviders = await this.discoveryService.discoverProviders();
-
-    // Dependency resolution
-    const loadOrder = this.dependencyResolver.getLoadOrder(discoveredProviders);
-
-    // Lifecycle management
-    const providers: Record<string, LLMProvider> = {};
-    for (const providerId of loadOrder) {
-      const provider = await this.lifecycleManager.initializeProvider(providerId);
-      if (provider) {
-        providers[providerId] = provider;
-      }
+  constructor(
+    private secrets: SecretStorage,
+    private errorRecoveryService: ErrorRecoveryService,
+    private errorLoggingService: ErrorLoggingService,
+    private configurationManager: ConfigurationManagerService,
+    getSetting?: GetSetting,
+  ) {
+    const allProviders = loadProviders(getSetting || (async () => undefined));
+    for (const [id, provider] of Object.entries(allProviders)) {
+      this.providers.set(id, provider);
     }
-
-    return providers;
   }
 
-  // Provider management capabilities
-  async reloadProviders(): Promise<void>;
-  async addProviderDirectory(directoryPath: string): Promise<void>;
-  async removeProviderDirectory(directoryPath: string): Promise<void>;
-  getProviderMetadata(providerId: string): ProviderMetadata | null;
+  list() {
+    /* ... */
+  }
+  getProvider(providerId: ProviderId) {
+    /* ... */
+  }
+  async generate(providerId: ProviderId, params: GenerateParams) {
+    /* ... */
+  }
+  async getProviderConfigs(): Promise<ProviderConfig[]> {
+    /* ... */
+  }
+  async healthCheckProvider(providerId: ProviderId): Promise<HealthCheckResult> {
+    /* ... */
+  }
 }
 ```
+
+The legacy discovery and lifecycle services under `src/llm/providers` remain available for future plugin support, but the current build focuses on the curated provider set.
 
 **Current Capabilities**:
 
-- ✅ Dynamic provider discovery with manifest system
-- ✅ Provider lifecycle management with state machine
-- ✅ Automatic dependency resolution
-- ✅ Hot-reloading of providers
-- ✅ Runtime extensibility without core code changes
-
-**Future Vision: Plugin Architecture**:
-
-```typescript
-// Planned: Dynamic provider discovery
-interface ProviderPlugin {
-  id: string;
-  provider: () => Promise<LLMProvider>;
-  capabilities: ProviderCapabilities;
-}
-
-// Providers will register themselves
-registerProvider({
-  id: "new-provider",
-  capabilities: { maxTokens: 4096, features: ["streaming"] },
-  provider: () => import("./new-provider").then((p) => new p.NewProvider()),
-});
-```
+- ✅ Built-in provider catalog (Google AI Studio, Z.ai, OpenRouter, Cohere, Hugging Face)
+- ✅ Provider configuration and secret management through `ConfigurationManagerService` and VS Code `SecretStorage`
+- ✅ Capability introspection (`listModels`, `getModelCapabilities`, `capabilities` metadata)
+- ✅ Health checks and API-key validation helpers via `healthCheck`/`healthCheckWithKey`
+- ✅ Retry and structured error logging through `ErrorRecoveryService` and `ErrorLoggingService`
 
 ### Generate Parameters
 
@@ -146,6 +135,7 @@ type GenerateParams = {
   languageId?: string; // Language identifier (e.g., 'typescript', 'python')
   filePath?: string; // File path context
   model?: string; // Specific model to use
+  semanticInfo?: SemanticCodeInfo; // Optional semantic data from language servers
   project?: {
     // Project context
     rootName?: string; // Project root name
@@ -160,6 +150,19 @@ type GenerateParams = {
     }>;
   };
 };
+```
+
+```typescript
+interface SemanticCodeInfo {
+  symbolName: string;
+  symbolKind: SymbolKind;
+  location: Uri;
+  type?: string;
+  isAsync?: boolean;
+  parameters?: Array<{ name: string; type?: string }>;
+  returnType?: string;
+  documentation?: string;
+}
 ```
 
 ### Generate Result
@@ -194,34 +197,15 @@ interface ProviderCustomField {
 
 ### Data vs Logic Separation
 
-**Current State Analysis**:
+The provider system maintains clear separation between data and logic:
 
-**✅ Well Separated**:
-
-- Provider-specific HTTP logic and endpoints
-- Model lists and availability
-- UI configuration definitions
-- API key requirements and validation
-
-**⚠️ Partially Separated**:
-
-- Prompt building (external `buildWikiPrompt` function)
-- Error handling (inconsistent across providers)
-- Parameter processing (some leakage to services)
-
-**❌ Needs Improvement**:
-
-- Configuration access patterns
-- Standardized error types
-- Provider capability discovery
-- Runtime extensibility
-
-**Future Improvements**:
-
-- Provider-specific prompt strategies
-- Standardized error handling with `ProviderError` class
-- Dynamic capability discovery
-- Better configuration abstraction
+- Provider-specific HTTP logic and endpoints are encapsulated within each provider
+- Model lists and availability are managed by individual providers
+- UI configuration definitions are isolated in provider implementations
+- API key requirements and validation are handled through the provider interface
+- Prompt building uses the external `buildWikiPrompt` function for consistency
+- Error handling follows standardized patterns across providers
+- Configuration access flows through `ConfigurationManagerService`
 
 ````
 
@@ -566,20 +550,21 @@ Retrieves aggregate counts for pages, tags, and relationships.
 }
 ```
 
-### Quality Assurance Commands
+### Wiki Storage Commands
 
-#### Calculate Quality Metrics
+#### Save Wiki
 
-**Command ID**: `calculateQualityMetrics`
+**Command ID**: `saveWiki`
 
-Analyzes content and returns metric scores.
+Persists a generated wiki entry to the `.qwiki/saved` directory.
 
 **Parameters**:
 
 ```typescript
 {
+  title: string;
   content: string;
-  context: DocumentationContext;
+  sourceFilePath?: string;
 }
 ```
 
@@ -587,23 +572,48 @@ Analyzes content and returns metric scores.
 
 ```typescript
 {
-  metrics: QualityMetrics;
-  qualityScore: number;
+  id: string;
+  title: string;
+  filePath: string;
+  createdAt: string;
 }
 ```
 
-#### Generate Quality Report
+#### Get Saved Wikis
 
-**Command ID**: `generateQualityReport`
+**Command ID**: `getSavedWikis`
 
-Produces a full quality report with issues and recommendations.
+Loads previously saved wiki entries from disk.
+
+**Parameters**: None
+
+**Returns**:
+
+```typescript
+{
+  wikis: Array<{
+    id: string;
+    title: string;
+    content: string;
+    filePath: string;
+    createdAt: string;
+    tags: string[];
+    sourceFilePath?: string;
+  }>;
+}
+```
+
+#### Delete Wiki
+
+**Command ID**: `deleteWiki`
+
+Removes a wiki entry from the saved wiki store.
 
 **Parameters**:
 
 ```typescript
 {
-  content: string;
-  context: DocumentationContext;
+  wikiId: string;
 }
 ```
 
@@ -611,35 +621,9 @@ Produces a full quality report with issues and recommendations.
 
 ```typescript
 {
-  qualityReport: QualityReport;
+  wikiId: string;
 }
 ```
-
-#### Run QA Checks
-
-**Command ID**: `runQAChecks`
-
-Executes a QA workflow against provided content.
-
-**Parameters**:
-
-```typescript
-{
-  content: string;
-  context: DocumentationContext;
-  workflow: QAWorkflow;
-}
-```
-
-**Returns**:
-
-```typescript
-{
-  result: QACheckResult;
-}
-```
-
-**Returns**: Success confirmation
 
 #### Get API Keys
 
@@ -677,7 +661,7 @@ Deletes an API key for a provider.
 
 **Command ID**: `getProviders`
 
-Lists all available LLM providers.
+Lists the available LLM providers along with model lists and API-key status.
 
 **Parameters**: None
 
@@ -688,8 +672,8 @@ Lists all available LLM providers.
   providers: Array<{
     id: string;
     name: string;
-    requiresApiKey: boolean;
-    configured: boolean;
+    models: string[];
+    hasKey: boolean;
   }>;
 }
 ```
@@ -698,7 +682,7 @@ Lists all available LLM providers.
 
 **Command ID**: `getProviderConfigs`
 
-Gets UI configurations for all providers.
+Retrieves UI configuration metadata for each provider. The registry post-processes the data to include any persisted custom fields.
 
 **Parameters**: None
 
@@ -706,7 +690,16 @@ Gets UI configurations for all providers.
 
 ```typescript
 {
-  configs: Record<string, ProviderUiConfig>;
+  configs: Array<{
+    id: string;
+    name: string;
+    apiKeyUrl: string;
+    apiKeyInput: string;
+    additionalInfo?: string;
+    modelFallbackIds?: string[];
+    defaultModel?: string;
+    customFields?: ProviderCustomField[];
+  }>;
 }
 ```
 
@@ -861,13 +854,14 @@ Checks if a README backup exists and returns backup information.
 
 **Command ID**: `getProviderCapabilities`
 
-Gets detailed capabilities for a specific provider.
+Gets the normalized capability profile for each provider. An optional payload can request a specific provider/model combination.
 
 **Parameters**:
 
 ```typescript
 {
-  providerId: string; // Provider ID
+  providerId?: string;
+  model?: string;
 }
 ```
 
@@ -875,16 +869,141 @@ Gets detailed capabilities for a specific provider.
 
 ```typescript
 {
-  capabilities: {
-    contextWindowSize: number; // Maximum context window in tokens
-    maxOutputTokens: number;   // Maximum output tokens
-    supportedLanguages: string[]; // Supported programming languages
-    features: string[];        // Supported features (streaming, function-calling, etc.)
-    complexity: {              // Complexity range the provider handles well
-      min: number;
-      max: number;
-    };
-  };
+  capabilities: Record<
+    string,
+    {
+      streaming: boolean;
+      functionCalling: boolean;
+      maxTokens: number;
+      contextWindowSize: number;
+    }
+  >;
+}
+```
+
+### Provider Validation Commands
+
+#### Validate API Keys
+
+**Command ID**: `validateApiKeys`
+
+Runs provider configuration validation to ensure at least one API key is ready for use. Optionally validates the specified providers individually.
+
+**Parameters**:
+
+```typescript
+{
+  providerIds?: string[];
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  globalValidation: ValidationResult;
+  providerValidations: Record<string, ValidationResult>;
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  errors: Array<{ code: string; message: string; field?: string }>;
+  warnings: Array<{ code: string; message: string; field?: string }>;
+}
+```
+
+#### Validate API Key Health
+
+**Command ID**: `validateApiKeyHealth`
+
+Performs a live health check against a provider using the supplied API key. The command is useful for onboarding and troubleshooting.
+
+**Parameters**:
+
+```typescript
+{
+  providerId: string;
+  apiKey: string;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  providerId: string;
+  isValid: boolean;
+  isHealthy: boolean;
+  responseTime?: number;
+  error?: string;
+  errorCode?: string;
+}
+```
+
+### Provider Monitoring Commands
+
+#### Get Provider Health
+
+**Command ID**: `getProviderHealth`
+
+Returns cached health information for all providers or a specific provider.
+
+**Parameters**:
+
+```typescript
+{
+  providerId?: string;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  healthStatus: Record<
+    string,
+    {
+      providerId: string;
+      isHealthy: boolean;
+      lastChecked: string;
+      responseTime?: number;
+      error?: string;
+      consecutiveFailures: number;
+    }
+  >;
+}
+```
+
+#### Get Provider Performance
+
+**Command ID**: `getProviderPerformance`
+
+Retrieves aggregated performance statistics collected by the background metrics pipeline.
+
+**Parameters**:
+
+```typescript
+{
+  providerId?: string;
+}
+```
+
+**Returns**:
+
+```typescript
+{
+  performanceStats: Record<
+    string,
+    {
+      totalRequests: number;
+      successfulRequests: number;
+      failedRequests: number;
+      averageResponseTime: number;
+      successRate: number;
+      lastRequestTime: string;
+      averageTokensPerRequest?: number;
+    }
+  >;
 }
 ```
 
@@ -949,6 +1068,16 @@ Opens a file in the editor.
 
 **Returns**: Success confirmation
 
+#### Toggle Output Channel
+
+**Command ID**: `toggleOutputChannel`
+
+Shows or hides the Qwiki output channel in VS Code. No payload is required and no data is returned.
+
+**Parameters**: None
+
+**Returns**: `void`
+
 ## Message Types
 
 ### Webview to Extension
@@ -975,6 +1104,80 @@ interface ExtensionMessage {
   error?: string; // Error message (if type is 'error')
 }
 ```
+
+Common outbound events currently emitted by the extension include:
+
+- `providers` – provider list and API-key status
+- `providerConfigs` – UI configuration metadata for each provider
+- `providerCapabilitiesRetrieved` – normalized capability map per provider
+- `providerHealthRetrieved` – latest health status map from `ProviderHealthService`
+- `providerPerformanceRetrieved` – aggregated performance stats per provider
+- `apiKeysValidated` – results from `validateApiKeys`
+- `apiKeyHealthValidated` – live API-key health check outcome
+- `wikiSaved`, `savedWikisLoaded`, `wikiDeleted` – saved wiki lifecycle events
+- `showNotification` – ephemeral toast notifications surfaced in the webview
+- `environmentStatus`, `commandWaiting`, `loadingStep`, `wikiResult`, `error` – readiness, progress, and error reporting primitives
+
+## Initialization Readiness Events
+
+### Service Readiness Manager
+
+- Service readiness data is centralized in `ServiceReadinessManager`.
+- Service tiers, command requirements, timeouts, and immediate command sets are declared in `src/constants/ServiceTiers.ts`.
+- Commands that require additional services call into the readiness manager before execution; immediate commands bypass the check.
+
+### `commandWaiting` Event (webview)
+
+When a command is deferred because required services are still initializing, the backend emits a `commandWaiting` event through `MessageBusService.postImmediate`:
+
+```typescript
+interface CommandWaitingPayload {
+  command: string;
+  waitingFor: string[]; // service IDs still initializing
+  message: string; // user-facing hint, e.g. "Initializing projectIndexService..."
+}
+```
+
+- The webview listens for this event to display progress banners, disable buttons, and surface contextual messaging.
+- Once readiness is achieved the command is executed automatically; if the timeout defined in `COMMAND_TIMEOUTS` is reached, an error is published via the centralized error pipeline.
+
+### Background Initialization Progress
+
+- `AppBootstrap.initializeBackgroundServices()` publishes `backgroundInitProgress` via the event bus.
+- Payload shape:
+
+```typescript
+interface BackgroundInitProgressEvent {
+  completed: number;
+  total: number;
+  percent: number; // rounded integer
+}
+```
+
+- `EnvironmentStatusManager` subscribes to the event and surfaces the values to the environment store so the UI can show initialization progress indicators.
+
+### Environment Status Response
+
+- `EnvironmentStatusManager.composeEnvironmentStatus()` now includes an `initializationProgress` field and readiness flags per service tier.
+- The webview retrieves this data by sending `getEnvironmentStatus` (an immediate command) and reading the response payload:
+
+```typescript
+interface EnvironmentStatusResponse {
+  initializationProgress: number; // 0-100 aggregate readiness
+  criticalReady: boolean;
+  backgroundReady: boolean;
+  services: Record<
+    string,
+    {
+      tier: "critical" | "background" | "optional";
+      status: "pending" | "initializing" | "ready" | "failed";
+      initDuration?: number;
+    }
+  >;
+}
+```
+
+- Frontend stores (e.g. `environment.ts`) use this data to render readiness banners, enable/disable commands, and decide when to show degraded modes.
 
 ## Configuration API
 
@@ -1160,65 +1363,40 @@ const message = {
 
 ## Development Notes
 
-### Architecture Reality Check
+### Architecture Overview
 
-**Current State**: The LLM provider system uses a **Registry Pattern** with static instantiation, not a Factory pattern. While functional, this has limitations for extensibility.
+The LLM provider system uses a **Registry Pattern** with dynamic discovery capabilities. Providers are registered through the provider registry and managed by lifecycle services.
 
-**Key Architectural Insights**:
+**Key Architectural Features**:
 
-- **Data Concentration**: Provider-specific data IS well concentrated in the providers folder
-- **Logic Separation**: Mostly successful, but some leakage exists (prompt building, error handling)
-- **Extensibility**: Limited - requires core code changes to add providers
-- **Future Evolution**: Moving toward plugin architecture for true extensibility
+- **Data Concentration**: Provider-specific data is consolidated in the providers folder
+- **Logic Separation**: Clear boundaries between provider logic and application services
+- **Extensibility**: Dynamic provider discovery with manifest system enables runtime extensibility
 
 ### Adding New Providers
 
-**Current Process**:
+**Process**:
 
-1. Implement `LLMProvider` interface
-2. Add to hardcoded registry in `src/llm/providers/registry.ts`
-3. Provider handles its own HTTP logic, models, and configuration
+1. Implement `LLMProvider` interface with required methods
+2. Create provider manifest file with metadata and capabilities
+3. Place provider files in discoverable directory or register in `src/llm/providers/registry.ts`
+4. Provider handles its own HTTP logic, models, and configuration
 
-**Limitations**:
+**Capabilities**:
 
-- Registry modification required
-- No runtime discovery
-- Tight coupling to core system
-
-**Future Plugin System**:
-
-- Dynamic provider registration
-- Capability-based discovery
-- No core code modifications needed
+- Dynamic provider discovery with manifest validation
+- Provider lifecycle management (initialize, dispose, health checks)
+- Automatic dependency resolution between providers
+- Hot-reloading support for provider updates
 
 ### Performance Considerations
 
-- Use cached services for repeated operations
-- Implement proper error handling for network requests
-- Consider rate limiting for API calls
-- Optimize message passing between webview and extension
-
-### Architectural Debt
-
-**Known Issues**:
-
-1. **Registry vs Factory**: Documentation incorrectly claims Factory pattern
-2. **Error Handling**: Inconsistent across providers
-3. **Configuration Leakage**: Some provider knowledge in services
-
-**Recent Improvements**:
-
-1. ✅ **Dynamic Provider Discovery**: Provider discovery service with manifest system
-2. ✅ **Standardized Errors**: Consistent error types and handling
-3. ✅ **Better Separation**: Reduced configuration leakage through validation engine
-4. ✅ **Smart Selection**: Context-aware provider selection with fallback
-5. ✅ **Performance Optimization**: Caching, batching, and background processing
-
-**Planned Improvements**:
-
-1. **Plugin Architecture**: True plugin system with hot-swapping
-2. **Advanced AI Features**: Multi-provider generation and ensembles
-3. **Enterprise Features**: Team management and collaboration
+- Cached services optimize repeated operations
+- Proper error handling for network requests
+- Rate limiting for API calls
+- Optimized message passing between webview and extension
+- Batch processing for relevance analysis
+- Token budget management for context optimization
 
 ## Provider Services API
 
@@ -1956,68 +2134,473 @@ interface ProcessedGeneration {
 
 **Location**: `src/application/transformers/WikiTransformer.ts`
 
+## Navigation System API
+
+### Navigation Store
+
+**Location**: `webview-ui/src/stores/navigation.ts`
+
+Single source of truth for navigation state with state machine pattern.
+
+```typescript
+interface NavigationState {
+  currentPage: PageType;
+  targetPage: PageType | null;
+  state: "idle" | "validating" | "navigating" | "blocked";
+  direction: "forward" | "back" | null;
+  validationError: ValidationError | null;
+  guard: NavigationGuard | null;
+}
+
+interface ValidationError {
+  message: string;
+  code: string;
+  suggestions?: string[];
+}
+
+type NavigationGuard = (
+  target: PageType,
+  direction: "forward" | "back",
+) => Promise<ValidationResult>;
+
+interface ValidationResult {
+  allowed: boolean;
+  error?: ValidationError;
+}
+
+type PageType =
+  | "wiki"
+  | "settings"
+  | "errorHistory"
+  | "savedWikis"
+  | "promptManager"
+  | "qualityDashboard"
+  | "wikiAggregator";
+```
+
+**Actions**:
+
+```typescript
+// Navigate to a page
+async navigateTo(page: PageType, isBack?: boolean): Promise<boolean>
+
+// Register navigation guard
+setGuard(guard: NavigationGuard | null): void
+
+// Handle backend navigation messages
+handleNavigationMessage(page: PageType, isBack: boolean): void
+
+// Internal state transitions (private)
+_transitionTo(state: NavigationMachineState): void
+_completeNavigation(): void
+_blockNavigation(error: ValidationError): void
+_resetToIdle(): void
+```
+
+**Getters**:
+
+```typescript
+// Is navigation in progress?
+isNavigating: boolean
+
+// Is currently validating?
+isValidating: boolean
+
+// Is navigation blocked?
+isBlocked: boolean
+
+// Get current validation error
+currentError: ValidationError | null
+
+// Is navigating to specific page?
+isNavigatingTo(page: PageType): boolean
+```
+
+### useNavigation Composable
+
+**Location**: `webview-ui/src/composables/useNavigation.ts`
+
+Reactive composable for navigation functionality.
+
+```typescript
+function useNavigation() {
+  return {
+    // Reactive properties
+    currentPage: ComputedRef<PageType>;
+    isNavigating: ComputedRef<boolean>;
+    isValidating: ComputedRef<boolean>;
+    validationError: ComputedRef<ValidationError | null>;
+
+    // Methods
+    navigateTo: (page: PageType, isBack?: boolean) => Promise<boolean>;
+    setNavigationGuard: (guard: NavigationGuard | null) => void;
+  };
+}
+```
+
+**Usage**:
+
+```typescript
+import { useNavigation } from "@/composables/useNavigation";
+
+const navigation = useNavigation();
+
+// Navigate to settings
+await navigation.navigateTo("settings");
+
+// Check current page
+const currentPage = navigation.currentPage.value;
+
+// Register navigation guard
+navigation.setNavigationGuard(async (target, direction) => {
+  if (target === "settings" && direction === "back") {
+    // Validate before navigating away
+    const isValid = await validateSettings();
+    return {
+      allowed: isValid,
+      error: isValid
+        ? undefined
+        : {
+            message: "Settings validation failed",
+            code: "VALIDATION_ERROR",
+          },
+    };
+  }
+  return { allowed: true };
+});
+```
+
+### usePageLoading Composable
+
+**Location**: `webview-ui/src/composables/usePageLoading.ts`
+
+Composable to determine loading state for a specific page.
+
+```typescript
+interface PageLoadingState {
+  showNavigationLoading: ComputedRef<boolean>;
+  showPageLoading: ComputedRef<boolean>;
+}
+
+function usePageLoading(page: PageType, pageLoadingContext: LoadingContext): PageLoadingState;
+```
+
+**Usage**:
+
+```typescript
+import { usePageLoading } from "@/composables/usePageLoading";
+
+const pageLoading = usePageLoading("wiki", "wiki");
+
+// Navigation loading: true when navigating TO this page
+const isNavigating = pageLoading.showNavigationLoading.value;
+
+// Page loading: true when ON this page and page context is active
+const isPageLoading = pageLoading.showPageLoading.value;
+```
+
+**Logic**:
+
+- `showNavigationLoading`: Returns `true` only when navigating TO the specified page
+- `showPageLoading`: Returns `true` only when ON the specified page and the page's loading context is active
+- The two states are mutually exclusive
+
+### Navigation Guard Pattern
+
+Navigation guards are pure validation functions:
+
+```typescript
+// Example: Settings navigation guard
+function createSettingsNavigationGuard(
+  settings: ReturnType<typeof useSettingsStore>,
+  wiki: ReturnType<typeof useWikiStore>,
+  providerConfigs: Ref<ProviderConfig[]>,
+): NavigationGuard {
+  return async (target: PageType, direction: "forward" | "back"): Promise<ValidationResult> => {
+    // Only validate when navigating away from settings
+    if (direction === "back" && target !== "settings") {
+      const isValid = await validateSettings(settings, wiki, providerConfigs);
+      if (!isValid) {
+        return {
+          allowed: false,
+          error: {
+            message: "Settings validation failed",
+            code: "VALIDATION_ERROR",
+            suggestions: ["Fix validation errors"],
+          },
+        };
+      }
+    }
+
+    return { allowed: true };
+  };
+}
+
+// Register guard
+const navigation = useNavigation();
+navigation.setNavigationGuard(createSettingsNavigationGuard(settings, wiki, providerConfigs));
+```
+
+**Key Points**:
+
+- Guards are pure functions with no side effects
+- Return structured validation results
+- Do not manage loading contexts or UI state
+- Error display is handled by pages, not guards
+
+## Error System API
+
+### Centralized Error Store
+
+**Location**: `webview-ui/src/stores/error.ts`
+
+Single source of truth for error state with lifecycle management and navigation integration.
+
+```typescript
+interface ErrorState {
+  id: string;
+  message: string;
+  code?: string;
+  category?: string;
+  suggestions?: string[];
+  retryable?: boolean;
+  retryAction?: () => void;
+  actions?: ErrorAction[];
+  timestamp: string;
+  context: ErrorContext;
+  originalError?: string;
+  severity: "info" | "warning" | "error" | "critical";
+}
+
+interface ErrorContext {
+  page: PageType;
+  component?: string;
+  operation?: string;
+}
+
+interface ErrorAction {
+  label: string;
+  type: "navigate" | "retry" | "custom" | "dismiss";
+  target?: PageType | string;
+  handler?: () => void;
+  condition?: (currentPage: PageType) => boolean;
+}
+
+interface ErrorStoreState {
+  currentError: ErrorState | null;
+  dismissedErrorIds: Set<string>;
+  errorContext: ErrorContext | null;
+  isModalOpen: boolean;
+}
+```
+
+**Actions**:
+
+```typescript
+// Set a new error
+setError(error: Partial<ErrorState>): void
+
+// Dismiss error (user explicitly closed it)
+dismissError(errorId: string): void
+
+// Clear error (programmatic, e.g., on navigation)
+clearError(): void
+
+// Clear all errors for a specific page
+clearPageErrors(page: PageType): void
+
+// Navigation integration
+onNavigationStart(targetPage: PageType): void
+onNavigationComplete(currentPage: PageType): void
+
+// Context management
+setContext(context: ErrorContext): void
+clearContext(): void
+
+// Error actions
+executeAction(action: ErrorAction): void
+retryLastOperation(): void
+```
+
+**Getters**:
+
+```typescript
+// Current active error
+currentError: ComputedRef<ErrorState | null>;
+
+// Is modal open?
+isModalOpen: ComputedRef<boolean>;
+
+// Current error context
+errorContext: ComputedRef<ErrorContext | null>;
+```
+
+### useError Composable
+
+**Location**: `webview-ui/src/composables/useError.ts`
+
+Convenience methods for components to report errors with automatic context injection.
+
+```typescript
+function useError() {
+  return {
+    // Show a simple error
+    showError(error: Partial<ErrorState>): void;
+
+    // Show retryable error with retry action
+    showRetryableError(
+      message: string,
+      retryAction: () => void,
+      options?: Partial<ErrorState>
+    ): void;
+
+    // Show configuration error with navigation to settings
+    showConfigurationError(
+      message: string,
+      code?: string,
+      options?: Partial<ErrorState>
+    ): void;
+
+    // Clear current error
+    clearError(): void;
+  };
+}
+```
+
+**Usage**:
+
+```typescript
+import { useError } from "@/composables/useError";
+
+const { showError, showRetryableError } = useError();
+
+// Simple error
+showError({
+  message: "Operation failed",
+  code: "OPERATION_FAILED",
+  suggestions: ["Check your connection"],
+});
+
+// Retryable error
+showRetryableError("Network request failed", () => retryOperation(), { code: "NETWORK_ERROR" });
+```
+
+### GlobalErrorModal Component
+
+**Location**: `webview-ui/src/components/GlobalErrorModal.vue`
+
+Single error modal instance in App.vue that displays errors from the centralized error store.
+
+**Features**:
+
+- Automatically displays current active error
+- Shows error message, suggestions, and action buttons
+- Handles error dismissal
+- Executes error actions (retry, navigate, custom)
+- Conditional action visibility based on current page
+
+**Integration**:
+
+The GlobalErrorModal is added once to App.vue and watches the centralized error store for active errors. No page-specific error modals are needed.
+
 ## Logging Infrastructure
+
+### Log Modes
+
+Qwiki supports two logging modes. The extension starts in `normal` mode unless the environment variable `LOG_MODE=verbose` is present.
+
+- **"normal"** (default): Logs warnings and errors
+- **"verbose"**: Logs debug, info, warn, and error levels
+
+### Toggle Logging Mode
+
+Use the command palette command **"Qwiki: Toggle Logging Mode"** to switch between the two modes:
+
+- Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+- Type "Qwiki: Toggle Logging Mode"
+- The mode toggles: Normal ↔ Verbose
+- A notification shows the current active mode
 
 ### Backend (Extension Host)
 
 ```typescript
 // src/infrastructure/services/LoggingService.ts
 type LogLevel = "debug" | "info" | "warn" | "error";
-
-export interface LogEntry {
-  timestamp: Date;
-  level: LogLevel;
-  service: string;
-  message: string;
-  data?: unknown;
-}
+type LogMode = "normal" | "verbose";
 
 export interface LoggerConfig {
-  enabled: boolean;
-  level: LogLevel;
+  mode: LogMode;
   includeTimestamp: boolean;
   includeService: boolean;
 }
 
 export class LoggingService {
-  constructor(private config: LoggerConfig) {}
+  private static instance: LoggingService;
+
+  static getInstance(): LoggingService;
+  static setInstance(instance: LoggingService): void;
+
+  constructor(config: LoggerConfig);
+  setMode(mode: LogMode): void;
+  getMode(): LogMode;
+
   debug(service: string, message: string, data?: unknown): void;
   info(service: string, message: string, data?: unknown): void;
   warn(service: string, message: string, data?: unknown): void;
   error(service: string, message: string, data?: unknown): void;
 }
+
+export function createLogger(serviceName: string): Logger;
 ```
 
+**Key Features**:
+
+- Singleton pattern - single instance across the application
 - Registered once in `AppBootstrap` (`loggingService` key)
 - Injected into services/commands/events via DI container
-- Default config: `{ enabled: false, level: "error", includeTimestamp: true, includeService: true }`
-- Enable or adjust level via configuration manager when diagnostics required
+- Default config: `{ mode: "normal", includeTimestamp: true, includeService: true }` (set to `"verbose"` automatically when `LOG_MODE=verbose`)
+- Mode can be changed at runtime via `setMode()` or command palette
+- Log levels filtered based on mode:
+  - `"normal"`: Only `warn` and `error`
+  - `"verbose"`: All levels (`debug`, `info`, `warn`, `error`)
 
 ### Frontend (Webview)
 
 ```typescript
 // webview-ui/src/utilities/logging.ts
 type LogLevel = "debug" | "info" | "warn" | "error";
+type LogMode = "normal" | "verbose";
 
 export interface FrontendLoggerConfig {
-  enabled: boolean;
-  level: LogLevel;
+  mode: LogMode;
   includeTimestamp: boolean;
   includeSource: boolean;
 }
 
-export const createLogger = (
-  source: string,
-  overrides?: Partial<FrontendLoggerConfig>,
-) => ({
+export class FrontendLoggingService {
+  private static instance: FrontendLoggingService;
+
+  static getInstance(): FrontendLoggingService;
+  static setInstance(instance: FrontendLoggingService): void;
+
+  setMode(mode: LogMode): void;
+  getMode(): LogMode;
+}
+
+export function createLogger(source: string): Logger;
+
+export type Logger = {
   debug(message: string, data?: unknown): void;
   info(message: string, data?: unknown): void;
   warn(message: string, data?: unknown): void;
   error(message: string, data?: unknown): void;
-});
+};
 ```
 
-- Mirrors backend behaviour (level thresholds, metadata formatting)
-- Default config: `{ enabled: true, level: "debug", includeTimestamp: true, includeSource: true }`
+**Key Features**:
+
+- Mirrors backend behavior (mode-based filtering, metadata formatting)
+- Default config: `{ mode: "normal", includeTimestamp: true, includeSource: true }`
+- Mode synchronized with backend when changed via command palette
 - Intended to replace all raw `console.*` usage inside `webview-ui`
 - Forward logs to the extension by combining with `vscode.postMessage({ command: "frontendLog", ... })` when central aggregation is needed

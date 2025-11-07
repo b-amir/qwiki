@@ -4,6 +4,17 @@
 
 This guide will help you get started with developing the Qwiki VS Code extension. Qwiki is a VS Code extension that generates documentation for code using AI models.
 
+## Audience & Guardrails
+
+- **AI agents**
+  - Do not run, build, or preview the extension unless explicitly asked.
+  - Avoid adding code comments; keep functions short, simple, and self-explanatory.
+  - Do not create tests unless the request calls for them.
+  - Use existing services, repositories, factories, constants, and the DI container—never bypass the established seams.
+- **Human developers**
+  - Follow this onboarding guide for local setup, debugging, and contribution workflow details.
+  - Prefer the same architectural seams outlined here and in `docs/ARCHITECTURE.md` to keep contributions consistent.
+
 ## Prerequisites
 
 Before you start, make sure you have:
@@ -16,145 +27,48 @@ Before you start, make sure you have:
 
 ## Getting Started
 
-### 1. Clone the Repository
+Follow the quick start instructions in `README.md` to clone the repository, install dependencies, build the webview, and launch the extension host. Once your environment matches the README checklist, return here for day-to-day workflows and guardrails.
 
-```bash
-git clone <repository-url>
-cd qwiki
-```
+## Development Rules
 
-### 2. Install Dependencies
+### Strict Rules
 
-```bash
-pnpm run install:all
-```
+1. No debug logging unless specifically requested.
+2. Do not add code comments—write clear, self-explanatory code instead.
+3. Skip automated tests unless the task explicitly calls for them.
+4. Avoid running, compiling, or previewing the project unless instructed.
+5. Keep implementations simple; break down complicated logic and long functions.
+6. Separate logic and data—do not hardcode data inside core logic.
 
-This installs dependencies for both the extension and the webview UI.
+### Conventions You Must Not Break
 
-### 3. Build the Webview UI
+- Resolve dependencies through the DI container (`AppBootstrap`, factories, or `Container`), never instantiate concrete classes inline.
+- Import commands, events, limits, error codes, and other shared values from `src/constants/index.ts`; do not introduce magic strings.
+- Prefer barrel exports to deep relative paths.
+- Communicate with the webview exclusively through `MessageBusService` and the defined event constants.
+- Use repository abstractions for configuration and secrets; never access VS Code APIs for storage directly from application logic.
 
-```bash
-pnpm run build:webview
-```
+### Do & Don't Checklist
 
-### 4. Build the Extension
-
-```bash
-pnpm run compile
-```
-
-### 5. Run in Development Mode
-
-1. Open the project in VS Code
-2. Press F5 to launch a new Extension Development Host window
-3. In the new window, open a project folder
-4. Open the Qwiki panel from the activity bar
-5. Configure an LLM provider in the settings to test functionality
+- **Do**
+  - Use `CommandFactory` and `CommandRegistry` when exposing new commands.
+  - Register services and repositories once in `AppBootstrap`; wire readiness in `ServiceTiers.ts` when needed.
+  - Publish UI updates through `MessageBusService` and respect the defined `OutboundEvents` payloads.
+  - Follow `FilePatterns`, `FileLimits`, and `PathPatterns` when scanning the workspace.
+  - Read and write configuration exclusively via `ConfigurationManagerService` and its validation helpers.
+  - Check file sizes with the `read_file` tool metadata to keep all files under 300 lines.
+- **Don't**
+  - Bypass the DI container or construct services inline.
+  - Post messages directly to a webview without going through the message bus.
+  - Introduce new magic strings for commands, events, or paths.
+  - Store secrets or configuration outside of the provided repositories/managers.
+  - Add comments, overly long methods, or complex branching when a simpler decomposition exists.
+  - Ignore readiness: never bypass `ServiceReadinessManager` when a command depends on late-loading services.
+  - Use shell utilities (`wc -l`, etc.) to check file length—instead rely on tooling output.
 
 ## Project Structure
 
-The project follows a clean architecture with clear separation of concerns:
-
-```
-qwiki/
-├── src/                      # Extension source code
-│   ├── extension.ts          # Main extension entry point
-│   ├── application/          # Application layer (services, commands)
-│   │   ├── services/         # See ARCHITECTURE.md for complete list
-│   │   │   ├── Core Services:
-│   │   │   │   ├── WikiService.ts
-│   │   │   │   ├── CachedWikiService.ts
-│   │   │   │   ├── SelectionService.ts
-│   │   │   │   ├── ProjectContextService.ts
-│   │   │   │   ├── CachedProjectContextService.ts
-│   │   │   │   ├── MessageBusService.ts
-│   │   │   │   └── WikiStorageService.ts
-│   │   │   ├── Configuration Services:
-│   │   │   │   ├── ConfigurationManagerService.ts
-│   │   │   │   ├── ConfigurationValidationEngineService.ts
-│   │   │   │   ├── ConfigurationTemplateService.ts
-│   │   │   │   ├── ConfigurationImportExportService.ts
-│   │   │   │   └── ConfigurationMigrationService.ts
-│   │   │   ├── Context Intelligence Services:
-│   │   │   │   ├── ContextIntelligenceService.ts (Orchestrator)
-│   │   │   │   ├── context/FileRelevanceAnalysisService.ts
-│   │   │   │   ├── context/FileRelevanceBatchService.ts
-│   │   │   │   ├── context/FileSelectionService.ts
-│   │   │   │   ├── context/TokenBudgetCalculatorService.ts
-│   │   │   │   ├── context/ProjectTypeDetectionService.ts
-│   │   │   │   ├── context/EssentialFilesIdentifierService.ts
-│   │   │   │   └── context/ContextCompressionService.ts
-│   │   │   ├── README Automation Services:
-│   │   │   │   ├── ReadmeUpdateService.ts (Orchestrator)
-│   │   │   │   ├── readme/ReadmeAnalysisService.ts
-│   │   │   │   ├── readme/ReadmeGenerationService.ts
-│   │   │   │   ├── readme/ReadmeBackupService.ts
-│   │   │   │   └── readme/ReadmeApprovalService.ts
-│   │   │   └── Provider Services:
-│   │   │       ├── ContextAnalysisService.ts (Orchestrator)
-│   │   │       ├── context/PatternExtractionService.ts
-│   │   │       ├── context/StructureAnalysisService.ts
-│   │   │       ├── context/RelationshipAnalysisService.ts
-│   │   │       ├── context/ComplexityCalculationService.ts
-│   │   │       ├── SmartProviderSelectionService.ts
-│   │   │       ├── ProviderSelectionService.ts
-│   │   │       ├── ProviderFallbackManagerService.ts
-│   │   │       ├── ProviderDiscoveryService.ts
-│   │   │       ├── ProviderLifecycleManagerService.ts
-│   │   │       ├── ProviderDependencyResolverService.ts
-│   │   │       ├── ProviderValidationService.ts
-│   │   │       └── ProviderSelectionIntegrationService.ts
-│   │   ├── transformers/     # Data transformation layer
-│   │   │   └── WikiTransformer.ts
-│   │   ├── commands/         # See ARCHITECTURE.md for complete list
-│   │   │   ├── Command.ts    # Base interface
-│   │   │   ├── GenerateWikiCommand.ts
-│   │   │   ├── GetSelectionCommand.ts
-│   │   │   ├── SaveWikiCommand.ts
-│   │   │   ├── Configuration commands (10+)
-│   │   │   └── Provider commands (5+)
-│   │   ├── CommandRegistry.ts
-│   │   └── AppBootstrap.ts   # DI container setup
-│   ├── domain/               # Domain entities and repository interfaces
-│   ├── infrastructure/       # External integrations (repositories, services)
-│   │   ├── repositories/    # VS Code implementations
-│   │   └── services/        # Technical services
-│   │       ├── performance/ # Performance monitoring
-│   │       │   ├── MetricsCollectionService.ts
-│   │       │   ├── StatisticsCalculationService.ts
-│   │       │   └── PerformanceMonitoringService.ts
-│   │       ├── caching/     # Caching infrastructure
-│   │       │   ├── CacheService.ts
-│   │       │   └── WikiCacheService.ts
-│   │       ├── ProjectIndexService.ts # Project indexing
-│   │       ├── ProjectChangeDetectorService.ts
-│   │       ├── GitChangeDetectorService.ts
-│   │       ├── EnvironmentMonitoringService.ts
-│   │       └── LoggingService.ts # Structured logging
-│   ├── llm/                  # LLM provider system
-│   │   ├── providers/        # Provider implementations
-│   │   ├── prompt.ts         # Prompt building logic
-│   │   └── registry.ts       # Provider registry
-│   ├── panels/               # VS Code webview panels
-│   ├── views/                # VS Code tree views and custom editors
-│   │   ├── WikiTreeViewProvider.ts
-│   │   └── WikiDocumentProvider.ts
-│   ├── providers/            # VS Code language feature providers
-│   │   ├── WikiHoverProvider.ts
-│   │   ├── WikiCompletionProvider.ts
-│   │   └── WikiDiagnosticProvider.ts
-│   ├── container/            # Dependency injection
-│   ├── constants/            # Application constants
-│   │   └── ServiceLimits.ts  # Service configuration limits
-│   ├── errors/               # Custom error classes
-│   ├── events/               # Event system
-│   ├── factories/            # Factory patterns
-│   └── utilities/            # Helper functions
-├── webview-ui/               # Vue.js webview application
-├── docs/                     # Documentation
-├── resources/                # Extension resources
-└── package.json              # Extension manifest and dependencies
-```
+Refer to `docs/ARCHITECTURE.md` for the canonical breakdown of layers, modules, and service catalogs. This onboarding guide focuses on workflows and conventions you will use after setup.
 
 ## Key Concepts
 
@@ -275,7 +189,16 @@ if (result.requiresApproval) {
 await readmeUpdate.undoLastUpdate();
 ```
 
-### 7. VS Code Language Features
+### 7. Service Readiness & Initialization
+
+- `ServiceReadinessManager` centralizes readiness tracking, provides `isReady`, `waitForService`, and emits readiness events (`service:ready`, `critical:ready`, `commandWaiting`).
+- `ServiceTiers.ts` defines critical (< 500ms) and background (< 30s) tiers, immediate commands, command dependency maps, and timeout budgets used by the readiness pipeline.
+- `AppBootstrap` registers tiers and command requirements, initializes critical services synchronously, starts background services in parallel, publishes `backgroundInitProgress`, and exposes `criticalInitPromise`/`backgroundInitPromise`.
+- `ProjectIndexService.quickInit()` hydrates cached index data immediately, marks the service ready for degraded workflows, and completes the full scan asynchronously with cache invalidation and watchers.
+- `WebviewMessageHandler` enforces readiness-aware command execution, waits only for critical services, emits `commandWaiting` payloads, and sends timeouts via the centralized error modal when dependencies remain unready.
+- `EnvironmentStatusManager` aggregates readiness data so the webview environment store can render initialization progress, availability banners, and degraded state messaging.
+
+### 8. VS Code Language Features
 
 The extension provides VS Code language features for enhanced development experience:
 
@@ -309,206 +232,7 @@ The extension provides VS Code language features for enhanced development experi
 
 ### 3. Adding New LLM Providers
 
-**Current Process**:
-
-1. Create a provider file under `src/llm/providers/<provider-id>.ts` implementing enhanced `LLMProvider` interface.
-2. Create a provider manifest file (`provider.json`) with metadata and capabilities.
-3. Place provider files in a discoverable directory (automatic discovery) or register in `src/llm/providers/registry.ts`.
-4. No modifications elsewhere. The system discovers and loads providers dynamically.
-
-**Current Capabilities**:
-
-- ✅ Dynamic provider discovery with manifest system
-- ✅ Provider lifecycle management (initialize, dispose, health checks)
-- ✅ Capability-based provider selection
-- ✅ Dependency resolution between providers
-- ✅ Hot-reloading without extension restart
-
-**Example provider structure**:
-
-```typescript
-// src/llm/providers/newprovider.ts
-import { LLMProvider, ProviderConfig, ProviderMetadata } from "../types";
-
-export class NewProvider implements LLMProvider {
-  id = "newprovider";
-  name = "New Provider";
-  requiresApiKey = true;
-
-  async initialize(): Promise<void> {
-    // Provider initialization logic
-  }
-
-  async dispose(): Promise<void> {
-    // Cleanup logic
-  }
-
-  async healthCheck(): Promise<HealthCheckResult> {
-    // Health check implementation
-  }
-
-  getCapabilities(): ProviderCapabilities {
-    return {
-      maxTokens: 4096,
-      supportedLanguages: ["typescript", "python"],
-      features: ["streaming", "function-calling"],
-      documentationTypes: ["javadoc", "jsdoc", "pydoc"],
-      complexity: { min: 1, max: 10 }
-    };
-  }
-
-  getMetadata(): ProviderMetadata {
-    return {
-      id: "newprovider",
-      name: "New Provider",
-      version: "1.0.0",
-      description: "A new LLM provider for Qwiki",
-      author: "Your Name",
-      homepage: "https://github.com/yourname/newprovider",
-      capabilities: this.getCapabilities(),
-      dependencies: [],
-      minQwikiVersion: "2.0.0",
-      entryPoint: "./newprovider.js"
-    };
-  }
-
-  generate: async (prompt, options) => {
-    // Provider-specific implementation
-  };
-
-  listModels: () => ["model1", "model2"];
-
-  getUiConfig: () => ({
-    apiKeyRequired: true,
-    customFields: [{ key: "model", label: "Model", type: "select", options: ["model1", "model2"] }],
-  });
-}
-```
-
-**Provider Manifest**:
-
-```json
-{
-  "id": "newprovider",
-  "name": "New Provider",
-  "version": "1.0.0",
-  "description": "A new LLM provider for Qwiki",
-  "author": "Your Name",
-  "homepage": "https://github.com/yourname/newprovider",
-  "capabilities": {
-    "maxTokens": 4096,
-    "supportedLanguages": ["typescript", "python"],
-    "features": ["streaming", "function-calling"],
-    "documentationTypes": ["javadoc", "jsdoc", "pydoc"],
-    "complexity": { "min": 1, "max": 10 }
-  },
-  "dependencies": [],
-  "minQwikiVersion": "2.0.0",
-  "entryPoint": "./newprovider.js",
-  "manifestVersion": "1.0",
-  "checksum": "sha256-hash-of-provider-files"
-}
-```
-
-**Future Vision: Plugin System**:
-
-1. **Provider Self-Registration**: Providers register themselves dynamically
-2. **Runtime Discovery**: No core code modifications needed
-3. **Capability-Based**: Providers declare their capabilities and requirements
-4. **Hot-Pluggable**: Add/remove providers without restarting
-5. **Plugin Marketplace**: Third-party provider distribution
-
-## Code Style Guidelines
-
-### 1. General Rules
-
-- No comments in the code (code should be self-explanatory)
-- Keep functions small and focused
-- Use descriptive variable and function names
-- Follow TypeScript best practices
-- Use barrel imports for cleaner import statements
-
-### 2. File Organization
-
-- Use index.ts files for barrel exports
-- Group related files in directories
-- Follow the established naming conventions
-- Keep file structure consistent with the architecture
-
-### 3. Error Handling
-
-- Use custom error classes from `src/errors/`
-- Implement proper error recovery
-- Provide meaningful error messages to users
-- Use the global error handler for consistent error processing
-
-## Common Tasks
-
-### 1. Adding a New Command
-
-1. Create command class in `src/application/commands/`
-2. Implement the `Command` interface
-3. Register the command in `CommandRegistry`
-4. Add command to constants
-5. Update webview to call the new command
-
-Example:
-
-```typescript
-// src/application/commands/NewFeatureCommand.ts
-export class NewFeatureCommand implements Command {
-  async execute(...args: any[]): Promise<any> {
-    // Implementation
-  }
-}
-
-// Register in CommandRegistry
-container.register("newFeatureCommand", () => new NewFeatureCommand());
-commandRegistry.register("newFeature", "newFeatureCommand");
-```
-
-### 2. Adding a New Service
-
-1. Create service class in `src/application/services/`
-2. Define service interface if needed
-3. Register service in `AppBootstrap`
-4. Inject service where needed
-
-Example:
-
-```typescript
-// src/application/services/NewService.ts
-export class NewService {
-  constructor(private dependency: Dependency) {}
-
-  async performAction(): Promise<Result> {
-    // Implementation
-  }
-}
-
-// Register in AppBootstrap
-container.register("newService", () => new NewService(container.get("dependency")));
-```
-
-### 3. Adding a New Repository Implementation
-
-1. Create implementation in `src/infrastructure/repositories/`
-2. Implement the repository interface from domain layer
-3. Register implementation in `AppBootstrap`
-
-Example:
-
-```typescript
-// src/infrastructure/repositories/NewRepositoryImpl.ts
-export class NewRepositoryImpl implements NewRepository {
-  async save(data: Data): Promise<void> {
-    // Implementation
-  }
-}
-
-// Register in AppBootstrap
-container.register("newRepository", () => new NewRepositoryImpl());
-```
+Follow the canonical contract in `docs/API_REFERENCE.md#llm-provider-api` for interface details, manifests, lifecycle hooks, and discovery rules. After your provider adheres to those requirements, register it through the DI container and provider registry as outlined in the API reference.
 
 ### 4. Working with Context Intelligence
 
@@ -706,6 +430,70 @@ If you need help:
 3. Ask questions in team channels
 4. Create an issue for bugs or feature requests
 
+## Navigation System
+
+### Overview
+
+The QWiki navigation system uses a state machine pattern to manage page transitions with guard validation and separated loading states. It provides a single source of truth for navigation state and eliminates race conditions.
+
+### Core Components
+
+- **Navigation Store** (`webview-ui/src/stores/navigation.ts`): Single source of truth for navigation state with state machine
+- **useNavigation Composable** (`webview-ui/src/composables/useNavigation.ts`): Reactive navigation API
+- **usePageLoading Composable** (`webview-ui/src/composables/usePageLoading.ts`): Page-specific loading state management
+
+### State Machine
+
+The navigation system uses a finite state machine with four states:
+
+- `idle`: No navigation in progress
+- `validating`: Guard validation in progress
+- `navigating`: Navigation transition in progress
+- `blocked`: Navigation blocked by guard validation failure
+
+### Usage Pattern
+
+```vue
+<script setup lang="ts">
+import { useNavigation } from "@/composables/useNavigation";
+import { usePageLoading } from "@/composables/usePageLoading";
+
+const navigation = useNavigation();
+const pageLoading = usePageLoading("wiki", "wiki");
+
+// Navigate to a page
+await navigation.navigateTo("settings");
+
+// Check loading states
+const isNavigating = pageLoading.showNavigationLoading.value;
+const isPageLoading = pageLoading.showPageLoading.value;
+</script>
+```
+
+### Navigation Guards
+
+Navigation guards are pure validation functions that return structured results:
+
+```typescript
+const navigation = useNavigation();
+
+navigation.setNavigationGuard(async (target, direction) => {
+  if (target === "settings" && direction === "back") {
+    const isValid = await validateSettings();
+    return {
+      allowed: isValid,
+      error: isValid
+        ? undefined
+        : {
+            message: "Settings validation failed",
+            code: "VALIDATION_ERROR",
+          },
+    };
+  }
+  return { allowed: true };
+});
+```
+
 ## Loading System
 
 ### Overview
@@ -747,6 +535,45 @@ interface Props {
 **Location:** `/webview-ui/src/stores/loading.ts`
 
 Central coordinator that owns loading state per context (`wiki`, `settings`, `navigation`, `environment`, `savedWikis`, `errorHistory`).
+
+### Error System Architecture
+
+The QWiki error system provides centralized error management with automatic cleanup on navigation:
+
+**Core Components**:
+
+- **Error Store** (`webview-ui/src/stores/error.ts`): Single source of truth for error state
+- **GlobalErrorModal** (`webview-ui/src/components/GlobalErrorModal.vue`): Single error modal instance in App.vue
+- **useError Composable** (`webview-ui/src/composables/useError.ts`): Convenience methods for error reporting
+
+**Key Features**:
+
+- Automatic error clearing on page navigation
+- Error lifecycle management (active → dismissed → archived)
+- Configurable error actions (retry, navigate, custom)
+- Error history preservation
+- Page context tracking
+
+**Usage Pattern**:
+
+```typescript
+import { useError } from "@/composables/useError";
+
+const { showError, showRetryableError, showConfigurationError } = useError();
+
+// Show a simple error
+showError({
+  message: "Operation failed",
+  code: "OPERATION_FAILED",
+  suggestions: ["Check your connection", "Try again later"],
+});
+
+// Show retryable error
+showRetryableError("Network request failed", () => retryOperation(), { code: "NETWORK_ERROR" });
+
+// Show configuration error with navigation action
+showConfigurationError("API key is missing", "API_KEY_MISSING");
+```
 
 **Core Actions:**
 
@@ -931,7 +758,10 @@ To migrate from legacy loading patterns to the new centralized system:
 - Constants: `src/constants/`
 - Error Classes: `src/errors/`
 - Webview UI: `webview-ui/src/`
+- Navigation Store: `webview-ui/src/stores/navigation.ts`
 - Loading Store: `webview-ui/src/stores/loading.ts`
+- Navigation Composables: `webview-ui/src/composables/useNavigation.ts`, `webview-ui/src/composables/usePageLoading.ts`
+- Error Composable: `webview-ui/src/composables/useError.ts`
 - Loading Components: `webview-ui/src/components/features/LoadingState.vue`
 - DI Container: `src/container/Container.ts`
 - Extension Entry: `src/extension.ts`
@@ -945,6 +775,7 @@ To migrate from legacy loading patterns to the new centralized system:
 - **Factory Pattern**: Object creation
 - **Dependency Injection**: Service management
 - **Event System**: Loose coupling
+- **State Machine Navigation**: Navigation with guard validation
 - **Central Loading**: Unified loading state management
 
 ### Key Classes
@@ -954,7 +785,11 @@ To migrate from legacy loading patterns to the new centralized system:
 - `MessageBusService`: Webview communication
 - `EventBus`: Event system
 - `AppBootstrap`: Application initialization
+- `useNavigation`: Navigation composable with reactive state
+- `usePageLoading`: Page-specific loading state composable
+- `useError`: Error reporting composable with automatic context injection
 - `useLoading`: Loading state composable
+- `NavigationStore`: Navigation state machine with guard validation
 - `LoadingStore`: Central loading state management
 - `ContextIntelligenceService`: Orchestrates optimal context selection
 - `ReadmeUpdateService`: Orchestrates README automation workflow
