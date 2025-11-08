@@ -8,3 +8,4 @@ export { MessageTemplates, MessageStrings, MessageFormats } from "./MessageConst
 export { PathPatterns, PathStrings, VSCodeCommands } from "./PathConstants";
 export { WebviewPaths, WebviewHtml } from "./WebviewConstants";
 export { ServiceLimits } from "./ServiceLimits";
+export { CommandPaletteText } from "./CommandPalette";

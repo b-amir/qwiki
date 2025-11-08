@@ -294,9 +294,16 @@ export class QwikiPanel {
     this.cancelActiveGeneration().catch((error) => {
       this.logError("Failed to cancel active generation", error);
     });
-    this.navigationManager?.queueNavigation(page);
+
+    const queueNavigation = () => {
+      this.navigationManager?.queueNavigation(page);
+      this.navigationManager?.flushPendingNavigation();
+    };
+
     commands.executeCommand(VSCodeCommandIds.openPanelView);
     this.view?.show?.(true);
+
+    setTimeout(queueNavigation, 0);
   }
 
   public createWikiFromEditorSelection() {

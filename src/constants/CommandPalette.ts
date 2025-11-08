@@ -1,0 +1,75 @@
+export const CommandPaletteText = {
+  title: "Qwiki Command Palette",
+  placeholder: "Select a Qwiki command...",
+  refreshTooltip: "Refresh Qwiki status",
+  busyMessage: "Refreshing Qwiki status...",
+  defaultSelection: null,
+  behavior: {
+    autoReopenLimit: 2,
+    autoReopenDelayMs: 200,
+    autoReopenWindowMs: 1500,
+  },
+  dynamic: {
+    providerLabel: "Current provider",
+    providerUnknown: "No provider selected",
+    savedWikisNone: "No saved wikis yet",
+    savedWikisCountSuffix: "saved wikis available",
+    loggingModeLabel: "Current mode",
+  },
+  commands: {
+    showPanel: {
+      key: "showPanel",
+      label: "$(book) Show Panel",
+      description: "Open Qwiki panel",
+      detail: "Display the Qwiki workspace for generating and reviewing documentation",
+    },
+    createQuickWiki: {
+      key: "createQuickWiki",
+      label: "$(sparkle) Create Quick Wiki",
+      description: "Generate wiki from selected code",
+      detail: "Use the current selection to create contextual documentation instantly",
+    },
+    viewSavedWikis: {
+      key: "viewSavedWikis",
+      label: "$(archive) Saved Wikis",
+      description: "View saved wikis",
+      detail: "Open the saved wiki collection in the sidebar tree view",
+    },
+    selectProvider: {
+      key: "selectProvider",
+      label: "$(circuit-board) Select Provider",
+      description: "Select LLM provider",
+      detail: "Choose which large language model provider Qwiki should use",
+    },
+    viewErrorHistory: {
+      key: "viewErrorHistory",
+      label: "$(warning) Error History",
+      description: "View error history",
+      detail: "Inspect the centralized error log for recent issues and resolutions",
+    },
+    viewSettings: {
+      key: "viewSettings",
+      label: "$(gear) Settings",
+      description: "Open Qwiki settings",
+      detail: "Jump directly to the Qwiki configuration page",
+    },
+    toggleOutputChannel: {
+      key: "toggleOutputChannel",
+      label: "$(megaphone) Toggle Output Channel",
+      description: "Show or hide Qwiki output channel",
+      detail: "Reveal or hide the logging output channel for Qwiki",
+    },
+    toggleLoggingMode: {
+      key: "toggleLoggingMode",
+      label: "$(sync) Toggle Logging Mode",
+      description: "Cycle between Normal and Verbose logging",
+      detail: "Switch the logging verbosity to adjust diagnostic detail",
+    },
+    cancelActiveRequest: {
+      key: "cancelActiveRequest",
+      label: "$(close) Cancel Active Request",
+      description: "Cancel active wiki generation",
+      detail: "Stop the currently running generation request and clear its progress",
+    },
+  },
+} as const;

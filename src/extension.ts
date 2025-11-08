@@ -29,6 +29,7 @@ import {
   WikiCustomEditorProvider,
   QwikiDocumentSymbolProvider,
 } from "./providers";
+import { registerShowCommandsCommand } from "./presentation/commands/registerShowCommandsCommand";
 
 let qwikiProvider: QwikiPanel | undefined;
 let savedWikisTreeProvider: SavedWikisTreeDataProvider | undefined;
@@ -213,66 +214,7 @@ export function activate(context: ExtensionContext) {
   qwikiStatusBarItem.show();
   context.subscriptions.push(qwikiStatusBarItem);
 
-  const showCommandsCommand = commands.registerCommand(VSCodeCommandIds.showCommands, async () => {
-    const qwikiCommands: Array<{ label: string; command: string; description: string }> = [
-      {
-        label: "Show Panel",
-        command: VSCodeCommandIds.showPanel,
-        description: "Open Qwiki panel",
-      },
-      {
-        label: "Create a quick wiki!",
-        command: VSCodeCommandIds.createQuickWiki,
-        description: "Generate wiki from selected code",
-      },
-      {
-        label: "Saved Wikis",
-        command: VSCodeCommandIds.viewSavedWikis,
-        description: "View saved wikis",
-      },
-      {
-        label: "Select Provider",
-        command: VSCodeCommandIds.selectProvider,
-        description: "Select LLM provider",
-      },
-      {
-        label: "Error History",
-        command: VSCodeCommandIds.viewErrorHistory,
-        description: "View error history",
-      },
-      {
-        label: "Settings",
-        command: VSCodeCommandIds.viewSettings,
-        description: "Open Qwiki settings",
-      },
-      {
-        label: "Toggle Output Channel",
-        command: VSCodeCommandIds.toggleOutputChannel,
-        description: "Show or hide Qwiki output channel",
-      },
-      {
-        label: "Toggle Logging Mode",
-        command: VSCodeCommandIds.toggleLoggingMode,
-        description: "Cycle through logging modes: Normal ↔ Verbose",
-      },
-    ];
-
-    if (WikiEventHandler.instance?.hasActiveGeneration()) {
-      qwikiCommands.push({
-        label: "Cancel Active Request",
-        command: VSCodeCommandIds.cancelActiveRequest,
-        description: "Cancel active wiki generation",
-      });
-    }
-
-    const selected = await window.showQuickPick(qwikiCommands, {
-      placeHolder: "Select a Qwiki command...",
-    });
-
-    if (selected) {
-      commands.executeCommand(selected.command);
-    }
-  });
+  const showCommandsCommand = registerShowCommandsCommand(() => qwikiProvider?.getContainer?.());
 
   const cancelGenerationCommand = commands.registerCommand(
     VSCodeCommandIds.cancelGeneration,
