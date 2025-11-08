@@ -4,7 +4,7 @@ export const MessageTemplates = {
 } as const;
 
 export const MessageStrings = {
-  openFileToCreate: "Open a file to create a Qwiki entry.",
+  openFileToCreate: "Open a file to generate a Qwiki entry.",
   selectCodeToBuild: "Select some code or add content to the current file to build a wiki.",
   noCodeSelected: "No code selected. Please select some code to generate documentation.",
   generateFailedDefault: "Failed to generate documentation",

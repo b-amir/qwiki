@@ -95,7 +95,7 @@ const buttonText = computed(() => {
                 >or right-click:
                 <span
                   class="bg-background text-foreground shadow-xs ml-1 inline-flex h-5 items-center justify-center whitespace-nowrap rounded px-1.5 text-xs font-medium"
-                  >Qwiki: Create a quick wiki</span
+                  >Qwiki: Generate a Quick Wiki</span
                 ></span
               >
             </div>

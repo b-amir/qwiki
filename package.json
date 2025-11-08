@@ -275,7 +275,7 @@
       },
       {
         "command": "qwiki.createQuickWiki",
-        "title": "Qwiki: Create a quick wiki!"
+        "title": "Qwiki: Generate a Quick Wiki!"
       },
       {
         "command": "qwiki.selectProvider",
