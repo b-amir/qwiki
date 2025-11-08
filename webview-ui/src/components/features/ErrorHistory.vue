@@ -4,21 +4,29 @@ import { useErrorHistoryStore, type ErrorHistoryEntry } from "@/stores/errorHist
 import { useLoading } from "@/loading/useLoading";
 import Button from "@/components/ui/button.vue";
 import { createLogger } from "@/utilities/logging";
+import { LoadingViewAnimations } from "@/constants/loadingViewAnimations";
 
 const errorHistory = useErrorHistoryStore();
 const showDetails = ref<string[]>([]);
 const logger = createLogger("ErrorHistory");
 const errorHistoryLoadingContext = useLoading("errorHistory");
+const stepDelay = LoadingViewAnimations.minStepDuration;
 
 onMounted(() => {
+  if (errorHistoryLoadingContext.state.value.startedAt) {
+    if (errorHistoryLoadingContext.isActive.value) {
+      errorHistoryLoadingContext.complete();
+    }
+    return;
+  }
   errorHistoryLoadingContext.start("loadingHistory");
   errorHistoryLoadingContext.advance("fetchingErrors");
   setTimeout(() => {
     errorHistoryLoadingContext.advance("renderingHistory");
     setTimeout(() => {
       errorHistoryLoadingContext.complete();
-    }, 100);
-  }, 100);
+    }, stepDelay);
+  }, stepDelay);
 });
 
 const sortedErrors = computed(() => {
