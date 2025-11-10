@@ -1,5 +1,6 @@
 import type { Command } from "./Command";
 import type { WikiStorageService } from "../services/WikiStorageService";
+import type { ReadmeUpdateService, ReadmeStatus } from "../services/ReadmeUpdateService";
 import type { MessageBusService } from "../services/MessageBusService";
 import {
   LoggingService,
@@ -14,6 +15,7 @@ export class GetSavedWikisCommand implements Command<GetSavedWikisPayload> {
 
   constructor(
     private wikiStorageService: WikiStorageService,
+    private readmeUpdateService: ReadmeUpdateService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService(),
   ) {
@@ -32,9 +34,18 @@ export class GetSavedWikisCommand implements Command<GetSavedWikisPayload> {
     try {
       this.logDebug("Starting to get saved wikis");
       const wikis = await this.wikiStorageService.getAllSavedWikis();
-      this.logDebug("Retrieved saved wikis", { count: wikis.length });
+      const wikiIds = wikis.map((wiki) => wiki.id);
+      const readmeStatus: ReadmeStatus = await this.readmeUpdateService.getReadmeStatus(wikiIds);
 
-      await this.messageBus.postMessage("savedWikisLoaded", { wikis });
+      this.logDebug("Retrieved saved wikis", {
+        count: wikis.length,
+        readmeSynced: readmeStatus.isSynced,
+      });
+
+      await this.messageBus.postMessage("savedWikisLoaded", {
+        wikis,
+        readmeStatus,
+      });
       this.logDebug("Sent savedWikisLoaded message");
     } catch (error) {
       this.logError("Failed to load saved wikis", error);

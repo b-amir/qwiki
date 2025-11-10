@@ -1,6 +1,7 @@
 import type { Command } from "./Command";
-import type { ReadmeUpdateService } from "../services/ReadmeUpdateService";
+import type { ReadmeUpdateService, ReadmeStatus } from "../services/ReadmeUpdateService";
 import type { MessageBusService } from "../services/MessageBusService";
+import type { WikiStorageService } from "../services/WikiStorageService";
 import {
   LoggingService,
   createLogger,
@@ -12,6 +13,7 @@ export class CheckReadmeBackupCommand implements Command<void> {
 
   constructor(
     private readmeUpdateService: ReadmeUpdateService,
+    private wikiStorageService: WikiStorageService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService,
   ) {
@@ -22,13 +24,20 @@ export class CheckReadmeBackupCommand implements Command<void> {
     try {
       this.logger.debug("Checking README backup state");
 
-      const hasBackup = this.readmeUpdateService.getBackupState();
+      const wikis = await this.wikiStorageService.getAllSavedWikis();
+      const readmeStatus: ReadmeStatus = await this.readmeUpdateService.getReadmeStatus(
+        wikis.map((wiki) => wiki.id),
+      );
 
       await this.messageBus.postMessage("readmeBackupState", {
-        hasBackup,
+        hasBackup: readmeStatus.hasBackup,
+        readmeStatus,
       });
 
-      this.logger.debug("README backup state checked", { hasBackup });
+      this.logger.debug("README backup state checked", {
+        hasBackup: readmeStatus.hasBackup,
+        readmeSynced: readmeStatus.isSynced,
+      });
     } catch (error) {
       this.logger.error("Failed to check README backup state", error);
     }

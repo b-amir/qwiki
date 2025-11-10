@@ -1,9 +1,5 @@
 import { EventBus } from "../../events/EventBus";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../../infrastructure/services/LoggingService";
+import { createLogger, type Logger } from "../../infrastructure/services/LoggingService";
 import { WikiStorageService } from "./WikiStorageService";
 import { ReadmePromptOptimizationService } from "./ReadmePromptOptimizationService";
 import { ReadmeStateDetectionService, ReadmeState } from "./ReadmeStateDetectionService";
@@ -11,13 +7,16 @@ import { ReadmeContentAnalysisService } from "./ReadmeContentAnalysisService";
 import { ReadmeBackupService } from "./ReadmeBackupService";
 import { ReadmeFileService } from "./ReadmeFileService";
 import { ReadmePromptBuilderService } from "./ReadmePromptBuilderService";
-import { ReadmeDiffService } from "./ReadmeDiffService";
+import { ReadmeDiffService, type ReadmeChangeSummary } from "./ReadmeDiffService";
 import { ReadmeCacheService } from "./ReadmeCacheService";
 import type { LLMRegistry } from "../../llm";
 import type { ProviderId } from "../../llm/types";
-import type { UpdateResult, ReadmePreview } from "../../domain/entities/ReadmeUpdate";
+import type { UpdateResult } from "../../domain/entities/ReadmeUpdate";
 import { ServiceLimits } from "../../constants/ServiceLimits";
 import { LoadingSteps } from "../../constants/loading";
+import { VSCodeDiffService } from "../../infrastructure/services/VSCodeDiffService";
+import { ReadmeSyncTrackerService } from "./ReadmeSyncTrackerService";
+import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
 
 export interface ReadmeUpdateConfig {
   providerId: ProviderId;
@@ -26,15 +25,17 @@ export interface ReadmeUpdateConfig {
   timeout?: number;
 }
 
+export interface ReadmeStatus {
+  isSynced: boolean;
+  hasBackup: boolean;
+  diffAvailable: boolean;
+  syncedWikiIds: string[];
+  lastUpdatedAt?: number;
+  changeSummary?: ReadmeChangeSummary;
+}
+
 export class ReadmeUpdateService {
   private logger: Logger;
-
-  private pendingUpdate: {
-    wikiIds: string[];
-    config: ReadmeUpdateConfig;
-    generatedContent: string;
-    preview?: ReadmePreview;
-  } | null = null;
 
   constructor(
     private wikiStorageService: WikiStorageService,
@@ -46,8 +47,10 @@ export class ReadmeUpdateService {
     private backupService: ReadmeBackupService,
     private fileService: ReadmeFileService,
     private diffService: ReadmeDiffService,
+    private diffViewer: VSCodeDiffService,
     private cacheService: ReadmeCacheService,
-    private loggingService: LoggingService,
+    private syncTracker: ReadmeSyncTrackerService,
+    private fileSystemService: VSCodeFileSystemService,
     private eventBus?: EventBus,
   ) {
     this.logger = createLogger("ReadmeUpdateService");
@@ -146,6 +149,7 @@ export class ReadmeUpdateService {
           snippet: prompt,
           languageId: "markdown",
           filePath: "README.md",
+          timeoutMs: timeout,
         });
 
         const timeoutPromise = new Promise<never>((_, reject) =>
@@ -162,33 +166,44 @@ export class ReadmeUpdateService {
       const preview = this.diffService.generatePreview(currentReadme, generatedContent);
       const changeSummary = this.diffService.summarizeChanges(preview.changes);
 
-      this.pendingUpdate = {
-        wikiIds,
-        config,
-        generatedContent,
-        preview,
-      };
+      this.emitProgress(LoadingSteps.writingReadmeFile, 95);
+      await this.fileService.writeReadme(generatedContent);
 
-      if (this.eventBus) {
-        this.eventBus.publish("readmeUpdatePreviewReady", {
-          preview,
+      if (readmePath) {
+        await this.syncTracker.recordSync({
+          wikiIds: sortedWikiIds,
+          backupPath,
+          readmePath,
+          updatedAt: Date.now(),
           changeSummary,
-          hasBackup: !!backupPath,
         });
-        this.eventBus.publish("readmeUpdateApprovalRequested", {});
       }
 
-      this.logger.info("README update preview generated, waiting for user approval", {
-        changes: changeSummary,
-        warnings: preview.warnings.length,
-        state: stateResult?.state,
+      if (this.eventBus) {
+        this.eventBus.publish("readmeUpdateProgress", {
+          step: LoadingSteps.writingReadmeFile,
+          percent: 100,
+        });
+        this.eventBus.publish("readme-updated", {
+          wikiCount: wikiIds.length,
+          summary: changeSummary,
+        });
+      }
+
+      this.logger.info("README updated successfully", {
+        wikiCount: wikiIds.length,
+        summary: changeSummary,
+        hasBackup: !!backupPath,
       });
 
+      const summaryText = `+${changeSummary.added} ~${changeSummary.updated} -${changeSummary.removed} ✓${changeSummary.preserved}`;
+
       return {
-        success: false,
-        changes: [],
-        conflicts: ["Waiting for user approval"],
-        requiresApproval: true,
+        success: true,
+        changes: [`README updated (${summaryText})`],
+        conflicts: [],
+        backupPath,
+        requiresApproval: false,
       };
     } catch (error) {
       this.logger.error("Failed to update README", error);
@@ -206,65 +221,70 @@ export class ReadmeUpdateService {
   }
 
   async undoReadmeUpdate(): Promise<{ success: boolean; error?: string }> {
-    return this.backupService.restoreFromBackup((content) => this.fileService.writeReadme(content));
-  }
-
-  async approvePendingUpdate(): Promise<UpdateResult> {
-    if (!this.pendingUpdate) {
-      throw new Error("No pending update to approve");
+    const result = await this.backupService.restoreFromBackup((content) =>
+      this.fileService.writeReadme(content),
+    );
+    if (result.success) {
+      await this.syncTracker.clear();
     }
-
-    const { generatedContent, config, wikiIds } = this.pendingUpdate;
-
-    try {
-      this.emitProgress(LoadingSteps.writingReadmeFile, 95);
-
-      await this.fileService.writeReadme(generatedContent);
-
-      if (this.eventBus) {
-        this.eventBus.publish("readmeUpdateApproved", {});
-        this.eventBus.publish("readme-updated", {
-          wikiCount: wikiIds.length,
-        });
-      }
-
-      this.logger.info("Pending README update approved and applied");
-      this.pendingUpdate = null;
-
-      return {
-        success: true,
-        changes: ["README updated successfully"],
-        conflicts: [],
-      };
-    } catch (error) {
-      this.logger.error("Failed to apply approved README update", error);
-      await this.backupService.deleteBackup();
-      this.pendingUpdate = null;
-      throw error;
-    }
-  }
-
-  async cancelPendingUpdate(): Promise<void> {
-    if (!this.pendingUpdate) {
-      return;
-    }
-
-    this.logger.info("Pending README update cancelled by user");
-
-    await this.backupService.deleteBackup();
-
-    if (this.eventBus) {
-      this.eventBus.publish("readmeUpdateCancelled", {});
-    }
-
-    this.pendingUpdate = null;
-  }
-
-  getPendingPreview(): ReadmePreview | null {
-    return this.pendingUpdate?.preview ?? null;
+    return result;
   }
 
   getBackupState(): boolean {
     return this.backupService.getBackupState();
+  }
+
+  async showLatestDiff(): Promise<void> {
+    const state = await this.syncTracker.getState();
+    if (!state || !state.backupPath || !state.readmePath) {
+      throw new Error("No README diff is available");
+    }
+
+    const backupExists = await this.fileSystemService.fileExists(state.backupPath);
+    if (!backupExists) {
+      throw new Error("README backup no longer exists");
+    }
+
+    const readmeExists = await this.fileSystemService.fileExists(state.readmePath);
+    if (!readmeExists) {
+      throw new Error("README file not found");
+    }
+
+    const diffTitle = this.buildDiffTitle(state);
+    await this.diffViewer.showDiff(state.backupPath, state.readmePath, diffTitle);
+  }
+
+  async getReadmeStatus(currentWikiIds: string[]): Promise<ReadmeStatus> {
+    const sortedIds = [...currentWikiIds].sort();
+    const state = await this.syncTracker.getState();
+    const hasBackup = this.backupService.getBackupState();
+
+    const isSynced =
+      !!state &&
+      state.wikiIds.length === sortedIds.length &&
+      state.wikiIds.every((id, index) => id === sortedIds[index]);
+
+    const diffAvailable =
+      !!state?.backupPath &&
+      hasBackup &&
+      (await this.fileSystemService.fileExists(state.backupPath));
+
+    return {
+      isSynced,
+      hasBackup,
+      diffAvailable,
+      syncedWikiIds: state?.wikiIds ?? [],
+      lastUpdatedAt: state?.updatedAt,
+      changeSummary: state?.changeSummary,
+    };
+  }
+
+  private buildDiffTitle(state: { wikiIds: string[]; updatedAt?: number }): string {
+    const count = state.wikiIds.length;
+    const timestamp =
+      state.updatedAt != null
+        ? new Date(state.updatedAt).toLocaleString()
+        : new Date().toLocaleString();
+    return `README Update (${count} wiki${count === 1 ? "" : "s"} • ${timestamp})`;
   }
 }

@@ -27,4 +27,5 @@ export const PathStrings = {
 
 export const VSCodeCommands = {
   open: "vscode.open",
+  diff: "vscode.diff",
 } as const;

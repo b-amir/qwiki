@@ -9,10 +9,12 @@ import { ServiceLimits } from "../../constants/ServiceLimits";
 
 export class WikiWatcherService {
   private watcher: FileSystemWatcher | undefined;
+  private backupWatcher: FileSystemWatcher | undefined;
   private logger: Logger;
   private disposables: Disposable[] = [];
   private gitUnsubscribe: (() => void) | null = null;
   private savedFolderPath: string | undefined;
+  private backupFolderPath: string | undefined;
   private debouncedRefresh: DebouncedFunction<() => Promise<void>> | null = null;
 
   constructor(
@@ -31,6 +33,7 @@ export class WikiWatcherService {
     if (workspaceFolders?.length) {
       const workspaceRoot = workspaceFolders[0].uri.fsPath;
       this.savedFolderPath = join(workspaceRoot, ".qwiki", "saved");
+      this.backupFolderPath = join(workspaceRoot, ".qwiki", "backup");
     }
   }
 
@@ -79,6 +82,8 @@ export class WikiWatcherService {
       savedFolderPath: this.savedFolderPath,
       gitWatcherEnabled: !!this.gitChangeDetectionService,
     });
+
+    this.startBackupWatcher();
   }
 
   private setupGitWatcher(): void {
@@ -98,6 +103,7 @@ export class WikiWatcherService {
       this.gitUnsubscribe = this.gitChangeDetectionService.subscribeToChanges(
         (changedFiles: ChangedFile[]) => {
           const normalizedSavedPath = this.savedFolderPath!.replace(/\\/g, "/");
+          const normalizedBackupPath = this.backupFolderPath?.replace(/\\/g, "/");
           const wikiFilesChanged = changedFiles.filter((file) => {
             const filePath = file.uri.fsPath.replace(/\\/g, "/");
             return (
@@ -118,6 +124,27 @@ export class WikiWatcherService {
               this.debouncedRefresh();
             }
           }
+
+          if (normalizedBackupPath) {
+            const backupFilesChanged = changedFiles.filter((file) => {
+              const filePath = file.uri.fsPath.replace(/\\/g, "/");
+              return (
+                filePath.startsWith(normalizedBackupPath) &&
+                filePath.endsWith(".md") &&
+                !filePath.endsWith("/")
+              );
+            });
+
+            if (backupFilesChanged.length > 0) {
+              this.logger.debug(
+                `Git changes detected in README backups: ${backupFilesChanged.length} files`,
+                {
+                  files: backupFilesChanged.map((f) => ({ path: f.uri.fsPath, status: f.status })),
+                },
+              );
+              this.publishBackupEvent("changed", backupFilesChanged[0].uri);
+            }
+          }
         },
       );
 
@@ -126,6 +153,43 @@ export class WikiWatcherService {
       });
     } catch (error) {
       this.logger.error("Failed to setup git watcher for saved wikis", error);
+    }
+  }
+
+  private startBackupWatcher(): void {
+    if (!this.backupFolderPath) {
+      return;
+    }
+
+    const pattern = "**/.qwiki/backup/**/*.md";
+    this.backupWatcher = workspace.createFileSystemWatcher(pattern);
+
+    this.backupWatcher.onDidCreate((uri) => {
+      this.logger.info(`README backup created: ${uri.fsPath}`);
+      this.publishBackupEvent("created", uri);
+    });
+
+    this.backupWatcher.onDidChange((uri) => {
+      this.logger.info(`README backup updated: ${uri.fsPath}`);
+      this.publishBackupEvent("changed", uri);
+    });
+
+    this.backupWatcher.onDidDelete((uri) => {
+      this.logger.info(`README backup deleted: ${uri.fsPath}`);
+      this.publishBackupEvent("deleted", uri);
+    });
+
+    this.disposables.push(this.backupWatcher);
+    this.ctx.subscriptions.push(this.backupWatcher);
+  }
+
+  private publishBackupEvent(type: "created" | "changed" | "deleted", uri: Uri): void {
+    if (type === "deleted") {
+      void this.eventBus.publish("readmeBackupDeleted", {});
+    } else {
+      void this.eventBus.publish("readmeBackupCreated", {
+        backupPath: uri.fsPath,
+      });
     }
   }
 
@@ -149,6 +213,11 @@ export class WikiWatcherService {
     if (this.gitUnsubscribe) {
       this.gitUnsubscribe();
       this.gitUnsubscribe = null;
+    }
+
+    if (this.backupWatcher) {
+      this.backupWatcher.dispose();
+      this.backupWatcher = undefined;
     }
 
     for (const disposable of this.disposables) {

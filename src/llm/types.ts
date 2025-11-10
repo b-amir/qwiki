@@ -11,6 +11,7 @@ export type GenerateParams = {
   languageId?: string;
   filePath?: string;
   model?: string;
+  timeoutMs?: number;
   semanticInfo?: SemanticCodeInfo;
   project?: {
     rootName?: string;

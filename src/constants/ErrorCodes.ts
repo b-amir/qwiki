@@ -17,6 +17,12 @@ export const ErrorCodes = {
   apiKeyHealthCheckFailed: "error.apiKeyHealthCheckFailed",
   apiKeyHealthCheckTimeout: "error.apiKeyHealthCheckTimeout",
   providerNoHealthCheck: "error.providerNoHealthCheck",
+  readmeUpdateFailed: "error.readme.updateFailed",
+  readmeUndoFailed: "error.readme.undoFailed",
+  savedWikisLoadFailed: "error.savedWikis.loadFailed",
+  savedWikisLoadTimeout: "error.savedWikis.loadTimeout",
+  savedWikisDeleteFailed: "error.savedWikis.deleteFailed",
+  notificationError: "error.notification",
 } as const;
 
 export const ErrorMessages = {
@@ -38,6 +44,12 @@ export const ErrorMessages = {
   [ErrorCodes.apiKeyHealthCheckFailed]: "Unable to verify API key - connection failed",
   [ErrorCodes.apiKeyHealthCheckTimeout]: "API key validation timed out",
   [ErrorCodes.providerNoHealthCheck]: "Unable to validate API key for this provider",
+  [ErrorCodes.readmeUpdateFailed]: "Failed to update README",
+  [ErrorCodes.readmeUndoFailed]: "Failed to undo README update",
+  [ErrorCodes.savedWikisLoadFailed]: "Failed to load saved wikis",
+  [ErrorCodes.savedWikisLoadTimeout]: "Saved wikis request timed out",
+  [ErrorCodes.savedWikisDeleteFailed]: "Failed to delete saved wiki",
+  [ErrorCodes.notificationError]: "Operation failed",
 } as const;
 
 export const ErrorTitles = {
@@ -59,4 +71,10 @@ export const ErrorTitles = {
   [ErrorCodes.apiKeyHealthCheckFailed]: "API Key Health Check Failed",
   [ErrorCodes.apiKeyHealthCheckTimeout]: "API Key Validation Timeout",
   [ErrorCodes.providerNoHealthCheck]: "Provider Health Check Unavailable",
+  [ErrorCodes.readmeUpdateFailed]: "README Update Failed",
+  [ErrorCodes.readmeUndoFailed]: "README Undo Failed",
+  [ErrorCodes.savedWikisLoadFailed]: "Saved Wikis Load Failed",
+  [ErrorCodes.savedWikisLoadTimeout]: "Saved Wikis Timeout",
+  [ErrorCodes.savedWikisDeleteFailed]: "Saved Wikis Delete Failed",
+  [ErrorCodes.notificationError]: "Notification Error",
 } as const;

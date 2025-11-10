@@ -10,6 +10,7 @@ import {
 } from "../types/ProviderCapabilities";
 import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
 import { performHealthCheck } from "./helpers/healthCheckHelper";
+import { ServiceLimits } from "../../constants";
 
 const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
 
@@ -94,6 +95,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
     ) as "openai-compatible" | "native" | undefined;
     const useNativeEndpoint = endpointType === "native";
     const prompt = buildWikiPrompt(params);
+    const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     if (useNativeEndpoint) {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -113,7 +115,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       let res;
       try {
@@ -128,7 +130,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
-        handleTimeoutError(error, this.id, "Google AI Studio");
+        handleTimeoutError(error, this.id, "Google AI Studio", timeout);
       }
 
       if (!res.ok) {
@@ -152,7 +154,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       ];
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       let res;
       try {
@@ -173,7 +175,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
         clearTimeout(timeoutId);
       } catch (error) {
         clearTimeout(timeoutId);
-        handleTimeoutError(error, this.id, "Google AI Studio");
+        handleTimeoutError(error, this.id, "Google AI Studio", timeout);
       }
 
       if (!res.ok) {

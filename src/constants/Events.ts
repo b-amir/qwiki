@@ -42,10 +42,6 @@ export const OutboundEvents = {
   readmeBackupCreated: "readmeBackupCreated",
   readmeBackupDeleted: "readmeBackupDeleted",
   readmeBackupState: "readmeBackupState",
-  readmeUpdatePreviewReady: "readmeUpdatePreviewReady",
-  readmeUpdateApprovalRequested: "readmeUpdateApprovalRequested",
-  readmeUpdateCancelled: "readmeUpdateCancelled",
-  readmeUpdateApproved: "readmeUpdateApproved",
   readmeUpdateProgress: "readmeUpdateProgress",
   generationCancelled: "generationCancelled",
 } as const;

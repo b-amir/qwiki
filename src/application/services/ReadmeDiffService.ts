@@ -5,6 +5,13 @@ import {
 } from "../../infrastructure/services/LoggingService";
 import type { ReadmePreview, SectionChange } from "../../domain/entities/ReadmeUpdate";
 
+export interface ReadmeChangeSummary {
+  added: number;
+  updated: number;
+  removed: number;
+  preserved: number;
+}
+
 export class ReadmeDiffService {
   private logger: Logger;
 
@@ -121,12 +128,7 @@ export class ReadmeDiffService {
     return warnings;
   }
 
-  summarizeChanges(changes: SectionChange[]): {
-    added: number;
-    updated: number;
-    removed: number;
-    preserved: number;
-  } {
+  summarizeChanges(changes: SectionChange[]): ReadmeChangeSummary {
     return {
       added: changes.filter((c) => c.action === "added").length,
       updated: changes.filter((c) => c.action === "updated").length,

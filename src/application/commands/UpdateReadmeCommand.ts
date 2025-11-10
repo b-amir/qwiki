@@ -62,11 +62,6 @@ export class UpdateReadmeCommand implements Command<UpdateReadmePayload> {
 
       const result = await this.readmeUpdateService.updateReadmeFromWikis(payload.wikiIds, config);
 
-      if (result.requiresApproval) {
-        this.logDebug("README update requires user approval");
-        return;
-      }
-
       if (result.success) {
         await this.messageBus.postMessage("readmeUpdated", {
           result,

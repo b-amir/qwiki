@@ -62,3 +62,4 @@ export {
   type SemanticCodeInfo,
 } from "./LanguageServerIntegrationService";
 export { GitChangeDetectionService, type ChangedFile } from "./GitChangeDetectionService";
+export { VSCodeDiffService } from "./VSCodeDiffService";

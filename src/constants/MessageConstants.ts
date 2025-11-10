@@ -8,6 +8,8 @@ export const MessageStrings = {
   selectCodeToBuild: "Select some code or add content to the current file to build a wiki.",
   noCodeSelected: "No code selected. Please select some code to generate documentation.",
   generateFailedDefault: "Failed to generate documentation",
+  retrySavedWikis: "Try again from Saved Wikis",
+  checkLogs: "Check extension logs for details",
   package: "package",
   deps: "deps",
   devDeps: "devDeps",

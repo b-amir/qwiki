@@ -42,11 +42,12 @@ export function handleTimeoutError(
   error: unknown,
   providerId: string,
   providerName: string,
+  timeoutMs: number,
 ): never {
   if (error instanceof Error && error.name === "AbortError") {
     throw new ProviderError(
       ErrorCodes.NETWORK_ERROR,
-      `${providerName} request timed out after 30 seconds`,
+      `${providerName} request timed out after ${Math.round(timeoutMs / 1000)} seconds`,
       providerId,
       "Request timeout",
     );

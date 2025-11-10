@@ -9,6 +9,7 @@ import {
 } from "../types/ProviderCapabilities";
 import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
 import { performHealthCheck } from "./helpers/healthCheckHelper";
+import { ServiceLimits } from "../../constants";
 
 const COHERE_MODELS = ["command-a-03-2025", "command-r-plus-08-2024", "command-r-08-2024"];
 
@@ -93,9 +94,10 @@ export class CohereProvider implements LLMProvider {
     const model = params.model || COHERE_MODELS[0];
     const url = "https://api.cohere.com/v1/chat";
     const prompt = buildWikiPrompt(params);
+    const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     let res;
     try {
@@ -116,7 +118,7 @@ export class CohereProvider implements LLMProvider {
       clearTimeout(timeoutId);
     } catch (error) {
       clearTimeout(timeoutId);
-      handleTimeoutError(error, this.id, "Cohere");
+      handleTimeoutError(error, this.id, "Cohere", timeout);
     }
 
     if (!res.ok) {

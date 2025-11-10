@@ -9,6 +9,7 @@ import {
 } from "../types/ProviderCapabilities";
 import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
 import { performHealthCheck } from "./helpers/healthCheckHelper";
+import { ServiceLimits } from "../../constants";
 
 const HUGGINGFACE_MODELS = [
   "bigscience/bloomz-7b1",
@@ -109,9 +110,10 @@ export class HuggingFaceProvider implements LLMProvider {
     const model = params.model || HUGGINGFACE_MODELS[0];
     const url = `https://api-inference.huggingface.co/models/${encodeURIComponent(model)}`;
     const prompt = buildWikiPrompt(params);
+    const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     let res;
     try {
@@ -133,7 +135,7 @@ export class HuggingFaceProvider implements LLMProvider {
       clearTimeout(timeoutId);
     } catch (error) {
       clearTimeout(timeoutId);
-      handleTimeoutError(error, this.id, "Hugging Face");
+      handleTimeoutError(error, this.id, "Hugging Face", timeout);
     }
 
     if (!res.ok) {

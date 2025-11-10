@@ -11,6 +11,7 @@ import {
 } from "../types/ProviderCapabilities";
 import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
 import { performHealthCheck } from "./helpers/healthCheckHelper";
+import { ServiceLimits } from "../../constants";
 
 const ZAI_MODELS = [
   "glm-4.5-flash",
@@ -98,6 +99,7 @@ export class ZAiProvider implements LLMProvider {
       | undefined;
     const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
     const url = `${base.replace(/\/$/, "")}/paas/v4/chat/completions`;
+    const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     const messages = [
       {
@@ -110,7 +112,7 @@ export class ZAiProvider implements LLMProvider {
 
     const doRequest = async (modelName: string) => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
         const response = await fetch(url, {
@@ -136,7 +138,7 @@ export class ZAiProvider implements LLMProvider {
         return response;
       } catch (error) {
         clearTimeout(timeoutId);
-        handleTimeoutError(error, this.id, "Z.ai");
+        handleTimeoutError(error, this.id, "Z.ai", timeout);
       }
     };
 

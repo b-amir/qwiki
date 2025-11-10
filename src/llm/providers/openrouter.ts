@@ -9,6 +9,7 @@ import {
 } from "../types/ProviderCapabilities";
 import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
 import { performHealthCheck } from "./helpers/healthCheckHelper";
+import { ServiceLimits } from "../../constants";
 
 const OPENROUTER_MODELS = [
   "openai/gpt-oss-20b",
@@ -97,6 +98,7 @@ export class OpenRouterProvider implements LLMProvider {
     const model = params.model || OPENROUTER_MODELS[0];
     const url = "https://openrouter.ai/api/v1/chat/completions";
     const prompt = buildWikiPrompt(params);
+    const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     const messages = [
       {
@@ -108,7 +110,7 @@ export class OpenRouterProvider implements LLMProvider {
     ];
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     let res;
     try {
@@ -132,7 +134,7 @@ export class OpenRouterProvider implements LLMProvider {
       clearTimeout(timeoutId);
     } catch (error) {
       clearTimeout(timeoutId);
-      handleTimeoutError(error, this.id, "OpenRouter");
+      handleTimeoutError(error, this.id, "OpenRouter", timeout);
     }
 
     if (!res.ok) {

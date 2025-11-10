@@ -32,6 +32,7 @@ export { ReadmePromptBuilderService } from "./ReadmePromptBuilderService";
 export { ReadmeDiffService } from "./ReadmeDiffService";
 export { ReadmeCacheService } from "./ReadmeCacheService";
 export { ReadmeChunkedUpdateService } from "./ReadmeChunkedUpdateService";
+export { ReadmeSyncTrackerService } from "./ReadmeSyncTrackerService";
 export { DocumentationQualityService } from "./DocumentationQualityService";
 export { DocumentationImprovementService } from "./DocumentationImprovementService";
 export { FileRelevanceBatchService } from "./context/FileRelevanceBatchService";

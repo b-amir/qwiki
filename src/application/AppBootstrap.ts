@@ -31,6 +31,7 @@ import {
   ReadmePromptBuilderService,
   ReadmeDiffService,
   ReadmeCacheService,
+  ReadmeSyncTrackerService,
   ContextSuggestionService,
 } from "./";
 import { ComplexityCalculationService } from "./services/context/ComplexityCalculationService";
@@ -71,6 +72,7 @@ import {
   WikiWatcherService,
   LanguageServerIntegrationService,
   GitChangeDetectionService,
+  VSCodeDiffService,
   VSCodeFileSystemService,
 } from "../infrastructure";
 import { MetricsCollectionService } from "../infrastructure/services/performance/MetricsCollectionService";
@@ -953,6 +955,17 @@ export class AppBootstrap {
     this.container.register("readmeDiffService", () => new ReadmeDiffService(this.loggingService));
 
     this.container.register(
+      "readmeSyncTrackerService",
+      () =>
+        new ReadmeSyncTrackerService(
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+          this.loggingService,
+        ),
+    );
+
+    this.container.register("vscodeDiffService", () => new VSCodeDiffService(this.loggingService));
+
+    this.container.register(
       "readmeCacheService",
       () =>
         new ReadmeCacheService(
@@ -978,8 +991,10 @@ export class AppBootstrap {
           this.container.resolve("readmeBackupService") as ReadmeBackupService,
           this.container.resolve("readmeFileService") as ReadmeFileService,
           this.container.resolve("readmeDiffService") as ReadmeDiffService,
+          this.container.resolve("vscodeDiffService") as VSCodeDiffService,
           this.container.resolve("readmeCacheService") as ReadmeCacheService,
-          this.loggingService,
+          this.container.resolve("readmeSyncTrackerService") as ReadmeSyncTrackerService,
+          this.container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
           this.container.resolve("eventBus"),
         ),
     );

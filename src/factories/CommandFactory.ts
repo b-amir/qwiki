@@ -29,8 +29,7 @@ import {
   GetSavedWikisCommand,
   DeleteWikiCommand,
   UpdateReadmeCommand,
-  ApproveReadmeUpdateCommand,
-  CancelReadmeUpdateCommand,
+  ShowReadmeDiffCommand,
   UndoReadmeCommand,
   CheckReadmeBackupCommand,
   ToggleOutputChannelCommand,
@@ -203,6 +202,7 @@ export class CommandFactory {
       case CommandIds.getSavedWikis:
         return new GetSavedWikisCommand(
           container.resolve("wikiStorageService"),
+          await container.resolveLazy("readmeUpdateService"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
@@ -223,6 +223,13 @@ export class CommandFactory {
           this.loggingService,
         ) as Command<T>;
 
+      case CommandIds.showReadmeDiff:
+        return new ShowReadmeDiffCommand(
+          await container.resolveLazy("readmeUpdateService"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
       case CommandIds.undoReadme:
         return new UndoReadmeCommand(
           await container.resolveLazy("readmeUpdateService"),
@@ -233,20 +240,7 @@ export class CommandFactory {
       case CommandIds.checkReadmeBackupState:
         return new CheckReadmeBackupCommand(
           await container.resolveLazy("readmeUpdateService"),
-          this.messageBus,
-          this.loggingService,
-        ) as Command<T>;
-
-      case CommandIds.approveReadmeUpdate:
-        return new ApproveReadmeUpdateCommand(
-          await container.resolveLazy("readmeUpdateService"),
-          this.messageBus,
-          this.loggingService,
-        ) as Command<T>;
-
-      case CommandIds.cancelReadmeUpdate:
-        return new CancelReadmeUpdateCommand(
-          await container.resolveLazy("readmeUpdateService"),
+          container.resolve("wikiStorageService"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
@@ -297,8 +291,7 @@ export class CommandFactory {
       CommandIds.getSavedWikis,
       CommandIds.deleteWiki,
       CommandIds.updateReadme,
-      CommandIds.approveReadmeUpdate,
-      CommandIds.cancelReadmeUpdate,
+      CommandIds.showReadmeDiff,
       CommandIds.undoReadme,
       CommandIds.checkReadmeBackupState,
       CommandIds.toggleOutputChannel,
