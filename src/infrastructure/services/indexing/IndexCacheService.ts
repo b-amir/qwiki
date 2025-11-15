@@ -1,7 +1,14 @@
 import { workspace, Uri } from "vscode";
-import type { IndexedFile, ProjectIndexCache } from "../ProjectIndexService";
-import { ServiceLimits } from "../../../constants/ServiceLimits";
-import { LoggingService, createLogger, type Logger } from "../LoggingService";
+import type {
+  IndexedFile,
+  ProjectIndexCache,
+} from "@/infrastructure/services/indexing/ProjectIndexService";
+import { ServiceLimits } from "@/constants";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "@/infrastructure/services/logging/LoggingService";
 
 export class IndexCacheService {
   private logger: Logger;
@@ -41,7 +48,7 @@ export class IndexCacheService {
   restoreCache(cached: ProjectIndexCache): void {
     this.index = new Map(cached.files);
     this.languageIndex = new Map(
-      cached.languageIndex.map(([lang, paths]) => [lang, new Set(paths)]),
+      cached.languageIndex.map(([lang, paths]: [string, string[]]) => [lang, new Set(paths)]),
     );
   }
 
@@ -51,10 +58,9 @@ export class IndexCacheService {
         version: ServiceLimits.indexCacheVersion,
         indexedAt: Date.now(),
         files: Array.from(this.index.entries()),
-        languageIndex: Array.from(this.languageIndex.entries()).map(([lang, paths]) => [
-          lang,
-          Array.from(paths),
-        ]),
+        languageIndex: Array.from(this.languageIndex.entries()).map(
+          ([lang, paths]: [string, Set<string>]) => [lang, Array.from(paths)],
+        ),
       };
 
       await this.extensionContext.workspaceState.update("projectIndexCache", cacheData);

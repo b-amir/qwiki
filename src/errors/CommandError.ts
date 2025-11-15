@@ -1,4 +1,4 @@
-import { BaseError } from "./BaseError";
+import { BaseError } from "@/errors/BaseError";
 
 export class CommandError extends BaseError {
   constructor(code: "missingCommand", message?: string, context?: Record<string, any>) {

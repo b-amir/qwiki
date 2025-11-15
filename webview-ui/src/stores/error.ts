@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
-import { useErrorHistoryStore } from "./errorHistory";
+import { useErrorHistoryStore } from "@//stores/errorHistory";
 import { getErrorAction, type ErrorAction } from "@/utilities/errorActions";
-import type { PageType } from "./navigation";
+import type { PageType } from "@//stores/navigation";
 
 export interface ErrorContext {
   page: PageType;

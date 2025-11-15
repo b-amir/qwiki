@@ -1,4 +1,4 @@
-import { ErrorCodes } from "./errorMessages";
+import { ErrorCodes } from "@/utilities/errorMessages";
 import type { PageType } from "@/composables/useNavigation";
 
 export interface ErrorAction {

@@ -23,6 +23,7 @@ export const ErrorCodes = {
   savedWikisLoadTimeout: "error.savedWikis.loadTimeout",
   savedWikisDeleteFailed: "error.savedWikis.deleteFailed",
   notificationError: "error.notification",
+  rateLimitExceeded: "error.rateLimitExceeded",
 } as const;
 
 export const ErrorMessages = {
@@ -50,6 +51,7 @@ export const ErrorMessages = {
   [ErrorCodes.savedWikisLoadTimeout]: "Saved wikis request timed out",
   [ErrorCodes.savedWikisDeleteFailed]: "Failed to delete saved wiki",
   [ErrorCodes.notificationError]: "Operation failed",
+  [ErrorCodes.rateLimitExceeded]: "Rate limit exceeded",
 } as const;
 
 export const ErrorTitles = {
@@ -77,4 +79,5 @@ export const ErrorTitles = {
   [ErrorCodes.savedWikisLoadTimeout]: "Saved Wikis Timeout",
   [ErrorCodes.savedWikisDeleteFailed]: "Saved Wikis Delete Failed",
   [ErrorCodes.notificationError]: "Notification Error",
+  [ErrorCodes.rateLimitExceeded]: "Rate Limit Exceeded",
 } as const;

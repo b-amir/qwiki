@@ -1,4 +1,4 @@
-import { ProviderCapabilities } from "./ProviderCapabilities";
+import { ProviderCapabilities } from "@/llm/types/ProviderCapabilities";
 
 export interface ProviderMetadata {
   id: string;

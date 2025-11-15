@@ -6,12 +6,8 @@ import {
   languages,
   Range,
 } from "vscode";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import type { WikiStorageService } from "../application/services/WikiStorageService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import type { WikiStorageService } from "@/application/services/storage/WikiStorageService";
 
 export class DocumentationDiagnosticsProvider {
   private logger: Logger;
@@ -33,7 +29,7 @@ export class DocumentationDiagnosticsProvider {
 
       const wikis = await this.wikiStorageService.getAllSavedWikis();
       const wikiMap = new Map(
-        wikis.map((wiki) => [this.extractFilePathFromWiki(wiki.filePath), wiki]),
+        wikis.map((wiki: any) => [this.extractFilePathFromWiki(wiki.filePath), wiki]),
       );
 
       const currentFilePath = document.uri.fsPath;

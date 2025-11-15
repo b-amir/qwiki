@@ -1,4 +1,4 @@
-import { BaseError } from "./BaseError";
+import { BaseError } from "@/errors/BaseError";
 
 export class ConfigurationError extends BaseError {
   constructor(code: "invalidConfiguration", message?: string, context?: Record<string, any>) {

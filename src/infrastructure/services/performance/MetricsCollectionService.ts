@@ -1,7 +1,11 @@
-import { EventBus } from "../../../events";
-import { LoggingService, createLogger, type Logger } from "../LoggingService";
-import type { PerformanceMetric } from "../ProviderPerformanceService";
-import { ServiceLimits } from "../../../constants";
+import { EventBus } from "@/events";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "@/infrastructure/services/logging/LoggingService";
+import type { PerformanceMetric } from "@/infrastructure/services/providers/ProviderPerformanceService";
+import { ServiceLimits } from "@/constants";
 
 export class MetricsCollectionService {
   private performanceMetrics = new Map<string, PerformanceMetric[]>();

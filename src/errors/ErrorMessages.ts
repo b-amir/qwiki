@@ -1,4 +1,4 @@
-import { ErrorCodes } from "./ErrorCodes";
+import { ErrorCodes } from "@/errors/ErrorCodes";
 
 export const ErrorMessages = {
   [ErrorCodes.PROVIDER_NOT_FOUND]: {

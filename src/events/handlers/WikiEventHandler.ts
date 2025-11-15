@@ -1,7 +1,7 @@
 import { CancellationToken, CancellationTokenSource } from "vscode";
-import type { EventBus } from "../EventBus";
-import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
-import { InboundEvents, OutboundEvents } from "../../constants/Events";
+import type { EventBus } from "@/events/EventBus";
+import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import { InboundEvents, OutboundEvents } from "@/constants/Events";
 import {
   ErrorLoggingService,
   ErrorRecoveryService,
@@ -9,12 +9,12 @@ import {
   createLogger,
   type Logger,
   type ProviderValidationService,
-} from "../../infrastructure/services";
-import { ProviderError, ErrorCodes } from "../../errors";
-import { qwikiStatusBarItem, HAS_ACTIVE_GENERATION_CONTEXT } from "../../extension";
-import { VSCodeCommandIds } from "../../constants/Commands";
+} from "@/infrastructure/services";
+import { ProviderError, ErrorCodes } from "@/errors";
+import { qwikiStatusBarItem, HAS_ACTIVE_GENERATION_CONTEXT } from "@//extension";
+import { VSCodeCommandIds } from "@/constants/Commands";
 import { commands } from "vscode";
-import { WikiGenerationExecutor } from "./WikiGenerationExecutor";
+import { WikiGenerationExecutor } from "@/events/handlers/WikiGenerationExecutor";
 
 export class WikiEventHandler {
   private logger: Logger;
@@ -25,6 +25,7 @@ export class WikiEventHandler {
   constructor(
     private eventBus: EventBus,
     private wikiService: any,
+    private cachedWikiService: any,
     private projectContextService: any,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
@@ -40,6 +41,7 @@ export class WikiEventHandler {
     this.generationExecutor = new WikiGenerationExecutor(
       this.eventBus,
       this.wikiService,
+      this.cachedWikiService,
       this.projectContextService,
       this.errorRecoveryService,
       this.errorLoggingService,

@@ -8,11 +8,7 @@ import {
   Position,
   Range,
 } from "vscode";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
   private logger: Logger;

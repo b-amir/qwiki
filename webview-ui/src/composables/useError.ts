@@ -1,5 +1,5 @@
 import { useErrorStore, type ErrorState } from "@/stores/error";
-import { useNavigation } from "./useNavigation";
+import { useNavigation } from "@//composables/useNavigation";
 
 export function useError() {
   const errorStore = useErrorStore();

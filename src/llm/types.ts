@@ -4,7 +4,7 @@ import {
   ValidationResult,
   HealthCheckResult,
 } from "./types/ProviderCapabilities";
-import type { SemanticCodeInfo } from "../infrastructure/services/LanguageServerIntegrationService";
+import type { SemanticCodeInfo } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
 
 export type GenerateParams = {
   snippet: string;

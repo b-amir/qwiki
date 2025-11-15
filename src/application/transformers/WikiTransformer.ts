@@ -1,6 +1,6 @@
-import type { ProjectContext } from "../../domain/entities/Selection";
-import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
-import { ServiceLimits } from "../../constants";
+import type { ProjectContext } from "@/domain/entities/Selection";
+import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import { ServiceLimits } from "@/constants";
 
 export interface SnippetAnalysis {
   languageId?: string;

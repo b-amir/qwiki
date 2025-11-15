@@ -1,18 +1,14 @@
 import type { Webview } from "vscode";
-import { Inbound, Outbound } from "./constants";
-import { ServiceLimits } from "../constants";
-import { IMMEDIATE_COMMANDS, COMMAND_TIMEOUTS } from "../constants/ServiceTiers";
-import { tryOpenFile } from "./fileOps";
-import { CommandRegistry } from "../application";
-import type { ErrorHandler } from "../infrastructure/services/ErrorHandler";
-import { MessageBusService } from "../application/services/MessageBusService";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import type { NavigationManager } from "./NavigationManager";
-import type { ServiceReadinessManager } from "../infrastructure/services/ServiceReadinessManager";
+import { Inbound, Outbound } from "@/panels/constants";
+import { ServiceLimits } from "@/constants";
+import { IMMEDIATE_COMMANDS, COMMAND_TIMEOUTS } from "@/constants/ServiceTiers";
+import { tryOpenFile } from "@/panels/fileOps";
+import { CommandRegistry } from "@/application";
+import type { ErrorHandler } from "@/infrastructure/services";
+import { MessageBusService } from "@/application/services/core/MessageBusService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import type { NavigationManager } from "@/panels/NavigationManager";
+import type { ServiceReadinessManager } from "@/infrastructure/services/ServiceReadinessManager";
 
 export class WebviewMessageHandler {
   private logger: Logger;

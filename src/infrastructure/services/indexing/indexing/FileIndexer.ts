@@ -1,0 +1,107 @@
+import { workspace, Uri } from "vscode";
+import { ServiceLimits } from "@/constants";
+import { FilePatterns } from "@/constants";
+import type { Logger } from "@/infrastructure/services";
+import type { FileMetadataExtractionService } from "@/infrastructure/services/indexing/FileMetadataExtractionService";
+import type { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
+import type { IndexedFile } from "@/infrastructure/services/indexing/ProjectIndexService";
+
+export class FileIndexer {
+  private binaryPatterns: RegExp[];
+
+  constructor(
+    private metadataExtractor: FileMetadataExtractionService,
+    private cacheService: IndexCacheService,
+    private logger: Logger,
+  ) {
+    this.binaryPatterns = [
+      FilePatterns.excludeBinary,
+      FilePatterns.excludeLarge,
+      FilePatterns.excludeBackups,
+    ].map((pattern) => new RegExp(pattern.replace(/\*\*/g, ".*").replace(/\*/g, "[^/]*")));
+  }
+
+  async performInitialIndex(): Promise<void> {
+    const workspaceFolders = workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      this.logger.warn("No workspace folders found for indexing");
+      return;
+    }
+
+    this.logger.debug("Starting initial index", { folderCount: workspaceFolders.length });
+
+    try {
+      const files = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude);
+
+      this.logger.debug("Found files for indexing", { fileCount: files.length });
+
+      const batchSize = ServiceLimits.indexBatchSize;
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+        await Promise.all(batch.map((uri) => this.indexFile(uri)));
+
+        if (i % (batchSize * 5) === 0) {
+          this.logger.debug("Indexing progress", {
+            processed: Math.min(i + batchSize, files.length),
+            total: files.length,
+          });
+        }
+      }
+
+      await this.cacheService.persistIndex();
+      this.logger.info("Initial index completed", { fileCount: this.cacheService.getIndex().size });
+    } catch (error) {
+      this.logger.error("Failed during initial index", error);
+      throw error;
+    }
+  }
+
+  async indexFile(uri: Uri): Promise<void> {
+    try {
+      const stat = await workspace.fs.stat(uri);
+      if (!this.shouldIndexFile(uri.fsPath, stat.size)) {
+        return;
+      }
+
+      const indexedFile = await this.metadataExtractor.extractFileMetadata(uri, stat.size);
+      this.cacheService.getIndex().set(uri.fsPath, indexedFile);
+      this.cacheService.updateLanguageIndexForFile(uri.fsPath, indexedFile.language);
+    } catch (error) {
+      this.logger.debug(`Failed to index file ${uri.fsPath}`, error);
+    }
+  }
+
+  async updateFileIndex(uri: Uri): Promise<void> {
+    try {
+      const stat = await workspace.fs.stat(uri);
+      if (!this.shouldIndexFile(uri.fsPath, stat.size)) {
+        this.removeFromIndex(uri);
+        return;
+      }
+
+      await this.indexFile(uri);
+      await this.cacheService.persistIndex();
+    } catch (error) {
+      this.logger.debug(`Failed to update file index ${uri.fsPath}`, error);
+    }
+  }
+
+  removeFromIndex(uri: Uri): void {
+    this.cacheService.getIndex().delete(uri.fsPath);
+    this.cacheService.updateLanguageIndexForFile(uri.fsPath, undefined);
+  }
+
+  shouldIndexFile(filePath: string, size: number): boolean {
+    if (size > ServiceLimits.maxIndexFileSize) {
+      return false;
+    }
+
+    for (const pattern of this.binaryPatterns) {
+      if (pattern.test(filePath)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+}

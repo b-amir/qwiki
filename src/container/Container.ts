@@ -1,3 +1,5 @@
+import type { ServiceRegistry, ServiceKey } from "./ServiceRegistry";
+
 export type LoadingCallback = (serviceKey: string, step: string) => void;
 
 export class Container {
@@ -38,6 +40,10 @@ export class Container {
     return instance;
   }
 
+  resolveTyped<K extends ServiceKey>(key: K): ServiceRegistry[K] {
+    return this.resolve<ServiceRegistry[K]>(key);
+  }
+
   async resolveLazy<T>(key: string): Promise<T> {
     if (this.services.has(key)) {
       return this.services.get(key) as T;
@@ -70,6 +76,10 @@ export class Container {
 
     this.loadingStates.set(key, loadingPromise);
     return loadingPromise;
+  }
+
+  async resolveLazyTyped<K extends ServiceKey>(key: K): Promise<ServiceRegistry[K]> {
+    return this.resolveLazy<ServiceRegistry[K]>(key);
   }
 
   has(key: string): boolean {

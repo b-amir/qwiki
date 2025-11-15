@@ -1,8 +1,4 @@
-import type {
-  ReadmeSection,
-  CustomSection,
-  ReadmeStructure,
-} from "../../../domain/entities/ReadmeUpdate";
+import type { ReadmeSection, CustomSection, ReadmeStructure } from "@/domain/entities/ReadmeUpdate";
 
 export class ReadmeParser {
   extractSections(content: string): ReadmeSection[] {

@@ -1,15 +1,15 @@
-import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
-import { buildWikiPrompt } from "../prompt";
-import { ProviderError, ErrorCodes } from "../../errors";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "@/llm/types";
+import { buildWikiPrompt } from "@/llm/prompt";
+import { ProviderError, ErrorCodes } from "@/errors";
 import {
   ProviderCapabilities,
   ProviderFeature,
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
-import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
-import { performHealthCheck } from "./helpers/healthCheckHelper";
-import { ServiceLimits } from "../../constants";
+import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
+import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
+import { ServiceLimits } from "@/constants";
 
 const HUGGINGFACE_MODELS = [
   "bigscience/bloomz-7b1",

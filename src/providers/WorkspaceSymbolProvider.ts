@@ -7,12 +7,11 @@ import {
   Position,
   Range,
 } from "vscode";
-import type { WikiStorageService, SavedWiki } from "../application/services/WikiStorageService";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import type {
+  WikiStorageService,
+  SavedWiki,
+} from "../application/services/storage/WikiStorageService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export class QwikiWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
   private logger: Logger;
@@ -38,7 +37,7 @@ export class QwikiWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
         if (
           wiki.title.toLowerCase().includes(queryLower) ||
           wiki.content.toLowerCase().includes(queryLower) ||
-          wiki.tags.some((tag) => tag.toLowerCase().includes(queryLower))
+          wiki.tags.some((tag: any) => tag.toLowerCase().includes(queryLower))
         ) {
           symbols.push(
             new SymbolInformation(

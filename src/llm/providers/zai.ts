@@ -1,17 +1,17 @@
-import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
-import type { GetSetting } from "./registry";
-import { buildWikiPrompt } from "../prompt";
-import { getNonce } from "../../utilities/getNonce";
-import { ProviderError, ErrorCodes } from "../../errors";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "@/llm/types";
+import type { GetSetting } from "@/llm/providers/registry";
+import { buildWikiPrompt } from "@/llm/prompt";
+import { getNonce } from "@/utilities/getNonce";
+import { ProviderError, ErrorCodes } from "@/errors";
 import {
   ProviderCapabilities,
   ProviderFeature,
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
-import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
-import { performHealthCheck } from "./helpers/healthCheckHelper";
-import { ServiceLimits } from "../../constants";
+import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
+import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
+import { ServiceLimits } from "@/constants";
 
 const ZAI_MODELS = [
   "glm-4.5-flash",

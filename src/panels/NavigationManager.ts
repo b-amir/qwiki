@@ -1,11 +1,7 @@
 import type { Webview } from "vscode";
-import { Outbound, Page } from "./constants";
-import { MessageBusService } from "../application/services/MessageBusService";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import { Outbound, Page } from "@/panels/constants";
+import { MessageBusService } from "@/application/services/core/MessageBusService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export type SelectionPayload = {
   text: string;

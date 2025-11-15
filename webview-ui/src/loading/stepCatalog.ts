@@ -1,4 +1,4 @@
-import type { LoadingStepDefinition, KnownLoadingContext } from "./types";
+import type { LoadingStepDefinition, KnownLoadingContext } from "@//loading/types";
 
 type StepCatalog = Record<KnownLoadingContext, LoadingStepDefinition[]>;
 

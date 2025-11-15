@@ -31,6 +31,8 @@ The domain layer contains the core business entities and repository interfaces t
 - **Repository Interfaces** (`src/domain/repositories/`)
   - `ApiKeyRepository.ts`: Interface for API key storage operations
   - `ConfigurationRepository.ts`: Interface for configuration management
+- **Types** (`src/domain/types/`)
+  - `Result.ts`: Result pattern for type-safe error handling of expected failures
 
 **Purpose:**
 
@@ -48,74 +50,62 @@ The application layer contains services, commands, and application-specific busi
 
 - **Services** (`src/application/services/`)
 
-  **Core Services**:
+  Services are organized by domain into subdirectories:
+
+  **Core Services** (`services/core/`):
   - `WikiService.ts`: Core wiki generation logic with loading steps
-  - `CachedWikiService.ts`: Cached wiki generation with performance optimization
+  - `CachedWikiService.ts`: Cached wiki generation with performance optimization (currently unused)
   - `SelectionService.ts`: Editor selection handling
+  - `MessageBusService.ts`: Webview communication with batching/debouncing
+  - `generation/`: Wiki generation pipeline components
+
+  **Context Services** (`services/context/`):
+  - `ContextIntelligenceService.ts`: Orchestrates optimal context selection with token budget management
+  - `ContextAnalysisService.ts`: Deep code analysis orchestrator
+  - `ContextCompressionService.ts`: Compresses context to fit token budgets
+  - `ContextSuggestionService.ts`: Highlights missing context inputs and remediation steps
   - `ProjectContextService.ts`: Project context building with file discovery
   - `CachedProjectContextService.ts`: Cached project context for performance
-  - `MessageBusService.ts`: Webview communication with batching/debouncing
-  - `WikiStorageService.ts`: Wiki persistence to `.qwiki` folder
-  - `WikiSummarizationService.ts`: Summarize wikis for README generation
+  - `analysis/`: Analysis services (PatternExtractionService, StructureAnalysisService, RelationshipAnalysisService, ComplexityCalculationService)
+  - `relevance/`: File relevance services (FileRelevanceAnalysisService, FileRelevanceBatchService, FileSelectionService, TextUsageSearchService, CodeExtractionService)
+  - `project/`: Project analysis services (ProjectTypeDetectionService, ProjectOverviewService, DependencyAnalysisService)
+  - `orchestration/`: Context orchestration components (TokenBudgetCalculator, ContextSelectionOrchestrator)
 
-  **Configuration Services**:
+  **Configuration Services** (`services/configuration/`):
   - `ConfigurationManagerService.ts`: Centralized configuration management
   - `ConfigurationValidationEngineService.ts`: Rule-based validation engine
   - `ConfigurationTemplateService.ts`: Configuration templates and presets
   - `ConfigurationImportExportService.ts`: Configuration backup/restore
   - `ConfigurationMigrationService.ts`: Version migration support
 
-  **Context Intelligence Services**:
-  - `ContextIntelligenceService.ts`: Orchestrates optimal context selection with token budget management
-  - `ContextAnalysisService.ts`: Deep code analysis orchestrator
-    - `context/PatternExtractionService.ts`: Pattern extraction (functions, classes, interfaces)
-    - `context/StructureAnalysisService.ts`: Code structure analysis (parameters, visibility, decorators)
-    - `context/RelationshipAnalysisService.ts`: Code relationship analysis (calls, inheritance, dependencies)
-    - `context/ComplexityCalculationService.ts`: Complexity metrics calculation
-    - `context/FileRelevanceAnalysisService.ts`: Ranks files by relevance to target file
-    - `context/FileRelevanceBatchService.ts`: Batch relevance scoring for performance
-    - `context/FileSelectionService.ts`: Selects optimal files within token budget
-    - `context/DependencyAnalysisService.ts`: Analyzes project dependencies
-    - `context/TextUsageSearchService.ts`: Searches for symbol usage across files
-    - `context/ProjectTypeDetectionService.ts`: Detects project type and framework
-    - `context/ProjectOverviewService.ts`: Generates project summaries
-    - `context/CodeExtractionService.ts`: Extracts code samples with context
-    - `context/ContextSuggestionService.ts`: Highlights missing context inputs and remediation steps
-  - `ContextCompressionService.ts`: Compresses context to fit token budgets
+  **Documentation Services** (`services/documentation/`):
+  - `DocumentationQualityService.ts`: Scores generated documentation for completeness, clarity, structure, examples, and code references
+  - `DocumentationImprovementService.ts`: Produces prioritized improvement suggestions based on quality metrics
+  - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results
 
-  **Documentation Feedback Services**:
-  - `DocumentationQualityService.ts`: Scores generated documentation for completeness, clarity, structure, examples, and code references.
-  - `DocumentationImprovementService.ts`: Produces prioritized improvement suggestions based on quality metrics.
-  - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results.
-
-  **Prompt Engineering Services**:
+  **Prompt Services** (`services/prompts/`):
   - `AdvancedPromptService.ts`: Advanced prompt construction and optimization
-  - `PromptQualityService.ts`: Prompt quality analysis and scoring
+  - `PromptQualityService.ts`: Prompt quality analysis and scoring (currently unused)
   - `prompt/PromptSectionBuilder.ts`: Builds structured prompt sections
   - `prompt/PromptQualityAnalyzer.ts`: Analyzes prompt effectiveness
   - `prompt/AdaptivePromptHelpers.ts`: Provider-specific prompt adaptation
 
-  **Bootstrap & Readiness Services**:
-  - `ServiceReadinessManager.ts` (in `src/infrastructure/services/`): Tracks service readiness, dependencies, progress, and emits readiness events
-  - `AppBootstrap.ts`: Registers service tiers and command requirements, initializes critical services, queues background services, and exposes readiness primitives
-  - `ServiceTiers.ts` (in `src/constants/`): Declares service tiers, immediate commands, command requirements, and timeout budgets used by the readiness pipeline
-  - `EnvironmentStatusManager.ts`: Aggregates readiness details and environmental health for the webview
-
-  **README Automation Services**:
-  - `ReadmeUpdateService.ts`: Orchestrates README updates with approval workflow
+  **README Services** (`services/readme/`):
+  - `ReadmeUpdateService.ts`: Orchestrates README updates with on-demand diff review and rollback
   - `ReadmeFileService.ts`: README file I/O operations
   - `ReadmeBackupService.ts`: Backup and restore README files
-  - `ReadmeDiffService.ts`: Generate diffs for README changes
+  - `ReadmeDiffService.ts`: Generate change summaries for README changes
   - `ReadmeCacheService.ts`: Cache README operations
   - `ReadmeChunkedUpdateService.ts`: Chunked writes for large READMEs
   - `ReadmeStateDetectionService.ts`: Detects README state (boilerplate, custom, etc.)
   - `ReadmeContentAnalysisService.ts`: Analyzes README content structure
   - `ReadmePromptBuilderService.ts`: Builds prompts for README generation
   - `ReadmePromptOptimizationService.ts`: Optimizes README prompts
-  - `readme/ReadmeParser.ts`: Parses README structure
-  - `readme/ReadmeSectionGenerator.ts`: Generates README sections
+  - `ReadmeSyncTrackerService.ts`: Tracks README synchronization state
+  - `workflow/`: README workflow components (ReadmeWorkflowOrchestrator, ReadmeContentGenerator)
+  - `parsers/`: README parsing components (ReadmeParser, ReadmeSectionGenerator)
 
-  **Provider Services**:
+  **Provider Services** (`services/providers/`):
   - `SmartProviderSelectionService.ts`: Intelligent provider selection based on context
   - `ProviderSelectionService.ts`: Provider capability matching
   - `ProviderFallbackManagerService.ts`: Automatic fallback and retry logic
@@ -123,11 +113,15 @@ The application layer contains services, commands, and application-specific busi
   - `ProviderLifecycleManagerService.ts`: Provider initialization and lifecycle
   - `ProviderDependencyResolverService.ts`: Provider dependency resolution
 
-  **Performance Services**:
+  **Performance Services** (`services/performance/` or infrastructure):
   - `ProviderPerformanceService.ts`: Performance monitoring orchestrator
     - `performance/MetricsCollectionService.ts`: Metrics collection and management
     - `performance/StatisticsCalculationService.ts`: Performance statistics and rankings
     - `performance/PerformanceMonitoringService.ts`: Performance monitoring and reporting
+
+  **Storage Services** (`services/storage/`):
+  - `WikiStorageService.ts`: Wiki persistence to `.qwiki` folder
+  - `WikiSummarizationService.ts`: Summarize wikis for README generation
 
   **Data Transformation**:
   - `transformers/WikiTransformer.ts`: Pure data transformation functions for wiki generation
@@ -139,16 +133,25 @@ The application layer contains services, commands, and application-specific busi
   - `aggregation/ConflictResolutionHelper.ts`: Resolves conflicts in aggregated content
   - `aggregation/StructureOptimizer.ts`: Optimizes aggregated structure
 
+  **Bootstrap & Readiness** (`bootstrap/`):
+  - `AppBootstrap.ts`: Main orchestrator that coordinates initialization (< 250 lines)
+  - `ServiceRegistrar.ts`: Handles service registration with dependency tracking
+  - `InitializationOrchestrator.ts`: Orchestrates critical and background service initialization
+  - `ReadinessCoordinator.ts`: Registers service tiers and command requirements
+  - `ServiceReadinessManager.ts` (in `src/infrastructure/services/`): Tracks service readiness, dependencies, progress, and emits readiness events
+  - `ServiceTiers.ts` (in `src/constants/`): Declares service tiers, immediate commands, command requirements, and timeout budgets
+  - `EnvironmentStatusManager.ts`: Aggregates readiness details and environmental health for the webview
+
 - **Commands** (`src/application/commands/`)
 
-  **Current Commands**:
-  - `Command.ts`: Base command interface
+  Commands are organized by domain into subdirectories:
+
+  **Core Commands** (`commands/core/`):
   - `GenerateWikiCommand.ts`: Wiki generation command with context intelligence
   - `GetSelectionCommand.ts`: Get editor selection
   - `GetRelatedCommand.ts`: Get related files for context
-  - `SelectProviderCommand.ts`: Select provider for generation
 
-  **Provider Management Commands**:
+  **Provider Commands** (`commands/providers/`):
   - `SaveApiKeyCommand.ts`: Save provider API key securely
   - `DeleteApiKeyCommand.ts`: Delete API key
   - `GetApiKeysCommand.ts`: List saved API keys
@@ -160,7 +163,7 @@ The application layer contains services, commands, and application-specific busi
   - `ValidateApiKeysCommand.ts`: Validate configured provider API keys
   - `ValidateApiKeyHealthCommand.ts`: Perform live API key health checks
 
-  **Configuration Commands**:
+  **Configuration Commands** (`commands/configuration/`):
   - `GetConfigurationCommand.ts`: Get current configuration
   - `UpdateConfigurationCommand.ts`: Update configuration
   - `ValidateConfigurationCommand.ts`: Validate configuration
@@ -169,26 +172,35 @@ The application layer contains services, commands, and application-specific busi
   - `CreateConfigurationBackupCommand.ts`: Backup configuration
   - `GetConfigurationBackupsCommand.ts`: List configuration backups
 
-  **Wiki Storage Commands**:
+  **Wiki Commands** (`commands/wikis/`):
   - `SaveWikiCommand.ts`: Save generated wiki
   - `DeleteWikiCommand.ts`: Delete saved wiki
   - `GetSavedWikisCommand.ts`: List all saved wikis
 
-  **README Automation Commands**:
+  **README Commands** (`commands/readme/`):
   - `UpdateReadmeCommand.ts`: Update README from wikis
-  - `ApproveReadmeUpdateCommand.ts`: Approve pending README update
-  - `CancelReadmeUpdateCommand.ts`: Cancel pending README update
+  - `ShowReadmeDiffCommand.ts`: Show diff view for README changes
   - `UndoReadmeCommand.ts`: Undo last README update
   - `CheckReadmeBackupCommand.ts`: Check README backup state
 
-  **Utility Commands**:
+  **Utility Commands** (`commands/utilities/`):
   - `OpenFileCommand.ts`: Open file in editor
   - `OpenExternalCommand.ts`: Open external links
   - `SaveSettingCommand.ts`: Save extension settings
   - `ToggleOutputChannelCommand.ts`: Toggle the Qwiki output channel visibility
 
-- **CommandRegistry.ts**: Registry for managing commands
-- `AppBootstrap.ts`: Application bootstrap and dependency injection setup
+  **Command Metadata** (`commands/CommandMetadata.ts`):
+  - Defines command metadata including grouping, readiness requirements, timeouts, and descriptions
+  - Used by `CommandRegistry` for command introspection and validation
+
+- **CommandRegistry.ts**: Registry for managing commands with metadata support
+- **Bootstrap** (`src/application/bootstrap/`):
+  - `AppBootstrap.ts`: Main orchestrator (< 250 lines) that coordinates initialization
+  - `ServiceRegistrar.ts`: Handles service registration with dependency tracking
+  - `InitializationOrchestrator.ts`: Orchestrates critical and background service initialization
+  - `ReadinessCoordinator.ts`: Registers service tiers and command requirements
+  - `registrations/`: Service registration modules (CoreServiceRegistrations, ContextServiceRegistrations, etc.)
+  - `initializers/`: Initialization modules (CriticalServicesInitializer, BackgroundServicesInitializer)
 
 **Purpose:**
 
@@ -234,8 +246,10 @@ The infrastructure layer contains implementations of domain interfaces and exter
   **Caching & Optimization Services**:
   - `CachingService.ts`: Generic caching service with TTL support
   - `GenerationCacheService.ts`: Generation result caching
+  - `LRUCache.ts`: Simple LRU cache implementation
   - `RequestBatchingService.ts`: Request batching for performance
   - `DebouncingService.ts`: Function debouncing service
+  - `RateLimiterService.ts`: Rate limiting for API calls with sliding window algorithm
   - `BackgroundProcessingService.ts`: Background task processing
   - `MemoryOptimizationService.ts`: Memory usage optimization
   - `WebviewOptimizerService.ts`: Webview message batching and debouncing
@@ -351,17 +365,17 @@ The presentation layer handles user interface, user interactions, and VS Code ID
 
 Common extension boundaries and the services that manage them:
 
-| Capability        | Primary entry point                                                                    | Usage notes                                                                                                                                                |
-| ----------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Service readiness | `ServiceReadinessManager` (`src/infrastructure/services/ServiceReadinessManager.ts`)   | Register dependencies in `ServiceTiers.ts`, resolve via `AppBootstrap.getReadinessManager()`, and gate commands with `waitForService`/`canExecuteCommand`. |
-| Editor selection  | `SelectionService` (`src/application/services/SelectionService.ts`)                    | Returns the active editor selection and publishes it through `OutboundEvents.selection` when transported to the webview.                                   |
-| Project context   | `ProjectContextService` / `CachedProjectContextService`                                | Builds workspace overviews, related files, and samples using the limits defined in `FileLimits`, `FilePatterns`, and `PathPatterns`.                       |
-| Wiki generation   | `WikiService` / `CachedWikiService`                                                    | Combine project context with provider orchestration for documentation requests while leveraging caching for repeat calls.                                  |
-| Provider catalog  | `LLMRegistry` (`src/llm/index.ts`)                                                     | Lists providers, exposes UI configs, and routes generation through the provider registry and lifecycle services.                                           |
-| Secrets           | `VSCodeApiKeyRepository` (`src/infrastructure/repositories/VSCodeApiKeyRepository.ts`) | Persists provider API keys in VS Code `SecretStorage` using the `qwiki:apikey:<providerId>` convention.                                                    |
-| Configuration     | `ConfigurationManagerService` + `VSCodeConfigurationRepository`                        | Centralized read/write with validation, migration, templates, and cache invalidation hooks.                                                                |
-| Messaging bridge  | `MessageBusService` (`src/application/services/MessageBusService.ts`)                  | All extension ↔ webview traffic flows through the bus using constants from `src/constants/Events.ts`.                                                     |
-| Commands          | `CommandRegistry` + `CommandFactory`                                                   | Commands are registered once in `AppBootstrap`, resolved via the container, and invoked through VS Code command IDs from `src/constants/Commands.ts`.      |
+| Capability        | Primary entry point                                                                    | Usage notes                                                                                                                                                                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Service readiness | `ServiceReadinessManager` (`src/infrastructure/services/ServiceReadinessManager.ts`)   | Register dependencies in `ServiceTiers.ts`, resolve via `AppBootstrap.getReadinessManager()`, and gate commands with `waitForService`/`canExecuteCommand`.                                                                                                                                        |
+| Editor selection  | `SelectionService` (`src/application/services/SelectionService.ts`)                    | Returns the active editor selection and publishes it through `OutboundEvents.selection` when transported to the webview.                                                                                                                                                                          |
+| Project context   | `ProjectContextService` / `CachedProjectContextService`                                | Builds workspace overviews, related files, and samples using the limits defined in `FileLimits`, `FilePatterns`, and `PathPatterns`.                                                                                                                                                              |
+| Wiki generation   | `WikiService` / `CachedWikiService`                                                    | Combine project context with provider orchestration for documentation requests while leveraging caching for repeat calls.                                                                                                                                                                         |
+| Provider catalog  | `LLMRegistry` (`src/llm/index.ts`)                                                     | Lists providers, exposes UI configs, and routes generation through the provider registry and lifecycle services.                                                                                                                                                                                  |
+| Secrets           | `VSCodeApiKeyRepository` (`src/infrastructure/repositories/VSCodeApiKeyRepository.ts`) | Persists provider API keys in VS Code `SecretStorage` using the `qwiki:apikey:<providerId>` convention.                                                                                                                                                                                           |
+| Configuration     | `ConfigurationManagerService` + `VSCodeConfigurationRepository`                        | Centralized read/write with validation, migration, templates, and cache invalidation hooks.                                                                                                                                                                                                       |
+| Messaging bridge  | `MessageBusService` (`src/application/services/MessageBusService.ts`)                  | All extension ↔ webview traffic flows through the bus using constants from `src/constants/Events.ts`.                                                                                                                                                                                            |
+| Commands          | `CommandRegistry` + `CommandFactory` (with specialized factories)                      | Commands are organized by domain (`commands/core/`, `commands/providers/`, etc.), created via specialized factories (`CoreCommandFactory`, `ProviderCommandFactory`, etc.), registered with metadata in `AppBootstrap`, and invoked through VS Code command IDs from `src/constants/Commands.ts`. |
 
 ## Key Architectural Features
 
@@ -401,7 +415,7 @@ The Context Intelligence Pipeline is a sophisticated system that optimizes conte
 
 ### README Automation Workflow
 
-Automated README updates with approval flow and rollback support:
+Automated README updates with full VS Code diff preview and rollback support:
 
 **Components**:
 
@@ -409,26 +423,26 @@ Automated README updates with approval flow and rollback support:
 - **ReadmeStateDetectionService**: Analyzes README state (boilerplate, custom, etc.)
 - **ReadmeContentAnalysisService**: Parses README structure
 - **ReadmePromptBuilderService**: Builds prompts for section generation
-- **ReadmeDiffService**: Generates diffs for preview
+- **ReadmeDiffService**: Generates change summaries for telemetry and notifications
 - **ReadmeBackupService**: Manages backups and rollback
 - **ReadmeChunkedUpdateService**: Handles large READMEs with chunked writes
 - **WikiSummarizationService**: Summarizes wikis for README content
+- **VSCodeDiffService**: Opens native VS Code diff editors for completed updates
 
 **Workflow**:
 
 1. **Analyze**: Detect README state and parse existing structure
 2. **Generate**: Use saved wikis to generate candidate sections
-3. **Preview**: Display diff to user with approval UI
-4. **Backup**: Create automatic backup before writing
-5. **Update**: Write changes in chunks with progress events
+3. **Backup**: Create automatic backup before writing
+4. **Update**: Write changes with progress events
+5. **Diff**: Make a VS Code diff view available (on demand) between the backup and the updated README
 6. **Rollback**: Support undo to previous state
 
 **Events**:
 
-- `readmeUpdateProgress`: Progress updates during generation
+- `readmeUpdateProgress`: Progress updates during generation and write
 - `readmeBackupCreated`: Backup completion notification
-- `readmeUpdateApproved`: User approval received
-- `readmeDiffGenerated`: Diff ready for preview
+- `readmeUpdated`: Final status after write; success signals that the diff view can be opened
 
 ### Navigation System Architecture
 
@@ -558,13 +572,13 @@ Benefits:
 - Clear separation of data access logic
 - Easy implementation through mocking
 
-### 3. Provider Registry (Current Implementation)
+### 3. Provider Registry
 
-Providers are resolved through the runtime registry while the legacy discovery utilities remain available for future plugin support:
+Providers are resolved through the runtime registry:
 
 - **LLMRegistry** (`src/llm/index.ts`): Loads the built-in provider catalog via `loadProviders()`, reconciles configuration + secrets, exposes `list()`, `generate()`, `getProviderConfigs()`, and health-check helpers.
-- **Legacy Provider Registry** (`src/llm/providers/registry.ts`): Houses discovery, dependency resolution, and lifecycle utilities that back planned plugin scenarios.
-- **CommandFactory**: Creates command instances lazily and injects the active `LLMRegistry`.
+- **Provider Registry** (`src/llm/providers/registry.ts`): Houses discovery, dependency resolution, and lifecycle utilities for provider management.
+- **CommandFactory** (`src/factories/CommandFactory.ts`): Orchestrates specialized command factories (`CoreCommandFactory`, `ProviderCommandFactory`, `ConfigurationCommandFactory`, `WikiCommandFactory`, `ReadmeCommandFactory`, `UtilityCommandFactory`) that create command instances with proper dependency injection.
 
 **Current Implementation Highlights**:
 
@@ -585,11 +599,14 @@ Providers are resolved through the runtime registry while the legacy discovery u
 **Recent Improvements**:
 
 - ✅ **Context Intelligence Pipeline**: Sophisticated context optimization with relevance ranking and token budget management
-- ✅ **README Automation**: Complete workflow with analysis, generation, preview, approval, backup, and rollback
+- ✅ **README Automation**: Complete workflow with analysis, generation, backup, on-demand diff review, and rollback
 - ✅ **VS Code Language Features**: Hover, completions, diagnostics, code actions, document symbols, and custom editors
 - ✅ **Project Indexing**: Fast file index with metadata extraction and incremental updates
 - ✅ **Language Server Integration**: `LanguageServerIntegrationService` enriches wiki generation with semantic symbol data and type metadata.
 - ✅ **Structured Logging**: All logging through LoggingService with two log modes (normal default, verbose opt-in via `LOG_MODE=verbose`) and log sanitization
+- ✅ **Rate Limiting**: RateLimiterService provides sliding window rate limiting for API calls, integrated into LLMRegistry
+- ✅ **Result Pattern**: Type-safe error handling for expected failures via Result<T, E> type in domain layer
+- ✅ **LRU Cache**: Simple LRU cache implementation for efficient memory management
 - ✅ **Orchestrator Pattern**: Services use focused sub-services for separation of concerns
   - ContextIntelligenceService orchestrates file relevance, selection, and compression
   - ContextAnalysisService orchestrates pattern, structure, relationship, and complexity analysis
@@ -1082,11 +1099,11 @@ The architecture supports extensibility through:
 
 - **Documentation Generation**: Specialized interfaces and optimization for documentation use cases
 - **VS Code Integration**: Deep editor context awareness and seamless workflow integration
-- **Multiple Providers**: Flexible system that evolves from static to dynamic provider management
+- **Multiple Providers**: Flexible system supporting multiple LLM providers with dynamic discovery
 
 ### **Balances Competing Concerns**
 
-- **Extensibility vs Stability**: Gradual evolution preserves reliability while adding capabilities
+- **Extensibility vs Stability**: Architecture preserves reliability while supporting extensibility
 - **Complexity vs Power**: Sophisticated enough for advanced use cases, simple enough for basic usage
 - **Performance vs Features**: Optimized for fast generation while supporting advanced AI features
 
@@ -1096,5 +1113,3 @@ The architecture supports extensibility through:
 - **Type Safety**: Comprehensive TypeScript usage with strict typing
 - **Performance**: Optimized for fast documentation generation and responsiveness
 - **Error Handling**: Standardized error management with user-friendly messages
-
-For active improvement initiatives and roadmap items, see `docs/CHECKLIST.md`.

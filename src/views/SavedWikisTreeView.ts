@@ -8,14 +8,10 @@ import {
   Command,
   ThemeIcon,
 } from "vscode";
-import type { SavedWiki } from "../application/services/WikiStorageService";
-import { WikiStorageService } from "../application/services/WikiStorageService";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import { EventBus } from "../events/EventBus";
+import type { SavedWiki } from "@/application/services/storage/WikiStorageService";
+import { WikiStorageService } from "@/application/services/storage/WikiStorageService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import { EventBus } from "@/events/EventBus";
 
 export class WikiTreeItem extends TreeItem {
   constructor(
@@ -71,7 +67,7 @@ export class SavedWikisTreeDataProvider implements TreeDataProvider<WikiTreeItem
     try {
       const wikis = await this.wikiStorage.getAllSavedWikis();
       this.logger.debug(`Retrieved ${wikis.length} saved wikis for tree view`);
-      return wikis.map((wiki) => new WikiTreeItem(wiki, TreeItemCollapsibleState.None));
+      return wikis.map((wiki: any) => new WikiTreeItem(wiki, TreeItemCollapsibleState.None));
     } catch (error) {
       this.logger.error("Failed to get saved wikis for tree view", error);
       return [];

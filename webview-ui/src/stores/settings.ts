@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
 import { createLogger } from "@/utilities/logging";
-import { useLoadingStore } from "./loading";
+import { useLoadingStore } from "@//stores/loading";
 import { ApiKeyTimings } from "@/constants/apiKeyTimings";
 
 const logger = createLogger("SettingsStore");

@@ -4,6 +4,6 @@ export {
   LoadingSteps as LoadingStep,
   Pages,
   Page,
-} from "../constants/Events";
+} from "@/constants/Events";
 
-export type { LoadingStep as LoadingStepType } from "../constants/Events";
+export type { LoadingStep as LoadingStepType } from "@/constants/Events";

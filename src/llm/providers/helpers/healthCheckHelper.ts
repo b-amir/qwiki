@@ -1,4 +1,4 @@
-import type { HealthCheckResult } from "../../types/ProviderCapabilities";
+import type { HealthCheckResult } from "@/llm/types/ProviderCapabilities";
 
 export async function performHealthCheck(
   url: string,

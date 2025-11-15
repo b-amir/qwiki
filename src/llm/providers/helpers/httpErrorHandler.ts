@@ -1,4 +1,4 @@
-import { ProviderError, ErrorCodes } from "../../../errors";
+import { ProviderError, ErrorCodes } from "@/errors";
 
 export function handleHttpError(
   response: Response,

@@ -1,6 +1,6 @@
 import type { QuickPick, QuickPickItem } from "vscode";
-import { VSCodeCommandIds, CommandPaletteText } from "../../constants";
-import type { CommandPaletteContext } from "./getCommandPaletteContext";
+import { VSCodeCommandIds, CommandPaletteText } from "@/constants";
+import type { CommandPaletteContext } from "@/presentation/commands/getCommandPaletteContext";
 
 type CommandDefinition = {
   key: string;

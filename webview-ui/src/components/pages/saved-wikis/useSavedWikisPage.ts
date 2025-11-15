@@ -8,8 +8,8 @@ import { useLoading } from "@/loading/useLoading";
 import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
 import { createLogger } from "@/utilities/logging";
 import { useDebouncedRef } from "@/composables/useDebouncedRef";
-import { ErrorCodes, ErrorMessages } from "../../../../../src/constants/ErrorCodes";
-import { MessageStrings } from "../../../../../src/constants/MessageConstants";
+import { ErrorCodes, ErrorMessages } from "@/constants/ErrorCodes";
+import { MessageStrings } from "@/constants/MessageConstants";
 
 export interface SavedWiki {
   id: string;

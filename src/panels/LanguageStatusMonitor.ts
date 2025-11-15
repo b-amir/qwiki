@@ -1,10 +1,6 @@
 import { window, workspace, extensions } from "vscode";
-import { ServiceLimits } from "../constants";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import { ServiceLimits } from "@/constants";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export interface LanguageStatus {
   ready: boolean;

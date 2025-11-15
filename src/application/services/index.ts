@@ -1,43 +1,61 @@
-export { MessageBusService } from "./MessageBusService";
-export { ProjectContextService } from "./ProjectContextService";
-export { CachedProjectContextService } from "./CachedProjectContextService";
-export { SelectionService } from "./SelectionService";
-export { WikiService } from "./WikiService";
-export { CachedWikiService } from "./CachedWikiService";
-export { ConfigurationManagerService } from "./ConfigurationManagerService";
-export { ConfigurationMigrationService } from "./ConfigurationMigrationService";
-export { ConfigurationTemplateService } from "./ConfigurationTemplateService";
-export { ConfigurationValidationEngineService } from "./ConfigurationValidationEngineService";
-export { ConfigurationImportExportService } from "./ConfigurationImportExportService";
-export { ProviderSelectionService } from "./ProviderSelectionService";
-export { SmartProviderSelectionService } from "./SmartProviderSelectionService";
-export { ContextAnalysisService } from "./ContextAnalysisService";
-export { ProviderDiscoveryService } from "./ProviderDiscoveryService";
-export { ProviderFallbackManagerService } from "./ProviderFallbackManagerService";
-export { ProviderLifecycleManagerService } from "./ProviderLifecycleManagerService";
-export { ProviderDependencyResolverService } from "./ProviderDependencyResolverService";
-export { WikiStorageService } from "./WikiStorageService";
-export { ContextIntelligenceService } from "./ContextIntelligenceService";
-export { ContextCompressionService } from "./ContextCompressionService";
-export { AdvancedPromptService } from "./AdvancedPromptService";
-export { PromptQualityService } from "./PromptQualityService";
-export { ReadmeUpdateService } from "./ReadmeUpdateService";
-export { ReadmePromptOptimizationService } from "./ReadmePromptOptimizationService";
-export { WikiSummarizationService } from "./WikiSummarizationService";
-export { ReadmeStateDetectionService } from "./ReadmeStateDetectionService";
-export { ReadmeContentAnalysisService } from "./ReadmeContentAnalysisService";
-export { ReadmeBackupService } from "./ReadmeBackupService";
-export { ReadmeFileService } from "./ReadmeFileService";
-export { ReadmePromptBuilderService } from "./ReadmePromptBuilderService";
-export { ReadmeDiffService } from "./ReadmeDiffService";
-export { ReadmeCacheService } from "./ReadmeCacheService";
-export { ReadmeChunkedUpdateService } from "./ReadmeChunkedUpdateService";
-export { ReadmeSyncTrackerService } from "./ReadmeSyncTrackerService";
-export { DocumentationQualityService } from "./DocumentationQualityService";
-export { DocumentationImprovementService } from "./DocumentationImprovementService";
-export { FileRelevanceBatchService } from "./context/FileRelevanceBatchService";
-export { DependencyAnalysisService } from "./context/DependencyAnalysisService";
-export { TextUsageSearchService } from "./context/TextUsageSearchService";
-export { ProjectOverviewService } from "./context/ProjectOverviewService";
-export { FileSelectionService } from "./context/FileSelectionService";
+export { MessageBusService } from "./core/MessageBusService";
+export { SelectionService } from "./core/SelectionService";
+export { WikiService } from "./core/WikiService";
+export { CachedWikiService } from "./core/CachedWikiService";
+export { WikiGenerationFlow } from "./core/WikiGenerationFlow";
+export { WikiSummarizationService } from "./core/WikiSummarizationService";
+
+export { ConfigurationManagerService } from "./configuration/ConfigurationManagerService";
+export { ConfigurationMigrationService } from "./configuration/ConfigurationMigrationService";
+export { ConfigurationTemplateService } from "./configuration/ConfigurationTemplateService";
+export { ConfigurationValidationEngineService } from "./configuration/ConfigurationValidationEngineService";
+export { ConfigurationImportExportService } from "./configuration/ConfigurationImportExportService";
+
+export { ProviderSelectionService } from "./providers/ProviderSelectionService";
+export { SmartProviderSelectionService } from "./providers/SmartProviderSelectionService";
+export { ProviderDiscoveryService } from "./providers/ProviderDiscoveryService";
+export { ProviderFallbackManagerService } from "./providers/ProviderFallbackManagerService";
+export { ProviderLifecycleManagerService } from "./providers/ProviderLifecycleManagerService";
+export { ProviderDependencyResolverService } from "./providers/ProviderDependencyResolverService";
+
+export { ContextIntelligenceService } from "./context/ContextIntelligenceService";
+export { ContextAnalysisService } from "./context/ContextAnalysisService";
+export { ContextCompressionService } from "./context/ContextCompressionService";
 export { ContextSuggestionService } from "./context/ContextSuggestionService";
+
+export { PatternExtractionService } from "./context/analysis/PatternExtractionService";
+export { StructureAnalysisService } from "./context/analysis/StructureAnalysisService";
+export { RelationshipAnalysisService } from "./context/analysis/RelationshipAnalysisService";
+export { ComplexityCalculationService } from "./context/analysis/ComplexityCalculationService";
+
+export { ProjectContextService } from "./context/project/ProjectContextService";
+export { CachedProjectContextService } from "./context/project/CachedProjectContextService";
+export { ProjectTypeDetectionService } from "./context/project/ProjectTypeDetectionService";
+export { ProjectOverviewService } from "./context/project/ProjectOverviewService";
+export { DependencyAnalysisService } from "./context/project/DependencyAnalysisService";
+
+export { FileRelevanceAnalysisService } from "./context/relevance/FileRelevanceAnalysisService";
+export { FileRelevanceBatchService } from "./context/relevance/FileRelevanceBatchService";
+export { FileSelectionService } from "./context/relevance/FileSelectionService";
+export { TextUsageSearchService } from "./context/relevance/TextUsageSearchService";
+export { CodeExtractionService } from "./context/relevance/CodeExtractionService";
+
+export { AdvancedPromptService } from "./prompts/AdvancedPromptService";
+export { PromptQualityService } from "./prompts/PromptQualityService";
+
+export { ReadmeUpdateService } from "./readme/ReadmeUpdateService";
+export { ReadmeBackupService } from "./readme/ReadmeBackupService";
+export { ReadmeFileService } from "./readme/ReadmeFileService";
+export { ReadmeDiffService } from "./readme/ReadmeDiffService";
+export { ReadmeCacheService } from "./readme/ReadmeCacheService";
+export { ReadmeChunkedUpdateService } from "./readme/ReadmeChunkedUpdateService";
+export { ReadmeStateDetectionService } from "./readme/ReadmeStateDetectionService";
+export { ReadmeContentAnalysisService } from "./readme/ReadmeContentAnalysisService";
+export { ReadmePromptBuilderService } from "./readme/ReadmePromptBuilderService";
+export { ReadmePromptOptimizationService } from "./readme/ReadmePromptOptimizationService";
+export { ReadmeSyncTrackerService } from "./readme/ReadmeSyncTrackerService";
+
+export { DocumentationQualityService } from "./documentation/DocumentationQualityService";
+export { DocumentationImprovementService } from "./documentation/DocumentationImprovementService";
+
+export { WikiStorageService } from "./storage/WikiStorageService";

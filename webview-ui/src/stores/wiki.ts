@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
-import { useLoadingStore } from "./loading";
+import { useLoadingStore } from "@//stores/loading";
 import { ErrorCodes, getErrorMessage } from "@/utilities/errorMessages";
 
 export type ProviderStatus = { id: string; name: string; hasKey: boolean; models: string[] };

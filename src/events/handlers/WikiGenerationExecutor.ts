@@ -1,28 +1,31 @@
-import { CancellationToken } from "vscode";
-import type { EventBus } from "../EventBus";
-import type { WikiGenerationRequest } from "../../domain/entities/Wiki";
-import type { ProjectContext } from "../../domain/entities/Selection";
-import { OutboundEvents, LoadingSteps } from "../../constants/Events";
-import type { LoadingStep } from "../../constants/Events";
+import { CancellationToken, workspace } from "vscode";
+import type { EventBus } from "@/events/EventBus";
+import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import type { ProjectContext } from "@/domain/entities/Selection";
+import { OutboundEvents, LoadingSteps } from "@/constants/Events";
+import type { LoadingStep } from "@/constants/Events";
 import {
   ErrorLoggingService,
   ErrorRecoveryService,
   createLogger,
   type Logger,
   type ProviderValidationService,
-} from "../../infrastructure/services";
-import { ProviderError, ErrorCodes } from "../../errors";
-import { publishValidationError } from "./ErrorHandlingHelpers";
-import { getProgressMessageForStep } from "../../constants/loading";
-import { qwikiStatusBarItem } from "../../extension";
-import { VSCodeCommandIds } from "../../constants/Commands";
+} from "@/infrastructure/services";
+import { ProviderError, ErrorCodes } from "@/errors";
+import { publishValidationError } from "@/events/handlers/ErrorHandlingHelpers";
+import { getProgressMessageForStep } from "@/constants/loading";
+import { qwikiStatusBarItem } from "@//extension";
+import { VSCodeCommandIds } from "@/constants/Commands";
+import type { WikiService } from "@/application/services/core/WikiService";
+import type { CachedWikiService } from "@/application/services/core/CachedWikiService";
 
 export class WikiGenerationExecutor {
   private logger: Logger;
 
   constructor(
     private eventBus: EventBus,
-    private wikiService: any,
+    private wikiService: WikiService,
+    private cachedWikiService: CachedWikiService,
     private projectContextService: any,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
@@ -32,6 +35,19 @@ export class WikiGenerationExecutor {
     private resetStatusBar: () => void,
   ) {
     this.logger = createLogger("WikiGenerationExecutor");
+  }
+
+  private getWikiService(): WikiService | CachedWikiService {
+    const useLongTermCache = workspace
+      .getConfiguration("qwiki")
+      .get<boolean>("wikiGeneration.useLongTermCache", false);
+
+    if (useLongTermCache) {
+      this.logger.debug("Using cachedWikiService for long-term caching");
+      return this.cachedWikiService;
+    }
+
+    return this.wikiService;
   }
 
   async execute(
@@ -147,12 +163,14 @@ export class WikiGenerationExecutor {
     cancellationToken: CancellationToken,
   ): Promise<any> {
     const generateWikiStart = Date.now();
+    const service = this.getWikiService();
     this.logger.info("Starting wiki generation", {
       providerId: payload.providerId,
       model: payload.model,
       snippetLength: payload?.snippet?.length || 0,
+      useLongTermCache: service === this.cachedWikiService,
     });
-    const result = await this.wikiService.generateWiki(
+    const result = await service.generateWiki(
       payload,
       projectContext,
       (step: LoadingStep) => {

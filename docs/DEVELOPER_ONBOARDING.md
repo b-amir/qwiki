@@ -51,12 +51,14 @@ Follow the quick start instructions in `README.md` to clone the repository, inst
 ### Do & Don't Checklist
 
 - **Do**
-  - Use `CommandFactory` and `CommandRegistry` when exposing new commands.
-  - Register services and repositories once in `AppBootstrap`; wire readiness in `ServiceTiers.ts` when needed.
+  - Use specialized command factories (`CoreCommandFactory`, `ProviderCommandFactory`, etc.) and `CommandRegistry` when exposing new commands.
+  - Register commands with metadata (group, readiness requirements, timeout) via `CommandMetadata.ts`.
+  - Register services in appropriate registration modules (`CoreServiceRegistrations.ts`, `ContextServiceRegistrations.ts`, etc.) which are called from `AppBootstrap`.
+  - Wire readiness in `ServiceTiers.ts` when services affect command dependencies or initialization.
   - Publish UI updates through `MessageBusService` and respect the defined `OutboundEvents` payloads.
   - Follow `FilePatterns`, `FileLimits`, and `PathPatterns` when scanning the workspace.
   - Read and write configuration exclusively via `ConfigurationManagerService` and its validation helpers.
-  - Check file sizes with the `read_file` tool metadata to keep all files under 300 lines.
+  - Check file sizes with the `read_file` tool metadata to keep all files under 300 lines (100% compliance achieved).
 - **Don't**
   - Bypass the DI container or construct services inline.
   - Post messages directly to a webview without going through the message bus.
@@ -151,7 +153,90 @@ const optimalContext = await contextIntelligence.selectOptimalContext(
 // - Relevance scores per file
 ```
 
-### 6. README Automation Workflow
+### 6. Result Pattern for Error Handling
+
+The Result pattern provides type-safe error handling for expected failures, making error handling explicit in the type system.
+
+**Key Components:**
+
+- **Result Type**: `Result<T, E>` discriminated union type
+- **Helper Functions**: `ok()`, `err()`, `isOk()`, `isErr()`, `unwrap()`, `map()`, `andThen()`
+- **Usage**: Validation functions, business logic that can fail expectedly
+
+**Example Usage:**
+
+```typescript
+import { Result, ok, err, isOk } from "@/domain/types";
+
+// In a validation service
+async function validateConfiguration(
+  config: any,
+): Promise<Result<ValidatedConfig, ValidationError>> {
+  const errors: string[] = [];
+
+  if (!config.apiKey) {
+    errors.push("API key is required");
+  }
+
+  if (errors.length > 0) {
+    return err(new ValidationError(errors));
+  }
+
+  return ok(config as ValidatedConfig);
+}
+
+// Usage
+const result = await validateConfiguration(userConfig);
+if (isOk(result)) {
+  await saveConfig(result.value);
+} else {
+  logger.error("Validation failed", { error: result.error });
+  messageBus.postError({
+    code: "VALIDATION_ERROR",
+    message: result.error.message,
+    suggestions: result.error.errors,
+    timestamp: Date.now(),
+    context: { config },
+  });
+}
+```
+
+**Location**: `src/domain/types/Result.ts`
+
+### 7. Rate Limiting
+
+Rate limiting is enforced for LLM API calls to prevent abuse and ensure fair usage.
+
+**Key Components:**
+
+- **RateLimiterService**: Manages per-key rate limiters with sliding window algorithm
+- **Integration**: Automatically applied in `LLMRegistry.generate()` before API calls
+- **Configuration**: Default limits defined in `ServiceLimits` constants
+
+**Example Usage:**
+
+```typescript
+// Rate limiting is automatically applied in LLMRegistry.generate()
+// For custom usage:
+const rateLimiter = container.resolve<RateLimiterService>("rateLimiterService");
+
+try {
+  await rateLimiter.checkLimit(`provider:${providerId}`);
+  // Make API call
+} catch (error: any) {
+  if (error.code === ErrorCodes.RATE_LIMIT_EXCEEDED) {
+    // Handle rate limit error
+    const waitTime = error.waitTimeMs;
+    logger.warn("Rate limit exceeded", { waitTime });
+  }
+}
+```
+
+**Location**: `src/infrastructure/services/optimization/RateLimiterService.ts`
+
+**Registered as**: `"rateLimiterService"` via `registerInfrastructureServices()`
+
+### 8. README Automation Workflow
 
 The README Automation feature provides an AI-powered workflow for generating and updating README files from saved wiki documentation.
 
@@ -189,7 +274,7 @@ if (result.requiresApproval) {
 await readmeUpdate.undoLastUpdate();
 ```
 
-### 7. Service Readiness & Initialization
+### 9. Service Readiness & Initialization
 
 - `ServiceReadinessManager` centralizes readiness tracking, provides `isReady`, `waitForService`, and emits readiness events (`service:ready`, `critical:ready`, `commandWaiting`).
 - `ServiceTiers.ts` defines critical (< 500ms) and background (< 30s) tiers, immediate commands, command dependency maps, and timeout budgets used by the readiness pipeline.
@@ -198,7 +283,7 @@ await readmeUpdate.undoLastUpdate();
 - `WebviewMessageHandler` enforces readiness-aware command execution, waits only for critical services, emits `commandWaiting` payloads, and sends timeouts via the centralized error modal when dependencies remain unready.
 - `EnvironmentStatusManager` aggregates readiness data so the webview environment store can render initialization progress, availability banners, and degraded state messaging.
 
-### 8. VS Code Language Features
+### 10. VS Code Language Features
 
 The extension provides VS Code language features for enhanced development experience:
 
@@ -260,11 +345,11 @@ const prompt = buildPrompt(optimalContext.files, ...);
 
 **Key Services:**
 
-- `ContextIntelligenceService`: Main orchestrator
-- `FileRelevanceAnalysisService`: Analyzes file relevance
-- `FileSelectionService`: Selects optimal files
-- `ProjectIndexService`: Maintains project index
-- `TokenBudgetCalculatorService`: Calculates token budgets
+- `ContextIntelligenceService`: Main orchestrator (located in `services/context/`)
+- `FileRelevanceAnalysisService`: Analyzes file relevance (located in `services/context/relevance/`)
+- `FileSelectionService`: Selects optimal files (located in `services/context/relevance/`)
+- `ProjectIndexService`: Maintains project index (located in `infrastructure/services/`)
+- `TokenBudgetCalculator`: Calculates token budgets (located in `services/context/orchestration/`)
 
 ### 5. Working with README Automation
 
@@ -276,17 +361,17 @@ Example usage:
 // In a command
 const readmeUpdate = this.container.get<ReadmeUpdateService>("readmeUpdateService");
 
-// Generate preview
+// Generate update
 const result = await readmeUpdate.updateReadmeFromWikis(wikiIds, {
   providerId,
   model,
   backupOriginal: true,
 });
 
-// Result includes preview for user approval
-if (result.requiresApproval && result.preview) {
-  // Show preview to user in webview
-  this.messageBus.postReadmePreview(result.preview);
+// Result includes change summary; diff view can be opened via the showReadmeDiff command when needed
+if (!result.success) {
+  // Surface conflicts back to the webview for error handling
+  this.messageBus.postMessage("readmeUpdateFailed", result);
 }
 ```
 
@@ -296,7 +381,7 @@ if (result.requiresApproval && result.preview) {
 - `ReadmeAnalysisService`: Analyzes existing README
 - `ReadmeGenerationService`: Generates new content
 - `ReadmeBackupService`: Creates backups
-- `ReadmeApprovalService`: Manages approval workflow
+- `VSCodeDiffService`: Opens native diff views on demand after README updates
 
 ### 6. Adding VS Code Language Features
 
@@ -747,8 +832,13 @@ To migrate from legacy loading patterns to the new centralized system:
 
 ### Common File Locations
 
-- Commands: `src/application/commands/`
-- Services: `src/application/services/`
+- Commands: `src/application/commands/` (organized by domain: `core/`, `providers/`, `configuration/`, `wikis/`, `readme/`, `utilities/`)
+- Command Factories: `src/factories/commands/` (CoreCommandFactory, ProviderCommandFactory, etc.)
+- Command Metadata: `src/application/commands/CommandMetadata.ts`
+- Services: `src/application/services/` (organized by domain: `core/`, `context/`, `configuration/`, `documentation/`, `prompts/`, `readme/`, `providers/`, `storage/`)
+- Bootstrap: `src/application/bootstrap/` (AppBootstrap, ServiceRegistrar, InitializationOrchestrator, ReadinessCoordinator)
+- Service Registrations: `src/application/bootstrap/registrations/` (CoreServiceRegistrations, ContextServiceRegistrations, etc.)
+- Initializers: `src/application/bootstrap/initializers/` (CriticalServicesInitializer, BackgroundServicesInitializer)
 - Context Intelligence: `src/application/services/context/`
 - README Automation: `src/application/services/readme/`
 - Repositories: `src/infrastructure/repositories/`
@@ -757,6 +847,7 @@ To migrate from legacy loading patterns to the new centralized system:
 - Tree Views: `src/views/`
 - Constants: `src/constants/`
 - Error Classes: `src/errors/`
+- Domain Types: `src/domain/types/` (Result pattern)
 - Webview UI: `webview-ui/src/`
 - Navigation Store: `webview-ui/src/stores/navigation.ts`
 - Loading Store: `webview-ui/src/stores/loading.ts`
@@ -767,6 +858,8 @@ To migrate from legacy loading patterns to the new centralized system:
 - Extension Entry: `src/extension.ts`
 - Project Index: `src/infrastructure/services/ProjectIndexService.ts`
 - Environment Monitoring: `src/infrastructure/services/EnvironmentMonitoringService.ts`
+- Rate Limiting: `src/infrastructure/services/optimization/RateLimiterService.ts`
+- LRU Cache: `src/infrastructure/services/caching/LRUCache.ts`
 
 ### Common Patterns
 
@@ -797,5 +890,7 @@ To migrate from legacy loading patterns to the new centralized system:
 - `ProviderValidationService`: Validates provider configurations
 - `ProjectIndexService`: Maintains project file index
 - `EnvironmentMonitoringService`: Real-time health monitoring
+- `RateLimiterService`: Rate limiting for API calls
+- `Result<T, E>`: Type-safe error handling for expected failures
 
 Remember: The goal is to maintain clean, modular, and maintainable code following SOLID principles. When in doubt, look at existing implementations for guidance.

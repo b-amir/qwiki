@@ -1,10 +1,6 @@
 import { CodeActionProvider, CodeAction, TextDocument, Range, CodeActionKind } from "vscode";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import { VSCodeCommandIds } from "../constants";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import { VSCodeCommandIds } from "@/constants";
 
 export class DocumentationCodeActionProvider implements CodeActionProvider {
   private logger: Logger;

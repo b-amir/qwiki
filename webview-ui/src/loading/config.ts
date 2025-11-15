@@ -1,4 +1,4 @@
-import type { KnownLoadingContext, LoadingConfigMap } from "./types";
+import type { KnownLoadingContext, LoadingConfigMap } from "@//loading/types";
 
 export const defaultLoadingConfig: LoadingConfigMap = {
   wiki: { timeoutMs: 30000, density: "medium" },

@@ -1,7 +1,11 @@
 import type { SecretStorage } from "vscode";
-import type { ApiKeyRepository } from "../../domain/repositories/ApiKeyRepository";
-import { LoggingService, createLogger, type Logger } from "../services/LoggingService";
-import { SecretStorageValidator } from "../services/SecretStorageValidator";
+import type { ApiKeyRepository } from "@/domain/repositories/ApiKeyRepository";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "@/infrastructure/services/logging/LoggingService";
+import { SecretStorageValidator } from "@/infrastructure/services/storage/SecretStorageValidator";
 
 export class VSCodeApiKeyRepository implements ApiKeyRepository {
   private logger: Logger;

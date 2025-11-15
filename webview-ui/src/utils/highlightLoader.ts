@@ -1,6 +1,6 @@
 import hljs from "highlight.js/lib/core";
 import type { LanguageFn } from "highlight.js";
-import { createLogger } from "../utilities/logging";
+import { createLogger } from "@/utilities/logging";
 
 const logger = createLogger("HighlightLoader");
 const loadedLanguages = new Set<string>();

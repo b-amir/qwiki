@@ -1,7 +1,7 @@
-import type { EventBus } from "../EventBus";
-import { OutboundEvents } from "../../constants/Events";
-import { ErrorCodes } from "../../errors";
-import { createLogger, type Logger, type LoggingService } from "../../infrastructure/services";
+import type { EventBus } from "@/events/EventBus";
+import { OutboundEvents } from "@/constants/Events";
+import { ErrorCodes } from "@/errors";
+import { createLogger, type Logger, type LoggingService } from "@/infrastructure/services";
 
 export interface ValidationResult {
   isValid: boolean;

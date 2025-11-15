@@ -1,10 +1,6 @@
-import type { ProjectContext } from "../../../domain/entities/Selection";
-import type { WikiGenerationRequest } from "../../../domain/entities/Wiki";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../../../infrastructure/services/LoggingService";
+import type { ProjectContext } from "@/domain/entities/Selection";
+import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export interface ContextSuggestion {
   type: "filePath" | "relatedFiles" | "overview" | "projectStructure" | "examples";

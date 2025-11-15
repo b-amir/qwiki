@@ -1,12 +1,16 @@
-import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "./types";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderId } from "@/llm/types";
 import type { SecretStorage } from "vscode";
-import type { ConfigurationManagerService } from "../application/services";
-import type { ProviderConfiguration } from "../domain/configuration";
-import { getAllProviderConfigs, type ProviderConfig } from "./provider-config";
-import { loadProviders, type GetSetting } from "./providers/registry";
-import type { HealthCheckResult } from "./types/ProviderCapabilities";
-import { ErrorRecoveryService, ErrorLoggingService } from "../infrastructure/services";
-import { ProviderError, ErrorCodes } from "../errors";
+import type { ConfigurationManagerService } from "@/application/services";
+import type { ProviderConfiguration } from "@/domain/configuration";
+import { getAllProviderConfigs, type ProviderConfig } from "@/llm/provider-config";
+import { loadProviders, type GetSetting } from "@/llm/providers/registry";
+import type { HealthCheckResult } from "@/llm/types/ProviderCapabilities";
+import {
+  ErrorRecoveryService,
+  ErrorLoggingService,
+  RateLimiterService,
+} from "@/infrastructure/services";
+import { ProviderError, ErrorCodes, RateLimitError } from "@/errors";
 
 export class LLMRegistry {
   private providers = new Map<string, LLMProvider>();
@@ -16,6 +20,7 @@ export class LLMRegistry {
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
     private configurationManager: ConfigurationManagerService,
+    private rateLimiterService?: RateLimiterService,
     getSetting?: GetSetting,
   ) {
     const allProviders = loadProviders(getSetting || (async () => undefined));
@@ -132,6 +137,24 @@ export class LLMRegistry {
         `Unknown provider: ${providerId}`,
         providerId,
       );
+    }
+
+    if (this.rateLimiterService) {
+      try {
+        await this.rateLimiterService.checkLimit(`provider:${providerId}`);
+      } catch (error: unknown) {
+        if (error instanceof RateLimitError) {
+          const rateLimitError = new ProviderError(
+            ErrorCodes.RATE_LIMIT_EXCEEDED,
+            error.message,
+            providerId,
+            error,
+          );
+          (rateLimitError as any).waitTimeMs = error.waitTimeMs;
+          throw rateLimitError;
+        }
+        throw error;
+      }
     }
 
     let apiKey = await this.secrets.get(this.keyName(providerId));

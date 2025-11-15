@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { vscode } from "@/utilities/vscode";
-import { useLoadingStore } from "./loading";
+import { useLoadingStore } from "@//stores/loading";
 import { createLogger } from "@/utilities/logging";
 
 const logger = createLogger("EnvironmentStore");

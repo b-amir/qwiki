@@ -7,14 +7,10 @@ import {
   workspace,
   window,
 } from "vscode";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import type { WikiStorageService } from "../application/services/WikiStorageService";
-import { getNonce } from "../utilities/getNonce";
-import { getUri } from "../utilities/getUri";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import type { WikiStorageService } from "@/application/services/storage/WikiStorageService";
+import { getNonce } from "@/utilities/getNonce";
+import { getUri } from "@/utilities/getUri";
 
 export class WikiCustomEditorProvider implements CustomTextEditorProvider {
   private logger: Logger;

@@ -1,26 +1,26 @@
-import type { LLMProvider } from "../types";
-import { ProviderCapabilities, ProviderFeature } from "../types/ProviderCapabilities";
-import { ProviderMetadata } from "../types/ProviderMetadata";
-import { ProviderDiscoveryService } from "../../application/services/ProviderDiscoveryService";
-import { ProviderLifecycleManagerService } from "../../application/services/ProviderLifecycleManagerService";
-import { ProviderDependencyResolverService } from "../../application/services/ProviderDependencyResolverService";
-import { EventBus } from "../../events/EventBus";
-import { ZAiProvider } from "./zai";
-import { OpenRouterProvider } from "./openrouter";
-import { GoogleAIStudioProvider } from "./google-ai-studio";
-import { CohereProvider } from "./cohere";
-import { HuggingFaceProvider } from "./huggingface";
-import { CachingService } from "../../infrastructure/services/CachingService";
-import { ProviderFileSystemService } from "../../infrastructure/services/ProviderFileSystemService";
-import { VSCodeFileSystemService } from "../../infrastructure/services/VSCodeFileSystemService";
-import type { GenerateParams, GenerateResult } from "../types";
-import { ErrorRecoveryService } from "../../infrastructure/services/ErrorRecoveryService";
-import { ProviderError, ErrorCodes } from "../../errors";
+import type { LLMProvider } from "@/llm/types";
+import { ProviderCapabilities, ProviderFeature } from "@/llm/types/ProviderCapabilities";
+import { ProviderMetadata } from "@/llm/types/ProviderMetadata";
+import { ProviderDiscoveryService } from "@/application/services/providers/ProviderDiscoveryService";
+import { ProviderLifecycleManagerService } from "@/application/services/providers/ProviderLifecycleManagerService";
+import { ProviderDependencyResolverService } from "@/application/services/providers/ProviderDependencyResolverService";
+import { EventBus } from "@/events/EventBus";
+import { ZAiProvider } from "@/llm/providers/zai";
+import { OpenRouterProvider } from "@/llm/providers/openrouter";
+import { GoogleAIStudioProvider } from "@/llm/providers/google-ai-studio";
+import { CohereProvider } from "@/llm/providers/cohere";
+import { HuggingFaceProvider } from "@/llm/providers/huggingface";
+import { CachingService } from "@/infrastructure/services/caching/CachingService";
+import { ProviderFileSystemService } from "@/infrastructure/services/providers/ProviderFileSystemService";
+import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
+import type { GenerateParams, GenerateResult } from "@/llm/types";
+import { ErrorRecoveryService } from "@/infrastructure/services/error/ErrorRecoveryService";
+import { ProviderError, ErrorCodes } from "@/errors";
 import {
   LoggingService,
   createLogger,
   type Logger,
-} from "../../infrastructure/services/LoggingService";
+} from "@/infrastructure/services/logging/LoggingService";
 
 export type GetSetting = (key: string) => Promise<any>;
 
@@ -95,7 +95,7 @@ export class LLMRegistry {
 
   getProviderMetadata(providerId: string): ProviderMetadata | null {
     const discoveredProviders = this.providerDiscoveryService.getDiscoveredProviders();
-    return discoveredProviders.find((p) => p.id === providerId) || null;
+    return discoveredProviders.find((p: any) => p.id === providerId) || null;
   }
 
   getAllProviderCapabilities(): Record<string, ProviderCapabilities> {

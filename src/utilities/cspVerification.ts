@@ -1,5 +1,5 @@
 import { Webview } from "vscode";
-import { getNonce } from "./getNonce";
+import { getNonce } from "@/utilities/getNonce";
 
 export interface CspVerificationResult {
   hasCsp: boolean;

@@ -1,4 +1,4 @@
-import { ErrorCodes } from "../constants";
+import { ErrorCodes } from "@/constants";
 
 export abstract class BaseError extends Error {
   public readonly code: string;

@@ -1,17 +1,11 @@
-import type { EventBus, EventHandler } from "./EventBus";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import type { EventBus, EventHandler } from "@/events/EventBus";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export class EventBusImpl implements EventBus {
   private handlers = new Map<string, Set<EventHandler>>();
   private logger: Logger;
 
-  constructor(
-    private loggingService: LoggingService = new LoggingService(),
-  ) {
+  constructor(private loggingService: LoggingService = new LoggingService()) {
     this.logger = createLogger("EventBus");
   }
 

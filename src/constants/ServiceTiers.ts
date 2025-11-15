@@ -1,7 +1,7 @@
 import type {
   ServiceTier,
   CommandRequirements,
-} from "../infrastructure/services/ServiceReadinessManager";
+} from "@/infrastructure/services/ServiceReadinessManager";
 
 export interface ServiceTierConfig {
   tier: ServiceTier;

@@ -1,12 +1,8 @@
 import type { Webview } from "vscode";
-import { Outbound } from "./constants";
-import { MessageBusService } from "../application/services/MessageBusService";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import type { LanguageStatus } from "./LanguageStatusMonitor";
+import { Outbound } from "@/panels/constants";
+import { MessageBusService } from "@/application/services/core/MessageBusService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import type { LanguageStatus } from "@/panels/LanguageStatusMonitor";
 
 export interface ExtensionStatus {
   ready: boolean;

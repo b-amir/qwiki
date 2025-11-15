@@ -1,6 +1,10 @@
-import { EventBus } from "../../../events";
-import { LoggingService, createLogger, type Logger } from "../LoggingService";
-import type { PerformanceMetric } from "../ProviderPerformanceService";
+import { EventBus } from "@/events";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "@/infrastructure/services/logging/LoggingService";
+import type { PerformanceMetric } from "@/infrastructure/services/providers/ProviderPerformanceService";
 
 export class PerformanceMonitoringService {
   private logger: Logger;
@@ -18,10 +22,10 @@ export class PerformanceMonitoringService {
 
   updateProviderRanking(
     providerId: string,
-    stats: import("../ProviderPerformanceService").PerformanceStats,
+    stats: import("../providers/ProviderPerformanceService").PerformanceStats,
     score: number,
   ): void {
-    const ranking: import("../ProviderPerformanceService").ProviderRanking = {
+    const ranking: import("../providers/ProviderPerformanceService").ProviderRanking = {
       providerId,
       score,
       stats,
@@ -31,7 +35,7 @@ export class PerformanceMonitoringService {
   }
 
   updateProviderRankings(
-    rankings: import("../ProviderPerformanceService").ProviderRanking[],
+    rankings: import("../providers/ProviderPerformanceService").ProviderRanking[],
   ): void {
     for (const ranking of rankings) {
       this.eventBus.publish("provider-ranking-updated", {

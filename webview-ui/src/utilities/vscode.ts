@@ -1,5 +1,5 @@
 import type { WebviewApi } from "vscode-webview";
-import { createLogger } from "./logging";
+import { createLogger } from "@/utilities/logging";
 
 class VSCodeAPIWrapper {
   private readonly vsCodeApi: WebviewApi<unknown> | undefined;

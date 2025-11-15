@@ -1,4 +1,4 @@
-import type { ProjectContext } from "./Selection";
+import type { ProjectContext } from "@/domain/entities/Selection";
 
 export interface PromptTemplate {
   id: string;

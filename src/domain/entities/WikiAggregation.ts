@@ -1,4 +1,4 @@
-import type { SavedWiki } from "../../application/services/WikiStorageService";
+import type { SavedWiki } from "@/application/services/storage/WikiStorageService";
 
 export interface WikiAggregation {
   id: string;

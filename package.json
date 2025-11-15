@@ -373,7 +373,8 @@
     "lint:fix": "eslint . --fix",
     "lint:webview": "cd webview-ui && pnpm run lint",
     "format": "prettier --cache --write .",
-    "format:check": "prettier --cache --check ."
+    "format:check": "prettier --cache --check .",
+    "fix-imports": "tsc scripts/fix-imports.ts --outDir scripts --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule && node scripts/fix-imports.js"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",

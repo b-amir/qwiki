@@ -1,5 +1,5 @@
-import type { LLMProvider } from "./types";
-import { loadProviders, type GetSetting } from "./providers/registry";
+import type { LLMProvider } from "@/llm/types";
+import { loadProviders, type GetSetting } from "@/llm/providers/registry";
 
 export interface ProviderConfig {
   id: string;

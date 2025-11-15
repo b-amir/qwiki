@@ -1,5 +1,5 @@
-import type { SavedWiki } from "../WikiStorageService";
-import type { ReadmeSection } from "../../../domain/entities/ReadmeUpdate";
+import type { SavedWiki } from "@/application/services/storage/WikiStorageService";
+import type { ReadmeSection } from "@/domain/entities/ReadmeUpdate";
 
 export class ReadmeSectionGenerator {
   async generateProjectOverview(wikis: SavedWiki[]): Promise<string> {

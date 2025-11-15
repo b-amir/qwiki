@@ -1,9 +1,5 @@
 import { DocumentLinkProvider, DocumentLink, TextDocument, Range, Uri } from "vscode";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 const FILE_LINK_PATTERN = /\[([^\]]+)\]\(openfile:([^\)]+)\)/g;
 const MARKDOWN_LINK_PATTERN = /\[([^\]]+)\]\(([^\)]+\.(md|qwiki\.md))\)/g;

@@ -20,7 +20,7 @@ This document provides detailed API documentation for Qwiki's LLM providers and 
 
 ### Current Architecture: Registry Pattern
 
-**Important Note**: The system currently uses a **Registry Pattern**, not a Factory pattern as previously documented. Providers are statically instantiated and registered, not dynamically created.
+**Important Note**: The system uses a **Registry Pattern**. Providers are statically instantiated and registered, not dynamically created.
 
 ### Core Interface
 
@@ -117,7 +117,7 @@ export class LLMRegistry {
 }
 ```
 
-The legacy discovery and lifecycle services under `src/llm/providers` remain available for future plugin support, but the current build focuses on the curated provider set.
+The discovery and lifecycle services under `src/llm/providers` support provider management and lifecycle operations.
 
 **Current Capabilities**:
 
@@ -250,6 +250,45 @@ The provider system maintains clear separation between data and logic:
 - **Models**: Various open-source models
 
 ## Extension Commands
+
+### Command System Architecture
+
+Commands are organized by domain into subdirectories (`commands/core/`, `commands/providers/`, `commands/configuration/`, `commands/wikis/`, `commands/readme/`, `commands/utilities/`) and created via specialized factories (`CoreCommandFactory`, `ProviderCommandFactory`, etc.).
+
+**Command Metadata System:**
+
+Commands are registered with metadata that includes grouping, readiness requirements, timeouts, and descriptions:
+
+```typescript
+interface CommandMetadata {
+  id: string;
+  group: CommandGroup;
+  requiresReadiness?: string[]; // Service IDs that must be ready
+  timeout?: number; // Command timeout in milliseconds
+  description?: string; // Human-readable description
+}
+
+type CommandGroup =
+  | "core"
+  | "providers"
+  | "configuration"
+  | "wikis"
+  | "readme"
+  | "utilities";
+```
+
+**Command Factory System:**
+
+Commands are created through specialized factories that extend `BaseCommandFactory`:
+
+- `CoreCommandFactory`: Creates core commands (generateWiki, getSelection, getRelated)
+- `ProviderCommandFactory`: Creates provider management commands
+- `ConfigurationCommandFactory`: Creates configuration commands
+- `WikiCommandFactory`: Creates wiki storage commands
+- `ReadmeCommandFactory`: Creates README automation commands
+- `UtilityCommandFactory`: Creates utility commands
+
+The main `CommandFactory` orchestrates these specialized factories to create commands with proper dependency injection.
 
 ### Core Commands
 
@@ -760,7 +799,7 @@ Updates multiple configuration settings.
 
 **Command ID**: `updateReadme`
 
-Updates README file from saved wikis with approval workflow.
+Updates README file from saved wikis with automatic diff preview.
 
 **Parameters**:
 
@@ -778,38 +817,14 @@ Updates README file from saved wikis with approval workflow.
 ```typescript
 {
   success: boolean;
-  preview?: ReadmePreview;     // Preview of changes
-  requiresApproval: boolean;   // Whether approval is required
+  changes: string[];           // High-level change summary strings
+  conflicts: string[];         // Reasons the update failed (empty on success)
+  backupPath?: string;         // Path to backup file (present when backupOriginal=true)
 }
 ```
 
-#### Approve README Update
-
-**Command ID**: `approveReadmeUpdate`
-
-Approves a pending README update and applies changes.
-
-**Parameters**: None (uses pending update from UpdateReadmeCommand)
-
-**Returns**:
-
-```typescript
-{
-  success: boolean;
-  backupPath?: string;         // Path to backup file
-  sections: string[];          // Sections that were updated
-}
-```
-
-#### Cancel README Update
-
-**Command ID**: `cancelReadmeUpdate`
-
-Cancels a pending README update.
-
-**Parameters**: None
-
-**Returns**: Success confirmation
+- `readmeUpdateProgress`: Emits granular loading step updates while the workflow is active.
+- `readmeUpdated`: Sent after the README write completes. A successful payload indicates that a VS Code diff view is available between the backup and the updated README (when backups are enabled).
 
 #### Undo README
 
@@ -828,6 +843,16 @@ Undoes the last README update by restoring from backup.
   timestamp: string; // Backup timestamp
 }
 ```
+
+#### Show README Diff
+
+**Command ID**: `showReadmeDiff`
+
+Opens the VS Code diff view comparing the current README with the most recent backup recorded during README automation.
+
+**Parameters**: None
+
+**Returns**: None (opens diff view or emits an error notification on failure)
 
 #### Check README Backup State
 
@@ -1143,7 +1168,7 @@ interface CommandWaitingPayload {
 
 ### Background Initialization Progress
 
-- `AppBootstrap.initializeBackgroundServices()` publishes `backgroundInitProgress` via the event bus.
+- `InitializationOrchestrator.initializeBackgroundServices()` (called from `AppBootstrap`) publishes `backgroundInitProgress` via the event bus.
 - Payload shape:
 
 ```typescript
@@ -1208,6 +1233,79 @@ Configuration is managed through the `ConfigurationManagerService` service:
 - **API Keys**: Stored securely using VS Code's secret storage
 - **Provider Settings**: Provider-specific configuration
 - **User Preferences**: Customizable user settings
+
+## Result Pattern
+
+The Result pattern provides type-safe error handling for expected failures, making error handling explicit in the type system.
+
+### Result Type
+
+```typescript
+type Result<T, E = Error> = { success: true; value: T } | { success: false; error: E };
+```
+
+### Helper Functions
+
+```typescript
+// Create success result
+function ok<T>(value: T): Result<T, never>;
+
+// Create error result
+function err<E>(error: E): Result<never, E>;
+
+// Type guards
+function isOk<T, E>(result: Result<T, E>): result is { success: true; value: T };
+function isErr<T, E>(result: Result<T, E>): result is { success: false; error: E };
+
+// Unwrap operations
+function unwrap<T, E>(result: Result<T, E>): T;
+function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T;
+function unwrapOrElse<T, E>(result: Result<T, E>, fn: (error: E) => T): T;
+
+// Transformations
+function map<T, U, E>(result: Result<T, E>, fn: (value: T) => U): Result<U, E>;
+function mapErr<T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F>;
+function andThen<T, U, E>(result: Result<T, E>, fn: (value: T) => Result<U, E>): Result<U, E>;
+```
+
+### Usage Example
+
+```typescript
+import { Result, ok, err, isOk } from "@/domain/types";
+
+async function validateAndSaveWiki(wiki: Wiki): Promise<Result<void>> {
+  const validation = validator.validate(wiki);
+  if (!validation.isValid) {
+    return err(new ValidationError(validation.errors));
+  }
+
+  try {
+    await storage.save(wiki);
+    return ok(undefined);
+  } catch (error) {
+    return err(error as Error);
+  }
+}
+
+// Usage
+const result = await validateAndSaveWiki(wiki);
+if (isOk(result)) {
+  logger.info("Wiki saved successfully");
+} else {
+  logger.error("Failed to save wiki", { error: result.error });
+  messageBus.postError({
+    code: "VALIDATION_ERROR",
+    message: result.error.message,
+    suggestions: ["Fix validation errors"],
+    timestamp: Date.now(),
+    context: { wikiId: wiki.id },
+  });
+}
+```
+
+**Location**: `src/domain/types/Result.ts`
+
+**Exported from**: `src/domain/types/index.ts`
 
 ## Error Handling
 
@@ -1371,7 +1469,7 @@ The LLM provider system uses a **Registry Pattern** with dynamic discovery capab
 
 - **Data Concentration**: Provider-specific data is consolidated in the providers folder
 - **Logic Separation**: Clear boundaries between provider logic and application services
-- **Extensibility**: Dynamic provider discovery with manifest system enables runtime extensibility
+- **Extensibility**: Dynamic provider discovery with manifest system supports runtime extensibility
 
 ### Adding New Providers
 
@@ -1609,6 +1707,39 @@ class BackgroundProcessingService {
   resumeQueue(): void;
   getQueueStatistics(): QueueStatistics;
 }
+
+class RateLimiterService {
+  constructor(
+    loggingService: LoggingService,
+    defaultConfig?: RateLimitConfig
+  );
+
+  getLimiter(key: string, config?: RateLimitConfig): RateLimiter;
+  async checkLimit(key: string, config?: RateLimitConfig): Promise<void>;
+  clearLimiter(key: string): void;
+  clearAll(): void;
+  getLimiterStats(key: string): { requestCount: number; oldestRequest: number | null } | null;
+}
+
+interface RateLimitConfig {
+  maxRequests: number;
+  windowMs: number;
+}
+
+class LRUCache<K, V> {
+  constructor(maxSize: number);
+
+  set(key: K, value: V): void;
+  get(key: K): V | undefined;
+  has(key: K): boolean;
+  delete(key: K): boolean;
+  clear(): void;
+  size(): number;
+  getMaxSize(): number;
+  keys(): IterableIterator<K>;
+  values(): IterableIterator<V>;
+  entries(): IterableIterator<[K, V]>;
+}
 ```
 
 - `ProviderFallbackManagerService`
@@ -1655,7 +1786,7 @@ class MetricsCollectionService {
 
 **Purpose**: Collects and manages performance metrics for LLM providers including generation times, success rates, token usage, and various operation types.
 
-**Registered as**: `"metricsCollectionService"` in AppBootstrap
+**Registered as**: `"metricsCollectionService"` via `registerInfrastructureServices()` in `src/application/bootstrap/registrations/InfrastructureServiceRegistrations.ts`
 
 #### Statistics Calculation Service
 
@@ -1684,7 +1815,7 @@ class StatisticsCalculationService {
 
 **Purpose**: Calculates performance statistics and rankings from collected metrics including success rates, average response times, and performance scores.
 
-**Registered as**: `"statisticsCalculationService"` in AppBootstrap
+**Registered as**: `"statisticsCalculationService"` via `registerInfrastructureServices()` in `src/application/bootstrap/registrations/InfrastructureServiceRegistrations.ts`
 
 #### Performance Monitoring Service
 
@@ -1707,7 +1838,7 @@ class PerformanceMonitoringService {
 
 **Purpose**: Monitors and reports performance metrics, publishes performance events, and provides statistics for caching, batching, and background operations.
 
-**Registered as**: `"performanceMonitoringService"` in AppBootstrap
+**Registered as**: `"performanceMonitoringService"` via `registerInfrastructureServices()` in `src/application/bootstrap/registrations/InfrastructureServiceRegistrations.ts`
 
 #### Provider Performance Service (Orchestrator)
 
@@ -1735,7 +1866,7 @@ class ProviderPerformanceService {
 
 **Purpose**: Orchestrates performance monitoring by delegating to MetricsCollectionService, StatisticsCalculationService, and PerformanceMonitoringService. Follows orchestrator pattern.
 
-**Registered as**: `"providerPerformanceService"` (lazy) in AppBootstrap
+**Registered as**: `"providerPerformanceService"` (lazy) via `registerProviderServices()` in `src/application/bootstrap/registrations/ProviderServiceRegistrations.ts`
 
 ### Context Intelligence Service
 
@@ -1922,7 +2053,7 @@ enum PatternType {
 
 **Purpose**: Extracts code patterns (functions, classes, interfaces, imports, variables, control flow) from code snippets using language-specific regex patterns.
 
-**Registered as**: `"patternExtractionService"` in AppBootstrap
+**Registered as**: `"patternExtractionService"` via `registerContextServices()` in `src/application/bootstrap/registrations/ContextServiceRegistrations.ts`
 
 #### Complexity Calculation Service
 
@@ -1959,7 +2090,7 @@ interface ComplexityScore {
 
 **Purpose**: Calculates code complexity metrics including cyclomatic complexity, cognitive complexity, Halstead complexity, and nesting depth.
 
-**Registered as**: `"complexityCalculationService"` in AppBootstrap
+**Registered as**: `"complexityCalculationService"` via `registerContextServices()` in `src/application/bootstrap/registrations/ContextServiceRegistrations.ts`
 
 #### Structure Analysis Service
 
@@ -1998,7 +2129,7 @@ interface CodeStructure {
 
 **Purpose**: Analyzes code structure by extracting functions, classes, interfaces, types, imports, and exports with detailed metadata (parameters, visibility, decorators, etc.).
 
-**Registered as**: `"structureAnalysisService"` in AppBootstrap
+**Registered as**: `"structureAnalysisService"` via `registerContextServices()` in `src/application/bootstrap/registrations/ContextServiceRegistrations.ts`
 
 #### Relationship Analysis Service
 
@@ -2039,7 +2170,7 @@ enum RelationshipType {
 
 **Purpose**: Analyzes relationships between code elements including function calls, inheritance, implementations, and dependencies.
 
-**Registered as**: `"relationshipAnalysisService"` in AppBootstrap
+**Registered as**: `"relationshipAnalysisService"` via `registerContextServices()` in `src/application/bootstrap/registrations/ContextServiceRegistrations.ts`
 
 #### Context Analysis Service (Orchestrator)
 
@@ -2065,7 +2196,7 @@ class ContextAnalysisService {
 
 **Purpose**: Orchestrates deep code analysis by delegating to specialized services (PatternExtractionService, StructureAnalysisService, RelationshipAnalysisService, ComplexityCalculationService). Follows orchestrator pattern for clean separation of concerns.
 
-**Registered as**: `"contextAnalysisService"` in AppBootstrap
+**Registered as**: `"contextAnalysisService"` via `registerContextServices()` in `src/application/bootstrap/registrations/ContextServiceRegistrations.ts`
 
 ### Data Transformation Layer
 
@@ -2556,7 +2687,7 @@ export function createLogger(serviceName: string): Logger;
 **Key Features**:
 
 - Singleton pattern - single instance across the application
-- Registered once in `AppBootstrap` (`loggingService` key)
+- Registered once via `registerInfrastructureServices()` in `src/application/bootstrap/registrations/InfrastructureServiceRegistrations.ts` (`loggingService` key)
 - Injected into services/commands/events via DI container
 - Default config: `{ mode: "normal", includeTimestamp: true, includeService: true }` (set to `"verbose"` automatically when `LOG_MODE=verbose`)
 - Mode can be changed at runtime via `setMode()` or command palette

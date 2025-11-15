@@ -1,16 +1,16 @@
-import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "../types";
-import type { GetSetting } from "./registry";
-import { buildWikiPrompt } from "../prompt";
-import { ProviderError, ErrorCodes } from "../../errors";
+import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "@/llm/types";
+import type { GetSetting } from "@/llm/providers/registry";
+import { buildWikiPrompt } from "@/llm/prompt";
+import { ProviderError, ErrorCodes } from "@/errors";
 import {
   ProviderCapabilities,
   ProviderFeature,
   ValidationResult,
   HealthCheckResult,
 } from "../types/ProviderCapabilities";
-import { handleHttpError, handleTimeoutError } from "./helpers/httpErrorHandler";
-import { performHealthCheck } from "./helpers/healthCheckHelper";
-import { ServiceLimits } from "../../constants";
+import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
+import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
+import { ServiceLimits } from "@/constants";
 
 const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
 

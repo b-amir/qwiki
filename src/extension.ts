@@ -8,16 +8,13 @@ import {
   languages,
   workspace,
 } from "vscode";
-import { QwikiPanel } from "./panels/QwikiPanel";
-import { VSCodeCommandIds, Pages, ServiceLimits } from "./constants";
-import { SelectProviderCommand } from "./application/commands/SelectProviderCommand";
-import { SavedWikisTreeDataProvider } from "./views/SavedWikisTreeView";
-import { WikiEventHandler } from "./events/handlers/WikiEventHandler";
-import {
-  createLogger,
-  LoggingService,
-  type LogMode,
-} from "./infrastructure/services/LoggingService";
+import { QwikiPanel } from "@/panels/QwikiPanel";
+import { VSCodeCommandIds, Pages, ServiceLimits } from "@/constants";
+import { SelectProviderCommand } from "@/application/commands/providers/SelectProviderCommand";
+import { SavedWikisTreeDataProvider } from "@/views/SavedWikisTreeView";
+import { WikiEventHandler } from "@/events/handlers/WikiEventHandler";
+import { createLogger, LoggingService } from "@/infrastructure/services";
+import type { LogMode } from "@/infrastructure/services/logging/LoggingService";
 import {
   QwikiWorkspaceSymbolProvider,
   DocumentationHoverProvider,
@@ -29,7 +26,7 @@ import {
   WikiCustomEditorProvider,
   QwikiDocumentSymbolProvider,
 } from "./providers";
-import { registerShowCommandsCommand } from "./presentation/commands/registerShowCommandsCommand";
+import { registerShowCommandsCommand } from "@/presentation/commands/registerShowCommandsCommand";
 
 let qwikiProvider: QwikiPanel | undefined;
 let savedWikisTreeProvider: SavedWikisTreeDataProvider | undefined;

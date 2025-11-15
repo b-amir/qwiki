@@ -8,12 +8,8 @@ import {
   Uri,
   workspace,
 } from "vscode";
-import type { WikiStorageService } from "../application/services/WikiStorageService";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
+import type { WikiStorageService } from "@/application/services/storage/WikiStorageService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export class DocumentationHoverProvider implements HoverProvider {
   private logger: Logger;

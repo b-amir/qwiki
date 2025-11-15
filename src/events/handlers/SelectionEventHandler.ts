@@ -1,6 +1,6 @@
-import type { EventBus } from "../EventBus";
-import type { Selection } from "../../domain/entities/Selection";
-import { InboundEvents, OutboundEvents } from "../../constants/Events";
+import type { EventBus } from "@/events/EventBus";
+import type { Selection } from "@/domain/entities/Selection";
+import { InboundEvents, OutboundEvents } from "@/constants/Events";
 
 export class SelectionEventHandler {
   constructor(private eventBus: EventBus) {}

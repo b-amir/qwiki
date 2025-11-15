@@ -5,8 +5,8 @@ import {
   PathPatterns,
   PathStrings,
   VSCodeCommands,
-} from "../constants";
-import { PathSanitizer } from "../utilities/pathSanitizer";
+} from "@/constants";
+import { PathSanitizer } from "@/utilities/pathSanitizer";
 
 export async function tryOpenFile(path: string, line?: number) {
   try {

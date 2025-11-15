@@ -1,0 +1,77 @@
+import type { ConfigurationTemplate } from "@/domain/configuration";
+
+export function createEnterprisePreset(): ConfigurationTemplate {
+  return {
+    id: "enterprise",
+    name: "Enterprise Environment",
+    description: "Enterprise-grade configuration with security and compliance features",
+    category: "enterprise",
+    configuration: {
+      global: {
+        defaultProviderId: "google-ai-studio",
+        autoGenerateWiki: false,
+        wikiOutputFormat: "markdown",
+        maxContextLength: 10000,
+        enableCaching: true,
+        cacheExpirationHours: 48,
+        enablePerformanceMonitoring: true,
+        enableErrorReporting: true,
+        logLevel: "warn",
+        uiTheme: "auto",
+        language: "en",
+        autoSave: true,
+        backupEnabled: true,
+        backupRetentionDays: 365,
+      },
+      providers: {
+        "google-ai-studio": {
+          id: "google-ai-studio",
+          name: "Google AI Studio",
+          enabled: true,
+          model: "gemini-2.5-pro",
+          temperature: 0.1,
+          maxTokens: 8192,
+          rateLimitPerMinute: 45,
+          timeout: 45000,
+          retryAttempts: 5,
+          fallbackProviderIds: ["zai"],
+          customFields: {
+            googleAIEndpoint: "native",
+          },
+        },
+        zai: {
+          id: "zai",
+          name: "Z.ai",
+          enabled: true,
+          model: "glm-4.6",
+          temperature: 0.2,
+          maxTokens: 4096,
+          rateLimitPerMinute: 80,
+          timeout: 30000,
+          retryAttempts: 5,
+          fallbackProviderIds: ["google-ai-studio"],
+          customFields: {
+            zaiBaseUrl: "",
+          },
+        },
+        openrouter: {
+          id: "openrouter",
+          name: "OpenRouter",
+          enabled: false,
+          model: "openai/gpt-oss-20b",
+          temperature: 0.3,
+          maxTokens: 4096,
+          rateLimitPerMinute: 60,
+          timeout: 35000,
+          retryAttempts: 4,
+        },
+      },
+    },
+    metadata: {
+      author: "Qwiki",
+      version: "1.0.0",
+      tags: ["enterprise", "security", "compliance", "multi-provider"],
+      compatibleProviders: ["google-ai-studio", "zai", "openrouter", "cohere", "huggingface"],
+    },
+  };
+}

@@ -1,5 +1,5 @@
-import type { SavedWiki } from "../../application/services/WikiStorageService";
-import type { MergeStrategy } from "./WikiAggregation";
+import type { SavedWiki } from "@/application/services/storage/WikiStorageService";
+import type { MergeStrategy } from "@/domain/entities/WikiAggregation";
 
 export interface ReadmeUpdateConfig {
   sections: string[];

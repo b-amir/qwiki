@@ -1,11 +1,15 @@
-import { LLMRegistry } from "../../../llm";
-import { LoggingService, createLogger, type Logger } from "../LoggingService";
+import { LLMRegistry } from "@/llm";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "@/infrastructure/services/logging/LoggingService";
 import type {
   PerformanceMetric,
   PerformanceStats,
   ProviderRanking,
-} from "../ProviderPerformanceService";
-import { ServiceLimits } from "../../../constants";
+} from "../providers/ProviderPerformanceService";
+import { ServiceLimits } from "@/constants";
 
 export class StatisticsCalculationService {
   private statsCache: Record<string, PerformanceStats> | null = null;

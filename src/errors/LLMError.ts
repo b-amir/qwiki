@@ -1,4 +1,4 @@
-import { BaseError } from "./BaseError";
+import { BaseError } from "@/errors/BaseError";
 
 export class LLMError extends BaseError {
   constructor(code: "missingProvider", message?: string, context?: Record<string, any>) {

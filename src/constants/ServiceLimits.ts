@@ -70,4 +70,6 @@ export const ServiceLimits = {
   apiKeyDeleteDebounceDelay: 3000,
   apiKeyValidationCacheTTL: 5000,
   pendingOperationsMaxWait: 3000,
+  rateLimitMaxRequests: 10,
+  rateLimitWindowMs: 60000,
 } as const;

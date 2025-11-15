@@ -4,5 +4,6 @@ export { ConfigurationError } from "./ConfigurationError";
 export { LLMError } from "./LLMError";
 export { CommandError } from "./CommandError";
 export { ProviderError } from "./ProviderError";
+export { RateLimitError } from "./RateLimitError";
 export { ErrorCodes, type ErrorCode } from "./ErrorCodes";
 export { ErrorMessages, getErrorMessage } from "./ErrorMessages";

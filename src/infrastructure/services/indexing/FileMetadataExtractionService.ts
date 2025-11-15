@@ -1,6 +1,10 @@
 import { workspace, Uri } from "vscode";
-import type { IndexedFile } from "../ProjectIndexService";
-import { LoggingService, createLogger, type Logger } from "../LoggingService";
+import type { IndexedFile } from "@/infrastructure/services/indexing/ProjectIndexService";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+} from "@/infrastructure/services/logging/LoggingService";
 
 export class FileMetadataExtractionService {
   private logger: Logger;

@@ -1,7 +1,7 @@
 import { Webview, Uri } from "vscode";
-import { getUri } from "../utilities/getUri";
-import { getNonce } from "../utilities/getNonce";
-import { WebviewPaths } from "../constants";
+import { getUri } from "@/utilities/getUri";
+import { getNonce } from "@/utilities/getNonce";
+import { WebviewPaths } from "@/constants";
 
 export function getWebviewHtml(webview: Webview, extensionUri: Uri) {
   // Add cache-busting version parameter

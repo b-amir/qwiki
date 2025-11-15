@@ -1,9 +1,9 @@
-import type { Container } from "../../container/Container";
-import { WikiEventHandler } from "../../events/handlers/WikiEventHandler";
-import type { LogMode } from "../../infrastructure/services/LoggingService";
-import type { ConfigurationManagerService } from "../../application/services/ConfigurationManagerService";
-import type { WikiStorageService } from "../../application/services/WikiStorageService";
-import type { LLMRegistry } from "../../llm";
+import type { Container } from "@/container/Container";
+import { WikiEventHandler } from "@/events/handlers/WikiEventHandler";
+import type { LogMode } from "@/infrastructure/services/logging/LoggingService";
+import type { ConfigurationManagerService } from "@/application/services/configuration/ConfigurationManagerService";
+import type { WikiStorageService } from "@/application/services/storage/WikiStorageService";
+import type { LLMRegistry } from "@/llm";
 
 export type CommandPaletteContext = {
   providerId?: string;

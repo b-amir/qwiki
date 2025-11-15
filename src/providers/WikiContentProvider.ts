@@ -6,12 +6,8 @@ import {
   Event,
   workspace,
 } from "vscode";
-import {
-  LoggingService,
-  createLogger,
-  type Logger,
-} from "../infrastructure/services/LoggingService";
-import type { WikiStorageService } from "../application/services/WikiStorageService";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import type { WikiStorageService } from "@/application/services/storage/WikiStorageService";
 
 const QWIKI_SCHEME = "qwiki";
 
@@ -38,7 +34,7 @@ export class WikiContentProvider implements TextDocumentContentProvider {
 
       const wikiId = uri.path;
       const wikis = await this.wikiStorageService.getAllSavedWikis();
-      const wiki = wikis.find((w) => w.id === wikiId);
+      const wiki = wikis.find((w: any) => w.id === wikiId);
 
       if (!wiki) {
         return `# Wiki not found\n\nWiki with ID "${wikiId}" could not be found.`;

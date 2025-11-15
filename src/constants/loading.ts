@@ -29,6 +29,7 @@ export const LoadingSteps = {
   // Prompt preparation
   preparingGenerationInput: "preparingGenerationInput",
   buildingPrompt: "buildingPrompt",
+  validatingPromptQuality: "validatingPromptQuality",
 
   // LLM interaction
   sendingLLMRequest: "sendingLLMRequest",
@@ -96,6 +97,7 @@ export function getProgressMessageForStep(step: LoadingStep): string {
     // Prompt preparation
     [LoadingSteps.preparingGenerationInput]: "Preparing generation input...",
     [LoadingSteps.buildingPrompt]: "Building prompt...",
+    [LoadingSteps.validatingPromptQuality]: "Validating prompt quality...",
 
     // LLM interaction
     [LoadingSteps.sendingLLMRequest]: "Sending LLM request...",

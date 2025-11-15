@@ -6,7 +6,7 @@ import {
   type Disposable,
   type QuickInputButton,
 } from "vscode";
-import { CommandPaletteText, VSCodeCommandIds } from "../../constants";
+import { CommandPaletteText, VSCodeCommandIds } from "@/constants";
 import {
   fetchPaletteContext,
   getInitialPaletteContext,
@@ -17,7 +17,7 @@ import {
   buildCommandItems,
   type CommandQuickPickItem,
 } from "./commandPaletteItems";
-import { createLogger } from "../../infrastructure/services/LoggingService";
+import { createLogger } from "@/infrastructure/services";
 
 let autoReopenAttempts = 0;
 let lastInvocationToken = 0;

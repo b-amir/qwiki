@@ -6,7 +6,26 @@
     "lib": ["ES2020"],
     "sourceMap": true,
     "rootDir": "src",
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/application/*": ["src/application/*"],
+      "@/infrastructure/*": ["src/infrastructure/*"],
+      "@/domain/*": ["src/domain/*"],
+      "@/events/*": ["src/events/*"],
+      "@/llm/*": ["src/llm/*"],
+      "@/constants": ["src/constants"],
+      "@/constants/*": ["src/constants/*"],
+      "@/utilities/*": ["src/utilities/*"],
+      "@/panels/*": ["src/panels/*"],
+      "@/providers/*": ["src/providers/*"],
+      "@/views/*": ["src/views/*"],
+      "@/presentation/*": ["src/presentation/*"],
+      "@/factories/*": ["src/factories/*"],
+      "@/container/*": ["src/container/*"],
+      "@/errors/*": ["src/errors/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", ".vscode-test", "webview-ui"]

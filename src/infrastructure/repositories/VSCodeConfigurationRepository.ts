@@ -1,6 +1,6 @@
 import { workspace } from "vscode";
-import type { ConfigurationRepository } from "../../domain/repositories/ConfigurationRepository";
-import { Extension } from "../../constants/Extension";
+import type { ConfigurationRepository } from "@/domain/repositories/ConfigurationRepository";
+import { Extension } from "@/constants/Extension";
 
 export class VSCodeConfigurationRepository implements ConfigurationRepository {
   async get<T>(key: string): Promise<T | undefined> {
