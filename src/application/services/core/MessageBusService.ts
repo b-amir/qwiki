@@ -103,11 +103,21 @@ export class MessageBusService {
   postChunk(chunk: string, accumulatedContent: string): void {
     this.chunkBuffer.push({ chunk, accumulatedContent });
 
-    if (!this.chunkTimer) {
+    if (this.chunkBuffer.length >= 2) {
+      this.flushChunksImmediately();
+    } else if (!this.chunkTimer) {
       this.chunkTimer = setTimeout(() => {
         this.flushChunks();
-      }, this.CHUNK_BATCH_DELAY);
+      }, 50);
     }
+  }
+
+  flushChunksImmediately(): void {
+    if (this.chunkTimer) {
+      clearTimeout(this.chunkTimer);
+      this.chunkTimer = undefined;
+    }
+    this.flushChunks();
   }
 
   private flushChunks(): void {
@@ -125,15 +135,7 @@ export class MessageBusService {
       accumulatedContent: lastChunk.accumulatedContent,
     };
 
-    const payloadSize = JSON.stringify(payload).length;
-    if (payloadSize > this.LARGE_PAYLOAD_THRESHOLD) {
-      this.logger.debug("Large chunk payload detected, sending optimized batch", {
-        size: payloadSize,
-        chunkCount: chunks.length,
-      });
-    }
-
-    this.optimizer.postMessage(OutboundEvents.wikiContentChunk, payload);
+    this.optimizer.postImmediate(OutboundEvents.wikiContentChunk, payload);
   }
 
   dispose(): void {

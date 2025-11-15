@@ -175,7 +175,7 @@ watch(
         <template v-if="wikiPageLoading.showNavigationLoading.value">
           <LoadingState class="flex-1" context="navigation" />
         </template>
-        <template v-else-if="showWikiLoading">
+        <template v-else-if="showWikiLoading && !wiki.content">
           <LoadingState class="flex-1" context="wiki" />
           <div class="flex justify-center pb-4">
             <button

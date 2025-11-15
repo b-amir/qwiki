@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import Button from "@/components/ui/button.vue";
@@ -25,27 +25,83 @@ const { displayLoading: showWikiLoading } = useDelayedLoadingState(
   { minDisplayTime: 400, perStepDelay: 100 },
 );
 
+const hasContent = computed(() => wiki.content && wiki.content.trim().length > 0);
+const isStreaming = computed(() => wiki.loading && hasContent.value);
+const showContent = computed(() => hasContent.value);
+const showLoadingOverlay = computed(() => showWikiLoading.value && !hasContent.value);
+
+const displayedContent = ref("");
+const targetContent = ref("");
+let typingAnimationId: number | null = null;
+const BASE_CHARS_PER_FRAME = 15;
+const MAX_CHARS_PER_FRAME = 100;
+
 const wikiContentWithoutTitle = computed(() => {
+  if (isStreaming.value) {
+    if (displayedContent.value && typeof displayedContent.value === "string") {
+      return displayedContent.value.replace(/^#\s+.+$/m, "");
+    }
+    return displayedContent.value || "";
+  }
   if (wiki.content && typeof wiki.content === "string") {
     return wiki.content.replace(/^#\s+.+$/m, "");
   }
   return wiki.content || "";
 });
 
-watch(
-  () => wiki.content,
-  () => {
-    if (wiki.loading && contentRef.value) {
-      nextTick(() => {
-        if (contentRef.value) {
-          contentRef.value.scrollTo({
-            top: contentRef.value.scrollHeight,
-            behavior: "smooth",
-          });
-        }
+function typeContent() {
+  if (displayedContent.value.length < targetContent.value.length) {
+    const remaining = targetContent.value.slice(displayedContent.value.length);
+    const gap = targetContent.value.length - displayedContent.value.length;
+
+    let charsToAdd = BASE_CHARS_PER_FRAME;
+    if (gap > 500) {
+      charsToAdd = MAX_CHARS_PER_FRAME;
+    } else if (gap > 200) {
+      charsToAdd = Math.floor(gap / 10);
+    } else if (gap > 50) {
+      charsToAdd = BASE_CHARS_PER_FRAME * 2;
+    }
+
+    charsToAdd = Math.min(charsToAdd, remaining.length);
+    displayedContent.value = targetContent.value.slice(
+      0,
+      displayedContent.value.length + charsToAdd,
+    );
+
+    if (contentRef.value && isStreaming.value) {
+      contentRef.value.scrollTo({
+        top: contentRef.value.scrollHeight,
+        behavior: "smooth",
       });
     }
+
+    typingAnimationId = requestAnimationFrame(() => {
+      typeContent();
+    });
+  } else {
+    typingAnimationId = null;
+  }
+}
+
+watch(
+  () => wiki.content,
+  (newContent) => {
+    if (isStreaming.value && newContent) {
+      targetContent.value = newContent;
+      if (!typingAnimationId) {
+        typeContent();
+      }
+    } else if (!isStreaming.value && newContent) {
+      displayedContent.value = newContent;
+      targetContent.value = newContent;
+      if (typingAnimationId) {
+        cancelAnimationFrame(typingAnimationId);
+        typingAnimationId = null;
+      }
+    }
   },
+  { immediate: true },
 );
 
 const wikiTitle = computed(() => {
@@ -108,23 +164,27 @@ onBeforeUnmount(() => {
     window.removeEventListener("message", messageHandler);
     messageHandler = null;
   }
+  if (typingAnimationId) {
+    cancelAnimationFrame(typingAnimationId);
+    typingAnimationId = null;
+  }
 });
 </script>
 
 <template>
   <div class="flex h-full flex-col">
     <div class="flex-1 overflow-auto pb-3">
-      <div v-if="showWikiLoading" class="h-full">
+      <div v-if="showLoadingOverlay" class="h-full">
         <LoadingState context="wiki" />
       </div>
-      <div v-else-if="wiki.content" class="relative">
+      <div v-if="showContent" class="relative">
         <div ref="contentRef" class="overflow-auto p-4">
           <MarkdownRenderer :content="wikiContentWithoutTitle" />
         </div>
       </div>
     </div>
 
-    <div v-if="wiki.content" class="border-border bg-background flex-shrink-0 border-t px-4 py-4">
+    <div v-if="hasContent" class="border-border bg-background flex-shrink-0 border-t px-4 py-4">
       <Button
         :disabled="saveState === 'saving'"
         class="bg-foreground w-full text-sm"

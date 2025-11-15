@@ -204,6 +204,7 @@ export class WikiGenerationExecutor {
     this.logger.info("Wiki generation completed", {
       duration: generationDuration,
       durationSeconds: Math.round(generationDuration / 1000),
+      accumulatedContentLength: accumulatedContent.length,
       success: result?.success,
       contentLength: result?.content?.length || 0,
       hasError: !!result?.error,

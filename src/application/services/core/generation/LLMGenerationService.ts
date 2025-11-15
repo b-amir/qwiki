@@ -144,6 +144,7 @@ export class LLMGenerationService {
     onProgress?.(LoadingSteps.waitingForLLMResponse);
 
     let accumulatedContent = "";
+    let chunkCount = 0;
 
     try {
       for await (const chunk of this.llmRegistry.generateStream(request.providerId as ProviderId, {
@@ -158,8 +159,12 @@ export class LLMGenerationService {
           throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
         }
 
+        chunkCount++;
         accumulatedContent += chunk;
-        onChunk?.(chunk, accumulatedContent);
+
+        if (onChunk) {
+          onChunk(chunk, accumulatedContent);
+        }
       }
 
       const waitStepDuration = Date.now() - waitStepStart;

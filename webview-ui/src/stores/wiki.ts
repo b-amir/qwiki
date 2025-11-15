@@ -120,9 +120,14 @@ export const useWikiStore = defineStore("wiki", {
           case "wikiContentChunk": {
             const { chunks, accumulatedContent, chunk } = message.payload || {};
             if (chunks && Array.isArray(chunks)) {
-              this.content = accumulatedContent || this.content;
+              const newContent = accumulatedContent || this.content;
+              if (newContent !== this.content) {
+                this.content = newContent;
+              }
             } else if (chunk && accumulatedContent !== undefined) {
-              this.content = accumulatedContent;
+              if (accumulatedContent !== this.content) {
+                this.content = accumulatedContent;
+              }
             }
             return;
           }
