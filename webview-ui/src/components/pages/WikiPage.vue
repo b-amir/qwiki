@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
 import Button from "@/components/ui/button.vue";
@@ -15,6 +15,7 @@ const vscode = useVscode();
 const wikiLoadingContext = useLoading("wiki");
 const isSaving = ref(false);
 const saveState = ref<"idle" | "saving" | "saved" | "error">("idle");
+const contentRef = ref<HTMLElement | null>(null);
 let messageHandler: ((event: MessageEvent) => void) | null = null;
 
 const isLoadingRaw = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
@@ -30,6 +31,22 @@ const wikiContentWithoutTitle = computed(() => {
   }
   return wiki.content || "";
 });
+
+watch(
+  () => wiki.content,
+  () => {
+    if (wiki.loading && contentRef.value) {
+      nextTick(() => {
+        if (contentRef.value) {
+          contentRef.value.scrollTo({
+            top: contentRef.value.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+      });
+    }
+  },
+);
 
 const wikiTitle = computed(() => {
   if (wiki.content && typeof wiki.content === "string") {
@@ -101,7 +118,7 @@ onBeforeUnmount(() => {
         <LoadingState context="wiki" />
       </div>
       <div v-else-if="wiki.content" class="relative">
-        <div class="overflow-auto p-4">
+        <div ref="contentRef" class="overflow-auto p-4">
           <MarkdownRenderer :content="wikiContentWithoutTitle" />
         </div>
       </div>

@@ -190,6 +190,61 @@ export class LLMRegistry {
     }
   }
 
+  async *generateStream(providerId: ProviderId, params: GenerateParams): AsyncGenerator<string> {
+    const provider = this.providers.get(providerId);
+    if (!provider) {
+      throw new ProviderError(
+        ErrorCodes.PROVIDER_NOT_FOUND,
+        `Unknown provider: ${providerId}`,
+        providerId,
+      );
+    }
+
+    if (!provider.generateStream) {
+      throw new ProviderError(
+        ErrorCodes.GENERATION_FAILED,
+        `Provider ${providerId} does not support streaming`,
+        providerId,
+      );
+    }
+
+    if (this.rateLimiterService) {
+      try {
+        await this.rateLimiterService.checkLimit(`provider:${providerId}`);
+      } catch (error: unknown) {
+        if (error instanceof RateLimitError) {
+          const rateLimitError = new ProviderError(
+            ErrorCodes.RATE_LIMIT_EXCEEDED,
+            error.message,
+            providerId,
+            error,
+          );
+          (rateLimitError as any).waitTimeMs = error.waitTimeMs;
+          throw rateLimitError;
+        }
+        throw error;
+      }
+    }
+
+    let apiKey = await this.secrets.get(this.keyName(providerId));
+
+    if (!apiKey) {
+      const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+      apiKey = providerConfig?.apiKey;
+    }
+
+    try {
+      for await (const chunk of provider.generateStream(params, apiKey || undefined)) {
+        yield chunk;
+      }
+    } catch (error: any) {
+      const providerError =
+        error instanceof ProviderError ? error : ProviderError.fromError(error, providerId);
+      this.errorLoggingService.logError(providerError);
+      throw providerError;
+    }
+  }
+
   async setApiKey(providerId: ProviderId, key: string) {
     await this.secrets.store(this.keyName(providerId), key);
   }

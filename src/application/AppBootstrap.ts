@@ -134,6 +134,31 @@ export class AppBootstrap {
     });
     commandRegistry.addDisposer(unsubWikiResult);
 
+    const unsubWikiContentChunk = eventBus.subscribe(
+      OutboundEvents.wikiContentChunk,
+      (payload: any) => {
+        if (
+          payload &&
+          typeof payload === "object" &&
+          "chunk" in payload &&
+          "accumulatedContent" in payload
+        ) {
+          messageBus.postChunk(payload.chunk as string, payload.accumulatedContent as string);
+        } else {
+          messageBus.postMessage(OutboundEvents.wikiContentChunk, payload);
+        }
+      },
+    );
+    commandRegistry.addDisposer(unsubWikiContentChunk);
+
+    const unsubWikiGenerationComplete = eventBus.subscribe(
+      OutboundEvents.wikiGenerationComplete,
+      (payload) => {
+        messageBus.postMessage(OutboundEvents.wikiGenerationComplete, payload);
+      },
+    );
+    commandRegistry.addDisposer(unsubWikiGenerationComplete);
+
     const unsubRelated = eventBus.subscribe(OutboundEvents.related, (payload) => {
       messageBus.postSuccess(OutboundEvents.related, payload);
     });

@@ -26,9 +26,24 @@ export class LLMGenerationService {
     semanticInfo: any,
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<{ content: string }> {
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
+    }
+
+    const provider = this.llmRegistry.getProvider(request.providerId as ProviderId);
+    const supportsStreaming = provider?.generateStream && onChunk;
+
+    if (supportsStreaming) {
+      return this.callLLMStreaming(
+        request,
+        generationInput,
+        semanticInfo,
+        onProgress,
+        cancellationToken,
+        onChunk,
+      );
     }
 
     this.logger.info("Sending request to LLM", {
@@ -84,6 +99,92 @@ export class LLMGenerationService {
     } catch (llmError: any) {
       const llmErrorDuration = Date.now() - llmRequestStart;
       this.logger.error("LLM generation FAILED", {
+        duration: llmErrorDuration,
+        durationSeconds: Math.round(llmErrorDuration / 1000),
+        error: llmError?.message,
+        errorCode: llmError?.code,
+        errorName: llmError?.name,
+        stack: llmError?.stack,
+        providerId: request.providerId,
+        model: request.model,
+      });
+      throw llmError;
+    }
+  }
+
+  private async callLLMStreaming(
+    request: WikiGenerationRequest,
+    generationInput: GenerationInput,
+    semanticInfo: any,
+    onProgress?: (step: LoadingStep) => void,
+    cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
+  ): Promise<{ content: string }> {
+    this.logger.info("Sending streaming request to LLM", {
+      providerId: request.providerId,
+      model: request.model,
+      hasSemanticInfo: !!semanticInfo,
+    });
+    const sendStepStart = Date.now();
+    onProgress?.(LoadingSteps.sendingLLMRequest);
+
+    if (cancellationToken?.isCancellationRequested) {
+      throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
+    }
+
+    const llmRequestStart = Date.now();
+    const sendStepDuration = Date.now() - sendStepStart;
+    this.logger.debug("Sending LLM request step completed", {
+      step: LoadingSteps.sendingLLMRequest,
+      duration: sendStepDuration,
+    });
+
+    this.logger.info("Waiting for streaming LLM response");
+    const waitStepStart = Date.now();
+    onProgress?.(LoadingSteps.waitingForLLMResponse);
+
+    let accumulatedContent = "";
+
+    try {
+      for await (const chunk of this.llmRegistry.generateStream(request.providerId as ProviderId, {
+        model: request.model,
+        snippet: generationInput.snippet,
+        languageId: request.languageId,
+        filePath: request.filePath,
+        semanticInfo,
+        project: generationInput.project,
+      })) {
+        if (cancellationToken?.isCancellationRequested) {
+          throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
+        }
+
+        accumulatedContent += chunk;
+        onChunk?.(chunk, accumulatedContent);
+      }
+
+      const waitStepDuration = Date.now() - waitStepStart;
+      this.logger.debug("Waiting for LLM response step completed", {
+        step: LoadingSteps.waitingForLLMResponse,
+        duration: waitStepDuration,
+      });
+
+      if (cancellationToken?.isCancellationRequested) {
+        throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
+      }
+
+      const llmResponseDuration = Date.now() - llmRequestStart;
+      this.logger.info("LLM streaming response received successfully", {
+        duration: llmResponseDuration,
+        durationSeconds: Math.round(llmResponseDuration / 1000),
+        responseLength: accumulatedContent.length,
+        providerId: request.providerId,
+        model: request.model,
+      });
+
+      return { content: accumulatedContent };
+    } catch (llmError: any) {
+      const llmErrorDuration = Date.now() - llmRequestStart;
+      this.logger.error("LLM streaming generation FAILED", {
         duration: llmErrorDuration,
         durationSeconds: Math.round(llmErrorDuration / 1000),
         error: llmError?.message,

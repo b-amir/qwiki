@@ -36,6 +36,7 @@ export interface LLMProvider {
   requiresApiKey: boolean;
   capabilities: ProviderCapabilities;
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
+  generateStream?(params: GenerateParams, apiKey: string | undefined): AsyncGenerator<string>;
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
   supportsCapability(capability: ProviderFeature): boolean;

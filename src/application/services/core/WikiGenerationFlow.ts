@@ -67,6 +67,7 @@ export class WikiGenerationFlow {
     generateParams: GenerateParams,
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
     const stepStartTimes = new Map<LoadingStep, number>();
     const emitStep = (step: LoadingStep) => {
@@ -211,6 +212,7 @@ export class WikiGenerationFlow {
       semanticInfo,
       onProgress,
       cancellationToken,
+      onChunk,
     );
 
     if (cancellationToken?.isCancellationRequested) {

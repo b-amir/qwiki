@@ -75,6 +75,7 @@ export class WikiService {
     projectContext: ProjectContext,
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
     const startTime = Date.now();
     this.logger.debug("generateWiki started", {
@@ -132,6 +133,7 @@ export class WikiService {
               generateParams,
               onProgress,
               cancellationToken,
+              onChunk,
             ),
           TaskPriority.HIGH,
         ) as any;
@@ -144,6 +146,7 @@ export class WikiService {
         generateParams,
         onProgress,
         cancellationToken,
+        onChunk,
       );
       this.logger.debug("generateWiki completed", {
         duration: Date.now() - startTime,
@@ -182,6 +185,7 @@ export class WikiService {
     },
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
     const startTime = Date.now();
     const deduplicationKey = `${this.generationCacheKeyPrefix}_${request.snippet.substring(0, ServiceLimits.deduplicationKeyPrefixLength)}`;
@@ -199,6 +203,7 @@ export class WikiService {
             generateParams,
             onProgress,
             cancellationToken,
+            onChunk,
           );
         },
         {
@@ -233,6 +238,7 @@ export class WikiService {
     },
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
     await this.memoryOptimizationService.optimizeMemory();
     const result = await this.generationFlow.execute(
@@ -241,6 +247,7 @@ export class WikiService {
       generateParams,
       onProgress,
       cancellationToken,
+      onChunk,
     );
     await this.memoryOptimizationService.optimizeMemory();
     return result;

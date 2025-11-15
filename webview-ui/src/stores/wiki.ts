@@ -117,6 +117,22 @@ export const useWikiStore = defineStore("wiki", {
             }
             return;
           }
+          case "wikiContentChunk": {
+            const { chunks, accumulatedContent, chunk } = message.payload || {};
+            if (chunks && Array.isArray(chunks)) {
+              this.content = accumulatedContent || this.content;
+            } else if (chunk && accumulatedContent !== undefined) {
+              this.content = accumulatedContent;
+            }
+            return;
+          }
+          case "wikiGenerationComplete": {
+            this.loading = false;
+            this.loadingStep = "";
+            this.content = message.payload?.content || this.content;
+            loadingStore.complete({ context: "wiki" });
+            return;
+          }
           case "wikiResult": {
             this.loading = false;
             this.loadingStep = "";

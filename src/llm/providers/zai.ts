@@ -93,6 +93,18 @@ export class ZAiProvider implements LLMProvider {
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
     if (!apiKey)
       throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Z.ai API key is not set", this.id);
+
+    let accumulatedContent = "";
+    for await (const chunk of this.generateStream(params, apiKey)) {
+      accumulatedContent += chunk;
+    }
+    return { content: accumulatedContent };
+  }
+
+  async *generateStream(params: GenerateParams, apiKey?: string): AsyncGenerator<string> {
+    if (!apiKey)
+      throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Z.ai API key is not set", this.id);
+
     const model = params.model || ZAI_MODELS[0];
     const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
       | string
@@ -110,63 +122,43 @@ export class ZAiProvider implements LLMProvider {
       { role: "user", content: buildWikiPrompt(params) },
     ];
 
-    const doRequest = async (modelName: string) => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages,
-            temperature: 0.2,
-            top_p: 0.95,
-            stream: false,
-            max_tokens: 4096,
-            request_id: `qwiki-${getNonce()}`,
-            user_id: "qwiki-user",
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        return response;
-      } catch (error) {
-        clearTimeout(timeoutId);
-        handleTimeoutError(error, this.id, "Z.ai", timeout);
-      }
-    };
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.2,
+          top_p: 0.95,
+          stream: true,
+          max_tokens: 4096,
+          request_id: `qwiki-${getNonce()}`,
+          user_id: "qwiki-user",
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      handleTimeoutError(error, this.id, "Z.ai", timeout);
+      return;
+    }
 
-    let res = await doRequest(model);
     if (!res.ok) {
       const text = await res.text();
       try {
         const err = JSON.parse(text);
         const code = err?.error?.code;
         const msg = err?.error?.message || text;
-        if (res.status === 429 && code === "1113") {
-          for (const fb of ZAI_MODELS) {
-            if (fb === model) continue;
-            const attempt = await doRequest(fb);
-            if (attempt.ok) {
-              res = attempt;
-              break;
-            }
-          }
-          if (!res.ok) {
-            throw new ProviderError(
-              ErrorCodes.MODEL_NOT_SUPPORTED,
-              `Z.ai model ${model} not supported. Likely your plan doesn't include the selected model. Select a model in your package (e.g., glm-4.5-flash) or set qwiki.zaiBaseUrl for your tenant and retry.`,
-              this.id,
-              text,
-            );
-          }
-        }
         if (res.status === 401 || res.status === 429 || res.status >= 500) {
           handleHttpError(res, this.id, "Z.ai", text);
         }
@@ -189,9 +181,45 @@ export class ZAiProvider implements LLMProvider {
         );
       }
     }
-    const data: any = await res.json();
-    const content = data?.choices?.[0]?.message?.content || "";
-    return { content };
+
+    if (!res.body) {
+      throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
+
+          if (trimmedLine.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(trimmedLine.slice(6));
+              const content = data?.choices?.[0]?.delta?.content;
+              if (content) {
+                yield content;
+              }
+            } catch (parseError) {
+              // Skip malformed JSON lines
+              continue;
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   listModels(): string[] {

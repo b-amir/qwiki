@@ -112,6 +112,10 @@ export class WikiGenerationExecutor {
 
       if (result && result.success) {
         this.logger.debug("Publishing successful wiki result");
+        this.eventBus.publish(OutboundEvents.wikiGenerationComplete, {
+          content: result.content,
+          success: true,
+        });
         this.eventBus.publish(OutboundEvents.wikiResult, {
           content: result.content,
           success: true,
@@ -170,6 +174,9 @@ export class WikiGenerationExecutor {
       snippetLength: payload?.snippet?.length || 0,
       useLongTermCache: service === this.cachedWikiService,
     });
+
+    let accumulatedContent = "";
+
     const result = await service.generateWiki(
       payload,
       projectContext,
@@ -182,6 +189,16 @@ export class WikiGenerationExecutor {
         this.eventBus.publish(OutboundEvents.loadingStep, { step });
       },
       cancellationToken,
+      (chunk: string, accumulated: string) => {
+        if (cancellationToken.isCancellationRequested) {
+          return;
+        }
+        accumulatedContent = accumulated;
+        this.eventBus.publish(OutboundEvents.wikiContentChunk, {
+          chunk,
+          accumulatedContent: accumulated,
+        });
+      },
     );
     const generationDuration = Date.now() - generateWikiStart;
     this.logger.info("Wiki generation completed", {

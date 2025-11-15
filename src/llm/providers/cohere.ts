@@ -91,6 +91,18 @@ export class CohereProvider implements LLMProvider {
       throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Cohere API key is not set", this.id);
     }
 
+    let accumulatedContent = "";
+    for await (const chunk of this.generateStream(params, apiKey)) {
+      accumulatedContent += chunk;
+    }
+    return { content: accumulatedContent };
+  }
+
+  async *generateStream(params: GenerateParams, apiKey?: string): AsyncGenerator<string> {
+    if (!apiKey) {
+      throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Cohere API key is not set", this.id);
+    }
+
     const model = params.model || COHERE_MODELS[0];
     const url = "https://api.cohere.com/v1/chat";
     const prompt = buildWikiPrompt(params);
@@ -112,6 +124,7 @@ export class CohereProvider implements LLMProvider {
           message: prompt,
           temperature: 0.2,
           max_tokens: 4096,
+          stream: true,
         }),
         signal: controller.signal,
       });
@@ -126,9 +139,55 @@ export class CohereProvider implements LLMProvider {
       handleHttpError(res, this.id, "Cohere", text);
     }
 
-    const data: any = await res.json();
-    const content = data?.text || data?.message?.content || "";
-    return { content };
+    if (!res.body) {
+      throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+
+          if (trimmedLine.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(trimmedLine.slice(6));
+              const text = data?.text || data?.delta?.text;
+              if (text) {
+                yield text;
+              }
+            } catch (parseError) {
+              // Skip malformed JSON lines
+              continue;
+            }
+          } else if (trimmedLine.startsWith("{")) {
+            try {
+              const data = JSON.parse(trimmedLine);
+              const text = data?.text || data?.delta?.text;
+              if (text) {
+                yield text;
+              }
+            } catch (parseError) {
+              // Skip malformed JSON
+              continue;
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   listModels(): string[] {

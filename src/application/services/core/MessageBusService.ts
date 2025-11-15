@@ -12,6 +12,10 @@ export class MessageBusService {
   private debouncingService: DebouncingService;
   private debouncedPostMessage: any;
   private debouncedEnvironmentStatus: any;
+  private chunkBuffer: Array<{ chunk: string; accumulatedContent: string }> = [];
+  private chunkTimer?: NodeJS.Timeout;
+  private readonly CHUNK_BATCH_DELAY = 50;
+  private readonly LARGE_PAYLOAD_THRESHOLD = 10 * 1024;
   private logger: Logger;
 
   constructor(
@@ -96,7 +100,48 @@ export class MessageBusService {
     this.postMessage(OutboundEvents.loadingStep, { step });
   }
 
+  postChunk(chunk: string, accumulatedContent: string): void {
+    this.chunkBuffer.push({ chunk, accumulatedContent });
+
+    if (!this.chunkTimer) {
+      this.chunkTimer = setTimeout(() => {
+        this.flushChunks();
+      }, this.CHUNK_BATCH_DELAY);
+    }
+  }
+
+  private flushChunks(): void {
+    if (this.chunkBuffer.length === 0) {
+      this.chunkTimer = undefined;
+      return;
+    }
+
+    const chunks = this.chunkBuffer.splice(0);
+    this.chunkTimer = undefined;
+
+    const lastChunk = chunks[chunks.length - 1];
+    const payload = {
+      chunks: chunks.map((c) => c.chunk),
+      accumulatedContent: lastChunk.accumulatedContent,
+    };
+
+    const payloadSize = JSON.stringify(payload).length;
+    if (payloadSize > this.LARGE_PAYLOAD_THRESHOLD) {
+      this.logger.debug("Large chunk payload detected, sending optimized batch", {
+        size: payloadSize,
+        chunkCount: chunks.length,
+      });
+    }
+
+    this.optimizer.postMessage(OutboundEvents.wikiContentChunk, payload);
+  }
+
   dispose(): void {
+    if (this.chunkTimer) {
+      clearTimeout(this.chunkTimer);
+      this.chunkTimer = undefined;
+    }
+    this.flushChunks();
     this.debouncingService.cancelAll();
     this.optimizer.dispose();
   }

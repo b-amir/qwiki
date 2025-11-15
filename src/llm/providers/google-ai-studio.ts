@@ -89,6 +89,22 @@ export class GoogleAIStudioProvider implements LLMProvider {
       );
     }
 
+    let accumulatedContent = "";
+    for await (const chunk of this.generateStream(params, apiKey)) {
+      accumulatedContent += chunk;
+    }
+    return { content: accumulatedContent };
+  }
+
+  async *generateStream(params: GenerateParams, apiKey?: string): AsyncGenerator<string> {
+    if (!apiKey) {
+      throw new ProviderError(
+        ErrorCodes.API_KEY_MISSING,
+        "Google AI Studio API key is not set",
+        this.id,
+      );
+    }
+
     const model = params.model || "gemini-2.5-pro";
     const endpointType = (
       this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined
@@ -98,7 +114,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     if (useNativeEndpoint) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}`;
 
       const body = {
         contents: [
@@ -138,9 +154,44 @@ export class GoogleAIStudioProvider implements LLMProvider {
         handleHttpError(res, this.id, "Google AI Studio", text);
       }
 
-      const data: any = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("\n") || "";
-      return { content: text };
+      if (!res.body) {
+        throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+
+            if (trimmedLine.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(trimmedLine.slice(6));
+                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  yield text;
+                }
+              } catch (parseError) {
+                // Skip malformed JSON lines
+                continue;
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     } else {
       const url = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
 
@@ -169,6 +220,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
             messages,
             temperature: 0.2,
             max_tokens: 4096,
+            stream: true,
           }),
           signal: controller.signal,
         });
@@ -183,9 +235,44 @@ export class GoogleAIStudioProvider implements LLMProvider {
         handleHttpError(res, this.id, "Google AI Studio", text);
       }
 
-      const data: any = await res.json();
-      const content = data?.choices?.[0]?.message?.content || "";
-      return { content };
+      if (!res.body) {
+        throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
+
+            if (trimmedLine.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(trimmedLine.slice(6));
+                const content = data?.choices?.[0]?.delta?.content;
+                if (content) {
+                  yield content;
+                }
+              } catch (parseError) {
+                // Skip malformed JSON lines
+                continue;
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
     }
   }
 

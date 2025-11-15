@@ -24,6 +24,8 @@ export const OutboundEvents = {
   triggerGenerate: "triggerGenerate",
   loadingStep: "loadingStep",
   wikiResult: "wikiResult",
+  wikiContentChunk: "wikiContentChunk",
+  wikiGenerationComplete: "wikiGenerationComplete",
   error: "error",
   related: "related",
   apiKeySaved: "apiKeySaved",
