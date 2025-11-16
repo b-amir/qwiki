@@ -154,13 +154,15 @@ export class ProviderHealthService {
         const providerIds = providers.map((p: any) => p.id);
         this.logDebug(`Checking health for ${providerIds.length} providers`);
 
-        for (const providerId of providerIds) {
+        const healthCheckPromises = providerIds.map(async (providerId) => {
           try {
             await this.checkProviderHealth(providerId);
           } catch (error) {
             this.logError(`Health check failed for provider ${providerId}:`, error);
           }
-        }
+        });
+
+        await Promise.all(healthCheckPromises);
 
         const monitoringEndTime = Date.now();
         this.logDebug(
@@ -251,9 +253,10 @@ export class ProviderHealthService {
 
       this.logDebug(`Forcing health checks for ${providerIds.length} providers`);
 
-      for (const providerId of providerIds) {
+      const healthCheckPromises = providerIds.map(async (providerId) => {
         try {
-          results[providerId] = await this.checkProviderHealth(providerId);
+          const status = await this.checkProviderHealth(providerId);
+          results[providerId] = status;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
           this.logError(`Force health check failed for provider ${providerId}:`, error);
@@ -266,7 +269,9 @@ export class ProviderHealthService {
             consecutiveFailures: 1,
           };
         }
-      }
+      });
+
+      await Promise.all(healthCheckPromises);
 
       const forceAllEndTime = Date.now();
       this.logDebug(

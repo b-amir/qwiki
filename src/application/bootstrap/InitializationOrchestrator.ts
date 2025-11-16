@@ -85,14 +85,6 @@ export class InitializationOrchestrator {
     this.logger.info("Starting background services initialization");
     const startTime = Date.now();
 
-    try {
-      await this.initializeCriticalServices();
-    } catch (error) {
-      this.logger.warn("Critical services failed, but continuing with background init", {
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-    }
-
     const initializer = new BackgroundServicesInitializer(
       this.container,
       this.readinessManager,

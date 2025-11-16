@@ -21,6 +21,11 @@ export class WikiEventHandler {
   private activeGenerationTokenSource: CancellationTokenSource | null = null;
   private generationExecutor: WikiGenerationExecutor | null = null;
   public static instance: WikiEventHandler | null = null;
+  private emptySnippetContextCache: {
+    context: any;
+    timestamp: number;
+  } | null = null;
+  private readonly EMPTY_SNIPPET_CACHE_TTL = 5000;
 
   constructor(
     private eventBus: EventBus,
@@ -142,7 +147,27 @@ export class WikiEventHandler {
 
   private async handleGetRelated(_payload: { filePath: string }): Promise<void> {
     try {
+      const now = Date.now();
+      if (
+        this.emptySnippetContextCache &&
+        now - this.emptySnippetContextCache.timestamp < this.EMPTY_SNIPPET_CACHE_TTL
+      ) {
+        this.logger.debug("Using cached empty snippet context");
+        this.eventBus.publish(OutboundEvents.related, {
+          rootName: this.emptySnippetContextCache.context.rootName,
+          overview: this.emptySnippetContextCache.context.overview,
+          filesSample: this.emptySnippetContextCache.context.filesSample,
+          related: this.emptySnippetContextCache.context.related,
+        });
+        return;
+      }
+
       const projectContext = await this.projectContextService.buildContext("");
+
+      this.emptySnippetContextCache = {
+        context: projectContext,
+        timestamp: now,
+      };
 
       this.eventBus.publish(OutboundEvents.related, {
         rootName: projectContext.rootName,

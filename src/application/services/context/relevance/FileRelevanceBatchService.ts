@@ -56,74 +56,86 @@ export class FileRelevanceBatchService {
     const progressInterval = ServiceLimits.contextIntelligenceProgressInterval;
     const logInterval = ServiceLimits.contextIntelligenceLogInterval;
 
+    const concurrencyLimit = ServiceLimits.contextIntelligenceConcurrencyLimit;
     this.logger.info("Starting file relevance analysis", {
       totalFiles: totalFilesToAnalyze,
       targetFilePath,
       progressUpdateInterval: progressInterval,
+      concurrencyLimit,
     });
     onProgress?.(LoadingSteps.analyzingFileRelevance);
 
-    for (const fileUri of allFiles) {
-      const filePath = fileUri.fsPath;
-      if (filePath === targetFilePath) {
-        skippedCount++;
-        continue;
-      }
+    const filesToAnalyze = allFiles.filter((fileUri) => fileUri.fsPath !== targetFilePath);
+    skippedCount = allFiles.length - filesToAnalyze.length;
 
-      try {
-        analyzedCount++;
+    const processBatch = async (batch: Uri[]): Promise<void> => {
+      const batchPromises = batch.map(async (fileUri) => {
+        const filePath = fileUri.fsPath;
+        try {
+          const currentAnalyzed = ++analyzedCount;
 
-        if (analyzedCount % progressInterval === 0) {
-          onProgress?.(LoadingSteps.analyzingFileRelevance);
-          const elapsed = Date.now() - analyzeStart;
-          const avgTimePerFile = elapsed / analyzedCount;
-          const estimatedRemaining = avgTimePerFile * (totalFilesToAnalyze - analyzedCount);
+          if (currentAnalyzed % progressInterval === 0) {
+            onProgress?.(LoadingSteps.analyzingFileRelevance);
+            const elapsed = Date.now() - analyzeStart;
+            const avgTimePerFile = elapsed / currentAnalyzed;
+            const estimatedRemaining = avgTimePerFile * (totalFilesToAnalyze - currentAnalyzed);
 
-          const progressData = {
-            analyzed: analyzedCount,
-            total: totalFilesToAnalyze,
-            skipped: skippedCount,
-            errors: errorCount,
-            scoresFound: fileRelevanceScores.length,
-            progressPercent: Math.round((analyzedCount / totalFilesToAnalyze) * 100),
-            elapsedSeconds: Math.round(elapsed / 1000),
-            estimatedRemainingSeconds: Math.round(estimatedRemaining / 1000),
-            avgMsPerFile: Math.round(avgTimePerFile),
-          };
+            const progressData = {
+              analyzed: currentAnalyzed,
+              total: totalFilesToAnalyze,
+              skipped: skippedCount,
+              errors: errorCount,
+              scoresFound: fileRelevanceScores.length,
+              progressPercent: Math.round((currentAnalyzed / totalFilesToAnalyze) * 100),
+              elapsedSeconds: Math.round(elapsed / 1000),
+              estimatedRemainingSeconds: Math.round(estimatedRemaining / 1000),
+              avgMsPerFile: Math.round(avgTimePerFile),
+            };
 
-          if (progressData.progressPercent % 25 === 0 || analyzedCount === totalFilesToAnalyze) {
-            this.logger.info(
-              `Context gathering progress: ${progressData.progressPercent}% (${progressData.analyzed}/${progressData.total} files analyzed)`,
-              progressData,
-            );
+            if (
+              progressData.progressPercent % 25 === 0 ||
+              currentAnalyzed === totalFilesToAnalyze
+            ) {
+              this.logger.info(
+                `Context gathering progress: ${progressData.progressPercent}% (${progressData.analyzed}/${progressData.total} files analyzed)`,
+                progressData,
+              );
+            }
           }
-        }
 
-        const fileAnalysisStart = Date.now();
-        const relevanceScore = await this.fileRelevanceAnalysisService.analyzeFileRelevance(
-          targetFilePath,
-          filePath,
-          projectType,
-        );
-        const fileAnalysisDuration = Date.now() - fileAnalysisStart;
-
-        if (fileAnalysisDuration > ServiceLimits.contextIntelligenceSlowAnalysisThreshold) {
-          this.logger.debug("Slow file analysis detected", {
+          const fileAnalysisStart = Date.now();
+          const relevanceScore = await this.fileRelevanceAnalysisService.analyzeFileRelevance(
+            targetFilePath,
             filePath,
-            duration: fileAnalysisDuration,
+            projectType,
+          );
+          const fileAnalysisDuration = Date.now() - fileAnalysisStart;
+
+          if (fileAnalysisDuration > ServiceLimits.contextIntelligenceSlowAnalysisThreshold) {
+            this.logger.debug("Slow file analysis detected", {
+              filePath,
+              duration: fileAnalysisDuration,
+            });
+          }
+
+          fileRelevanceScores.push(relevanceScore);
+        } catch (error) {
+          errorCount++;
+          this.logger.error(`Failed to analyze file relevance for ${filePath}`, {
+            error,
+            filePath,
+            analyzedCount,
+            totalFiles: totalFilesToAnalyze,
           });
         }
+      });
 
-        fileRelevanceScores.push(relevanceScore);
-      } catch (error) {
-        errorCount++;
-        this.logger.error(`Failed to analyze file relevance for ${filePath}`, {
-          error,
-          filePath,
-          analyzedCount,
-          totalFiles: totalFilesToAnalyze,
-        });
-      }
+      await Promise.all(batchPromises);
+    };
+
+    for (let i = 0; i < filesToAnalyze.length; i += concurrencyLimit) {
+      const batch = filesToAnalyze.slice(i, i + concurrencyLimit);
+      await processBatch(batch);
     }
 
     const analysisDuration = Date.now() - analyzeStart;

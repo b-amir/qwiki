@@ -27,6 +27,7 @@ export const useWikiStore = defineStore("wiki", {
       savedContent: string;
       timestamp: number;
     } | null,
+    getRelatedDebounceTimer: null as number | null,
   }),
   actions: {
     init() {
@@ -39,7 +40,7 @@ export const useWikiStore = defineStore("wiki", {
             this.snippet = text || "";
             this.languageId = languageId || "";
             this.filePath = filePath || "";
-            vscode.postMessage({ command: "getRelated" });
+            this.debouncedGetRelated();
             if (this.pendingAutoGenerate) {
               this.pendingAutoGenerate = false;
               if (this.snippet?.trim()) {
@@ -219,7 +220,7 @@ export const useWikiStore = defineStore("wiki", {
       window.addEventListener("message", handleMessage);
 
       vscode.postMessage({ command: "getSelection" });
-      vscode.postMessage({ command: "getRelated" });
+      this.debouncedGetRelated();
 
       setTimeout(async () => {
         if (this.loading) {
@@ -359,7 +360,16 @@ export const useWikiStore = defineStore("wiki", {
           requestId: this.generateRequestId,
         },
       });
-      vscode.postMessage({ command: "getRelated" });
+      this.debouncedGetRelated();
+    },
+    debouncedGetRelated() {
+      if (this.getRelatedDebounceTimer) {
+        clearTimeout(this.getRelatedDebounceTimer);
+      }
+      this.getRelatedDebounceTimer = window.setTimeout(() => {
+        vscode.postMessage({ command: "getRelated" });
+        this.getRelatedDebounceTimer = null;
+      }, 300);
     },
     openFile(path: string, line?: number) {
       vscode.postMessage({ command: "openFile", payload: { path, line } });

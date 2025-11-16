@@ -59,12 +59,13 @@ export const useLoadingStore = defineStore("loading", {
       } else {
         if (currentState.startedAt) {
           const latency = receiveTime - currentState.startedAt;
-          if (latency > 200) {
+          const threshold = 5000;
+          if (latency > threshold) {
             logger.warn("High latency detected for loading step", {
               context: message.context,
               step: message.step,
               latency,
-              threshold: 200,
+              threshold,
             });
           }
         }
