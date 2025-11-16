@@ -9,7 +9,7 @@ import type {
   Phase4Configuration,
 } from "@/domain/configuration";
 
-export class Phase4ConfigurationManager {
+export class AdvancedConfigurationManager {
   private logger: Logger;
 
   constructor(
@@ -18,7 +18,7 @@ export class Phase4ConfigurationManager {
     private cacheManager: { get: (key: string) => any; set: (key: string, value: any) => void },
     loggingService: LoggingService,
   ) {
-    this.logger = createLogger("Phase4ConfigurationManager");
+    this.logger = createLogger("AdvancedConfigurationManager");
   }
 
   async getContextIntelligenceConfig(): Promise<ContextIntelligenceConfig | undefined> {

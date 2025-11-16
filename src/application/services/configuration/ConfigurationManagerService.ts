@@ -24,7 +24,7 @@ import type { ProjectIndexService } from "@/infrastructure/services";
 import type { LLMRegistry } from "@/llm";
 import { ConfigurationCacheManager } from "@/application/services/configuration/caching/ConfigurationCacheManager";
 import { ConfigurationValidator } from "@/application/services/configuration/validation/ConfigurationValidator";
-import { Phase4ConfigurationManager } from "@/application/services/configuration/management/Phase4ConfigurationManager";
+import { AdvancedConfigurationManager } from "@/application/services/configuration/management/AdvancedConfigurationManager";
 import { ProviderConfigurationManager } from "@/application/services/configuration/management/ProviderConfigurationManager";
 import { GlobalConfigurationManager } from "@/application/services/configuration/management/GlobalConfigurationManager";
 import { ConfigurationRepositoryWrapper } from "@/application/services/configuration/management/ConfigurationRepositoryWrapper";
@@ -34,7 +34,7 @@ export class ConfigurationManagerService {
   private disposables: Array<{ dispose(): void }> = [];
   private cacheManager: ConfigurationCacheManager;
   private validator: ConfigurationValidator;
-  private phase4Manager: Phase4ConfigurationManager;
+  private advancedConfigManager: AdvancedConfigurationManager;
   private providerManager: ProviderConfigurationManager;
   private globalManager: GlobalConfigurationManager;
   private repositoryWrapper: ConfigurationRepositoryWrapper;
@@ -62,7 +62,7 @@ export class ConfigurationManagerService {
       loggingService || new LoggingService(),
     );
     this.validator = new ConfigurationValidator(loggingService || new LoggingService());
-    this.phase4Manager = new Phase4ConfigurationManager(
+    this.advancedConfigManager = new AdvancedConfigurationManager(
       configurationRepository,
       eventBus,
       this.cacheManager,
@@ -291,30 +291,30 @@ export class ConfigurationManagerService {
   }
 
   async getContextIntelligenceConfig(): Promise<ContextIntelligenceConfig | undefined> {
-    return this.phase4Manager.getContextIntelligenceConfig();
+    return this.advancedConfigManager.getContextIntelligenceConfig();
   }
 
   async updateContextIntelligenceConfig(config: Partial<ContextIntelligenceConfig>): Promise<void> {
-    return this.phase4Manager.updateContextIntelligenceConfig(config);
+    return this.advancedConfigManager.updateContextIntelligenceConfig(config);
   }
 
   async getPromptEngineeringConfig(): Promise<PromptEngineeringConfig | undefined> {
-    return this.phase4Manager.getPromptEngineeringConfig();
+    return this.advancedConfigManager.getPromptEngineeringConfig();
   }
 
   async updatePromptEngineeringConfig(config: Partial<PromptEngineeringConfig>): Promise<void> {
-    return this.phase4Manager.updatePromptEngineeringConfig(config);
+    return this.advancedConfigManager.updatePromptEngineeringConfig(config);
   }
 
   async getWikiManagementConfig(): Promise<WikiManagementConfig | undefined> {
-    return this.phase4Manager.getWikiManagementConfig();
+    return this.advancedConfigManager.getWikiManagementConfig();
   }
 
   async updateWikiManagementConfig(config: Partial<WikiManagementConfig>): Promise<void> {
-    return this.phase4Manager.updateWikiManagementConfig(config);
+    return this.advancedConfigManager.updateWikiManagementConfig(config);
   }
 
-  async getPhase4Config(): Promise<Phase4Configuration> {
-    return this.phase4Manager.getPhase4Config();
+  async getAdvancedConfig(): Promise<Phase4Configuration> {
+    return this.advancedConfigManager.getPhase4Config();
   }
 }

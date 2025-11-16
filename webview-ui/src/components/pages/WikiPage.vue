@@ -266,12 +266,14 @@ onBeforeUnmount(() => {
       <div v-if="showContent" class="relative">
         <div
           ref="contentRef"
-          class="overflow-auto p-4"
+          class="overflow-auto px-6 py-5"
           role="article"
           aria-label="Wiki Content"
           tabindex="0"
         >
-          <MarkdownRenderer :content="wikiContentWithoutTitle" />
+          <div class="mx-auto max-w-4xl">
+            <MarkdownRenderer :content="wikiContentWithoutTitle" />
+          </div>
         </div>
       </div>
     </div>

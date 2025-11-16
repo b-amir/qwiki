@@ -110,7 +110,6 @@ async function render() {
     if (typeof content !== "string") {
       content = String(content || "");
     }
-    content = content.replace(/^#\s+.+$/m, "");
 
     const languages = detectLanguagesInMarkdown(content);
     const codeBlocks = detectCodeBlocks(content);
@@ -193,24 +192,46 @@ watch(() => props.content, render);
 </template>
 
 <style scoped>
+/* Enhanced code block styling for syntax highlighting */
 .prose :where(pre.hljs) {
   margin: 1rem 0;
   background-color: var(--vscode-editor-background, var(--background)) !important;
   border: 1px solid var(--vscode-panel-border, var(--border));
-  border-radius: 0.375rem;
-  padding: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  line-height: 1.6;
+  font-size: 0.875rem;
 }
 
 .prose :where(pre code) {
   background-color: transparent !important;
   padding: 0;
+  border: none;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 .prose :where(code:not(pre code)) {
-  @apply bg-muted rounded px-1 py-0.5;
+  @apply bg-muted rounded px-1.5 py-0.5;
+  font-size: 0.875em;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  opacity: 0.95;
 }
 
 .prose :where(pre code, .hljs code) {
   background-image: none !important;
+}
+
+/* Ensure proper spacing for first/last elements */
+.prose > :first-child {
+  margin-top: 0 !important;
+}
+
+.prose > :last-child {
+  margin-bottom: 0 !important;
 }
 </style>

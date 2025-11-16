@@ -55,7 +55,9 @@ const handleClose = () => {
         </div>
       </ModalHeader>
       <ModalContent>
-        <MarkdownRenderer :content="wikiContentWithoutTitle" />
+        <div class="px-2 py-1">
+          <MarkdownRenderer :content="wikiContentWithoutTitle" />
+        </div>
       </ModalContent>
     </template>
   </Modal>
