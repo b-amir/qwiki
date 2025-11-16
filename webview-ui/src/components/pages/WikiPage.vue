@@ -35,73 +35,128 @@ const showLoadingOverlay = computed(() => showWikiLoading.value && !hasContent.v
 const displayedContent = ref("");
 const targetContent = ref("");
 let typingAnimationId: number | null = null;
-const BASE_CHARS_PER_FRAME = 15;
-const MAX_CHARS_PER_FRAME = 100;
+let lastFrameTime = 0;
+let charRemainder = 0;
+
+const BASE_CHARS_PER_SECOND = 180;
+const MAX_CHARS_PER_SECOND = 1200;
 
 const wikiContentWithoutTitle = computed(() => {
-  if (isStreaming.value) {
-    if (displayedContent.value && typeof displayedContent.value === "string") {
-      return displayedContent.value.replace(/^#\s+.+$/m, "");
-    }
-    return displayedContent.value || "";
+  const contentToUse = isStreaming.value ? displayedContent.value : wiki.content || "";
+  if (contentToUse && typeof contentToUse === "string") {
+    return contentToUse.replace(/^#\s+.+$/m, "");
   }
-  if (wiki.content && typeof wiki.content === "string") {
-    return wiki.content.replace(/^#\s+.+$/m, "");
-  }
-  return wiki.content || "";
+  return contentToUse || "";
 });
 
-function typeContent() {
-  if (displayedContent.value.length < targetContent.value.length) {
-    const remaining = targetContent.value.slice(displayedContent.value.length);
-    const gap = targetContent.value.length - displayedContent.value.length;
+function isNearBottom(el: HTMLElement, threshold = 80): boolean {
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  return distanceFromBottom < threshold;
+}
 
-    let charsToAdd = BASE_CHARS_PER_FRAME;
-    if (gap > 500) {
-      charsToAdd = MAX_CHARS_PER_FRAME;
-    } else if (gap > 200) {
-      charsToAdd = Math.floor(gap / 10);
-    } else if (gap > 50) {
-      charsToAdd = BASE_CHARS_PER_FRAME * 2;
-    }
+function stickToBottom(): void {
+  const el = contentRef.value;
+  if (!el) return;
+  if (!isNearBottom(el)) return;
 
-    charsToAdd = Math.min(charsToAdd, remaining.length);
-    displayedContent.value = targetContent.value.slice(
-      0,
-      displayedContent.value.length + charsToAdd,
-    );
+  el.scrollTop = el.scrollHeight;
+}
 
-    if (contentRef.value && isStreaming.value) {
-      contentRef.value.scrollTo({
-        top: contentRef.value.scrollHeight,
-        behavior: "smooth",
-      });
-    }
+function stepTyping(timestamp: number): void {
+  if (!targetContent.value) {
+    typingAnimationId = null;
+    lastFrameTime = 0;
+    charRemainder = 0;
+    return;
+  }
 
-    typingAnimationId = requestAnimationFrame(() => {
-      typeContent();
-    });
-  } else {
+  if (!lastFrameTime) {
+    lastFrameTime = timestamp;
+  }
+
+  const dt = timestamp - lastFrameTime;
+  lastFrameTime = timestamp;
+
+  const remaining = targetContent.value.length - displayedContent.value.length;
+  if (remaining <= 0) {
+    typingAnimationId = null;
+    lastFrameTime = 0;
+    charRemainder = 0;
+    return;
+  }
+
+  let speed = BASE_CHARS_PER_SECOND;
+  if (remaining > 1000) {
+    speed *= 4;
+  } else if (remaining > 300) {
+    speed *= 2;
+  } else if (remaining < 80) {
+    speed *= 0.7;
+  }
+  speed = Math.min(speed, MAX_CHARS_PER_SECOND);
+
+  const charsFloat = (speed * dt) / 1000 + charRemainder;
+  const charsToAdd = Math.max(1, Math.floor(charsFloat));
+  charRemainder = charsFloat - charsToAdd;
+
+  const nextLength = Math.min(
+    targetContent.value.length,
+    displayedContent.value.length + charsToAdd,
+  );
+
+  displayedContent.value = targetContent.value.slice(0, nextLength);
+
+  if (contentRef.value && isStreaming.value) {
+    stickToBottom();
+  }
+
+  typingAnimationId = requestAnimationFrame(stepTyping);
+}
+
+function startTypingLoop(): void {
+  if (typingAnimationId !== null) return;
+  lastFrameTime = 0;
+  charRemainder = 0;
+  typingAnimationId = requestAnimationFrame(stepTyping);
+}
+
+function stopTypingLoop(): void {
+  if (typingAnimationId !== null) {
+    cancelAnimationFrame(typingAnimationId);
     typingAnimationId = null;
   }
+  lastFrameTime = 0;
+  charRemainder = 0;
 }
 
 watch(
-  () => wiki.content,
-  (newContent) => {
-    if (isStreaming.value && newContent) {
-      targetContent.value = newContent;
-      if (!typingAnimationId) {
-        typeContent();
-      }
-    } else if (!isStreaming.value && newContent) {
-      displayedContent.value = newContent;
-      targetContent.value = newContent;
-      if (typingAnimationId) {
-        cancelAnimationFrame(typingAnimationId);
-        typingAnimationId = null;
-      }
+  () => ({
+    content: wiki.content,
+    streaming: isStreaming.value,
+  }),
+  ({ content, streaming }, _, onCleanup) => {
+    if (!content) {
+      stopTypingLoop();
+      displayedContent.value = "";
+      targetContent.value = "";
+      return;
     }
+
+    targetContent.value = content;
+
+    if (streaming) {
+      if (!displayedContent.value || displayedContent.value.length > content.length) {
+        displayedContent.value = "";
+      }
+      startTypingLoop();
+    } else {
+      stopTypingLoop();
+      displayedContent.value = content;
+    }
+
+    onCleanup(() => {
+      stopTypingLoop();
+    });
   },
   { immediate: true },
 );
@@ -118,7 +173,6 @@ const wikiTitle = computed(() => {
 const saveWiki = async () => {
   if (!wiki.content || isSaving.value) return;
 
-  const originalContent = wiki.content;
   logger.debug("Starting to save wiki", {
     title: wikiTitle.value,
     hasContent: !!wiki.content,
@@ -199,10 +253,7 @@ onBeforeUnmount(() => {
     window.removeEventListener("message", messageHandler);
     messageHandler = null;
   }
-  if (typingAnimationId) {
-    cancelAnimationFrame(typingAnimationId);
-    typingAnimationId = null;
-  }
+  stopTypingLoop();
 });
 </script>
 
