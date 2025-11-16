@@ -7,6 +7,7 @@ import { useWikiStore } from "@/stores/wiki";
 import { useVscode } from "@/composables/useVscode";
 import { useLoading } from "@/loading/useLoading";
 import { useDelayedLoadingState } from "@/composables/useDelayedLoadingState";
+import { useKeyboardShortcuts } from "@/composables/useKeyboardShortcuts";
 import { createLogger } from "@/utilities/logging";
 
 const wiki = useWikiStore();
@@ -16,6 +17,7 @@ const wikiLoadingContext = useLoading("wiki");
 const isSaving = ref(false);
 const saveState = ref<"idle" | "saving" | "saved" | "error">("idle");
 const contentRef = ref<HTMLElement | null>(null);
+const saveButtonRef = ref<HTMLElement | null>(null);
 let messageHandler: ((event: MessageEvent) => void) | null = null;
 
 const isLoadingRaw = computed(() => wiki.loading || wikiLoadingContext.isActive.value);
@@ -116,12 +118,15 @@ const wikiTitle = computed(() => {
 const saveWiki = async () => {
   if (!wiki.content || isSaving.value) return;
 
+  const originalContent = wiki.content;
   logger.debug("Starting to save wiki", {
     title: wikiTitle.value,
     hasContent: !!wiki.content,
   });
+
   isSaving.value = true;
   saveState.value = "saving";
+
   try {
     await vscode.postMessage({
       command: "saveWiki",
@@ -139,6 +144,36 @@ const saveWiki = async () => {
     setTimeout(() => (saveState.value = "idle"), 2000);
   }
 };
+
+const handleCancel = () => {
+  if (wiki.loading) {
+    wiki.cancelPendingActions();
+  }
+};
+
+useKeyboardShortcuts(
+  [
+    {
+      key: "s",
+      ctrl: true,
+      handler: (event) => {
+        if (hasContent.value && !isSaving.value) {
+          event.preventDefault();
+          saveWiki();
+        }
+      },
+    },
+    {
+      key: "Escape",
+      handler: () => {
+        if (wiki.loading) {
+          handleCancel();
+        }
+      },
+    },
+  ],
+  computed(() => hasContent.value || wiki.loading),
+);
 
 onMounted(() => {
   messageHandler = (event: MessageEvent) => {
@@ -172,22 +207,36 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
+  <div class="flex h-full flex-col" role="main" aria-label="Wiki Content">
     <div class="flex-1 overflow-auto pb-3">
-      <div v-if="showLoadingOverlay" class="h-full">
+      <div v-if="showLoadingOverlay" class="h-full" role="status" aria-live="polite">
         <LoadingState context="wiki" />
       </div>
       <div v-if="showContent" class="relative">
-        <div ref="contentRef" class="overflow-auto p-4">
+        <div
+          ref="contentRef"
+          class="overflow-auto p-4"
+          role="article"
+          aria-label="Wiki Content"
+          tabindex="0"
+        >
           <MarkdownRenderer :content="wikiContentWithoutTitle" />
         </div>
       </div>
     </div>
 
-    <div v-if="hasContent" class="border-border bg-background flex-shrink-0 border-t px-4 py-4">
+    <div
+      v-if="hasContent"
+      class="border-border bg-background flex-shrink-0 border-t px-4 py-4"
+      role="toolbar"
+      aria-label="Wiki Actions"
+    >
       <Button
+        ref="saveButtonRef"
         :disabled="saveState === 'saving'"
         class="bg-foreground w-full text-sm"
+        aria-label="Save Wiki"
+        :aria-busy="saveState === 'saving'"
         @click="saveWiki"
       >
         <svg
@@ -220,7 +269,13 @@ onBeforeUnmount(() => {
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
         </svg>
-        {{ saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save Wiki" }}
+        {{
+          saveState === "saving"
+            ? "Saving..."
+            : saveState === "saved"
+              ? "Saved"
+              : "Save Wiki (Ctrl+S)"
+        }}
       </Button>
     </div>
   </div>

@@ -192,8 +192,18 @@ export function useSavedWikisPage() {
     previewWiki.value = wiki;
   };
 
+  const optimisticDeletes = ref<Map<string, SavedWiki>>(new Map());
+
   const deleteWiki = (wikiId: string, event: Event) => {
     event.stopPropagation();
+    const wikiToDelete = savedWikis.value.find((w) => w.id === wikiId);
+    if (!wikiToDelete) {
+      return;
+    }
+
+    optimisticDeletes.value.set(wikiId, wikiToDelete);
+    savedWikis.value = savedWikis.value.filter((w) => w.id !== wikiId);
+
     try {
       vscode.postMessage({
         command: "deleteWiki",
@@ -201,6 +211,10 @@ export function useSavedWikisPage() {
       });
     } catch (error) {
       logger.error("Failed to delete wiki", error);
+      if (wikiToDelete) {
+        savedWikis.value.push(wikiToDelete);
+        optimisticDeletes.value.delete(wikiId);
+      }
       setError(
         ErrorCodes.savedWikisDeleteFailed,
         "Failed to delete saved wiki",
@@ -329,6 +343,7 @@ export function useSavedWikisPage() {
         savedWikisLoadingContext.complete();
         break;
       case "wikiDeleted":
+        optimisticDeletes.value.delete(message.payload.wikiId);
         savedWikis.value = savedWikis.value.filter((w) => w.id !== message.payload.wikiId);
         break;
       case "readmeUpdateProgress":
@@ -372,6 +387,16 @@ export function useSavedWikisPage() {
         break;
       case "showNotification":
         if (message.payload.type === "error") {
+          if (message.payload.message?.includes("delete")) {
+            const deletedWikiIds = Array.from(optimisticDeletes.value.keys());
+            for (const wikiId of deletedWikiIds) {
+              const deletedWiki = optimisticDeletes.value.get(wikiId);
+              if (deletedWiki) {
+                savedWikis.value.push(deletedWiki);
+                optimisticDeletes.value.delete(wikiId);
+              }
+            }
+          }
           if (loadTimeoutId.value) {
             window.clearTimeout(loadTimeoutId.value);
             loadTimeoutId.value = null;

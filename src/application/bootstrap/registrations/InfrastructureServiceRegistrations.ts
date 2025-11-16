@@ -22,6 +22,7 @@ import { LanguageServerIntegrationService } from "@/infrastructure/services/inte
 import { EventBusImpl } from "@/events";
 import { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
 import { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
+import { ProgressService } from "@/application/services/ProgressService";
 
 export function registerInfrastructureServices(
   container: Container,
@@ -30,6 +31,7 @@ export function registerInfrastructureServices(
 ): void {
   container.registerInstance("loggingService", loggingService);
   container.registerInstance("taskScheduler", new TaskSchedulerService(loggingService));
+  container.registerInstance("progressService", new ProgressService(loggingService));
   container.registerInstance(
     "vscodeFileSystemService",
     new VSCodeFileSystemService(loggingService),

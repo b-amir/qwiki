@@ -22,6 +22,11 @@ export const useWikiStore = defineStore("wiki", {
     model: "" as string,
     pendingAutoGenerate: false as boolean,
     generateRequestId: null as string | null,
+    optimisticSaveState: null as {
+      originalContent: string;
+      savedContent: string;
+      timestamp: number;
+    } | null,
   }),
   actions: {
     init() {

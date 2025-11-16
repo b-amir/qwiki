@@ -59,3 +59,5 @@ export { DocumentationQualityService } from "./documentation/DocumentationQualit
 export { DocumentationImprovementService } from "./documentation/DocumentationImprovementService";
 
 export { WikiStorageService } from "./storage/WikiStorageService";
+
+export { ProgressService } from "./ProgressService";
