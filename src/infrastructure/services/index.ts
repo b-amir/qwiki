@@ -52,6 +52,13 @@ export { DebouncingService } from "./optimization/DebouncingService";
 export { RateLimiterService, type RateLimitConfig } from "./optimization/RateLimiterService";
 export { BackgroundProcessingService } from "./optimization/BackgroundProcessingService";
 export { MemoryOptimizationService } from "./optimization/MemoryOptimizationService";
+export {
+  ResourceMonitorService,
+  type CpuUsage,
+  type ResourceUsage,
+  type ResourceThresholds,
+  type ThrottleConfig,
+} from "./optimization/ResourceMonitorService";
 export { WebviewOptimizerService, Debouncer } from "./optimization/WebviewOptimizerService";
 
 export { ProviderHealthService } from "./providers/ProviderHealthService";

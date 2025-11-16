@@ -11,6 +11,7 @@ import { DebouncingService } from "@/infrastructure/services/optimization/Deboun
 import { RateLimiterService } from "@/infrastructure/services/optimization/RateLimiterService";
 import { BackgroundProcessingService } from "@/infrastructure/services/optimization/BackgroundProcessingService";
 import { MemoryOptimizationService } from "@/infrastructure/services/optimization/MemoryOptimizationService";
+import { ResourceMonitorService } from "@/infrastructure/services/optimization/ResourceMonitorService";
 import { VSCodeApiKeyRepository } from "@/infrastructure/repositories/VSCodeApiKeyRepository";
 import { VSCodeConfigurationRepository } from "@/infrastructure/repositories/VSCodeConfigurationRepository";
 import { ErrorHandlerImpl } from "@/infrastructure/services/error/ErrorHandler";
@@ -53,7 +54,12 @@ export function registerInfrastructureServices(
   container.registerInstance("debouncingService", new DebouncingService());
   container.registerInstance("rateLimiterService", new RateLimiterService(loggingService));
   container.registerInstance("backgroundProcessingService", new BackgroundProcessingService());
-  container.registerInstance("memoryOptimizationService", new MemoryOptimizationService());
+  const memoryOptimizationService = new MemoryOptimizationService();
+  container.registerInstance("memoryOptimizationService", memoryOptimizationService);
+  container.registerInstance(
+    "resourceMonitorService",
+    new ResourceMonitorService(memoryOptimizationService, loggingService),
+  );
 
   container.register(
     "apiKeyRepository",
