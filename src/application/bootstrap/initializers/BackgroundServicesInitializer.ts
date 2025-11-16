@@ -8,6 +8,7 @@ import { ProjectContextCacheInvalidationService } from "@/infrastructure/service
 import { WikiWatcherService } from "@/infrastructure/services/storage/WikiWatcherService";
 import { MemoryOptimizationService } from "@/infrastructure/services/optimization/MemoryOptimizationService";
 import { BackgroundProcessingService } from "@/infrastructure/services/optimization/BackgroundProcessingService";
+import { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
 import type { EventBus } from "@/events";
 
 export class BackgroundServicesInitializer {
@@ -28,6 +29,7 @@ export class BackgroundServicesInitializer {
       this.initProjectIndexService(),
       this.initProviderHealthService(),
       this.initContextIntelligenceService(),
+      this.initContextCacheService(),
     ];
 
     let completed = 0;
@@ -151,6 +153,22 @@ export class BackgroundServicesInitializer {
     } catch (error) {
       this.readinessManager.markFailed("contextIntelligenceService", error as Error);
       throw error;
+    }
+  }
+
+  private async initContextCacheService(): Promise<void> {
+    try {
+      this.readinessManager.markInitializing("contextCache");
+      const startTime = Date.now();
+
+      await this.container.resolveLazy("contextCache");
+
+      const duration = Date.now() - startTime;
+      this.readinessManager.markReady("contextCache", { initDuration: duration });
+      this.logger.info("ContextCacheService initialized", { duration });
+    } catch (error) {
+      this.readinessManager.markFailed("contextCache", error as Error);
+      this.logger.warn("ContextCacheService failed, continuing without cache", error);
     }
   }
 }

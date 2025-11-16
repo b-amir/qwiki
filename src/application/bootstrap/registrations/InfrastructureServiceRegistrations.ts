@@ -20,6 +20,8 @@ import { ProjectIndexService } from "@/infrastructure/services/indexing/ProjectI
 import { GitChangeDetectionService } from "@/infrastructure/services/integration/GitChangeDetectionService";
 import { LanguageServerIntegrationService } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
 import { EventBusImpl } from "@/events";
+import { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
+import { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
 
 export function registerInfrastructureServices(
   container: Container,
@@ -27,6 +29,7 @@ export function registerInfrastructureServices(
   loggingService: LoggingService,
 ): void {
   container.registerInstance("loggingService", loggingService);
+  container.registerInstance("taskScheduler", new TaskSchedulerService(loggingService));
   container.registerInstance(
     "vscodeFileSystemService",
     new VSCodeFileSystemService(loggingService),
@@ -101,4 +104,11 @@ export function registerInfrastructureServices(
 
   const eventBus = new EventBusImpl(loggingService);
   container.registerInstance("eventBus", eventBus);
+
+  container.registerLazy("contextCache", async () => {
+    const taskScheduler = container.resolve("taskScheduler") as TaskSchedulerService;
+    const service = new ContextCacheService(context, loggingService, taskScheduler);
+    await service.initialize();
+    return service;
+  });
 }

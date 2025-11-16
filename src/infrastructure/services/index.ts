@@ -94,3 +94,14 @@ export { SecretStorageValidator } from "./storage/SecretStorageValidator";
 export { VSCodeFileSystemService } from "./filesystem/VSCodeFileSystemService";
 
 export { ServiceReadinessManager } from "./ServiceReadinessManager";
+
+export {
+  TaskSchedulerService,
+  TaskPriority,
+  type Task,
+} from "./orchestration/TaskSchedulerService";
+export {
+  ContextCacheService,
+  type FileContextCache,
+  type ProjectCache,
+} from "./caching/ContextCacheService";

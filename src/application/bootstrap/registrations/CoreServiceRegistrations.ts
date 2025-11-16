@@ -115,6 +115,7 @@ export function registerCoreServices(
         container.resolve("errorLoggingService"),
         await container.resolveLazy("providerValidationService"),
         loggingService,
+        await container.resolveLazy("contextCache"),
       ),
   );
 

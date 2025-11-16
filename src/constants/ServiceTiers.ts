@@ -42,6 +42,11 @@ export const SERVICE_TIERS: Record<string, ServiceTierConfig> = {
     maxInitTime: 100,
     requiredFor: ["*"],
   },
+  taskScheduler: {
+    tier: "critical",
+    maxInitTime: 50,
+    requiredFor: ["contextCache"],
+  },
 
   // BACKGROUND: Initialize async, don't block UI (< 30s)
   projectIndexService: {
@@ -57,6 +62,11 @@ export const SERVICE_TIERS: Record<string, ServiceTierConfig> = {
   contextIntelligenceService: {
     tier: "background",
     maxInitTime: 10000,
+    requiredFor: ["generateWiki"],
+  },
+  contextCache: {
+    tier: "background",
+    maxInitTime: 5000,
     requiredFor: ["generateWiki"],
   },
 };
@@ -110,7 +120,7 @@ export const COMMAND_REQUIREMENTS: CommandRequirements[] = [
   // Wiki generation (requires background services)
   {
     commandId: "generateWiki",
-    requiredServices: ["projectIndexService", "contextIntelligenceService"],
+    requiredServices: ["projectIndexService", "contextIntelligenceService", "contextCache"],
     optionalServices: [],
     fallbackBehavior: "degrade",
   },

@@ -18,6 +18,7 @@ import { qwikiStatusBarItem } from "@//extension";
 import { VSCodeCommandIds } from "@/constants/Commands";
 import type { WikiService } from "@/application/services/core/WikiService";
 import type { CachedWikiService } from "@/application/services/core/CachedWikiService";
+import type { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
 
 export class WikiGenerationExecutor {
   private logger: Logger;
@@ -33,6 +34,7 @@ export class WikiGenerationExecutor {
     private loggingService: any,
     private updateStatusBar: (message: string) => void,
     private resetStatusBar: () => void,
+    private contextCacheService?: ContextCacheService,
   ) {
     this.logger = createLogger("WikiGenerationExecutor");
   }
@@ -141,6 +143,19 @@ export class WikiGenerationExecutor {
     const buildingContextMessage = getProgressMessageForStep(LoadingSteps.initializingContext);
     this.updateStatusBar(buildingContextMessage);
     this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.initializingContext });
+
+    if (this.contextCacheService && payload.filePath) {
+      const cacheStart = Date.now();
+      const cachedContext = await this.contextCacheService.getFileContext(payload.filePath);
+      if (cachedContext) {
+        this.logger.info("Using cached file context", {
+          filePath: payload.filePath,
+          cacheDuration: Date.now() - cacheStart,
+          symbols: cachedContext.symbols.length,
+          imports: cachedContext.imports.length,
+        });
+      }
+    }
 
     const projectContext = await this.projectContextService.buildContext(
       payload?.snippet || "",

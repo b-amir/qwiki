@@ -31,6 +31,7 @@ export class WikiEventHandler {
     private errorLoggingService: ErrorLoggingService,
     private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService(),
+    private contextCacheService?: any,
   ) {
     this.logger = createLogger("WikiEventHandler");
     WikiEventHandler.instance = this;
@@ -49,6 +50,7 @@ export class WikiEventHandler {
       this.loggingService,
       this.updateStatusBar.bind(this),
       this.resetStatusBar.bind(this),
+      this.contextCacheService,
     );
   }
 
