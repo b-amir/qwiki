@@ -148,10 +148,13 @@ export class LLMRegistry {
     );
 
     try {
-      const result = await errorRecoveryService.executeWithRetry(
+      const result = await errorRecoveryService.executeWithRetryAndCacheFallback(
         async () => {
           const apiKey = await this.getApiKeyForProvider(providerId);
           return provider.generate(params, apiKey);
+        },
+        async () => {
+          return this.cachingService.get<GenerateResult>(cacheKey);
         },
         (error: any) => {
           if (error instanceof Error) {

@@ -117,6 +117,25 @@ export class ErrorLoggingService {
     this.saveToStorage();
   }
 
+  recordOperation(success: boolean): void {
+    const code = success ? "OPERATION_SUCCESS" : "OPERATION_FAILED";
+
+    this.errorStats.totalErrors++;
+    this.errorStats.errorsByCode[code] = (this.errorStats.errorsByCode[code] || 0) + 1;
+
+    this.errorStats.recentErrors.unshift({
+      timestamp: Date.now(),
+      code,
+      message: success ? "Operation successful" : "Operation failed",
+    });
+
+    if (this.errorStats.recentErrors.length > this.MAX_RECENT_ERRORS) {
+      this.errorStats.recentErrors = this.errorStats.recentErrors.slice(0, this.MAX_RECENT_ERRORS);
+    }
+
+    this.saveToStorage();
+  }
+
   getErrorStats(): ErrorStatistics {
     return { ...this.errorStats };
   }

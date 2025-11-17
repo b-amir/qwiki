@@ -306,6 +306,77 @@ export class ErrorRecoveryService {
     throw lastError;
   }
 
+  async executeWithRetryAndCacheFallback<T>(
+    operation: () => Promise<T>,
+    getCachedResult: () => Promise<T | null>,
+    errorClassifier: (error: any) => ProviderError,
+    providerId: string,
+  ): Promise<T> {
+    const operationStartTime = Date.now();
+    try {
+      return await this.executeWithRetry(operation, errorClassifier, providerId);
+    } catch (error: any) {
+      const errorTime = Date.now();
+      const providerError = errorClassifier(error);
+
+      if (this.shouldTryCacheFallback(providerError)) {
+        this.logger.debug("Attempting cached result fallback", {
+          errorCode: providerError.code,
+          providerId,
+        });
+
+        try {
+          const cacheStartTime = Date.now();
+          const cachedResult = await getCachedResult();
+          if (cachedResult !== null) {
+            const recoveryTime = Date.now() - errorTime;
+            this.logger.info("Using cached result as fallback", {
+              errorCode: providerError.code,
+              providerId,
+              recoveryTime,
+            });
+
+            if (this.eventBus) {
+              this.eventBus.publish("cachedResultUsed", {
+                error: providerError,
+                providerId,
+                operation: "executeWithRetryAndCacheFallback",
+                recoveryTime,
+                totalDuration: Date.now() - operationStartTime,
+              });
+            }
+
+            return cachedResult;
+          }
+
+          this.logger.debug("No cached result available for fallback", {
+            errorCode: providerError.code,
+            providerId,
+          });
+        } catch (cacheError) {
+          this.logger.warn("Failed to retrieve cached result", {
+            errorCode: providerError.code,
+            providerId,
+            cacheError,
+          });
+        }
+      }
+
+      throw providerError;
+    }
+  }
+
+  private shouldTryCacheFallback(error: ProviderError): boolean {
+    const cacheFallbackCodes: string[] = [
+      ErrorCodes.NETWORK_ERROR,
+      ErrorCodes.RATE_LIMIT_EXCEEDED,
+      ErrorCodes.INIT_TIMEOUT,
+      ErrorCodes.GENERATION_FAILED,
+    ];
+
+    return cacheFallbackCodes.includes(error.code);
+  }
+
   private getRetryStrategyForError(error: ProviderError): RetryStrategy {
     const strategy = this.retryStrategies.get(error.code as ErrorCode);
     if (strategy) {

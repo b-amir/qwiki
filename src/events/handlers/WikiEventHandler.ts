@@ -5,6 +5,7 @@ import { InboundEvents, OutboundEvents } from "@/constants/Events";
 import {
   ErrorLoggingService,
   ErrorRecoveryService,
+  UXMetricsService,
   LoggingService,
   createLogger,
   type Logger,
@@ -37,6 +38,7 @@ export class WikiEventHandler {
     private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService(),
     private contextCacheService?: any,
+    private uxMetricsService?: UXMetricsService,
   ) {
     this.logger = createLogger("WikiEventHandler");
     WikiEventHandler.instance = this;
@@ -56,6 +58,7 @@ export class WikiEventHandler {
       this.updateStatusBar.bind(this),
       this.resetStatusBar.bind(this),
       this.contextCacheService,
+      this.uxMetricsService,
     );
   }
 

@@ -80,6 +80,9 @@ export function registerCoreServices(
           "languageServerIntegrationService",
         )) as LanguageServerIntegrationService,
         container.resolve("promptQualityService"),
+        container.resolve(
+          "qualityMetricsService",
+        ) as import("@/infrastructure/services/performance/QualityMetricsService").QualityMetricsService,
       ),
   );
 
@@ -116,6 +119,9 @@ export function registerCoreServices(
         await container.resolveLazy("providerValidationService"),
         loggingService,
         await container.resolveLazy("contextCache"),
+        container.resolve(
+          "uxMetricsService",
+        ) as import("@/infrastructure/services/performance/UXMetricsService").UXMetricsService,
       ),
   );
 

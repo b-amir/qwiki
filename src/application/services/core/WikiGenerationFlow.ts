@@ -6,7 +6,11 @@ import type { LoadingStep } from "@/constants/Events";
 import { LoadingSteps } from "@/constants/Events";
 import { ServiceLimits } from "@/constants";
 import { WikiTransformer, type GenerationInput } from "@/application/transformers/WikiTransformer";
-import { PerformanceMonitorService, GenerationCacheService } from "@/infrastructure/services";
+import {
+  PerformanceMonitorService,
+  GenerationCacheService,
+  QualityMetricsService,
+} from "@/infrastructure/services";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { ProviderError, ErrorCodes } from "@/errors";
 import { DocumentationQualityService } from "@/application/services/documentation/DocumentationQualityService";
@@ -41,6 +45,7 @@ export class WikiGenerationFlow {
     private intelligentContextEnabled = false,
     private languageServerIntegrationService?: any,
     private promptQualityService?: PromptQualityService,
+    private qualityMetricsService?: QualityMetricsService,
   ) {
     this.logger = loggingService
       ? createLogger("WikiGenerationFlow")
@@ -256,6 +261,19 @@ export class WikiGenerationFlow {
       suggestionCount: improvementAnalysis.suggestions.length,
       canImprove: improvementAnalysis.canImprove,
     });
+
+    if (this.qualityMetricsService) {
+      this.qualityMetricsService.recordQualityMetric(
+        "documentationQuality",
+        qualityMetrics.overallScore,
+        {
+          snippetLength: request.snippet.length,
+          contentLength: finalContent.length,
+          suggestionCount: improvementAnalysis.suggestions.length,
+          providerId: request.providerId,
+        },
+      );
+    }
 
     const finalResult: WikiGenerationResult = {
       content: finalContent,

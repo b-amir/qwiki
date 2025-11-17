@@ -19,6 +19,7 @@ import { ContextIntelligenceService } from "@/application/services/context/Conte
 import { ContextCompressionService } from "@/application/services/context/ContextCompressionService";
 import { AdvancedPromptService } from "@/application/services/prompts/AdvancedPromptService";
 import { PerformanceMonitorService } from "@/infrastructure/services/performance/PerformanceMonitorService";
+import { QualityMetricsService } from "@/infrastructure/services/performance/QualityMetricsService";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { CachedProjectContextService } from "@/application/services/context/project/CachedProjectContextService";
 import { WikiGenerationFlow } from "@/application/services/core/WikiGenerationFlow";
@@ -46,6 +47,7 @@ export class WikiService {
     private loggingService?: LoggingService,
     private languageServerIntegrationService?: LanguageServerIntegrationService,
     private promptQualityService?: any,
+    private qualityMetricsService?: QualityMetricsService,
   ) {
     this.logger = loggingService
       ? createLogger("WikiService")
@@ -67,6 +69,7 @@ export class WikiService {
       this.intelligentContextEnabled,
       languageServerIntegrationService,
       promptQualityService,
+      qualityMetricsService,
     );
   }
 

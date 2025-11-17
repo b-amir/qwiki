@@ -23,6 +23,15 @@ export interface ProjectCache {
   lastUpdated: number;
 }
 
+export interface ContextCacheStatistics {
+  totalEntries: number;
+  hitCount: number;
+  missCount: number;
+  hitRate: number;
+  oldestEntry: number;
+  newestEntry: number;
+}
+
 export class ContextCacheService {
   private cache: ProjectCache = {
     files: {},
@@ -33,6 +42,8 @@ export class ContextCacheService {
   private fileWatcher?: vscode.FileSystemWatcher;
   private logger: Logger;
   private saveDebounceTimer?: NodeJS.Timeout;
+  private hitCount = 0;
+  private missCount = 0;
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -125,11 +136,29 @@ export class ContextCacheService {
     if (cached) {
       const currentHash = await this.getFileHash(filePath);
       if (currentHash === cached.hash) {
+        this.hitCount++;
         return cached;
       }
     }
 
+    this.missCount++;
     return this.analyzeFile(filePath);
+  }
+
+  getStatistics(): ContextCacheStatistics {
+    const entries = Object.values(this.cache.files);
+    const totalRequests = this.hitCount + this.missCount;
+
+    return {
+      totalEntries: entries.length,
+      hitCount: this.hitCount,
+      missCount: this.missCount,
+      hitRate: totalRequests > 0 ? this.hitCount / totalRequests : 0,
+      oldestEntry:
+        entries.length > 0 ? Math.min(...entries.map((e) => e.lastAnalyzed)) : Date.now(),
+      newestEntry:
+        entries.length > 0 ? Math.max(...entries.map((e) => e.lastAnalyzed)) : Date.now(),
+    };
   }
 
   private async analyzeFile(filePath: string): Promise<FileContextCache | null> {

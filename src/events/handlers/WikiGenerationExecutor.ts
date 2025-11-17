@@ -7,6 +7,7 @@ import type { LoadingStep } from "@/constants/Events";
 import {
   ErrorLoggingService,
   ErrorRecoveryService,
+  UXMetricsService,
   createLogger,
   type Logger,
   type ProviderValidationService,
@@ -23,6 +24,8 @@ import type { ContextCacheService } from "@/infrastructure/services/caching/Cont
 export class WikiGenerationExecutor {
   private logger: Logger;
 
+  private firstChunkTime?: number;
+
   constructor(
     private eventBus: EventBus,
     private wikiService: WikiService,
@@ -35,6 +38,7 @@ export class WikiGenerationExecutor {
     private updateStatusBar: (message: string) => void,
     private resetStatusBar: () => void,
     private contextCacheService?: ContextCacheService,
+    private uxMetricsService?: UXMetricsService,
   ) {
     this.logger = createLogger("WikiGenerationExecutor");
   }
@@ -122,6 +126,10 @@ export class WikiGenerationExecutor {
           content: result.content,
           success: true,
         });
+        this.eventBus.publish("generationSuccessful", {
+          providerId: payload.providerId,
+          timestamp: Date.now(),
+        });
       } else {
         await this.handleGenerationFailure(payload, result);
       }
@@ -182,6 +190,7 @@ export class WikiGenerationExecutor {
     cancellationToken: CancellationToken,
   ): Promise<any> {
     const generateWikiStart = Date.now();
+    this.firstChunkTime = undefined;
     const service = this.getWikiService();
     this.logger.info("Starting wiki generation", {
       providerId: payload.providerId,
@@ -207,6 +216,16 @@ export class WikiGenerationExecutor {
       (chunk: string, accumulated: string) => {
         if (cancellationToken.isCancellationRequested) {
           return;
+        }
+        if (!this.firstChunkTime && chunk) {
+          this.firstChunkTime = Date.now();
+          const timeToFirstResult = this.firstChunkTime - generateWikiStart;
+          if (this.uxMetricsService) {
+            this.uxMetricsService.recordUXMetric("timeToFirstResult", timeToFirstResult, {
+              providerId: payload.providerId,
+              model: payload.model,
+            });
+          }
         }
         accumulatedContent = accumulated;
         this.eventBus.publish(OutboundEvents.wikiContentChunk, {

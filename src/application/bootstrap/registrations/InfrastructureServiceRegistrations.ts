@@ -17,10 +17,15 @@ import { VSCodeConfigurationRepository } from "@/infrastructure/repositories/VSC
 import { ErrorHandlerImpl } from "@/infrastructure/services/error/ErrorHandler";
 import { ErrorLoggingService } from "@/infrastructure/services/error/ErrorLoggingService";
 import { ErrorRecoveryService } from "@/infrastructure/services/error/ErrorRecoveryService";
+import { ErrorAnalyticsService } from "@/infrastructure/services/error/ErrorAnalyticsService";
+import { QualityMetricsService } from "@/infrastructure/services/performance/QualityMetricsService";
+import { UXMetricsService } from "@/infrastructure/services/performance/UXMetricsService";
+import { EmbeddingService } from "@/infrastructure/services/embeddings/EmbeddingService";
+import { SemanticCacheService } from "@/infrastructure/services/caching/SemanticCacheService";
 import { ProjectIndexService } from "@/infrastructure/services/indexing/ProjectIndexService";
 import { GitChangeDetectionService } from "@/infrastructure/services/integration/GitChangeDetectionService";
 import { LanguageServerIntegrationService } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
-import { EventBusImpl } from "@/events";
+import { EventBusImpl, EventBus } from "@/events";
 import { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
 import { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
 import { ProgressService } from "@/application/services/ProgressService";
@@ -112,6 +117,33 @@ export function registerInfrastructureServices(
 
   const eventBus = new EventBusImpl(loggingService);
   container.registerInstance("eventBus", eventBus);
+
+  container.register(
+    "errorAnalyticsService",
+    () => new ErrorAnalyticsService(container.resolve("eventBus") as EventBus, loggingService),
+  );
+
+  container.register(
+    "qualityMetricsService",
+    () => new QualityMetricsService(container.resolve("eventBus") as EventBus, loggingService),
+  );
+
+  container.register(
+    "uxMetricsService",
+    () => new UXMetricsService(container.resolve("eventBus") as EventBus, loggingService),
+  );
+
+  container.register("embeddingService", () => new EmbeddingService(loggingService));
+
+  container.register(
+    "semanticCacheService",
+    () =>
+      new SemanticCacheService(
+        container.resolve("cachingService") as CachingService,
+        container.resolve("embeddingService") as EmbeddingService,
+        loggingService,
+      ),
+  );
 
   container.registerLazy("contextCache", async () => {
     const taskScheduler = container.resolve("taskScheduler") as TaskSchedulerService;

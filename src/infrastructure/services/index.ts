@@ -1,6 +1,11 @@
 export { ErrorHandler, ErrorHandlerImpl } from "./error/ErrorHandler";
 export { ErrorRecoveryService } from "./error/ErrorRecoveryService";
 export { ErrorLoggingService } from "./error/ErrorLoggingService";
+export {
+  ErrorAnalyticsService,
+  type ErrorAnalytics,
+  type ErrorAggregation,
+} from "./error/ErrorAnalyticsService";
 export { createRetryStrategies, type RetryStrategy } from "./error/ErrorRecoveryStrategies";
 
 export {
@@ -14,6 +19,12 @@ export { LogSanitizer } from "./logging/LogSanitizer";
 
 export { CachingService } from "./caching/CachingService";
 export { GenerationCacheService } from "./caching/GenerationCacheService";
+export {
+  SemanticCacheService,
+  type SemanticCacheEntry,
+  type SemanticCacheOptions,
+  type SemanticCacheResult,
+} from "./caching/SemanticCacheService";
 export { LRUCache } from "./caching/LRUCache";
 export {
   ProjectContextCacheService,
@@ -44,6 +55,8 @@ export type {
   PerformanceStats as PerformanceMonitorStats,
 } from "./performance/PerformanceMonitor";
 export { MetricsCollectionService } from "./performance/MetricsCollectionService";
+export { QualityMetricsService } from "./performance/QualityMetricsService";
+export { UXMetricsService } from "./performance/UXMetricsService";
 export { PerformanceMonitoringService } from "./performance/PerformanceMonitoringService";
 export { StatisticsCalculationService } from "./performance/StatisticsCalculationService";
 
@@ -112,3 +125,9 @@ export {
   type FileContextCache,
   type ProjectCache,
 } from "./caching/ContextCacheService";
+
+export {
+  EmbeddingService,
+  type EmbeddingResult,
+  type EmbeddingSimilarity,
+} from "./embeddings/EmbeddingService";
