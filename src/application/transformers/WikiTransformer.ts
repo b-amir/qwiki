@@ -206,7 +206,10 @@ export class WikiTransformer {
       : `# ${titleFromSymbol ? `${titleFromSymbol} Overview` : "Generated Wiki"}`;
 
     const body = hasHeading ? lines.slice(1).join("\n") : lines.join("\n");
-    const ensuredSpacing = body.replace(/(#\s.+)/g, "\n$1").replace(/\n{3,}/g, "\n\n");
+    const ensuredSpacing = body
+      .replace(/^\s*#\s*$/gm, "")
+      .replace(/(\S)\n(#\s+.+)/g, "$1\n\n$2")
+      .replace(/\n{3,}/g, "\n\n");
     const trimmed = ensuredSpacing.trimEnd();
     const rebuilt = `${heading}\n\n${trimmed}`.trimEnd();
 
