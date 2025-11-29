@@ -25,7 +25,7 @@ export const useEnvironmentStore = defineStore("environment", {
     initialized: false,
     extensionStatus: {
       ready: false,
-      message: "Preparing Qwiki services...",
+      message: "Preparing services",
       reason: "initializing",
     } as {
       ready: boolean;
@@ -64,7 +64,7 @@ export const useEnvironmentStore = defineStore("environment", {
       if (!state.extensionStatus.ready) {
         steps.push({
           key: "extensionLoading",
-          text: state.extensionStatus.message || "Preparing Qwiki services...",
+          text: state.extensionStatus.message || "Preparing services",
         });
       }
       if (!state.languageServerStatus.ready) {

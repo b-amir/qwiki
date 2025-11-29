@@ -14,7 +14,7 @@ export interface InitializationProgress {
   errors: Array<{ service: string; error: Error }>;
 }
 
-const CRITICAL_INIT_TIMEOUT = 5000;
+const CRITICAL_INIT_TIMEOUT = 10000;
 const BACKGROUND_INIT_TIMEOUT = 30000;
 const MAX_RETRY_ATTEMPTS = 2;
 

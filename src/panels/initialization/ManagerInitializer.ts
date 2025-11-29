@@ -92,6 +92,7 @@ export class ManagerInitializer {
       this.loggingService,
       this.cancelGeneration || (async () => {}),
       navigationManager,
+      environmentStatusManager,
     );
     webviewMessageHandler.setupMessageListener();
 

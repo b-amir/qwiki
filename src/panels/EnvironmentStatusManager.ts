@@ -20,7 +20,7 @@ export class EnvironmentStatusManager {
   private logger: Logger;
   private _extensionStatus: ExtensionStatus = {
     ready: false,
-    message: "Preparing Qwiki services...",
+    message: "Preparing services",
     reason: "initializing",
     initializationProgress: 0,
   };

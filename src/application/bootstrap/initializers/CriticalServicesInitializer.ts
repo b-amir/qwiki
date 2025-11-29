@@ -72,9 +72,16 @@ export class CriticalServicesInitializer {
     const migrationService = this.container.resolve(
       "configurationMigrationService",
     ) as ConfigurationMigrationService;
-    if (await migrationService.needsMigration()) {
-      await migrationService.migrateToVersion("1.4.0");
-    }
+
+    migrationService.needsMigration().then((needsMigration) => {
+      if (needsMigration) {
+        migrationService.migrateToVersion("1.4.0").catch((error) => {
+          this.logger.warn("Background migration failed", { error });
+        });
+      }
+    }).catch((error) => {
+      this.logger.warn("Background migration check failed", { error });
+    });
 
     this.readinessManager.markReady("configurationManager");
   }

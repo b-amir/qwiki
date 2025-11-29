@@ -78,20 +78,18 @@ export class BackgroundServicesInitializer {
 
       await projectIndexService.quickInit();
 
+      const quickDuration = Date.now() - startTime;
+      this.readinessManager.markReady("projectIndexService", { initDuration: quickDuration });
+      this.logger.info("ProjectIndexService quick initialization complete", { duration: quickDuration });
+
       projectIndexService
         .initialize()
         .then(() => {
-          const duration = Date.now() - startTime;
-          this.readinessManager.markReady("projectIndexService", { initDuration: duration });
-          this.logger.info("ProjectIndexService fully initialized", { duration });
+          this.logger.info("ProjectIndexService fully initialized (background)");
         })
         .catch((err) => {
-          this.readinessManager.markFailed("projectIndexService", err);
-          this.logger.error("Failed to initialize project index", err);
+          this.logger.error("Failed to initialize project index (background)", err);
         });
-
-      const quickDuration = Date.now() - startTime;
-      this.readinessManager.markReady("projectIndexService", { initDuration: quickDuration });
 
       const cacheInvalidationService = this.container.resolve(
         "projectContextCacheInvalidationService",

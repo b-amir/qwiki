@@ -77,52 +77,11 @@ export class DependencyAnalysisService {
       }
     }
 
-    const dependents: string[] = [];
-    if (workspaceFolders && workspaceFolders.length > 0) {
-      const allFiles = await workspace.findFiles(
-        FilePatterns.allFiles,
-        FilePatterns.exclude,
-        ServiceLimits.contextIntelligenceMaxFileAnalysis,
-      );
-      const targetFileName = filePath
-        .split(/[/\\]/)
-        .pop()
-        ?.replace(/\.[^.]+$/, "");
-
-      if (targetFileName) {
-        const targetNameLower = targetFileName.toLowerCase();
-
-        for (const fileUri of allFiles) {
-          const candidatePath = fileUri.fsPath;
-          if (candidatePath === filePath) continue;
-
-          try {
-            const contentStr = await this.vscodeFileSystem.readFile(candidatePath, true);
-            const candidateImports = this.extractImportsExports(contentStr);
-
-            let isDependent = false;
-            for (const imp of candidateImports) {
-              if (imp.toLowerCase().includes(targetNameLower)) {
-                isDependent = true;
-                break;
-              }
-            }
-
-            if (isDependent) {
-              dependents.push(candidatePath);
-            }
-          } catch {
-            continue;
-          }
-        }
-      }
-    }
-
     const dependencyMap: DependencyMap = {
       imports,
       exports,
       dependencies,
-      dependents,
+      dependents: [],
     };
 
     await Promise.all([
@@ -133,6 +92,57 @@ export class DependencyAnalysisService {
     ]);
 
     return dependencyMap;
+  }
+
+  async isFileDependentOn(candidatePath: string, targetPath: string): Promise<boolean> {
+    const cacheKey = `${this.DEPENDENCY_MAP_PREFIX}is-dependent:${candidatePath}:${targetPath}`;
+    const cached = await this.cachingService.get<boolean>(cacheKey);
+    if (cached !== undefined && cached !== null) {
+      return cached;
+    }
+
+    let fileContent = "";
+    try {
+      fileContent = await this.vscodeFileSystem.readFile(candidatePath, true);
+    } catch {
+      await this.cachingService.set(cacheKey, false, {
+        ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+      });
+      return false;
+    }
+
+    const targetFileName = targetPath
+      .split(/[/\\]/)
+      .pop()
+      ?.replace(/\.[^.]+$/, "");
+    if (!targetFileName) {
+      await this.cachingService.set(cacheKey, false, {
+        ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+      });
+      return false;
+    }
+
+    const targetNameLower = targetFileName.toLowerCase();
+    const candidateImports = this.extractImportsExports(fileContent);
+
+    for (const imp of candidateImports) {
+      const importPath = imp.replace(/['"]/g, "").toLowerCase();
+      const importFileName = importPath
+        .split("/")
+        .pop()
+        ?.replace(/\.[^.]+$/, "");
+      if (importFileName === targetNameLower || importPath.includes(targetNameLower)) {
+        await this.cachingService.set(cacheKey, true, {
+          ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+        });
+        return true;
+      }
+    }
+
+    await this.cachingService.set(cacheKey, false, {
+      ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+    });
+    return false;
   }
 
   async findRelatedFiles(filePath: string, maxDepth: number): Promise<string[]> {

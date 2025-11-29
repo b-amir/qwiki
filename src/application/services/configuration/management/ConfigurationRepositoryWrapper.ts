@@ -31,13 +31,12 @@ export class ConfigurationRepositoryWrapper {
   }
 
   async getAll(): Promise<Record<string, any>> {
-    await this.cacheManager.refreshCache(() => this.configurationRepository.getAll());
-    const allConfigs = await this.configurationRepository.getAll();
-    const result: Record<string, any> = {};
-
-    for (const [key, value] of Object.entries(allConfigs)) {
-      result[key] = value;
+    if (!this.cacheManager.has("_cacheInitialized")) {
+      await this.refreshCache();
     }
+
+    const repositoryConfigs = await this.configurationRepository.getAll();
+    const result: Record<string, any> = { ...repositoryConfigs };
 
     const cachedProviderId = this.cacheManager.get("cachedProviderId");
     if (cachedProviderId) {

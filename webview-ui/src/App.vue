@@ -36,6 +36,7 @@ onMounted(() => {
   logger.info("App mounted, sending webviewReady");
   vscode.postMessage({ command: "webviewReady" });
   vscode.postMessage({ command: "getProviders" });
+  vscode.postMessage({ command: "getApiKeys" });
 });
 
 const handleMessage = (event: MessageEvent) => {

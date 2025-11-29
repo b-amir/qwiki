@@ -5,6 +5,7 @@ import { PathPatterns } from "@/constants";
 
 export class TextUsageSearchService {
   private logger: Logger;
+  private readonly CONCURRENCY_LIMIT = 15;
 
   constructor(private loggingService: LoggingService) {
     this.logger = createLogger("TextUsageSearchService");
@@ -42,8 +43,14 @@ export class TextUsageSearchService {
     let skippedBinaryCount = 0;
     let matchedCount = 0;
     let errorCount = 0;
+    const results: Array<{
+      path: string;
+      preview?: string;
+      line?: number;
+      reason?: string;
+    } | null> = [];
 
-    const filePromises = files.map(async (uri, index) => {
+    const processFile = async (uri: Uri, index: number): Promise<(typeof results)[number]> => {
       try {
         const binaryExtensions =
           /\.(png|jpg|jpeg|gif|bmp|ico|svg|mp4|avi|mov|wmv|flv|webm|mp3|wav|ogg|flac|aac|pdf|zip|rar|tar|gz|exe|dll|so|dylib|bin|dat|db|sqlite)$/i;
@@ -60,17 +67,17 @@ export class TextUsageSearchService {
           return null;
         }
 
-        const docStart = Date.now();
-        const doc = await workspace.openTextDocument(uri);
-        const text = doc.getText();
+        const fileData = await workspace.fs.readFile(uri);
+        const text = Buffer.from(fileData).toString("utf-8");
         const m = combinedPattern.exec(text);
         processedCount++;
 
         if (m) {
           matchedCount++;
-          const pos = doc.positionAt(m.index);
-          const line = pos.line + 1;
-          const previewLine = doc.lineAt(pos.line).text.trim();
+          const matchIndex = m.index;
+          const lines = text.substring(0, matchIndex).split("\n");
+          const line = lines.length;
+          const previewLine = lines[lines.length - 1]?.trim() || "";
           return {
             path: relativePathFn(uri),
             line,
@@ -99,10 +106,21 @@ export class TextUsageSearchService {
         }
         return null;
       }
+    };
+
+    this.logger.debug("Starting batched file processing", {
+      fileCount: files.length,
+      concurrencyLimit: this.CONCURRENCY_LIMIT,
     });
 
-    this.logger.debug("Starting parallel file processing", { fileCount: files.length });
-    const results = await Promise.all(filePromises);
+    for (let i = 0; i < files.length; i += this.CONCURRENCY_LIMIT) {
+      const batch = files.slice(i, i + this.CONCURRENCY_LIMIT);
+      const batchResults = await Promise.all(
+        batch.map((uri, batchIndex) => processFile(uri, i + batchIndex)),
+      );
+      results.push(...batchResults);
+    }
+
     this.logger.debug("File processing completed", {
       processed: processedCount,
       skipped: skippedBinaryCount,

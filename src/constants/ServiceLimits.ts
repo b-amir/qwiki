@@ -36,7 +36,7 @@ export const ServiceLimits = {
   maxPerformanceMetrics: 1000,
   statsCacheTTL: 1000,
   performanceWindowMs: 3600000,
-  contextIntelligenceFileRelevanceTTL: 5 * 60 * 1000,
+  contextIntelligenceFileRelevanceTTL: 30 * 60 * 1000,
   contextIntelligenceProjectTypeTTL: 30 * 60 * 1000,
   indexCacheVersion: 1,
   indexCacheTTL: 60 * 60 * 1000,

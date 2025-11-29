@@ -16,10 +16,21 @@ export class VSCodeConfigurationRepository implements ConfigurationRepository {
     const config = workspace.getConfiguration(Extension.configurationSection);
     const result: Record<string, any> = {};
 
-    for (const key of Object.keys(config)) {
+    const knownKeys = ["global", "migration.version", "migration.globalBackup", "cachedProviderId"];
+
+    for (const key of knownKeys) {
       const value = config.get(key);
       if (value !== undefined) {
         result[key] = value;
+      }
+    }
+
+    const knownProviderIds = ["google-ai-studio", "zai", "openrouter", "cohere", "huggingface"];
+
+    for (const providerId of knownProviderIds) {
+      const providerConfig = config.get<Record<string, any>>(`provider.${providerId}`);
+      if (providerConfig) {
+        result[`provider.${providerId}`] = providerConfig;
       }
     }
 

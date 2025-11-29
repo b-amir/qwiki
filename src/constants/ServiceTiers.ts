@@ -130,7 +130,7 @@ export const COMMAND_REQUIREMENTS: CommandRequirements[] = [
  * Command timeouts in milliseconds
  */
 export const COMMAND_TIMEOUTS: Record<string, number> = {
-  generateWiki: 90000, // 90s - context analysis (7s) + LLM generation (20-40s) + buffer
+  generateWiki: 120000, // 120s - context analysis (up to 80s) + LLM generation (20-40s) + buffer
   getProviders: 5000, // 5s - should be instant from cache
   selectProvider: 5000, // 5s
   getSettings: 5000, // 5s

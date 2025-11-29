@@ -46,6 +46,29 @@ export class FileRelevanceAnalysisService {
       throw new Error("No workspace folder found");
     }
 
+    if (this.shouldSkipFile(candidatePath)) {
+      const skipScore: FileRelevanceScore = {
+        filePath: candidatePath,
+        score: 0,
+        relevanceType: "structural",
+        tokenCost: 0,
+        compressionRatio: 0.3,
+        metadata: {
+          isDependency: false,
+          isImportedBy: [],
+          importsFrom: [],
+          semanticSimilarity: 0,
+          lastModified: new Date(),
+          complexity: 0,
+          fileCategory: "source",
+        },
+      };
+      await this.cachingService.set(cacheKey, skipScore, {
+        ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+      });
+      return skipScore;
+    }
+
     let fileContent = "";
     let lastModified = new Date();
     try {
@@ -58,11 +81,23 @@ export class FileRelevanceAnalysisService {
 
     const tokenCost = this.estimateTokenCount(fileContent);
     const pathSimilarity = this.calculatePathSimilarity(targetPath, candidatePath);
-    const semanticSimilarity = await this.calculateSemanticSimilarity(targetPath, candidatePath);
+
+    let targetFileContent = "";
+    try {
+      targetFileContent = await this.vscodeFileSystem.readFile(targetPath, true);
+    } catch {
+      targetFileContent = "";
+    }
+    const semanticSimilarity = await this.calculateSemanticSimilarity(
+      targetFileContent,
+      fileContent,
+    );
     const isDependency = await this.isDependencyFile(candidatePath);
-    const dependencyMap =
-      await this.dependencyAnalysisService.analyzeCodeDependencies(candidatePath);
-    const isImportedBy = dependencyMap.dependents.includes(targetPath);
+    const imports = this.extractImportsOnly(fileContent);
+    const isImportedBy = await this.dependencyAnalysisService.isFileDependentOn(
+      candidatePath,
+      targetPath,
+    );
     const recencyScore = this.calculateRecencyScore(lastModified);
     const fileSizeScore = this.calculateFileSizeScore(fileContent.length);
 
@@ -80,8 +115,8 @@ export class FileRelevanceAnalysisService {
 
     const metadata: FileRelevanceMetadata = {
       isDependency,
-      isImportedBy: dependencyMap.dependents,
-      importsFrom: dependencyMap.imports,
+      isImportedBy: isImportedBy ? [targetPath] : [],
+      importsFrom: imports,
       semanticSimilarity: semanticSimilarity,
       lastModified,
       complexity: 0,
@@ -154,14 +189,8 @@ export class FileRelevanceAnalysisService {
     return "source";
   }
 
-  async calculateSemanticSimilarity(file1: string, file2: string): Promise<number> {
-    let content1 = "";
-    let content2 = "";
-
-    try {
-      content1 = await this.vscodeFileSystem.readFile(file1, true);
-      content2 = await this.vscodeFileSystem.readFile(file2, true);
-    } catch {
+  async calculateSemanticSimilarity(content1: string, content2: string): Promise<number> {
+    if (!content1 || !content2) {
       return 0;
     }
 
@@ -268,5 +297,44 @@ export class FileRelevanceAnalysisService {
     if (fileSize < 10000) return 1.0;
     if (fileSize < 50000) return 0.7;
     return 0.3;
+  }
+
+  private shouldSkipFile(filePath: string): boolean {
+    const normalizedPath = filePath.replace(/\\/g, "/").toLowerCase();
+    const skipPatterns = [
+      "/dist/",
+      "/node_modules/",
+      "/.git/",
+      "/.qwiki/",
+      "/out/",
+      "/build/",
+      "/.vscode/",
+      "/tmp/",
+      "/temp/",
+      "/_refs/",
+      ".min.js",
+      ".min.css",
+      ".backup",
+      ".bak",
+      ".old",
+    ];
+
+    return skipPatterns.some((pattern) => normalizedPath.includes(pattern));
+  }
+
+  private extractImportsOnly(content: string): string[] {
+    const imports: string[] = [];
+    const combinedPattern =
+      /(?:import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\)|from\s+['"]([^'"]+)['"])/g;
+
+    let match;
+    while ((match = combinedPattern.exec(content)) !== null) {
+      const importPath = match[1] || match[2] || match[3];
+      if (importPath) {
+        imports.push(importPath);
+      }
+    }
+
+    return imports;
   }
 }

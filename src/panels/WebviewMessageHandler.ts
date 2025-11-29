@@ -9,11 +9,15 @@ import { MessageBusService } from "@/application/services/core/MessageBusService
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import type { NavigationManager } from "@/panels/NavigationManager";
 import type { ServiceReadinessManager } from "@/infrastructure/services/ServiceReadinessManager";
+import type { EnvironmentStatusManager } from "@/panels/EnvironmentStatusManager";
 
 export class WebviewMessageHandler {
   private logger: Logger;
   private _lastCommandExecutionTime = new Map<string, number>();
   private readonly COMMAND_THROTTLE_DELAY = ServiceLimits.commandThrottleDelay;
+  private _initialDataSent = false;
+  private _initialDataRetryCount = 0;
+  private readonly MAX_INITIAL_DATA_RETRIES = 50;
 
   constructor(
     private webview: Webview,
@@ -25,6 +29,7 @@ export class WebviewMessageHandler {
     private loggingService: LoggingService,
     private onCancelGeneration: () => void,
     private navigationManager?: NavigationManager,
+    private environmentStatusManager?: EnvironmentStatusManager,
   ) {
     this.logger = createLogger("WebviewMessageHandler");
   }
@@ -135,6 +140,56 @@ export class WebviewMessageHandler {
       }
     } else {
       this.logger.warn("MessageBus not available when webviewReady received");
+    }
+
+    if (this.environmentStatusManager) {
+      this.logger.debug("Flushing environment status on webview ready");
+      this.environmentStatusManager.flushEnvironmentStatus();
+    }
+
+    this._initialDataSent = false;
+    this.sendInitialData();
+  }
+
+  private async sendInitialData(): Promise<void> {
+    if (this._initialDataSent) {
+      return;
+    }
+
+    try {
+      await this.criticalInitPromise;
+    } catch (error) {
+      this.logger.error("Critical services initialization failed, cannot send initial data", error);
+      return;
+    }
+
+    if (!this.commandRegistry) {
+      if (this._initialDataRetryCount < this.MAX_INITIAL_DATA_RETRIES) {
+        this._initialDataRetryCount++;
+        this.logger.debug("Command registry not available yet, will retry", {
+          retryCount: this._initialDataRetryCount,
+        });
+        setTimeout(() => this.sendInitialData(), 100);
+        return;
+      } else {
+        this.logger.warn("Command registry not available after max retries, giving up");
+        return;
+      }
+    }
+
+    this._initialDataSent = true;
+    const commandsToSend = ["getProviders", "getApiKeys"];
+    for (const command of commandsToSend) {
+      if (this.commandRegistry.has(command)) {
+        try {
+          this.logger.debug(`Automatically sending ${command} after webview ready`);
+          await this.commandRegistry.execute(command, {});
+        } catch (error) {
+          this.logger.error(`Failed to automatically send ${command}`, error);
+        }
+      } else {
+        this.logger.debug(`Command ${command} not found in registry, skipping`);
+      }
     }
   }
 
