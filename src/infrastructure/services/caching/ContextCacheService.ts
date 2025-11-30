@@ -246,9 +246,33 @@ export class ContextCacheService {
 
     this.logger.info(`Warming cache for ${files.length} files`);
 
-    for (const file of files) {
-      this.scheduleFileAnalysis(file.fsPath);
+    const sortedFiles = files.sort((a, b) => {
+      const workspacePath = workspaceFolder.uri.fsPath;
+      const aInSrc = a.fsPath.includes(`${workspacePath}${path.sep}src${path.sep}`);
+      const bInSrc = b.fsPath.includes(`${workspacePath}${path.sep}src${path.sep}`);
+      if (aInSrc && !bInSrc) return -1;
+      if (!aInSrc && bInSrc) return 1;
+      return 0;
+    });
+
+    const BATCH_SIZE = 8;
+    for (let i = 0; i < sortedFiles.length; i += BATCH_SIZE) {
+      const batch = sortedFiles.slice(i, i + BATCH_SIZE);
+      this.scheduleBatchAnalysis(batch.map((f) => f.fsPath));
     }
+  }
+
+  private scheduleBatchAnalysis(filePaths: string[]): void {
+    this.taskScheduler.schedule({
+      id: `analyze-batch-${filePaths[0]}`,
+      priority: TaskPriority.LOW,
+      execute: async () => {
+        for (const filePath of filePaths) {
+          await this.analyzeFile(filePath);
+        }
+      },
+      estimatedDuration: 50 * filePaths.length,
+    });
   }
 
   dispose(): void {

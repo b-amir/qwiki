@@ -51,11 +51,14 @@ When you open Qwiki, the extension goes through a carefully orchestrated initial
 
 - `ContextCacheService` loads existing cache (73 files)
 - Background cache warming starts for 72 files
-- `TaskSchedulerService` processes files in idle time (one every few seconds)
+- **File Prioritization**: `src/` files prioritized over other files (e.g., `dist/`, config files)
+- **Batch Processing**: Files processed in batches of 8 for efficiency
+- `TaskSchedulerService` schedules batches as LOW priority background tasks
 - Each file analyzed: extracts symbols, imports, computes hash
+- Batches complete incrementally: `analyze-batch-d:\projects\vue-test\src\utils\tags.ts`, etc.
 - Cache saved to disk periodically (debounced, every ~1-2 seconds)
 
-**Result**: Context for wiki generation becomes available incrementally. First generation may be slower, subsequent ones use cached context (< 200ms).
+**Result**: Context for wiki generation becomes available incrementally. Source files are analyzed first, improving cache hit rates for common wiki generation scenarios. First generation may be slower, subsequent ones use cached context (< 200ms).
 
 **6. Webview Setup (~1 second)**
 
@@ -255,7 +258,7 @@ When you use saved wikis to update your project's README, here's the complete pr
 **5. Project Context Building (2-3 seconds)**
 
 - `ProjectContextService` builds context for README generation:
-  - Workspace structure (cache expired, rebuilt: 50 files)
+  - Workspace structure (cached, 2-hour TTL: 50 files, < 10ms)
   - Project overview (reads package.json, extracts dependencies)
   - Indexed files (200 files retrieved)
   - Files sample (50 files)

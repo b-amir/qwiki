@@ -8,7 +8,7 @@ export const ServiceLimits = {
   maxTopSymbols: 5,
   maxRelatedPreview: 3,
   cacheDefaultTTL: 30 * 60 * 1000,
-  projectContextCacheTTL: 10 * 60 * 1000,
+  projectContextCacheTTL: 120 * 60 * 1000, // 2 hours
   apiKeyMinLength: 10,
   maxFallbackProviders: 4,
   maxRankedProviders: 5,
