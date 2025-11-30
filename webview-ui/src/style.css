@@ -152,6 +152,7 @@ a:hover {
 body,
 #app {
   height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -167,6 +168,7 @@ body {
     sans-serif,
     Apple Color Emoji,
     Segoe UI Emoji;
+  min-width: 0;
 }
 
 .prose h1,
@@ -175,9 +177,11 @@ body {
 .prose h4,
 .prose h5,
 .prose h6 {
-  @apply font-semibold;
+  @apply break-words font-semibold;
   letter-spacing: -0.01em;
   line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .prose h1 {
@@ -218,9 +222,11 @@ body {
 }
 
 .prose p {
-  @apply my-3;
+  @apply my-3 break-words;
   line-height: 1.7;
   font-size: 0.9375rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .prose p:first-child {
@@ -265,21 +271,24 @@ body {
 }
 
 .prose code:not(pre code) {
-  @apply bg-muted rounded px-1.5 py-0.5;
+  @apply bg-muted break-words rounded px-1.5 py-0.5;
   font-size: 0.875em;
   font-family:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-weight: 500;
   border: 1px solid var(--border);
   opacity: 0.95;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .prose pre {
-  @apply border-border my-4 overflow-auto rounded-lg border p-4;
+  @apply border-border my-4 overflow-x-auto overflow-y-hidden rounded-lg border p-4;
   background-color: var(--vscode-editor-background, var(--background)) !important;
   line-height: 1.6;
   font-size: 0.875rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  max-width: 100%;
 }
 
 .prose pre:first-child {
@@ -308,6 +317,8 @@ body {
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .prose a:hover {
@@ -323,15 +334,21 @@ body {
 }
 
 .prose table {
-  @apply my-4 w-full;
+  @apply my-4 w-full min-w-0;
   border-collapse: collapse;
   font-size: 0.9375rem;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .prose th,
 .prose td {
-  @apply border-border border px-3 py-2;
+  @apply border-border break-words border px-2 py-2 sm:px-3;
   text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 0;
 }
 
 .prose th {

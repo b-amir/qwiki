@@ -38,14 +38,14 @@ const formatCreatedAt = (date: Date) => {
     class="hover:bg-accent/50 group relative cursor-pointer transition-colors"
     @click="emit('open', wiki)"
   >
-    <div class="p-4">
-      <div class="flex items-start justify-between gap-3">
+    <div class="min-w-0 p-3 sm:p-4">
+      <div class="flex min-w-0 items-start justify-between gap-2 sm:gap-3">
         <div class="min-w-0 flex-1">
-          <div class="mb-1 truncate text-sm font-medium">{{ wiki.title }}</div>
+          <div class="mb-1 min-w-0 truncate text-sm font-medium">{{ wiki.title }}</div>
           <div class="text-muted-foreground mb-2 text-xs">
             {{ formatCreatedAt(wiki.createdAt) }}
           </div>
-          <div v-if="wiki.tags.length > 0" class="flex flex-wrap gap-1">
+          <div v-if="wiki.tags.length > 0" class="flex min-w-0 flex-wrap gap-1">
             <span
               v-for="tag in wiki.tags.slice(0, 3)"
               :key="tag"

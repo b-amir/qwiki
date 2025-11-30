@@ -62,14 +62,14 @@ const handleShowDiff = () => {
 </script>
 
 <template>
-  <div class="border-border bg-background flex-shrink-0 border-t px-4 py-4">
+  <div class="border-border bg-background flex-shrink-0 border-t px-3 py-3 sm:px-4 sm:py-4">
     <p
       v-if="props.isSynced"
-      class="text-muted-foreground mb-3 flex items-center justify-center gap-2 text-xs font-medium tracking-wide"
+      class="text-muted-foreground mb-3 flex items-center justify-center gap-2 break-words text-center text-xs font-medium tracking-wide"
     >
       README is synced with saved wikis.
     </p>
-    <div class="flex gap-2">
+    <div class="flex min-w-0 gap-2">
       <Transition
         enter-active-class="undo-button-enter-active"
         enter-from-class="undo-button-enter-from"
@@ -81,7 +81,7 @@ const handleShowDiff = () => {
         <Button
           v-if="props.hasBackup"
           :disabled="isUndoDisabled"
-          class="undo-button bg-muted hover:bg-muted/80 text-foreground flex min-w-[3rem] flex-[0.2] items-center justify-center"
+          class="undo-button bg-muted hover:bg-muted/80 text-foreground flex shrink-0 items-center justify-center px-2 sm:px-3"
           @click="handleUndo"
         >
           <svg
@@ -123,7 +123,7 @@ const handleShowDiff = () => {
       <template v-if="props.isSynced">
         <Button
           :disabled="isDiffDisabled"
-          class="bg-foreground flex-1 text-sm transition-all"
+          class="bg-foreground min-w-0 flex-1 text-sm transition-all"
           @click="handleShowDiff"
         >
           Show Diff
@@ -132,7 +132,7 @@ const handleShowDiff = () => {
       <template v-else>
         <Button
           :disabled="isUpdateDisabled"
-          class="bg-foreground flex-1 text-sm transition-all"
+          class="bg-foreground min-w-0 flex-1 text-sm transition-all"
           @click="handleUpdate"
         >
           <svg

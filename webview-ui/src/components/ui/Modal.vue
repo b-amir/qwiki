@@ -47,7 +47,7 @@ const handleClose = () => {
           <div
             v-if="modelValue"
             :class="[
-              'bg-background border-border flex w-full flex-col rounded-lg border shadow-lg',
+              'bg-background border-border flex w-full min-w-0 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border shadow-lg',
               maxWidth,
               maxHeight,
             ]"

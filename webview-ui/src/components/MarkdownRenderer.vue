@@ -188,7 +188,7 @@ watch(() => props.content, render);
 </script>
 
 <template>
-  <div ref="container" class="prose prose-invert max-w-none text-sm"></div>
+  <div ref="container" class="prose prose-invert max-w-none min-w-0 text-sm overflow-x-hidden"></div>
 </template>
 
 <style scoped>

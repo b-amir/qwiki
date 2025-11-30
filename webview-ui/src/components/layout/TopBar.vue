@@ -66,12 +66,12 @@ const navigateToSavedWikis = async () => {
 
 <template>
   <div
-    class="bg-background flex items-center px-2 py-3"
+    class="bg-background flex min-w-0 items-center overflow-hidden px-2 py-3"
     :class="[isHomePage ? 'justify-end' : 'justify-between pl-3', showBorder ? 'border-b' : '']"
     :aria-busy="!extensionReady"
   >
     <template v-if="extensionReady">
-      <div v-if="!isHomePage" class="flex items-center gap-2">
+      <div v-if="!isHomePage" class="flex min-w-0 items-center gap-2">
         <a
           :class="[buttonClass, isSettingsValidating ? 'cursor-not-allowed opacity-50' : '']"
           :title="isSettingsValidating ? 'Validating...' : 'Back to homepage'"
@@ -79,7 +79,7 @@ const navigateToSavedWikis = async () => {
         >
           <svg
             v-if="isSettingsValidating"
-            class="h-5 w-5 animate-spin"
+            class="h-5 w-5 shrink-0 animate-spin"
             viewBox="0 0 24 24"
             aria-hidden="true"
             focusable="false"
@@ -99,7 +99,13 @@ const navigateToSavedWikis = async () => {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
-          <svg v-else class="h-5 w-5" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+          <svg
+            v-else
+            class="h-5 w-5 shrink-0"
+            viewBox="0 0 1024 1024"
+            aria-hidden="true"
+            focusable="false"
+          >
             <path d="M224 480h640a32 32 0 1 1 0 64H224a32 32 0 0 1 0-64z" fill="currentColor" />
             <path
               d="m237.248 512 265.408 265.344a32 32 0 0 1-45.312 45.312l-288-288a32 32 0 0 1 0-45.312l288-288a32 32 0 1 1 45.312 45.312L237.248 512z"
@@ -107,12 +113,12 @@ const navigateToSavedWikis = async () => {
             />
           </svg>
         </a>
-        <span v-if="pageTitle" class="text-sm font-medium">{{ pageTitle }}</span>
+        <span v-if="pageTitle" class="min-w-0 truncate text-sm font-medium">{{ pageTitle }}</span>
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex shrink-0 items-center gap-1">
         <button :class="buttonClass" title="Settings" @click="navigateToSettings">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -122,7 +128,7 @@ const navigateToSavedWikis = async () => {
           </svg>
         </button>
         <button :class="buttonClass" title="Saved Wikis" @click="navigateToSavedWikis">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"

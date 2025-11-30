@@ -205,7 +205,7 @@ onBeforeUnmount(() => {
   </div>
   <div
     v-else
-    class="mx-auto w-full max-w-3xl space-y-4 p-3 sm:space-y-6 sm:p-4 md:space-y-8 md:p-6"
+    class="w-full min-w-0 space-y-4 p-3 sm:space-y-6 sm:p-4 md:space-y-8 md:p-6"
   >
     <section class="border-border bg-background mb-4 rounded-2xl border shadow-sm sm:mb-6 md:mb-8">
       <div class="space-y-4 px-3 py-3 sm:space-y-6 sm:px-4 sm:py-4 md:space-y-6 md:px-6 md:py-5">

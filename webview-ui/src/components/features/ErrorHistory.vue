@@ -110,18 +110,19 @@ const getErrorColor = (code?: string) => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <div class="border-border border-b px-4 py-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Error History</h2>
-        <div class="flex items-center gap-2">
-          <span class="text-muted-foreground text-sm">
+  <div class="flex h-full min-w-0 flex-col overflow-hidden">
+    <div class="border-border flex-shrink-0 border-b px-3 py-3 sm:px-4">
+      <div class="flex min-w-0 items-center justify-between gap-2">
+        <h2 class="min-w-0 truncate text-base font-semibold sm:text-lg">Error History</h2>
+        <div class="flex shrink-0 items-center gap-2">
+          <span class="text-muted-foreground shrink-0 text-xs sm:text-sm">
             {{ errorHistory.getErrorCount() }} errors
           </span>
           <Button
             v-if="errorHistory.errors.length > 0"
             variant="outline"
             size="sm"
+            class="shrink-0"
             @click="errorHistory.clearErrors()"
           >
             Clear All
@@ -130,7 +131,7 @@ const getErrorColor = (code?: string) => {
       </div>
     </div>
 
-    <div class="flex-1 overflow-auto p-4">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
       <div v-if="errorHistory.errors.length === 0" class="flex h-full items-center justify-center">
         <div class="text-center">
           <div
@@ -155,14 +156,18 @@ const getErrorColor = (code?: string) => {
         </div>
       </div>
 
-      <div v-else class="space-y-3">
-        <div v-for="error in sortedErrors" :key="error.id" class="bg-card rounded-lg border p-4">
-          <div class="mb-2 flex items-start justify-between">
-            <div class="flex items-center gap-2">
-              <div class="flex h-6 w-6 items-center justify-center">
+      <div v-else class="min-w-0 space-y-3">
+        <div
+          v-for="error in sortedErrors"
+          :key="error.id"
+          class="bg-card min-w-0 rounded-lg border p-3 sm:p-4"
+        >
+          <div class="mb-2 flex min-w-0 items-start justify-between gap-2">
+            <div class="flex min-w-0 items-center gap-2">
+              <div class="flex h-6 w-6 shrink-0 items-center justify-center">
                 <svg
                   :class="getErrorColor(error.code)"
-                  class="h-4 w-4"
+                  class="h-4 w-4 shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -171,19 +176,22 @@ const getErrorColor = (code?: string) => {
                   <path :d="getErrorIcon(error.code)" />
                 </svg>
               </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <span v-if="error.code" class="bg-muted rounded px-2 py-1 font-mono text-xs">
+              <div class="min-w-0 flex-1">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <span
+                    v-if="error.code"
+                    class="bg-muted shrink-0 rounded px-2 py-1 font-mono text-xs"
+                  >
                     {{ error.code }}
                   </span>
-                  <span class="text-muted-foreground text-xs">
+                  <span class="text-muted-foreground shrink-0 text-xs">
                     {{ formatDate(error.timestamp) }} at {{ formatTime(error.timestamp) }}
                   </span>
                 </div>
-                <p class="mt-1 text-sm font-medium">{{ error.message }}</p>
+                <p class="mt-1 min-w-0 break-words text-sm font-medium">{{ error.message }}</p>
               </div>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex shrink-0 items-center gap-1">
               <button
                 class="text-muted-foreground hover:text-foreground p-1"
                 title="Copy error details"

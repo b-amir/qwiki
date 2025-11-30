@@ -35,12 +35,12 @@ const {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <div class="border-border flex-shrink-0 border-b px-4 py-4">
+  <div class="flex h-full min-w-0 flex-col overflow-hidden">
+    <div class="border-border flex-shrink-0 border-b px-3 py-3 sm:px-4 sm:py-4">
       <SearchInput v-model="searchQuery" placeholder="Search wikis..." />
     </div>
 
-    <div class="flex flex-1 flex-col overflow-hidden">
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
       <div v-if="isSavedWikisLoading" class="flex h-full w-full">
         <LoadingState context="savedWikis" />
       </div>
@@ -71,10 +71,10 @@ const {
         <div
           v-for="(wikis, date) in groupedWikis"
           :key="date"
-          class="border-border border-b last:border-b-0"
+          class="border-border min-w-0 border-b last:border-b-0"
         >
           <div
-            class="bg-muted/90 text-muted-foreground border-border sticky top-0 z-10 border-b px-4 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-sm"
+            class="bg-muted/90 text-muted-foreground border-border sticky top-0 z-10 min-w-0 border-b px-3 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-sm sm:px-4"
           >
             {{ date }}
           </div>

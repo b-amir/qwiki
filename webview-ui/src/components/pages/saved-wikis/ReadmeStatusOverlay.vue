@@ -44,7 +44,7 @@ const props = defineProps<Props>();
       @touchmove.prevent
       @scroll.prevent
     >
-      <div class="w-full max-w-md px-4">
+      <div class="w-full min-w-0 max-w-md px-3 sm:px-4">
         <LoadingView :steps="props.steps" :current-step="props.currentStep" />
       </div>
     </div>

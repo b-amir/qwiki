@@ -52,13 +52,13 @@ const buttonText = computed(() => {
         One <span class="qwiki-gradient-text">Qwiki</span> and you'll know.
       </h1>
 
-      <div class="bg-muted/20 border-border/50 max-w-md rounded-lg border px-2 py-2 sm:px-3">
+      <div class="bg-muted/20 border-border/50 w-full max-w-md rounded-lg border px-2 py-2 sm:px-3">
         <div class="flex flex-col items-center space-y-2">
           <div class="flex flex-col items-center gap-1 text-center">
             <p class="text-muted-foreground break-words text-xs">
               Select code, then press:
               <kbd
-                class="bg-background border-border/80 text-foreground ml-1 inline-flex h-5 items-center justify-center whitespace-nowrap rounded border px-1.5 text-xs font-medium shadow-sm"
+                class="bg-background border-border/80 text-foreground ml-1 inline-flex h-5 shrink-0 items-center justify-center rounded border px-1.5 text-xs font-medium shadow-sm"
                 >Ctrl+Shift+Q</kbd
               >
             </p>
@@ -66,7 +66,7 @@ const buttonText = computed(() => {
             <span class="text-muted-foreground break-words text-xs"
               >or right-click:
               <span
-                class="bg-background text-foreground shadow-xs ml-1 inline-flex h-5 items-center justify-center whitespace-nowrap rounded px-1.5 text-xs font-medium"
+                class="bg-background text-foreground shadow-xs ml-1 inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-xs font-medium"
                 >Qwiki: Generate a Quick Wiki</span
               ></span
             >
@@ -88,10 +88,10 @@ const buttonText = computed(() => {
       </template>
 
       <template v-else>
-        <div class="w-full max-w-md">
+        <div class="w-full min-w-0 max-w-md">
           <Button
             :disabled="wiki.loading || !extensionReady"
-            class="bg-foreground w-full text-sm sm:text-base"
+            class="bg-foreground w-full min-w-0 text-sm sm:text-base"
             @click="wiki.generate"
           >
             {{ buttonText }}

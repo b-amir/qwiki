@@ -383,9 +383,9 @@ const getCustomFieldValue = (fieldId: string) => {
                 </svg>
                 <span class="break-words">Function Calling</span>
               </div>
-              <div class="flex items-center gap-1.5 sm:gap-2">
-                <span class="text-muted-foreground whitespace-nowrap">Max Tokens:</span>
-                <span class="break-all">
+              <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                <span class="text-muted-foreground shrink-0">Max Tokens:</span>
+                <span class="min-w-0 break-all">
                   {{
                     getProviderCapability("maxTokens")
                       ? typeof getProviderCapability("maxTokens") === "number"
@@ -395,9 +395,9 @@ const getCustomFieldValue = (fieldId: string) => {
                   }}
                 </span>
               </div>
-              <div class="flex items-center gap-1.5 sm:gap-2">
-                <span class="text-muted-foreground whitespace-nowrap">Context:</span>
-                <span class="break-all">
+              <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                <span class="text-muted-foreground shrink-0">Context:</span>
+                <span class="min-w-0 break-all">
                   {{
                     getProviderCapability("contextWindowSize")
                       ? typeof getProviderCapability("contextWindowSize") === "number"

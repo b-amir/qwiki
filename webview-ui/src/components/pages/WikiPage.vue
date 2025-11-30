@@ -259,19 +259,19 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex h-full flex-col" role="main" aria-label="Wiki Content">
-    <div class="flex-1 overflow-auto pb-3">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden pb-3">
       <div v-if="showLoadingOverlay" class="h-full" role="status" aria-live="polite">
         <LoadingState context="wiki" />
       </div>
       <div v-if="showContent" class="relative">
         <div
           ref="contentRef"
-          class="overflow-auto px-6 py-5"
+          class="overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 sm:py-5 md:px-6"
           role="article"
           aria-label="Wiki Content"
           tabindex="0"
         >
-          <div class="mx-auto max-w-4xl">
+          <div class="w-full min-w-0">
             <MarkdownRenderer :content="wikiContentWithoutTitle" />
           </div>
         </div>

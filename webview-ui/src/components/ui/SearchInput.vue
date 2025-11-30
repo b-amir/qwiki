@@ -3,7 +3,7 @@
     :model-value="modelValue"
     type="text"
     :placeholder="placeholder"
-    class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+    class="border-input bg-muted text-foreground placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
     @input="handleInput"
   />
 </template>
