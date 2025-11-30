@@ -119,13 +119,23 @@ When you select code and click "Generate Wiki", here's the complete flow:
 - `WebviewMessageHandler` receives command and checks service readiness
 - `CommandRegistry` executes command with 120-second timeout
 
-**2. Context Building (5-6 seconds)**
+**2. Context Building (5-6 seconds first time, < 1 second cached)**
 
 - **File Context** (cached, ~200ms): Loads from `ContextCacheService` if available
   - Extracts symbols (21 found), imports (7 found)
   - Uses cached data if file hasn't changed
-- **Project Context** (5.3 seconds first time, < 1 second cached):
-  - Workspace structure loaded from cache (50 files, < 10ms)
+- **Project Context** (5.3 seconds first time, < 50ms cached):
+  - **Workspace Structure** (shared cache, 2-hour TTL):
+    - **First build** (~1.5 seconds): Builds workspace structure, caches for 2 hours
+      - Log: `Building workspace structure {cacheHit: false}`
+      - Gets indexed files (200 files)
+      - Creates files sample (50 files)
+      - Reads project overview (package.json analysis)
+    - **Cached builds** (< 15ms): Reuses cached structure from previous operations
+      - Log: `Using cached workspace structure {cacheHit: true, duration: 11-13ms}`
+      - **Cache sharing**: Context built during wiki generation is reused for README generation
+      - Cache key: workspace root path
+      - Cache TTL: 2 hours (prevents unnecessary rebuilds)
   - **Identifier Extraction**: Scans snippet for identifiers (e.g., "currentQuestionNumber")
   - **Text Usage Search** (cached):
     - **First search** (~5.3 seconds): Searches all 222 project files for identifier usage
@@ -255,15 +265,16 @@ When you use saved wikis to update your project's README, here's the complete pr
 - File watcher detects backup creation
 - Backup state updated: `hasBackup: true`
 
-**5. Project Context Building (2-3 seconds)**
+**5. Project Context Building (< 50ms, cached)**
 
 - `ProjectContextService` builds context for README generation:
-  - Workspace structure (cached, 2-hour TTL: 50 files, < 10ms)
-  - Project overview (reads package.json, extracts dependencies)
-  - Indexed files (200 files retrieved)
-  - Files sample (50 files)
-  - Overview length: 271 characters
-- Project type detected (cached): JavaScript, Vue framework
+  - **Workspace structure** (shared cache, reused from wiki generation):
+    - Cache hit: `Using cached workspace structure {cacheHit: true, duration: 11ms}`
+    - Reuses structure built during wiki generation (no rebuild needed)
+    - 50 files, overview (271 chars) from cache
+    - **Performance**: < 50ms vs 1.5 seconds if rebuilt
+  - Project type detected (cached): JavaScript, Vue framework
+  - **Note**: Context is shared between wiki and README workflows, eliminating duplicate work
 
 **6. Wiki Optimization (< 1 second)**
 

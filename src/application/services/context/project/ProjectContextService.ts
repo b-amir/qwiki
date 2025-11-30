@@ -56,10 +56,14 @@ export class ProjectContextService {
         duration: Date.now() - structureCacheStart,
         rootName: cachedStructure.rootName,
         fileCount: cachedStructure.filesSample.length,
+        cacheHit: true,
       });
       overview = cachedStructure.overview;
       filesSample = cachedStructure.filesSample;
     } else {
+      this.logger.debug("Building workspace structure", {
+        cacheHit: false,
+      });
       const findFilesStart = Date.now();
       this.logger.debug("Getting indexed files");
       const indexedFiles = await this.projectIndexService.getIndexedFiles();
