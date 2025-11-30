@@ -121,13 +121,19 @@ When you select code and click "Generate Wiki", here's the complete flow:
 - **File Context** (cached, ~200ms): Loads from `ContextCacheService` if available
   - Extracts symbols (21 found), imports (7 found)
   - Uses cached data if file hasn't changed
-- **Project Context** (5.3 seconds):
+- **Project Context** (5.3 seconds first time, < 1 second cached):
   - Workspace structure loaded from cache (50 files, < 10ms)
   - **Identifier Extraction**: Scans snippet for identifiers (e.g., "currentQuestionNumber")
-  - **Text Usage Search**: Searches all 222 project files for identifier usage
-    - Batched processing: 15 files concurrently
-    - Progress updates: 51/222, 100/222, 149/222, 199/222
-    - Found 4 related files with matches
+  - **Text Usage Search** (cached):
+    - **First search** (~5.3 seconds): Searches all 222 project files for identifier usage
+      - Batched processing: 15 files concurrently
+      - Progress updates: 51/222, 100/222, 149/222, 199/222
+      - Found 4 related files with matches
+      - Results cached with project state hash for invalidation
+    - **Cached searches** (< 1 second): Returns cached results instantly
+      - Cache key: `textUsageSearch:{token}:{projectStateHash}`
+      - Cache TTL: 30 minutes (or until project files change)
+      - Automatic invalidation when project state changes
   - **Overview Generation**: Creates project overview (271 chars)
 
 **3. Intelligent Context Selection (0.3 seconds)**

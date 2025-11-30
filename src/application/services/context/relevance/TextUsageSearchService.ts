@@ -1,13 +1,23 @@
 import { workspace, type Uri } from "vscode";
-import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
-import { FilePatterns, FileLimits } from "@/constants";
+import {
+  LoggingService,
+  createLogger,
+  type Logger,
+  CachingService,
+} from "@/infrastructure/services";
+import { ProjectIndexService } from "@/infrastructure/services/indexing/ProjectIndexService";
+import { FilePatterns, FileLimits, ServiceLimits } from "@/constants";
 import { PathPatterns } from "@/constants";
 
 export class TextUsageSearchService {
   private logger: Logger;
   private readonly CONCURRENCY_LIMIT = 15;
 
-  constructor(private loggingService: LoggingService) {
+  constructor(
+    private loggingService: LoggingService,
+    private cachingService: CachingService,
+    private projectIndexService: ProjectIndexService,
+  ) {
     this.logger = createLogger("TextUsageSearchService");
   }
 
@@ -17,6 +27,18 @@ export class TextUsageSearchService {
   ): Promise<Array<{ path: string; preview?: string; line?: number; reason?: string }>> {
     const startTime = Date.now();
     this.logger.debug("findTextUsages started", { token });
+
+    const projectStateHash = await this.getProjectStateHash();
+    const cacheKey = this.generateCacheKey(token, projectStateHash);
+    const cachedResult =
+      await this.cachingService.get<
+        Array<{ path: string; preview?: string; line?: number; reason?: string }>
+      >(cacheKey);
+
+    if (cachedResult) {
+      this.logger.debug("Text usage search cache hit", { token, resultCount: cachedResult.length });
+      return cachedResult;
+    }
 
     const related: Array<{ path: string; preview?: string; line?: number; reason?: string }> = [];
 
@@ -134,11 +156,38 @@ export class TextUsageSearchService {
     const finalResults = validResults.slice(0, FileLimits.maxRelatedResults);
     related.push(...finalResults);
 
+    await this.cachingService.set(cacheKey, related, {
+      ttl: ServiceLimits.cacheDefaultTTL,
+    });
+
     this.logger.debug("findTextUsages completed", {
       totalDuration: Date.now() - startTime,
       finalResultCount: related.length,
       maxResults: FileLimits.maxRelatedResults,
     });
     return related;
+  }
+
+  private generateCacheKey(token: string, projectStateHash: string): string {
+    return `textUsageSearch:${token}:${projectStateHash}`;
+  }
+
+  private async getProjectStateHash(): Promise<string> {
+    const indexedFiles = await this.projectIndexService.getIndexedFiles();
+    const filePaths = indexedFiles
+      .map((f) => f.uri.fsPath)
+      .sort()
+      .join("|");
+    return this.simpleHash(filePaths);
+  }
+
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
   }
 }

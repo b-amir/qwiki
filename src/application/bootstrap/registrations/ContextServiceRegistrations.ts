@@ -41,7 +41,15 @@ export function registerContextServices(
   context: ExtensionContext,
   loggingService: LoggingService,
 ): void {
-  container.register("textUsageSearchService", () => new TextUsageSearchService(loggingService));
+  container.register(
+    "textUsageSearchService",
+    () =>
+      new TextUsageSearchService(
+        loggingService,
+        container.resolve("cachingService") as CachingService,
+        container.resolve("projectIndexService") as ProjectIndexService,
+      ),
+  );
 
   container.register("projectOverviewService", () => new ProjectOverviewService(loggingService));
 
