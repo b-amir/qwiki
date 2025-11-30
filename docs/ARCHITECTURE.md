@@ -6,6 +6,8 @@ The Qwiki VS Code extension follows a clean, modular architecture based on SOLID
 
 For setup and day-to-day development workflows, refer to `docs/DEVELOPER_ONBOARDING.md`.
 
+For detailed runtime workflows and operational flows, refer to `docs/SYSTEM_WORKFLOWS.md`.
+
 ## Bootstrap Responsiveness Architecture
 
 - `ServiceReadinessManager` (`src/infrastructure/services/ServiceReadinessManager.ts`) owns tier registration, readiness state, event subscriptions, progress calculations, and command dependency lookups.
