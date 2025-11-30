@@ -148,11 +148,13 @@ When you select code and click "Generate Wiki", here's the complete flow:
   - Top score: 44.18 (package.json)
   - Uses cached scores if available
 - **Token Budget Calculation**:
-  - Available tokens: 110,136
+  - Available tokens: 1,047,076 (full context budget)
   - Target utilization: 85%
-  - **File Selection**: Selects 87 most relevant files, excludes 113
-  - Total token cost: 110,134 (100% utilization)
-  - Adds 3 essential files to selection
+  - **Effective limit**: 890,014 (85% of available)
+  - **File Selection**: Selects files up to effective limit
+  - Total token cost: 412,501 (39% of available, 46% of effective limit)
+  - Essential files included within the effective limit
+  - **Note**: Utilization now respects 85% target, preventing 100% utilization that risked API failures
 
 **4. Prompt Building (< 1 second)**
 

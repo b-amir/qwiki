@@ -181,18 +181,19 @@ export class ContextSelectionOrchestrator {
     essentialFiles: any[],
     tokenBudget: TokenBudget,
   ): Promise<OptimalContextSelection> {
-    const availableTokens = tokenBudget.availableForContext * tokenBudget.utilizationTarget;
+    const availableTokens = tokenBudget.availableForContext;
     const selectionResult = this.fileSelectionService.selectFilesByTokenBudget(
       fileRelevanceScores,
       availableTokens,
       tokenBudget.utilizationTarget,
     );
 
+    const effectiveLimit = Math.floor(availableTokens * tokenBudget.utilizationTarget);
     const essentialResult = this.fileSelectionService.addEssentialFiles(
       essentialFiles,
       selectionResult.selectedFiles,
       selectionResult.totalTokenCost,
-      availableTokens,
+      effectiveLimit,
     );
 
     const utilizationRate = essentialResult.totalTokenCost / tokenBudget.availableForContext;

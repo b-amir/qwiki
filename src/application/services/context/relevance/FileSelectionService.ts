@@ -21,9 +21,13 @@ export class FileSelectionService {
     totalTokenCost: number;
   } {
     const selectStart = Date.now();
+
+    const effectiveLimit = Math.floor(availableTokens * utilizationTarget);
+
     this.logger.info("Selecting files based on token budget", {
       availableTokens,
       utilizationTarget,
+      effectiveLimit,
       filesToConsider: fileRelevanceScores.length,
     });
 
@@ -32,7 +36,7 @@ export class FileSelectionService {
     let totalTokenCost = 0;
 
     for (const fileScore of fileRelevanceScores) {
-      if (totalTokenCost + fileScore.tokenCost <= availableTokens) {
+      if (totalTokenCost + fileScore.tokenCost <= effectiveLimit) {
         selectedFiles.push(fileScore);
         totalTokenCost += fileScore.tokenCost;
       } else {
@@ -47,6 +51,7 @@ export class FileSelectionService {
       excludedCount: excludedFiles.length,
       totalTokenCost,
       tokenUtilization: Math.round((totalTokenCost / availableTokens) * 100),
+      effectiveUtilization: Math.round((totalTokenCost / effectiveLimit) * 100),
     });
 
     return { selectedFiles, excludedFiles, totalTokenCost };
