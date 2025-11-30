@@ -1,5 +1,6 @@
 import { workspace } from "vscode";
 import { join } from "path";
+import { EventBus } from "@/events/EventBus";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { VSCodeFileSystemService } from "@/infrastructure/services";
 
@@ -24,6 +25,7 @@ export class ReadmeSyncTrackerService {
   constructor(
     private fileSystem: VSCodeFileSystemService,
     private loggingService: LoggingService,
+    private eventBus?: EventBus,
   ) {
     this.logger = createLogger("ReadmeSyncTrackerService");
   }
@@ -46,6 +48,10 @@ export class ReadmeSyncTrackerService {
         wikiCount: state.wikiIds.length,
         backupPath: state.backupPath,
       });
+
+      if (this.eventBus) {
+        await this.eventBus.publish("readmeUpdated", {});
+      }
     } catch (error) {
       this.logger.error("Failed to record README sync state", error);
     }
@@ -62,6 +68,10 @@ export class ReadmeSyncTrackerService {
       if (exists) {
         await this.fileSystem.delete(filePath);
         this.logger.debug("Cleared README sync state");
+
+        if (this.eventBus) {
+          await this.eventBus.publish("readmeUpdated", {});
+        }
       }
     } catch (error) {
       this.logger.warn("Failed to clear README sync state", error);

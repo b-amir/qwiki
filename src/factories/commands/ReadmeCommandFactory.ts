@@ -39,6 +39,7 @@ export class ReadmeCommandFactory extends BaseCommandFactory {
           this.container.resolve("wikiStorageService"),
           this.messageBus,
           this.loggingService,
+          this.eventBus,
         ) as Command<T>;
 
       default:

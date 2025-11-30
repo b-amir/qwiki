@@ -81,6 +81,7 @@ export function registerReadmeServices(container: Container, loggingService: Log
       new ReadmeSyncTrackerService(
         container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
         loggingService,
+        container.resolve("eventBus"),
       ),
   );
 

@@ -236,8 +236,12 @@ When you use saved wikis to update your project's README, here's the complete pr
 **1. Navigation & State Check (< 500ms)**
 
 - User navigates to "Saved Wikis" page
-- `getSavedWikis` command loads all saved wikis (8 found)
+- `getSavedWikis` command loads all saved wikis (12 found)
 - `checkReadmeBackupState` checks if backup exists (initially: no backup, not synced)
+  - **Caching**: In-memory cache with 2-second TTL prevents redundant I/O
+  - **Cache hits**: Rapid successive calls within 2 seconds return cached state
+  - **Cache invalidation**: Automatically clears on backup created/deleted or README updated events
+  - **Performance**: Cached checks return instantly (< 1ms) vs I/O operations (200-600ms)
 
 **2. README Update Initiation (< 1 second)**
 
@@ -262,8 +266,10 @@ When you use saved wikis to update your project's README, here's the complete pr
 
 - `ReadmeBackupService` creates backup before modification
 - Backup saved to `.qwiki/backup/README.backup.md`
+- **Event published**: `readmeBackupCreated` event triggers cache invalidation
 - File watcher detects backup creation
 - Backup state updated: `hasBackup: true`
+- **Cache behavior**: State check cache invalidated to ensure fresh state on next check
 
 **5. Project Context Building (< 50ms, cached)**
 
@@ -326,12 +332,15 @@ When you use saved wikis to update your project's README, here's the complete pr
 - User clicks "Undo" button
 - `undoReadme` command executes
 - `ReadmeBackupService` restores README from backup
+  - **Event published**: `readmeBackupDeleted` event triggers cache invalidation
 - `ReadmeSyncTrackerService` clears sync state:
   - Deletes `.qwiki/state/readme-sync.json`
+  - **Event published**: `readmeUpdated` event triggers cache invalidation
   - Sets `readmeSynced: false` for all wikis
 - Backup file deleted: `.qwiki/backup/README.backup.md`
 - README restored to original state
 - Saved wikis refreshed: `readmeSynced: false`
+- **Cache behavior**: State check cache invalidated to ensure fresh state on next check
 
 ## Settings & Configuration Workflow
 
