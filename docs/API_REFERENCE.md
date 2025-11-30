@@ -1755,7 +1755,7 @@ class LRUCache<K, V> {
 class MetricsCollectionService {
   constructor(
     private eventBus: EventBus,
-    private loggingService: LoggingService
+    _loggingService: LoggingService
   );
 
   recordGenerationStart(providerId: string): string;
@@ -1795,7 +1795,7 @@ class MetricsCollectionService {
 class StatisticsCalculationService {
   constructor(
     private llmRegistry: LLMRegistry,
-    private loggingService: LoggingService
+    _loggingService: LoggingService
   );
 
   calculatePerformanceScore(stats: PerformanceStats): number;
@@ -1824,7 +1824,7 @@ class StatisticsCalculationService {
 class PerformanceMonitoringService {
   constructor(
     private eventBus: EventBus,
-    private loggingService: LoggingService
+    _loggingService: LoggingService
   );
 
   updateProviderRanking(providerId: string, ranking: ProviderRanking): void;
@@ -1850,7 +1850,7 @@ class ProviderPerformanceService {
     private statisticsCalculationService: StatisticsCalculationService,
     private performanceMonitoringService: PerformanceMonitoringService,
     private eventBus: EventBus,
-    private loggingService: LoggingService
+    _loggingService: LoggingService
   );
 
   recordGenerationStart(providerId: string): string;
@@ -2003,7 +2003,7 @@ interface IndexedFile {
 ```typescript
 // src/application/services/context/PatternExtractionService.ts
 class PatternExtractionService {
-  constructor(private loggingService: LoggingService);
+  constructor(_loggingService: LoggingService);
 
   extractCodePatterns(snippet: string, language: string): CodePattern[];
 
@@ -2060,7 +2060,7 @@ enum PatternType {
 ```typescript
 // src/application/services/context/ComplexityCalculationService.ts
 class ComplexityCalculationService {
-  constructor(private loggingService: LoggingService);
+  constructor(_loggingService: LoggingService);
 
   estimateContextComplexity(snippet: string, structure: CodeStructure): ComplexityScore;
   calculateMaxNestingDepth(snippet: string): number;
@@ -2068,7 +2068,7 @@ class ComplexityCalculationService {
   calculateCognitiveComplexity(snippet: string, structure: CodeStructure): number;
   calculateHalsteadComplexity(
     snippet: string,
-    structure: CodeStructure
+    structure: CodeStructure,
   ): { volume: number; difficulty: number; effort: number };
 }
 
@@ -2098,7 +2098,7 @@ interface ComplexityScore {
 // src/application/services/context/StructureAnalysisService.ts
 class StructureAnalysisService {
   constructor(
-    private loggingService: LoggingService,
+    _loggingService: LoggingService,
     private patternExtractionService: PatternExtractionService
   );
 
@@ -2136,17 +2136,17 @@ interface CodeStructure {
 ```typescript
 // src/application/services/context/RelationshipAnalysisService.ts
 class RelationshipAnalysisService {
-  constructor(private loggingService: LoggingService);
+  constructor(_loggingService: LoggingService);
 
   analyzeCodeRelationships(
     snippet: string,
     structure: CodeStructure,
-    lines?: string[]
+    lines?: string[],
   ): CodeRelationship[];
 
   private buildCallGraph(
     lines: string[],
-    functionMap: Map<string, FunctionInfo>
+    functionMap: Map<string, FunctionInfo>,
   ): Map<string, Array<{ callee: string; location: { line: number; column: number } }>>;
 }
 
@@ -2164,7 +2164,7 @@ enum RelationshipType {
   EXTENDS = "extends",
   USES = "uses",
   IMPORTS = "imports",
-  EXPORTS = "exports"
+  EXPORTS = "exports",
 }
 ```
 
@@ -2179,7 +2179,7 @@ enum RelationshipType {
 class ContextAnalysisService {
   constructor(
     private eventBus: EventBus,
-    private loggingService: LoggingService,
+    _loggingService: LoggingService,
     private complexityCalculationService: ComplexityCalculationService,
     private patternExtractionService: PatternExtractionService,
     private structureAnalysisService: StructureAnalysisService,

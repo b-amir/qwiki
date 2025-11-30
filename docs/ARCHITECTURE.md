@@ -57,7 +57,12 @@ The application layer contains services, commands, and application-specific busi
   - `CachedWikiService.ts`: Cached wiki generation with performance optimization (currently unused)
   - `SelectionService.ts`: Editor selection handling
   - `MessageBusService.ts`: Webview communication with batching/debouncing
+  - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results
+  - `WikiSummarizationService.ts`: Summarizes wikis for README generation
   - `generation/`: Wiki generation pipeline components
+    - `LLMGenerationService.ts`: Handles LLM API calls and response processing
+    - `ContextEnhancementService.ts`: Enhances context with semantic information
+    - `SemanticInfoCollector.ts`: Collects semantic information from language servers
 
   **Context Services** (`services/context/`):
   - `ContextIntelligenceService.ts`: Orchestrates optimal context selection with token budget management
@@ -81,14 +86,14 @@ The application layer contains services, commands, and application-specific busi
   **Documentation Services** (`services/documentation/`):
   - `DocumentationQualityService.ts`: Scores generated documentation for completeness, clarity, structure, examples, and code references
   - `DocumentationImprovementService.ts`: Produces prioritized improvement suggestions based on quality metrics
-  - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results
+  - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results (located in `services/core/`)
 
   **Prompt Services** (`services/prompts/`):
   - `AdvancedPromptService.ts`: Advanced prompt construction and optimization
   - `PromptQualityService.ts`: Prompt quality analysis and scoring (currently unused)
-  - `prompt/PromptSectionBuilder.ts`: Builds structured prompt sections
-  - `prompt/PromptQualityAnalyzer.ts`: Analyzes prompt effectiveness
-  - `prompt/AdaptivePromptHelpers.ts`: Provider-specific prompt adaptation
+  - `PromptSectionBuilder.ts`: Builds structured prompt sections
+  - `PromptQualityAnalyzer.ts`: Analyzes prompt effectiveness
+  - `AdaptivePromptHelpers.ts`: Provider-specific prompt adaptation
 
   **README Services** (`services/readme/`):
   - `ReadmeUpdateService.ts`: Orchestrates README updates with on-demand diff review and rollback
@@ -112,6 +117,11 @@ The application layer contains services, commands, and application-specific busi
   - `ProviderDiscoveryService.ts`: Dynamic provider discovery
   - `ProviderLifecycleManagerService.ts`: Provider initialization and lifecycle
   - `ProviderDependencyResolverService.ts`: Provider dependency resolution
+  - `selection/`: Provider selection components
+    - `ProviderScoringService.ts`: Scores providers based on context and requirements
+    - `ProviderRankingService.ts`: Ranks providers by performance and capabilities
+    - `ProviderPerformanceTracker.ts`: Tracks provider performance metrics
+    - `RequirementsAnalyzer.ts`: Analyzes requirements for provider selection
 
   **Performance Services** (`services/performance/` or infrastructure):
   - `ProviderPerformanceService.ts`: Performance monitoring orchestrator
@@ -236,6 +246,7 @@ The infrastructure layer contains implementations of domain interfaces and exter
   - `ErrorHandler.ts`: Global error handler
   - `ErrorLoggingService.ts`: Error logging and user feedback
   - `ErrorRecoveryService.ts`: Error recovery mechanisms
+  - `ErrorAnalyticsService.ts`: Error analytics and aggregation
 
   **Logging & Monitoring Services**:
   - `LoggingService.ts`: Structured logging service with two log modes (replaces console.log)
@@ -247,11 +258,14 @@ The infrastructure layer contains implementations of domain interfaces and exter
   - `CachingService.ts`: Generic caching service with TTL support
   - `GenerationCacheService.ts`: Generation result caching
   - `LRUCache.ts`: Simple LRU cache implementation
+  - `ContextCacheService.ts`: Context caching for file and project contexts
+  - `SemanticCacheService.ts`: Semantic result caching for language server data
   - `RequestBatchingService.ts`: Request batching for performance
   - `DebouncingService.ts`: Function debouncing service
   - `RateLimiterService.ts`: Rate limiting for API calls with sliding window algorithm
   - `BackgroundProcessingService.ts`: Background task processing
   - `MemoryOptimizationService.ts`: Memory usage optimization
+  - `ResourceMonitorService.ts`: Resource monitoring and throttling
   - `WebviewOptimizerService.ts`: Webview message batching and debouncing
 
   **Project Context & Indexing Services**:
@@ -270,9 +284,10 @@ The infrastructure layer contains implementations of domain interfaces and exter
   - `ProviderHealthService.ts`: Provider health monitoring
   - `ProviderValidationService.ts`: Provider configuration validation
   - `ProviderPerformanceService.ts`: Performance monitoring orchestrator
-    - `performance/MetricsCollectionService.ts`: Metrics collection
-    - `performance/StatisticsCalculationService.ts`: Statistics calculation
-    - `performance/PerformanceMonitoringService.ts`: Performance monitoring
+    - `validation/`: Provider validation components
+      - `ApiKeyValidator.ts`: Validates API keys for providers
+      - `ProviderSettingsValidator.ts`: Validates provider settings
+      - `ValidationCacheManager.ts`: Manages validation cache
 
   **File System & Storage Services**:
   - `VSCodeFileSystemService.ts`: VS Code file system API wrapper
@@ -283,6 +298,21 @@ The infrastructure layer contains implementations of domain interfaces and exter
   **Integration Services**:
   - `LanguageServerIntegrationService.ts`: Integrates with VS Code language servers
   - `GitChangeDetectionService.ts`: Detects git changes in workspace
+  - `VSCodeDiffService.ts`: Opens native VS Code diff editors
+  - `capabilities/`: Language server capability detection
+    - `ServerCapabilityDetector.ts`: Detects available language server capabilities
+  - `enrichment/`: Semantic enrichment components
+    - `SemanticInfoEnricher.ts`: Enriches code with semantic information
+  - `hover/`: Hover content extraction
+    - `HoverContentExtractor.ts`: Extracts hover information from language servers
+  - `symbols/`: Symbol processing
+    - `SymbolProcessor.ts`: Processes document and workspace symbols
+
+  **Orchestration Services**:
+  - `TaskSchedulerService.ts`: Task scheduling and prioritization
+
+  **Embedding Services**:
+  - `EmbeddingService.ts`: Text embedding generation and similarity calculation
 
 **Purpose:**
 
