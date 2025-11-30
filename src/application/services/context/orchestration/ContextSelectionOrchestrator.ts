@@ -186,22 +186,15 @@ export class ContextSelectionOrchestrator {
       fileRelevanceScores,
       availableTokens,
       tokenBudget.utilizationTarget,
-    );
-
-    const effectiveLimit = Math.floor(availableTokens * tokenBudget.utilizationTarget);
-    const essentialResult = this.fileSelectionService.addEssentialFiles(
       essentialFiles,
-      selectionResult.selectedFiles,
-      selectionResult.totalTokenCost,
-      effectiveLimit,
     );
 
-    const utilizationRate = essentialResult.totalTokenCost / tokenBudget.availableForContext;
+    const utilizationRate = selectionResult.totalTokenCost / tokenBudget.availableForContext;
 
     return {
-      selectedFiles: essentialResult.selectedFiles,
+      selectedFiles: selectionResult.selectedFiles,
       essentialFiles,
-      totalTokenCost: essentialResult.totalTokenCost,
+      totalTokenCost: selectionResult.totalTokenCost,
       utilizationRate,
       excludedFiles: selectionResult.excludedFiles,
       compressionApplied: false,

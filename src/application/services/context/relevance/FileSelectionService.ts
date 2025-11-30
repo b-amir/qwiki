@@ -15,6 +15,7 @@ export class FileSelectionService {
     fileRelevanceScores: FileRelevanceScore[],
     availableTokens: number,
     utilizationTarget: number,
+    essentialFiles: ProjectEssentialFile[] = [],
   ): {
     selectedFiles: FileRelevanceScore[];
     excludedFiles: FileRelevanceScore[];
@@ -28,49 +29,17 @@ export class FileSelectionService {
       availableTokens,
       utilizationTarget,
       effectiveLimit,
+      essentialFileCount: essentialFiles.length,
       filesToConsider: fileRelevanceScores.length,
     });
 
     const selectedFiles: FileRelevanceScore[] = [];
     const excludedFiles: FileRelevanceScore[] = [];
     let totalTokenCost = 0;
-
-    for (const fileScore of fileRelevanceScores) {
-      if (totalTokenCost + fileScore.tokenCost <= effectiveLimit) {
-        selectedFiles.push(fileScore);
-        totalTokenCost += fileScore.tokenCost;
-      } else {
-        excludedFiles.push(fileScore);
-      }
-    }
-
-    const selectDuration = Date.now() - selectStart;
-    this.logger.info("File selection completed", {
-      duration: selectDuration,
-      selectedCount: selectedFiles.length,
-      excludedCount: excludedFiles.length,
-      totalTokenCost,
-      tokenUtilization: Math.round((totalTokenCost / availableTokens) * 100),
-      effectiveUtilization: Math.round((totalTokenCost / effectiveLimit) * 100),
-    });
-
-    return { selectedFiles, excludedFiles, totalTokenCost };
-  }
-
-  addEssentialFiles(
-    essentialFiles: ProjectEssentialFile[],
-    selectedFiles: FileRelevanceScore[],
-    totalTokenCost: number,
-    availableTokens: number,
-  ): { selectedFiles: FileRelevanceScore[]; totalTokenCost: number } {
-    const essentialStart = Date.now();
-    this.logger.debug("Adding essential files", { essentialCount: essentialFiles.length });
-    const selectedFilePaths = new Set(selectedFiles.map((f) => f.filePath));
-    let updatedTokenCost = totalTokenCost;
+    const selectedFilePaths = new Set<string>();
 
     for (const essential of essentialFiles) {
-      const alreadyIncluded = selectedFilePaths.has(essential.filePath);
-      if (!alreadyIncluded && updatedTokenCost + essential.tokenCost <= availableTokens) {
+      if (totalTokenCost + essential.tokenCost <= effectiveLimit) {
         const essentialScore: FileRelevanceScore = {
           filePath: essential.filePath,
           score: 100,
@@ -88,16 +57,41 @@ export class FileSelectionService {
           },
         };
         selectedFiles.push(essentialScore);
-        updatedTokenCost += essential.tokenCost;
+        selectedFilePaths.add(essential.filePath);
+        totalTokenCost += essential.tokenCost;
+      } else {
+        this.logger.warn("Essential file excluded due to token budget", {
+          filePath: essential.filePath,
+          tokenCost: essential.tokenCost,
+          remainingBudget: effectiveLimit - totalTokenCost,
+        });
       }
     }
 
-    this.logger.debug("Essential files processed", {
-      duration: Date.now() - essentialStart,
-      finalSelectedCount: selectedFiles.length,
-      finalTokenCost: updatedTokenCost,
+    for (const fileScore of fileRelevanceScores) {
+      if (selectedFilePaths.has(fileScore.filePath)) {
+        continue;
+      }
+
+      if (totalTokenCost + fileScore.tokenCost <= effectiveLimit) {
+        selectedFiles.push(fileScore);
+        totalTokenCost += fileScore.tokenCost;
+      } else {
+        excludedFiles.push(fileScore);
+      }
+    }
+
+    const selectDuration = Date.now() - selectStart;
+    this.logger.info("File selection completed", {
+      duration: selectDuration,
+      selectedCount: selectedFiles.length,
+      essentialCount: essentialFiles.length,
+      excludedCount: excludedFiles.length,
+      totalTokenCost,
+      tokenUtilization: Math.round((totalTokenCost / availableTokens) * 100),
+      effectiveUtilization: Math.round((totalTokenCost / effectiveLimit) * 100),
     });
 
-    return { selectedFiles, totalTokenCost: updatedTokenCost };
+    return { selectedFiles, excludedFiles, totalTokenCost };
   }
 }

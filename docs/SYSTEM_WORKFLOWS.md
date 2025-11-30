@@ -151,10 +151,13 @@ When you select code and click "Generate Wiki", here's the complete flow:
   - Available tokens: 1,047,076 (full context budget)
   - Target utilization: 85%
   - **Effective limit**: 890,014 (85% of available)
-  - **File Selection**: Selects files up to effective limit
+  - **File Selection** (single-phase):
+    - **Phase 1**: Essential files selected first (3 files, highest priority)
+    - **Phase 2**: Regular files selected up to remaining budget
+    - Duplicate prevention: Essential files not counted twice if in regular list
   - Total token cost: 412,501 (39% of available, 46% of effective limit)
-  - Essential files included within the effective limit
-  - **Note**: Utilization now respects 85% target, preventing 100% utilization that risked API failures
+  - Essential files: Always included (100% inclusion rate)
+  - **Note**: Single-phase selection ensures essential files are prioritized and utilization respects 85% target, preventing 100% utilization that risked API failures
 
 **4. Prompt Building (< 1 second)**
 
