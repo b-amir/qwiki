@@ -24,6 +24,7 @@ export const ErrorCodes = {
   savedWikisDeleteFailed: "error.savedWikis.deleteFailed",
   notificationError: "error.notification",
   rateLimitExceeded: "error.rateLimitExceeded",
+  promptQualityTooLow: "error.promptQualityTooLow",
 } as const;
 
 export const ErrorMessages = {
@@ -52,6 +53,7 @@ export const ErrorMessages = {
   [ErrorCodes.savedWikisDeleteFailed]: "Failed to delete saved wiki",
   [ErrorCodes.notificationError]: "Operation failed",
   [ErrorCodes.rateLimitExceeded]: "Rate limit exceeded",
+  [ErrorCodes.promptQualityTooLow]: "Prompt quality too low",
 } as const;
 
 export const ErrorTitles = {
@@ -80,4 +82,5 @@ export const ErrorTitles = {
   [ErrorCodes.savedWikisDeleteFailed]: "Saved Wikis Delete Failed",
   [ErrorCodes.notificationError]: "Notification Error",
   [ErrorCodes.rateLimitExceeded]: "Rate Limit Exceeded",
+  [ErrorCodes.promptQualityTooLow]: "Prompt Quality Too Low",
 } as const;

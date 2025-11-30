@@ -13,7 +13,7 @@ import { PromptConsistencyChecker } from "@/application/services/prompts/quality
 
 export class PromptQualityService {
   private logger: Logger;
-  private readonly qualityThresholds: QualityThreshold = {
+  public readonly qualityThresholds: QualityThreshold = {
     minimum: 0.6,
     target: 0.8,
     maximum: 1.0,

@@ -12,6 +12,7 @@ export const ErrorCodes = {
   PROVIDER_NOT_SELECTED: "PROVIDER_NOT_SELECTED",
   MISSING_SNIPPET: "MISSING_SNIPPET",
   INIT_TIMEOUT: "INIT_TIMEOUT",
+  PROMPT_QUALITY_TOO_LOW: "PROMPT_QUALITY_TOO_LOW",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

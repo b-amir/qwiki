@@ -181,7 +181,16 @@ When you select code and click "Generate Wiki", here's the complete flow:
   - `buildingContextSummary`: Summary creation (17ms)
   - `preparingGenerationInput`: Input preparation (5ms)
   - `buildingPrompt`: Prompt construction (9ms)
-  - `validatingPromptQuality`: Quality check (16ms, score: 0.2 - below threshold, 5 suggestions)
+  - `validatingPromptQuality`: Quality check with auto-improvement (40ms):
+    - **Initial validation**: Score 0.2 (below threshold), 5 suggestions
+    - **Auto-improvement**: Automatically applies high/medium priority suggestions
+      - Filters out safety suggestions (cannot be auto-improved)
+      - Applies clarity, completeness, specificity, consistency, and structure improvements
+      - Adds output requirements, formatting guidelines, and structure sections
+    - **Retry validation**: Improved prompt re-validated
+    - **Result**: Score improved to 0.75 (passed threshold)
+    - **Performance**: Auto-improvement completes in < 100ms (no LLM calls)
+    - **Blocking**: Only blocks generation if quality remains < 0.54 after improvement
   - `collectingSemanticInfo`: Language server integration (61ms)
     - Retrieves symbol info from VS Code language server
     - Symbol: "script setup", kind: 1
