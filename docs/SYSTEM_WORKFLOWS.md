@@ -263,16 +263,23 @@ When you use saved wikis to update your project's README, here's the complete pr
 
 - `ReadmeStateDetectionService` analyzes existing README
 - `ReadmeContentAnalysisService` evaluates content:
-  - Score: 1.0 (high quality)
+  - Score: 0.819 (high quality)
   - Is boilerplate: false
   - Is user-contributed: true
-  - Generic sections: 0
+  - Generic sections: 4
   - Placeholders: 0
-- State detected: `non_existent` (confidence: 1, isBoilerplate: true)
-  - Note: System may classify existing README as "non_existent" if it's boilerplate
+- **State detected**: `user_contributed` (confidence: 1, isBoilerplate: false)
+  - **Content analysis priority**: `isUserContributed` flag checked first
+  - **Safety**: User-contributed READMEs never classified as `non_existent`
+  - **Git analysis**: Assumes at least 1 commit if file exists in git repo (conservative approach)
+  - **Fallback logic**: If content has custom sections and score > 0.5, classified as user-contributed
 
-**4. Backup Creation (< 1 second)**
+**4. Safety Check & Backup Creation (< 1 second)**
 
+- **Safety check**: If README state is `user_contributed`:
+  - Warning logged: "Attempting to overwrite user-contributed README"
+  - **Event published**: `readmeOverwriteWarning` event (for future confirmation flow)
+  - Proceeds with backup and generation (confirmation flow not yet implemented)
 - `ReadmeBackupService` creates backup before modification
 - Backup saved to `.qwiki/backup/README.backup.md`
 - **Event published**: `readmeBackupCreated` event triggers cache invalidation

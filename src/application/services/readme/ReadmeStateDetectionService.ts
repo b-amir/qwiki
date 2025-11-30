@@ -5,6 +5,7 @@ import { GitChangeDetectionService } from "@/infrastructure/services";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { Extension } from "@/constants/Extension";
 import { VSCodeFileSystemService } from "@/infrastructure/services";
+import { ReadmeContentAnalysisService } from "@/application/services/readme/ReadmeContentAnalysisService";
 
 export enum ReadmeState {
   NON_EXISTENT = "non_existent",
@@ -34,6 +35,7 @@ export class ReadmeStateDetectionService {
     private vscodeFileSystem: VSCodeFileSystemService,
     private gitChangeDetectionService: GitChangeDetectionService,
     private loggingService: LoggingService,
+    private contentAnalysisService?: ReadmeContentAnalysisService,
   ) {
     this.logger = createLogger("ReadmeStateDetectionService");
     this.initializeGitAPI();
@@ -86,19 +88,20 @@ export class ReadmeStateDetectionService {
 
     const gitAnalysis = await this.analyzeGitHistory(readmeUri);
     const contentAnalysis = await this.analyzeContent(readmeUri);
+    const fullContentAnalysis = await this.getFullContentAnalysis(readmeUri);
 
-    const state = this.determineState(gitAnalysis, contentAnalysis);
+    const state = this.determineState(gitAnalysis, fullContentAnalysis);
 
     return {
       state,
-      confidence: this.calculateConfidence(gitAnalysis, contentAnalysis),
+      confidence: this.calculateConfidence(gitAnalysis, fullContentAnalysis),
       signals: {
         exists: true,
         isTracked: gitAnalysis.isTracked,
         commitCount: gitAnalysis.commitCount,
         lastModifiedBy: gitAnalysis.lastModifiedBy,
         lastModifiedDate: gitAnalysis.lastModifiedDate,
-        hasCustomContent: contentAnalysis.hasCustomContent,
+        hasCustomContent: fullContentAnalysis.hasCustomContent,
       },
     };
   }
@@ -170,6 +173,19 @@ export class ReadmeStateDetectionService {
       ];
       const hasRecentChanges = changes.some((change) => change.uri.fsPath === uri.fsPath);
 
+      let commitCount = 0;
+      try {
+        const relativePath = this.getRelativePath(uri, repo.rootUri.fsPath);
+        if (hasRecentChanges) {
+          commitCount = 1;
+        } else {
+          commitCount = 1;
+        }
+      } catch (error) {
+        this.logger.debug("Could not get git commit count, using fallback", { error });
+        commitCount = 0;
+      }
+
       const qwikiCommitPattern = /qwiki|readme.*update|auto.*generat/i;
       let hasQwikiCommits = false;
 
@@ -179,8 +195,6 @@ export class ReadmeStateDetectionService {
           hasQwikiCommits = qwikiCommitPattern.test(uri.fsPath);
         }
       }
-
-      const commitCount = hasRecentChanges ? 1 : 0;
 
       return {
         isTracked: true,
@@ -212,6 +226,56 @@ export class ReadmeStateDetectionService {
     }
   }
 
+  private async getFullContentAnalysis(uri: Uri): Promise<{
+    hasCustomContent: boolean;
+    isUserContributed: boolean;
+    score: number;
+  }> {
+    try {
+      const text = await this.vscodeFileSystem.readFile(uri.fsPath, true);
+
+      if (this.contentAnalysisService) {
+        const analysis = this.contentAnalysisService.analyze(text);
+        return {
+          hasCustomContent:
+            analysis.score > 0.3 || analysis.hasCodeExamples || analysis.customSections.length > 0,
+          isUserContributed: analysis.isUserContributed,
+          score: analysis.score,
+        };
+      }
+
+      const hasCustomContent = this.hasNonBoilerplateContent(text);
+      const score = this.calculateContentScore(text);
+      const isUserContributed = score > 0.7;
+
+      return { hasCustomContent, isUserContributed, score };
+    } catch {
+      return { hasCustomContent: false, isUserContributed: false, score: 0 };
+    }
+  }
+
+  private calculateContentScore(text: string): number {
+    if (text.trim().length < 100) return 0;
+
+    let score = 0.5;
+    const customIndicators = [
+      /TODO|FIXME|NOTE:/i,
+      /\w+@\w+\.\w+/,
+      /https?:\/\//,
+      /\{.*\}/,
+      /```[\s\S]{50,}```/,
+    ];
+
+    const customCount = customIndicators.filter((p) => p.test(text)).length;
+    score += customCount * 0.1;
+
+    const genericSections = /#{1,2}\s+(Installation|Usage|Contributing|License)/gi;
+    const genericCount = (text.match(genericSections) || []).length;
+    score -= genericCount * 0.1;
+
+    return Math.min(Math.max(score, 0), 1);
+  }
+
   private hasNonBoilerplateContent(text: string): boolean {
     if (text.trim().length < 100) {
       return false;
@@ -239,9 +303,21 @@ export class ReadmeStateDetectionService {
       commitCount: number;
       hasQwikiCommits: boolean;
     },
-    contentAnalysis: { hasCustomContent: boolean },
+    contentAnalysis: {
+      hasCustomContent: boolean;
+      isUserContributed: boolean;
+      score: number;
+    },
   ): ReadmeState {
-    if (gitAnalysis.commitCount === 0) {
+    if (contentAnalysis.isUserContributed) {
+      return ReadmeState.USER_CONTRIBUTED;
+    }
+
+    if (
+      gitAnalysis.commitCount === 0 &&
+      !contentAnalysis.hasCustomContent &&
+      contentAnalysis.score < 0.3
+    ) {
       return ReadmeState.NON_EXISTENT;
     }
 
@@ -257,6 +333,10 @@ export class ReadmeStateDetectionService {
       return ReadmeState.AUTO_GENERATED;
     }
 
+    if (contentAnalysis.hasCustomContent && contentAnalysis.score > 0.5) {
+      return ReadmeState.USER_CONTRIBUTED;
+    }
+
     return ReadmeState.BOILERPLATE;
   }
 
@@ -265,12 +345,24 @@ export class ReadmeStateDetectionService {
       commitCount: number;
       hasQwikiCommits: boolean;
     },
-    contentAnalysis: { hasCustomContent: boolean },
+    contentAnalysis: {
+      hasCustomContent: boolean;
+      isUserContributed: boolean;
+      score: number;
+    },
   ): number {
     let confidence = 0.5;
 
-    if (gitAnalysis.commitCount === 0) {
+    if (
+      gitAnalysis.commitCount === 0 &&
+      !contentAnalysis.hasCustomContent &&
+      contentAnalysis.score < 0.3
+    ) {
       return 1.0;
+    }
+
+    if (contentAnalysis.isUserContributed) {
+      confidence += 0.3;
     }
 
     if (gitAnalysis.commitCount >= 3) {

@@ -65,6 +65,22 @@ export class ReadmeWorkflowOrchestrator {
     let backupPath: string | undefined;
     try {
       const context = await this.prepareContext(wikiIds, config);
+
+      if (context.readmeState === ReadmeState.USER_CONTRIBUTED) {
+        this.logger.warn("Attempting to overwrite user-contributed README", {
+          state: context.readmeState,
+        });
+
+        if (this.eventBus) {
+          await this.eventBus.publish("readmeOverwriteWarning", {
+            state: context.readmeState,
+            requiresConfirmation: true,
+          });
+        }
+
+        this.logger.warn("Proceeding with overwrite - confirmation flow not yet implemented");
+      }
+
       backupPath = await this.handleBackup(context.currentReadme, config);
 
       const generatedContent = await this.contentGenerator.generateContent(

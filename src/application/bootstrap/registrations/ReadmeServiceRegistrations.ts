@@ -40,6 +40,7 @@ export function registerReadmeServices(container: Container, loggingService: Log
         container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
         container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
         loggingService,
+        container.resolve("readmeContentAnalysisService") as ReadmeContentAnalysisService,
       ),
   );
 
