@@ -278,8 +278,8 @@ When you use saved wikis to update your project's README, here's the complete pr
 - Cache check: Miss (first generation for this wiki set)
 - LLM request sent to Cohere provider
 - **Generation time**: ~13 seconds
-  - Note: Command timeout set to 10 seconds, but generation continues in background
-  - Generation completes successfully despite timeout
+  - Command timeout: 30 seconds
+  - Generation completes successfully within timeout
 - Content generated and cached for future use
 
 **8. File Writing (< 1 second)**
