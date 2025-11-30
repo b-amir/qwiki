@@ -71,7 +71,7 @@ export function useSettingsHandlers(
     try {
       settings.clearValidationErrors();
       wiki.providerId = providerId;
-      settings.autoSaveProviderSelection(providerId);
+      settings.autoSaveProviderSelection(providerId, wiki.model);
 
       const changeEndTime = Date.now();
       logger.debug(`Provider change completed in ${changeEndTime - changeStartTime}ms`);
@@ -164,6 +164,13 @@ export function useSettingsHandlers(
     }
   };
 
+  const handleModelChange = (providerId: string, model: string) => {
+    if (providerId === settings.selectedProvider && wiki.providerId === providerId) {
+      wiki.model = model;
+      settings.autoSaveProviderSelection(providerId, model);
+    }
+  };
+
   const handleCustomFieldChange = (fieldId: string, newValue: string) => {
     settings.saveSetting(fieldId, newValue);
   };
@@ -185,6 +192,7 @@ export function useSettingsHandlers(
     handleApiKeyChange,
     handleApiKeyFocus,
     handleApiKeyBlur,
+    handleModelChange,
     handleCustomFieldChange,
     openExternalUrl,
   };

@@ -134,32 +134,48 @@ export class ConfigurationManagerService {
         this.logger.info("Loaded cached provider ID", { providerId: cachedProviderId });
         this.cacheManager.set("cachedProviderId", cachedProviderId);
       }
+      const cachedModel = this.ctx.globalState.get<string>("lastModel");
+      if (cachedModel) {
+        this.logger.info("Loaded cached model", { model: cachedModel });
+        this.cacheManager.set("cachedModel", cachedModel);
+      }
     } catch (error) {
-      this.logger.warn("Failed to load cached provider", error);
+      this.logger.warn("Failed to load cached provider/model", error);
     }
   }
 
   getCachedProviderId(): string | null {
-    return this.cacheManager.get("cachedProviderId") || null;
+    return this.cacheManager.get<string>("cachedProviderId") || null;
   }
 
-  async setActiveProvider(providerId: string): Promise<void> {
+  getCachedModel(): string | null {
+    return this.cacheManager.get<string>("cachedModel") || null;
+  }
+
+  async setActiveProvider(providerId: string, model?: string): Promise<void> {
     this.cacheManager.set("cachedProviderId", providerId);
+    if (model) {
+      this.cacheManager.set("cachedModel", model);
+    }
 
     if (this.ctx) {
       try {
         await this.ctx.globalState.update("lastProviderId", providerId);
-        this.logger.info("Cached provider ID", { providerId });
+        if (model) {
+          await this.ctx.globalState.update("lastModel", model);
+        }
+        this.logger.info("Cached provider and model", { providerId, model });
       } catch (error) {
-        this.logger.warn("Failed to persist lastProviderId", error);
+        this.logger.warn("Failed to persist lastProviderId/lastModel", error);
       }
     }
 
-    await this.eventBus.publish("providerChanged", { providerId });
+    await this.eventBus.publish("providerChanged", { providerId, model });
   }
 
   async initialize(): Promise<void> {
     await this.repositoryWrapper.refreshCache();
+    await this.loadCachedProvider();
     this.setupConfigurationChangeListener();
   }
 

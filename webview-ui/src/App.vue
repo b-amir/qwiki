@@ -111,7 +111,7 @@ watch(
   () => wiki.providers,
   () => {
     if (wiki.providers.length > 0) {
-      if (!settings.selectedProvider) {
+      if (!settings.selectedProvider && !wiki.providerId) {
         const withKey = wiki.providers.find((p) => p.hasKey);
         settings.selectedProvider = withKey?.id || wiki.providers[0]?.id || "google-ai-studio";
       }
@@ -130,8 +130,13 @@ watch(
 
 watch(
   () => settings.selectedProvider,
-  (newProviderId) => {
-    if (newProviderId && newProviderId !== wiki.providerId) {
+  (newProviderId, oldProviderId) => {
+    if (
+      newProviderId &&
+      newProviderId !== wiki.providerId &&
+      wiki.providerId &&
+      oldProviderId !== undefined
+    ) {
       wiki.providerId = newProviderId;
       const selectedProvider = wiki.providers.find((p) => p.id === newProviderId);
       if (selectedProvider && !wiki.model && selectedProvider.models?.length) {
@@ -139,7 +144,20 @@ watch(
       }
     }
   },
-  { immediate: true },
+);
+
+watch(
+  () => wiki.model,
+  (newModel, oldModel) => {
+    if (
+      newModel &&
+      newModel !== oldModel &&
+      wiki.providerId &&
+      wiki.providerId === settings.selectedProvider
+    ) {
+      settings.autoSaveProviderSelection(wiki.providerId, newModel);
+    }
+  },
 );
 </script>
 

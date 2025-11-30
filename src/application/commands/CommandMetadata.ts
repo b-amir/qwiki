@@ -141,6 +141,14 @@ const COMMAND_METADATA = new Map<string, CommandMetadata>([
       description: "Perform live API key health check",
     },
   ],
+  [
+    CommandIds.setActiveProvider,
+    {
+      id: CommandIds.setActiveProvider,
+      group: "providers",
+      description: "Set the active provider",
+    },
+  ],
 
   // Configuration commands
   [

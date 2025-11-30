@@ -15,6 +15,7 @@ export { GetProviderPerformanceCommand } from "./providers/GetProviderPerformanc
 export { ValidateApiKeysCommand } from "./providers/ValidateApiKeysCommand";
 export { ValidateApiKeyHealthCommand } from "./providers/ValidateApiKeyHealthCommand";
 export { SelectProviderCommand } from "./providers/SelectProviderCommand";
+export { SetActiveProviderCommand } from "./providers/SetActiveProviderCommand";
 
 export { GetConfigurationCommand } from "./configuration/GetConfigurationCommand";
 export { UpdateConfigurationCommand } from "./configuration/UpdateConfigurationCommand";

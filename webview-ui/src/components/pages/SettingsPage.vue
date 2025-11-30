@@ -132,6 +132,7 @@ const {
   handleApiKeyChange,
   handleApiKeyFocus,
   handleApiKeyBlur,
+  handleModelChange,
   handleCustomFieldChange,
   openExternalUrl,
 } = useSettingsHandlers(
@@ -275,6 +276,7 @@ onBeforeUnmount(() => {
               :content-height="contentHeights[provider.id]"
               :provider-capabilities="providerCapabilities"
               @provider-change="handleProviderChange"
+              @model-change="handleModelChange"
               @api-key-change="handleApiKeyChange"
               @api-key-focus="handleApiKeyFocus"
               @api-key-blur="handleApiKeyBlur"

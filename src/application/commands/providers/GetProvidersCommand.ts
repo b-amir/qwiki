@@ -174,7 +174,13 @@ export class GetProvidersCommand implements Command<void> {
       const statusesEndTime = Date.now();
       this.logDebug(`All provider statuses processed in ${statusesEndTime - statusesStartTime}ms`);
 
-      this.messageBus.postSuccess(OutboundEvents.providers, allStatuses);
+      const cachedProviderId = this.configurationManager.getCachedProviderId();
+      const cachedModel = this.configurationManager.getCachedModel();
+      this.messageBus.postSuccess(OutboundEvents.providers, {
+        providers: allStatuses,
+        activeProviderId: cachedProviderId || undefined,
+        activeModel: cachedModel || undefined,
+      });
       this.lastEmitAt = Date.now();
       const executeEndTime = Date.now();
       this.logDebug(`Command completed successfully in ${executeEndTime - executeStartTime}ms`);

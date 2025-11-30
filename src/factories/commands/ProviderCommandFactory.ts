@@ -10,6 +10,7 @@ import {
   GetProviderPerformanceCommand,
   ValidateApiKeysCommand,
   ValidateApiKeyHealthCommand,
+  SetActiveProviderCommand,
 } from "../../application/commands";
 import { CommandIds } from "@/constants";
 import { BaseCommandFactory } from "@/factories/commands/BaseCommandFactory";
@@ -93,6 +94,13 @@ export class ProviderCommandFactory extends BaseCommandFactory {
           this.loggingService,
         ) as Command<T>;
 
+      case CommandIds.setActiveProvider:
+        return new SetActiveProviderCommand(
+          this.container.resolve("configurationManager"),
+          this.messageBus,
+          this.loggingService,
+        ) as Command<T>;
+
       default:
         return undefined;
     }
@@ -110,6 +118,7 @@ export class ProviderCommandFactory extends BaseCommandFactory {
       CommandIds.getProviderPerformance,
       CommandIds.validateApiKeys,
       CommandIds.validateApiKeyHealth,
+      CommandIds.setActiveProvider,
     ];
   }
 }

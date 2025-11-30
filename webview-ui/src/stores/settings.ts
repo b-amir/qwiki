@@ -198,8 +198,16 @@ export const useSettingsStore = defineStore("settings", {
               return;
             }
             case "providers": {
-              const providers = message.payload || [];
-              logger.debug(`Received ${providers.length} providers`);
+              const payload = message.payload || {};
+              const providers = Array.isArray(payload) ? payload : payload.providers || [];
+              const activeProviderId = Array.isArray(payload)
+                ? undefined
+                : payload.activeProviderId;
+              const activeModel = Array.isArray(payload) ? undefined : payload.activeModel;
+              logger.debug(`Received ${providers.length} providers`, {
+                activeProviderId,
+                activeModel,
+              });
 
               // Advance to fetching step when providers are received
               if (this.loading && !this.loadingPhase.providersResolved) {
@@ -207,8 +215,12 @@ export const useSettingsStore = defineStore("settings", {
               }
 
               if (!this.selectedProvider && providers.length > 0) {
-                const withKey = providers.find((p: any) => p.hasKey);
-                this.selectedProvider = withKey?.id || providers[0]?.id || "google-ai-studio";
+                if (activeProviderId && providers.find((p: any) => p.id === activeProviderId)) {
+                  this.selectedProvider = activeProviderId;
+                } else {
+                  const withKey = providers.find((p: any) => p.hasKey);
+                  this.selectedProvider = withKey?.id || providers[0]?.id || "google-ai-studio";
+                }
               }
 
               this.updateProvidersRequiringKeys(providers);
@@ -668,8 +680,12 @@ export const useSettingsStore = defineStore("settings", {
 
       this.saving = false;
     },
-    autoSaveProviderSelection(providerId: string) {
+    autoSaveProviderSelection(providerId: string, model?: string) {
       this.selectedProvider = providerId;
+      vscode.postMessage({
+        command: "setActiveProvider",
+        payload: { providerId, model },
+      });
     },
     async validateConfiguration(config: any, providerId?: string) {
       const validationStartTime = Date.now();

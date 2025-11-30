@@ -64,7 +64,12 @@ export const useWikiStore = defineStore("wiki", {
             return;
           }
           case "providers": {
-            this.providers = message.payload || [];
+            const payload = message.payload || {};
+            const providers = Array.isArray(payload) ? payload : payload.providers || [];
+            const activeProviderId = Array.isArray(payload) ? undefined : payload.activeProviderId;
+            const activeModel = Array.isArray(payload) ? undefined : payload.activeModel;
+
+            this.providers = providers;
 
             vscode.postMessage({
               command: "frontendLog",
@@ -73,18 +78,55 @@ export const useWikiStore = defineStore("wiki", {
                 data: {
                   providerCount: this.providers.length,
                   providersWithKeys: this.providers.filter((p) => p.hasKey).length,
+                  activeProviderId,
+                  activeModel,
                 },
               },
             });
 
+            let selectedProvider: ProviderStatus | undefined;
+            if (activeProviderId) {
+              selectedProvider = this.providers.find((p) => p.id === activeProviderId);
+              if (selectedProvider && (!this.providerId || this.providerId !== activeProviderId)) {
+                vscode.postMessage({
+                  command: "frontendLog",
+                  payload: {
+                    message: "WikiStore: Setting providerId from cache",
+                    data: {
+                      providerId: selectedProvider.id,
+                      hasKey: selectedProvider.hasKey,
+                      fromCache: true,
+                      previousProviderId: this.providerId,
+                    },
+                  },
+                });
+                this.providerId = selectedProvider.id;
+                if (activeModel && selectedProvider.models?.includes(activeModel)) {
+                  this.model = activeModel;
+                } else if (selectedProvider.models?.length) {
+                  this.model = selectedProvider.models[0];
+                }
+                const { useSettingsStore } = await import("./settings");
+                const settings = useSettingsStore();
+                if (settings.selectedProvider !== activeProviderId) {
+                  settings.selectedProvider = activeProviderId;
+                }
+              }
+            }
             if (!this.providerId) {
-              const selectedProvider = this.providers.find((p) => p.hasKey) || this.providers[0];
+              if (!selectedProvider) {
+                selectedProvider = this.providers.find((p) => p.hasKey) || this.providers[0];
+              }
               if (selectedProvider) {
                 vscode.postMessage({
                   command: "frontendLog",
                   payload: {
                     message: "WikiStore: Setting providerId",
-                    data: { providerId: selectedProvider.id, hasKey: selectedProvider.hasKey },
+                    data: {
+                      providerId: selectedProvider.id,
+                      hasKey: selectedProvider.hasKey,
+                      fromCache: false,
+                    },
                   },
                 });
                 this.providerId = selectedProvider.id;
