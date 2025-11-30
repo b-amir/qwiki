@@ -103,10 +103,6 @@ class OutputChannelOutput implements LogOutput {
     if (entry.data !== undefined) {
       this.outputChannel.appendLine(`  Data: ${JSON.stringify(entry.data, null, 2)}`);
     }
-
-    if (entry.level === "error") {
-      this.outputChannel.show(true);
-    }
   }
 
   show(): void {
