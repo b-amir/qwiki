@@ -1,445 +1,233 @@
 # System Workflows
 
-This document describes the runtime workflows and operational flows of the Qwiki VS Code extension, based on actual system behavior observed during execution.
+This document describes the runtime workflows and operational flows of the Qwiki VS Code extension. It explains how the system behaves during normal operation.
 
 For architectural details and service catalogs, refer to `docs/ARCHITECTURE.md`.
 
 ## Startup Sequence
 
-When you open Qwiki, the extension goes through a carefully orchestrated initialization process designed to make the UI responsive while preparing all services in the background.
+When the extension activates, it initializes services in a tiered sequence designed to make the UI responsive while preparing functionality in the background.
 
-**1. Service Registration (< 10ms)**
+### Service Registration
 
-- All services are registered in the dependency injection container
-- Service tiers are defined (critical vs background)
-- Command requirements are mapped to services
+All services register in the dependency injection container. Service tiers define which services are critical for UI responsiveness versus those that can initialize in the background. Command requirements map to their service dependencies.
 
-**2. Critical Services Initialization (0-150ms)**
+### Critical Services Initialization
 
-- Essential services start synchronously to make the UI usable
+Essential services start synchronously to make the UI usable immediately:
+
 - `LoggingService`: Structured logging system
-- `EventBus`: Event-driven communication
+- `EventBus`: Event-driven communication infrastructure
 - `ConfigurationManager`: Settings and configuration access
 - `MessageBusService`: Webview communication bridge
 - `CommandRegistry`: Command execution system
 - `TaskSchedulerService`: Priority-based task queue
-- `ProjectIndexService.quickInit()`: Loads cached project index (< 100ms)
+- `ProjectIndexService`: Quick initialization loads cached project index
 
-**Result**: UI becomes interactive in ~150ms. You can navigate, view settings, and select providers immediately.
+The UI becomes interactive once these services complete. Users can navigate, view settings, and select providers immediately.
 
-**3. Background Services Initialization (0-42 seconds)**
+### Background Services Initialization
 
-- Non-critical services initialize in parallel without blocking the UI
-- `ProjectIndexService`: Full project scan (222 files in ~41s)
-- `ContextCacheService`: Loads persistent context cache (73 files in 2.4s)
-- `ContextIntelligenceService`: Context analysis system
-- `ProviderHealthService`: Provider health monitoring (starts with 5-minute interval)
+Non-critical services initialize in parallel without blocking the UI:
 
-**Result**: Full functionality becomes available after ~42 seconds, but basic operations work immediately.
+- `ProjectIndexService`: Performs full project scan for all code files
+- `ContextCacheService`: Loads persistent context cache from disk
+- `ContextIntelligenceService`: Context analysis system initialization
+- `ProviderHealthService`: Provider health monitoring with periodic checks
 
-**4. Project Indexing (Background, 0-41 seconds)**
+Full functionality becomes available after background initialization completes, but basic operations work immediately.
 
-- Scans workspace for all code files (222 files found)
-- Extracts metadata: file types, languages, symbols
-- Progress updates: "Indexing progress {processed: 50, total: 222}"
-- Caches index to disk for fast future startups
-- Sets up Git-based file watchers for incremental updates
+### Project Indexing
 
-**Result**: Project structure is indexed and cached. Future startups load from cache in < 100ms.
+The system scans the workspace for all code files and extracts metadata including file types, languages, and symbols. Progress updates indicate indexing status. The index caches to disk for fast future startups. Git-based file watchers enable incremental updates when files change.
 
-**5. Context Cache Warming (Background, Ongoing)**
+Future startups load the cached index quickly without full re-scanning.
 
-- `ContextCacheService` loads existing cache (73 files)
-- Background cache warming starts for 72 files
-- **File Prioritization**: `src/` files prioritized over other files (e.g., `dist/`, config files)
-- **Batch Processing**: Files processed in batches of 8 for efficiency
-- `TaskSchedulerService` schedules batches as LOW priority background tasks
-- Each file analyzed: extracts symbols, imports, computes hash
-- Batches complete incrementally: `analyze-batch-d:\projects\vue-test\src\utils\tags.ts`, etc.
-- Cache saved to disk periodically (debounced, every ~1-2 seconds)
+### Context Cache Warming
 
-**Result**: Context for wiki generation becomes available incrementally. Source files are analyzed first, improving cache hit rates for common wiki generation scenarios. First generation may be slower, subsequent ones use cached context (< 200ms).
+`ContextCacheService` loads existing cache files from disk. Background cache warming processes files incrementally. Source files in `src/` directories receive priority over other files like `dist/` or configuration files. Files process in batches for efficiency, with `TaskSchedulerService` scheduling batches as low-priority background tasks.
 
-**6. Webview Setup (~1 second)**
+Each file analysis extracts symbols, imports, and computes content hashes. Batches complete incrementally, and the cache saves to disk periodically with debouncing.
 
-- Webview HTML content loaded
-- `MessageBusService` created for extension ↔ webview communication
-- `EnvironmentStatusManager` monitors service readiness
-- `NavigationManager` handles page navigation
-- Event handlers registered (wiki generation, errors, etc.)
-- Command registry created with all commands
+Context for wiki generation becomes available incrementally. Source files analyze first to improve cache hit rates for common wiki generation scenarios. First generation may be slower, while subsequent generations use cached context.
 
-**Result**: Webview is fully interactive. You can generate wikis, view settings, and use all features.
+### Webview Setup
 
-**7. User Interaction (After UI Ready)**
+The webview HTML content loads, `MessageBusService` creates the extension-to-webview communication bridge, and `EnvironmentStatusManager` monitors service readiness. `NavigationManager` handles page navigation, and event handlers register for wiki generation, errors, and other operations. The command registry creates with all available commands.
 
-- When you open settings: `getApiKeys` and `getProviders` commands execute
-- Providers loaded from registry (5 providers, 1 with API key configured)
-- Messages batched by `WebviewOptimizerService` for efficiency
-- Frontend stores update: settings initialized, providers displayed
+The webview is fully interactive at this point. Users can generate wikis, view settings, and use all features.
 
-**Result**: Settings page shows available providers and their configuration status.
+### User Interaction
 
-## Key Performance Characteristics
+When users open settings, `getApiKeys` and `getProviders` commands execute. Providers load from the registry, and messages batch by `WebviewOptimizerService` for efficiency. Frontend stores update with settings initialized and providers displayed.
 
-**Fast Startup (< 200ms)**
+## Performance Characteristics
 
-- Critical services complete in ~150ms
-- UI becomes interactive immediately
-- Basic navigation and provider selection work right away
+### Fast Startup
 
-**Progressive Enhancement**
+Critical services complete quickly, making the UI interactive within a short time window. Basic navigation and provider selection work immediately.
 
-- Background services continue initializing after UI is ready
-- Project indexing happens in background (41 seconds for 222 files)
-- Context cache warms incrementally (one file every few seconds)
-- No blocking: user can interact while background work continues
+### Progressive Enhancement
 
-**Smart Caching**
+Background services continue initializing after the UI is ready. Project indexing happens in the background, context cache warms incrementally, and no blocking occurs. Users can interact while background work continues.
 
-- Project index cached to disk (loads in < 100ms on next startup)
-- Context cache persists across sessions (73 files loaded in 2.4s)
-- File hashes detect changes automatically
-- Only changed files need re-analysis
+### Smart Caching
 
-**Background Processing**
+The project index caches to disk and loads quickly on subsequent startups. Context cache persists across sessions. File hashes detect changes automatically, and only changed files require re-analysis.
 
-- `TaskSchedulerService` processes files during idle time
-- Priority system: user actions (CRITICAL) execute immediately
-- Background tasks (LOW/IDLE) run when system is idle
-- Batch processing: 50ms max per batch to avoid blocking
+### Background Processing
+
+`TaskSchedulerService` processes files during idle time. The priority system ensures user actions execute immediately, while background tasks run when the system is idle. Batch processing limits work per batch to avoid blocking.
 
 ## Wiki Generation Workflow
 
-When you select code and click "Generate Wiki", here's the complete flow:
+When users select code and initiate wiki generation, the system follows this flow:
 
-**1. Command Initiation (< 1ms)**
+### Command Initiation
 
-- Frontend sends `generateWiki` command via MessageBus with snippet, file path, and provider
-- `WebviewMessageHandler` receives command and checks service readiness
-- `CommandRegistry` executes command with 120-second timeout
+The frontend sends a `generateWiki` command via MessageBus with the code snippet, file path, and provider selection. `WebviewMessageHandler` receives the command and checks service readiness. `CommandRegistry` executes the command with a configurable timeout.
 
-**2. Context Building (5-6 seconds first time, < 1 second cached)**
+### Context Building
 
-- **File Context** (cached, ~200ms): Loads from `ContextCacheService` if available
-  - Extracts symbols (21 found), imports (7 found)
-  - Uses cached data if file hasn't changed
-- **Project Context** (5.3 seconds first time, < 50ms cached):
-  - **Workspace Structure** (shared cache, 2-hour TTL):
-    - **First build** (~1.5 seconds): Builds workspace structure, caches for 2 hours
-      - Log: `Building workspace structure {cacheHit: false}`
-      - Gets indexed files (200 files)
-      - Creates files sample (50 files)
-      - Reads project overview (package.json analysis)
-    - **Cached builds** (< 15ms): Reuses cached structure from previous operations
-      - Log: `Using cached workspace structure {cacheHit: true, duration: 11-13ms}`
-      - **Cache sharing**: Context built during wiki generation is reused for README generation
-      - Cache key: workspace root path
-      - Cache TTL: 2 hours (prevents unnecessary rebuilds)
-  - **Identifier Extraction**: Scans snippet for identifiers (e.g., "currentQuestionNumber")
-  - **Text Usage Search** (cached):
-    - **First search** (~5.3 seconds): Searches all 222 project files for identifier usage
-      - Batched processing: 15 files concurrently
-      - Progress updates: 51/222, 100/222, 149/222, 199/222
-      - Found 4 related files with matches
-      - Results cached with project state hash for invalidation
-    - **Cached searches** (< 1 second): Returns cached results instantly
-      - Cache key: `textUsageSearch:{token}:{projectStateHash}`
-      - Cache TTL: 30 minutes (or until project files change)
-      - Automatic invalidation when project state changes
-  - **Overview Generation**: Creates project overview (271 chars)
+The system builds context from multiple sources, prioritizing cached data when available.
 
-**3. Intelligent Context Selection (0.3 seconds)**
+**File Context**: Loads from `ContextCacheService` if available. Extracts symbols and imports from the target file. Uses cached data if the file has not changed since last analysis.
 
-- **Project Type Detection** (cached, 177ms):
-  - Detects primary language (JavaScript), framework (Vue)
-  - Uses cached project type if available
-- **Essential Files** (cached, 14ms):
-  - Retrieves 3 essential files (package.json, config files)
-- **File Relevance Scoring** (cached, 0ms):
-  - Scores 200 indexed files for relevance to target file
-  - Top score: 44.18 (package.json)
-  - Uses cached scores if available
-- **Token Budget Calculation**:
-  - Available tokens: 1,047,076 (full context budget)
-  - Target utilization: 85%
-  - **Effective limit**: 890,014 (85% of available)
-  - **File Selection** (single-phase):
-    - **Phase 1**: Essential files selected first (3 files, highest priority)
-    - **Phase 2**: Regular files selected up to remaining budget
-    - Duplicate prevention: Essential files not counted twice if in regular list
-  - Total token cost: 412,501 (39% of available, 46% of effective limit)
-  - Essential files: Always included (100% inclusion rate)
-  - **Note**: Single-phase selection ensures essential files are prioritized and utilization respects 85% target, preventing 100% utilization that risked API failures
+**Project Context**: Builds comprehensive project context including workspace structure, identifier usage, and project overview. Workspace structure uses a shared cache with time-to-live expiration. Cached builds reuse structure from previous operations. The cache shares between wiki generation and README generation workflows.
 
-**4. Prompt Building (< 1 second)**
+Identifier extraction scans the code snippet for identifiers. Text usage search scans project files for identifier usage, processing files in batches for efficiency. Results cache with project state hash for automatic invalidation. Cached searches return instantly when available.
 
-- **Loading Steps** (emitted to UI):
-  - `validatingProvider`: Provider validation
-  - `initializingContext`: Context building (472ms)
-  - `analyzingSnippet`: Snippet analysis (10ms)
-  - `buildingContextSummary`: Summary creation (17ms)
-  - `preparingGenerationInput`: Input preparation (5ms)
-  - `buildingPrompt`: Prompt construction (9ms)
-  - `validatingPromptQuality`: Quality check with auto-improvement (40ms):
-    - **Initial validation**: Score 0.2 (below threshold), 5 suggestions
-    - **Auto-improvement**: Automatically applies high/medium priority suggestions
-      - Filters out safety suggestions (cannot be auto-improved)
-      - Applies clarity, completeness, specificity, consistency, and structure improvements
-      - Adds output requirements, formatting guidelines, and structure sections
-    - **Retry validation**: Improved prompt re-validated
-    - **Result**: Score improved to 0.75 (passed threshold)
-    - **Performance**: Auto-improvement completes in < 100ms (no LLM calls)
-    - **Blocking**: Only blocks generation if quality remains < 0.54 after improvement
-  - `collectingSemanticInfo`: Language server integration (61ms)
-    - Retrieves symbol info from VS Code language server
-    - Symbol: "script setup", kind: 1
+Overview generation creates a project overview summary.
 
-**5. LLM Request & Streaming (53 seconds)**
+### Intelligent Context Selection
 
-- **Rate Limiting**: Checks provider rate limit (1/10 requests, passed)
-- **Request Batching**: Batches request with 100ms delay for deduplication
-- **Streaming Request**: Sends request to LLM provider (Z.ai, glm-4.5-flash)
-- **Response Streaming**:
-  - Waits for streaming response (53.4 seconds)
-  - Content streams in chunks to webview in real-time
-  - Final response: 874 characters
-  - **Time to First Result**: 49.9 seconds (UX metric recorded)
+The system selects relevant files using intelligent scoring and prioritization.
 
-**6. Post-Processing (< 1 second)**
+**Project Type Detection**: Detects primary language and framework, using cached detection when available.
 
-- **Processing Output** (11ms): Processes LLM response
-- **Finalizing** (3ms): Final formatting and cleanup
-- **Quality Analysis**:
-  - Completeness: 0.75
-  - Clarity: 0.78
-  - Structure: 1.0
-  - Examples: 0.75
-  - Code References: 1.0
-  - **Overall Score**: 0.856 (good quality)
-  - Improvement suggestions: 0 (no improvements needed)
+**Essential Files**: Retrieves essential configuration files like package.json and config files.
 
-**7. Completion & Caching**
+**File Relevance Scoring**: Scores all indexed files for relevance to the target file. Uses cached scores when available to avoid recomputation.
 
-- Wiki result published via EventBus
-- Results cached for future use
-- **Total Duration**: ~55 seconds
-- **UX Metrics Recorded**:
-  - Time to first result: 49.9 seconds
-  - Documentation quality: 0.856
-  - Error rate: 0% (1 successful generation)
+**Token Budget Calculation**: Calculates available tokens from the provider's context limit. Applies a target utilization percentage. Essential files always included with highest priority. Regular files selected up to remaining budget, with duplicate prevention ensuring essential files are not counted twice.
 
-**8. Saving the Wiki (< 100ms)**
+### Prompt Building
 
-- User clicks "Save"
-- `saveWiki` command executes
-- Wiki saved to `.qwiki/saved/` folder with timestamp-based filename
-- File watcher detects new file
-- Tree view refreshes automatically
-- Saved wikis count updated (7 → 8)
+The system builds the generation prompt with multiple validation steps. Loading steps emit progress to the UI:
+
+- Provider validation
+- Context initialization
+- Snippet analysis
+- Context summary creation
+- Generation input preparation
+- Prompt construction
+- Quality validation with automatic improvement
+- Semantic information collection from language server
+
+Quality validation includes automatic improvement that applies high and medium priority suggestions to enhance prompt clarity, completeness, specificity, consistency, and structure. Safety suggestions cannot be auto-improved. The system blocks generation only if quality remains below threshold after improvement attempts.
+
+Language server integration retrieves symbol information from VS Code's language server for enhanced context.
+
+### LLM Request and Streaming
+
+Rate limiting checks the provider's rate limit status. Request batching uses a delay for deduplication. The streaming request sends to the selected LLM provider. Response content streams in chunks to the webview in real-time. The system tracks time to first result as a user experience metric.
+
+### Post-Processing
+
+The system processes the LLM response, performs final formatting and cleanup, and runs quality analysis on the generated content. Quality metrics include completeness, clarity, structure, examples, and code references. An overall quality score indicates documentation quality. Improvement suggestions identify areas for enhancement if needed.
+
+### Completion
+
+Wiki results publish via EventBus, and results cache for future use. User experience metrics record including time to first result, documentation quality, and error rates.
+
+### Saving the Wiki
+
+When users click save, the `saveWiki` command executes. The wiki saves to the `.qwiki/saved/` folder with a timestamp-based filename. A file watcher detects the new file, and the tree view refreshes automatically. Saved wikis count updates accordingly.
 
 ## README Automation Workflow
 
-When you use saved wikis to update your project's README, here's the complete process:
+When users update the project README using saved wikis, the system follows this process:
 
-**1. Navigation & State Check (< 500ms)**
+### Navigation and State Check
 
-- User navigates to "Saved Wikis" page
-- `getSavedWikis` command loads all saved wikis (12 found)
-- `checkReadmeBackupState` checks if backup exists (initially: no backup, not synced)
-  - **Caching**: In-memory cache with 2-second TTL prevents redundant I/O
-  - **Cache hits**: Rapid successive calls within 2 seconds return cached state
-  - **Cache invalidation**: Automatically clears on backup created/deleted or README updated events
-  - **Performance**: Cached checks return instantly (< 1ms) vs I/O operations (200-600ms)
+Users navigate to the "Saved Wikis" page. The `getSavedWikis` command loads all saved wikis. `checkReadmeBackupState` checks if a backup exists and sync status. In-memory caching with short time-to-live prevents redundant I/O operations. Cache automatically invalidates on backup or README update events.
 
-**2. README Update Initiation (< 1 second)**
+### README Update Initiation
 
-- User clicks "Update README" button
-- `updateReadme` command executes with wiki count (8 wikis)
-- `ReadmeWorkflowOrchestrator` starts workflow
-- Loading steps begin: `detectingReadmeState`, `creatingBackup`, `generatingReadmeContent`
+Users click the "Update README" button. The `updateReadme` command executes with the wiki count. `ReadmeWorkflowOrchestrator` starts the workflow. Loading steps begin indicating state detection, backup creation, and content generation phases.
 
-**3. README State Detection (< 1 second)**
+### README State Detection
 
-- `ReadmeStateDetectionService` analyzes existing README
-- `ReadmeContentAnalysisService` evaluates content:
-  - Score: 0.819 (high quality)
-  - Is boilerplate: false
-  - Is user-contributed: true
-  - Generic sections: 4
-  - Placeholders: 0
-- **State detected**: `user_contributed` (confidence: 1, isBoilerplate: false)
-  - **Content analysis priority**: `isUserContributed` flag checked first
-  - **Safety**: User-contributed READMEs never classified as `non_existent`
-  - **Git analysis**: Assumes at least 1 commit if file exists in git repo (conservative approach)
-  - **Fallback logic**: If content has custom sections and score > 0.5, classified as user-contributed
+`ReadmeStateDetectionService` analyzes the existing README. `ReadmeContentAnalysisService` evaluates content quality, boilerplate detection, user contribution indicators, generic sections, and placeholders. State detection classifies the README as non-existent, boilerplate, or user-contributed based on analysis. User-contributed READMEs receive special handling to prevent accidental overwrites. Git analysis considers commit history when available.
 
-**4. Safety Check & Backup Creation (< 1 second)**
+### Safety Check and Backup Creation
 
-- **Safety check**: If README state is `user_contributed`:
-  - Warning logged: "Attempting to overwrite user-contributed README"
-  - **Event published**: `readmeOverwriteWarning` event (for future confirmation flow)
-  - Proceeds with backup and generation (confirmation flow not yet implemented)
-- `ReadmeBackupService` creates backup before modification
-- Backup saved to `.qwiki/backup/README.backup.md`
-- **Event published**: `readmeBackupCreated` event triggers cache invalidation
-- File watcher detects backup creation
-- Backup state updated: `hasBackup: true`
-- **Cache behavior**: State check cache invalidated to ensure fresh state on next check
+For user-contributed READMEs, the system logs warnings and publishes events. The system proceeds with backup and generation. `ReadmeBackupService` creates a backup before modification, saving to `.qwiki/backup/README.backup.md`. Event publication triggers cache invalidation. File watchers detect backup creation and update backup state. State check cache invalidates to ensure fresh state on next check.
 
-**5. Project Context Building (< 50ms, cached)**
+### Project Context Building
 
-- `ProjectContextService` builds context for README generation:
-  - **Workspace structure** (shared cache, reused from wiki generation):
-    - Cache hit: `Using cached workspace structure {cacheHit: true, duration: 11ms}`
-    - Reuses structure built during wiki generation (no rebuild needed)
-    - 50 files, overview (271 chars) from cache
-    - **Performance**: < 50ms vs 1.5 seconds if rebuilt
-  - Project type detected (cached): JavaScript, Vue framework
-  - **Note**: Context is shared between wiki and README workflows, eliminating duplicate work
+`ProjectContextService` builds context for README generation. Workspace structure reuses shared cache from wiki generation when available. Project type detection uses cached results. Context sharing between wiki and README workflows eliminates duplicate work.
 
-**6. Wiki Optimization (< 1 second)**
+### Wiki Optimization
 
-- `ReadmePromptOptimizationService` optimizes wikis for README:
-  - Total wikis: 8
-  - Included: 8, Excluded: 0
-  - Tokens used: 3,656
-  - Tokens available: 109,266
-- Provider selected: Cohere (for README generation)
-- Rate limit check: Passed (1/10 requests)
+`ReadmePromptOptimizationService` optimizes wikis for README inclusion. The system selects wikis within token budget constraints, tracking tokens used versus available. Provider selection occurs for README generation, and rate limit checks pass before proceeding.
 
-**7. README Generation (10-13 seconds)**
+### README Generation
 
-- `ReadmePromptBuilderService` builds prompt with project context
-- Cache check: Miss (first generation for this wiki set)
-- LLM request sent to Cohere provider
-- **Generation time**: ~13 seconds
-  - Command timeout: 30 seconds
-  - Generation completes successfully within timeout
-- Content generated and cached for future use
+`ReadmePromptBuilderService` builds the prompt with project context. Cache checks occur before generation. The LLM request sends to the selected provider. Generation time varies by wiki count and complexity. Content generates and caches for future use.
 
-**8. File Writing (< 1 second)**
+### File Writing
 
-- README.md file written to project root
-- `ReadmeSyncTrackerService` records sync state:
-  - Wiki count: 8
-  - Backup path recorded
-  - State file created: `.qwiki/state/readme-sync.json`
-- `readmeSynced` flag set to `true` for all saved wikis
+The README.md file writes to the project root. `ReadmeSyncTrackerService` records sync state including wiki count, backup path, and state file creation in `.qwiki/state/readme-sync.json`. The `readmeSynced` flag sets to true for all saved wikis.
 
-**9. Completion & State Update**
+### Completion and State Update
 
-- README update completed successfully
-- Saved wikis refreshed: `readmeSynced: true`
-- Backup state: `hasBackup: true, readmeSynced: true`
-- Notification shown to user
+README update completes successfully. Saved wikis refresh with updated sync status. Backup state reflects completion. Users receive notification of completion.
 
-**10. Diff View (< 1 second)**
+### Diff View
 
-- User clicks "Show Diff" button
-- `showReadmeDiff` command executes
-- VS Code diff view opens:
-  - Left side: Backup (original README)
-  - Right side: Current README (newly generated)
-- User can review changes side-by-side
+Users can click "Show Diff" to open a VS Code diff view comparing the backup to the newly generated README side-by-side for review.
 
-**11. Undo Operation (< 200ms)**
+### Undo Operation
 
-- User clicks "Undo" button
-- `undoReadme` command executes
-- `ReadmeBackupService` restores README from backup
-  - **Event published**: `readmeBackupDeleted` event triggers cache invalidation
-- `ReadmeSyncTrackerService` clears sync state:
-  - Deletes `.qwiki/state/readme-sync.json`
-  - **Event published**: `readmeUpdated` event triggers cache invalidation
-  - Sets `readmeSynced: false` for all wikis
-- Backup file deleted: `.qwiki/backup/README.backup.md`
-- README restored to original state
-- Saved wikis refreshed: `readmeSynced: false`
-- **Cache behavior**: State check cache invalidated to ensure fresh state on next check
+Users can click "Undo" to restore the README from backup. `ReadmeBackupService` restores the file, and `ReadmeSyncTrackerService` clears sync state. Backup file deletion occurs, and saved wikis refresh with `readmeSynced` set to false. Cache invalidates to ensure fresh state.
 
-## Settings & Configuration Workflow
+## Settings and Configuration Workflow
 
-When you configure providers and API keys in the settings page, here's how the system validates and manages your configuration:
+When users configure providers and API keys in the settings page, the system validates and manages configuration as follows:
 
-**1. Settings Page Load (< 100ms)**
+### Settings Page Load
 
-- User navigates to "Settings" page
-- `getProviders` command loads all providers (5 providers)
-- `getProviderConfigs` command loads provider configurations
-- Provider statuses processed:
-  - google-ai-studio: 2 models, hasKey: true
-  - zai: 7 models, hasKey: true
-  - openrouter: 3 models, hasKey: false
-  - cohere: 3 models, hasKey: true
-  - huggingface: 4 models, hasKey: false
-- Frontend stores updated: 5 providers, 3 with keys
+Users navigate to the "Settings" page. The `getProviders` command loads all available providers. The `getProviderConfigs` command loads provider configurations. Provider statuses process including model counts and API key presence indicators. Frontend stores update with provider information.
 
-**2. Provider Selection (< 10ms)**
+### Provider Selection
 
-- User selects a provider (e.g., OpenRouter)
-- `getProviderCapabilities` command retrieves model capabilities
-- Capabilities retrieved for all 5 providers (cached)
-- Model list displayed (e.g., "openai/gpt-oss-20b")
+Users select a provider to configure. The `getProviderCapabilities` command retrieves model capabilities. Capabilities retrieve for all providers with caching for performance. Model lists display with available options.
 
-**3. API Key Entry & Validation**
+### API Key Entry and Validation
 
-- User enters API key in settings form
-- `validateConfiguration` command runs validation checks
-- `saveApiKey` command saves key to SecretStorage:
-  - Key stored securely via VS Code SecretStorage API
-  - Provider status updated: `hasKey: true`
-- Providers refreshed: 4 providers now have keys
+Users enter API keys in the settings form. The `validateConfiguration` command runs validation checks. The `saveApiKey` command saves keys securely to SecretStorage using VS Code's SecretStorage API. Provider status updates reflect key configuration. Providers refresh to show updated status.
 
-**4. Navigation Guard & Validation**
+### Navigation Guard and Validation
 
-- User attempts to navigate away from settings
-- `SettingsNavigationGuard` validates configuration before allowing navigation
-- **Validation Checks**:
-  - API key format validation
-  - Non-ASCII character detection
-  - Key length validation
-- **Invalid Key Detected**:
-  - API key contains non-ASCII characters (3 found)
-  - API key length: 28,731 characters (invalid - too long)
-  - Navigation blocked: "Settings validation failed, staying on settings"
-  - User remains on settings page to fix the issue
+When users attempt to navigate away from settings, `SettingsNavigationGuard` validates configuration before allowing navigation. Validation checks include API key format validation, non-ASCII character detection, and key length validation. If invalid keys are detected, navigation blocks and users remain on the settings page to fix issues.
 
-**5. Provider Change & Re-validation**
+### Provider Change and Re-validation
 
-- User changes provider (e.g., to Google AI Studio)
-- `getProviderCapabilities` retrieves capabilities for new provider
-- User enters correct API key
-- `validateApiKeyHealth` command tests API key:
-  - Health check request sent to provider
-  - Response time: 1,003ms
-  - Status: Healthy
-  - Validation passed
+Users can change provider selection. The `getProviderCapabilities` command retrieves capabilities for the new provider. Users enter API keys, and the `validateApiKeyHealth` command tests API key validity. Health check requests send to the provider, and validation results indicate status.
 
-**6. Successful Navigation**
+### Successful Navigation
 
-- Configuration validation passes
-- `validateConfiguration` command succeeds
-- Navigation allowed: Settings → Homepage
-- Frontend updates: `currentPage changed {from: 'settings', to: 'wiki'}`
+When configuration validation passes, the `validateConfiguration` command succeeds. Navigation proceeds to other pages. Frontend updates track page transitions.
 
-**7. Configuration State Management**
+### Configuration State Management
 
-- API keys stored in VS Code SecretStorage (encrypted)
-- Provider configurations cached for fast access
-- Health status tracked per provider
-- Settings state persisted across sessions
+API keys store in VS Code SecretStorage with encryption. Provider configurations cache for fast access. Health status tracks per provider. Settings state persists across sessions.
 
-## File Watching & Cache Invalidation
+## File Watching and Cache Invalidation
 
-- **Git Integration**: Uses Git extension to detect file changes efficiently
-- **Automatic Invalidation**: When files change, cache entries are invalidated
-- **Incremental Updates**: Only changed files are re-analyzed
-- **Wiki Watcher**: Monitors `.qwiki/saved/` folder for wiki file changes
+The system uses Git integration to detect file changes efficiently. When files change, cache entries invalidate automatically. Only changed files require re-analysis through incremental updates. A wiki watcher monitors the `.qwiki/saved/` folder for wiki file changes.
 
 ## Service Readiness System
 
-- **Tiered Services**: Critical (< 500ms) vs Background (< 30s)
-- **Command Dependencies**: Commands wait for required services
-- **Progress Reporting**: Background initialization progress reported to UI
-- **Graceful Degradation**: Commands can execute with degraded functionality if needed
+Services initialize in tiers based on criticality. Critical services must initialize quickly for UI responsiveness, while background services have more time. Commands wait for required services to become ready. Progress reporting communicates background initialization status to the UI. The system gracefully degrades if services are unavailable, allowing commands to execute with reduced functionality when appropriate.
