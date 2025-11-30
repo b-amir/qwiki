@@ -34,6 +34,11 @@ export class WebviewMessageHandler {
     this.logger = createLogger("WebviewMessageHandler");
   }
 
+  checkAndHandleEarlyWebviewReady(): void {
+    this.logger.info("Handling early webviewReady - triggering handleWebviewReady");
+    this.handleWebviewReady();
+  }
+
   setupMessageListener(): void {
     this.webview.onDidReceiveMessage(
       async (message: any) => {
@@ -122,9 +127,8 @@ export class WebviewMessageHandler {
   }
 
   private handleWebviewReady(): void {
-    this.logger.info("handleWebviewReady called");
+    this.logger.debug("handleWebviewReady called");
     if (this.navigationManager) {
-      this.logger.debug("Setting webview ready on NavigationManager");
       this.navigationManager.setWebviewReady(true);
       this.navigationManager.flushPendingNavigation();
       this.navigationManager.flushPendingSelection();
@@ -133,7 +137,6 @@ export class WebviewMessageHandler {
     }
     if (this.messageBus) {
       try {
-        this.logger.debug("Sending webviewReady success response");
         this.messageBus.postSuccess(Outbound.webviewReady, { ready: true });
       } catch (error) {
         this.logger.error("Exception in handleWebviewReady", error);
@@ -143,7 +146,6 @@ export class WebviewMessageHandler {
     }
 
     if (this.environmentStatusManager) {
-      this.logger.debug("Flushing environment status on webview ready");
       this.environmentStatusManager.flushEnvironmentStatus();
     }
 

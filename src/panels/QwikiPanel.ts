@@ -30,6 +30,7 @@ export class QwikiPanel {
   private environmentStatusManager: EnvironmentStatusManager | undefined;
   private webviewMessageHandler: WebviewMessageHandler | undefined;
   private navigationManager: NavigationManager | undefined;
+  private _webviewReadyReceived = false;
 
   constructor(
     extensionUri: Uri,
@@ -74,6 +75,8 @@ export class QwikiPanel {
     webviewView.webview.html = getWebviewHtml(webviewView.webview, this._extensionUri);
     this.logger.info("Webview HTML set, creating MessageBus");
     this.messageBus = new MessageBusService(webviewView.webview, this.loggingService);
+    this.logger.info("Setting up early message listener for webviewReady");
+    this.setupEarlyMessageListener(webviewView.webview);
     this.logger.info("Initializing managers");
 
     // Wait for critical services before creating command registry
@@ -118,6 +121,22 @@ export class QwikiPanel {
     );
   }
 
+  private setupEarlyMessageListener(webview: any): void {
+    const disposable = webview.onDidReceiveMessage((message: any) => {
+      if (message.command === "webviewReady") {
+        this.logger.info("Early webviewReady message received");
+        this._webviewReadyReceived = true;
+        if (this.navigationManager) {
+          this.logger.info("NavigationManager already exists, setting ready immediately");
+          this.navigationManager.setWebviewReady(true);
+        } else {
+          this.logger.debug("NavigationManager not yet created, will set ready when it's created");
+        }
+      }
+    });
+    this._disposables.push(disposable);
+  }
+
   private initializeManagers(webview: any): void {
     const panelUtilities = new PanelUtilities(this.logger, this.bootstrap, this.navigationManager);
     const languageStatusMonitorRef: { current?: LanguageStatusMonitor } = {};
@@ -144,6 +163,14 @@ export class QwikiPanel {
     this.navigationManager = result.navigationManager;
     this.webviewMessageHandler = result.webviewMessageHandler;
     this._disposables.push(...result.disposables);
+
+    if (this._webviewReadyReceived && this.navigationManager) {
+      this.logger.debug("Webview was already ready, setting NavigationManager ready");
+      this.navigationManager.setWebviewReady(true);
+      if (this.webviewMessageHandler) {
+        this.webviewMessageHandler.checkAndHandleEarlyWebviewReady();
+      }
+    }
 
     managerInitializer.setupStatusCallbacks(this._initPromise, this.environmentStatusManager);
   }
@@ -176,15 +203,15 @@ export class QwikiPanel {
       this.logger.error("Failed to cancel active generation", error);
     });
 
+    commands.executeCommand(VSCodeCommandIds.openPanelView);
+    this.view?.show?.(true);
+
     const queueNavigation = () => {
       this.navigationManager?.queueNavigation(page);
       this.navigationManager?.flushPendingNavigation();
     };
 
-    commands.executeCommand(VSCodeCommandIds.openPanelView);
-    this.view?.show?.(true);
-
-    setTimeout(queueNavigation, 0);
+    setTimeout(queueNavigation, 100);
   }
 
   public createWikiFromEditorSelection() {
@@ -200,7 +227,6 @@ export class QwikiPanel {
     }
     this.navigationManager?.queueSelection(payload, { autoGenerate: true });
     this.showPage(Pages.wiki);
-    this.navigationManager?.flushPendingSelection();
   }
 
   public showSavedWikis() {

@@ -25,38 +25,28 @@ export class NavigationManager {
   }
 
   setWebviewReady(ready: boolean): void {
-    this.logger.info("setWebviewReady called", { ready, hadPendingPage: !!this._pendingPage });
     this._webviewReady = ready;
     if (ready) {
+      this.logger.debug("Webview ready, flushing pending navigation and selection", {
+        hadPendingPage: !!this._pendingPage,
+        hadPendingSelection: !!this._pendingSelection,
+      });
       this.flushPendingNavigation();
+      this.flushPendingSelection();
     }
   }
 
   queueNavigation(page: Page): void {
-    this.logger.info("queueNavigation called", { page, webviewReady: this._webviewReady });
+    this.logger.debug("queueNavigation called", { page, webviewReady: this._webviewReady });
     this._pendingPage = page;
     this.flushPendingNavigation();
   }
 
   flushPendingNavigation(): void {
-    this.logger.debug("flushPendingNavigation called", {
-      hasPendingPage: !!this._pendingPage,
-      pendingPage: this._pendingPage,
-      webviewReady: this._webviewReady,
-      hasWebview: !!this.view?.webview,
-      hasMessageBus: !!this.messageBus,
-    });
     if (!this._pendingPage || !this._webviewReady || !this.view?.webview) {
-      if (!this._pendingPage) {
-        this.logger.debug("No pending page to flush");
-      } else if (!this._webviewReady) {
-        this.logger.debug("Webview not ready, cannot flush navigation");
-      } else if (!this.view?.webview) {
-        this.logger.debug("No webview available, cannot flush navigation");
-      }
       return;
     }
-    this.logger.info("Flushing navigation", { page: this._pendingPage });
+    this.logger.debug("Flushing navigation", { page: this._pendingPage });
     this.messageBus?.postMessage(Outbound.navigate, { page: this._pendingPage });
     this._pendingPage = undefined;
   }
