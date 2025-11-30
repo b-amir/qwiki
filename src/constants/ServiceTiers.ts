@@ -131,7 +131,7 @@ export const COMMAND_REQUIREMENTS: CommandRequirements[] = [
  */
 export const COMMAND_TIMEOUTS: Record<string, number> = {
   generateWiki: 120000, // 120s - context analysis (up to 80s) + LLM generation (20-40s) + buffer
-  updateReadme: 30000, // 30s - README generation (10-13s) + LLM response (10-15s) + buffer
+  updateReadme: 120000, // 120s - README generation (60-90s for large wiki sets) + LLM response + buffer
   getProviders: 5000, // 5s - should be instant from cache
   selectProvider: 5000, // 5s
   getSettings: 5000, // 5s

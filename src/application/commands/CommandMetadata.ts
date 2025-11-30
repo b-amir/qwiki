@@ -246,6 +246,8 @@ const COMMAND_METADATA = new Map<string, CommandMetadata>([
     {
       id: CommandIds.updateReadme,
       group: "readme",
+      requiresReadiness: getRequiredServices(CommandIds.updateReadme),
+      timeout: COMMAND_TIMEOUTS[CommandIds.updateReadme],
       description: "Update README from wikis",
     },
   ],

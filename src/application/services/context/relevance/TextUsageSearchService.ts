@@ -30,15 +30,22 @@ export class TextUsageSearchService {
 
     const projectStateHash = await this.getProjectStateHash();
     const cacheKey = this.generateCacheKey(token, projectStateHash);
+    this.logger.debug("Checking text usage search cache", { token, cacheKey, projectStateHash });
     const cachedResult =
       await this.cachingService.get<
         Array<{ path: string; preview?: string; line?: number; reason?: string }>
       >(cacheKey);
 
     if (cachedResult) {
-      this.logger.debug("Text usage search cache hit", { token, resultCount: cachedResult.length });
+      this.logger.debug("Text usage search cache hit", {
+        token,
+        resultCount: cachedResult.length,
+        cacheKey,
+      });
       return cachedResult;
     }
+
+    this.logger.debug("Text usage search cache miss", { token, cacheKey });
 
     const related: Array<{ path: string; preview?: string; line?: number; reason?: string }> = [];
 
@@ -157,6 +164,12 @@ export class TextUsageSearchService {
     related.push(...finalResults);
 
     await this.cachingService.set(cacheKey, related, {
+      ttl: ServiceLimits.cacheDefaultTTL,
+    });
+    this.logger.debug("Text usage search results cached", {
+      token,
+      cacheKey,
+      resultCount: related.length,
       ttl: ServiceLimits.cacheDefaultTTL,
     });
 
