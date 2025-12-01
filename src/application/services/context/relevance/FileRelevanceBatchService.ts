@@ -2,6 +2,7 @@ import { workspace, type Uri } from "vscode";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { WorkspaceStructureCacheService } from "@/infrastructure/services/caching/WorkspaceStructureCacheService";
 import { FileRelevanceAnalysisService } from "@/application/services/context/relevance/FileRelevanceAnalysisService";
+import { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
 import { ServiceLimits } from "@/constants";
 import { LoadingSteps, type LoadingStep } from "@/constants/loading";
 import type {
@@ -15,6 +16,7 @@ export class FileRelevanceBatchService {
   constructor(
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private fileRelevanceAnalysisService: FileRelevanceAnalysisService,
+    private indexCacheService: IndexCacheService | null,
     private loggingService: LoggingService,
   ) {
     this.logger = createLogger("FileRelevanceBatchService");
@@ -32,6 +34,42 @@ export class FileRelevanceBatchService {
     }
 
     const workspaceRoot = workspaceFolders[0].uri.fsPath;
+
+    if (this.indexCacheService) {
+      const precomputedScores = await this.indexCacheService.getRelevanceScores(targetFilePath);
+      if (precomputedScores && precomputedScores.length > 0) {
+        const validScores = await this.indexCacheService.validateRelevanceScores(
+          precomputedScores,
+          allFiles,
+          targetFilePath,
+        );
+        if (validScores.length === allFiles.length - 1) {
+          this.logger.info("Using pre-computed relevance scores", {
+            targetFilePath,
+            scoreCount: validScores.length,
+          });
+          return validScores;
+        }
+        if (validScores.length > 0) {
+          this.logger.info("Using partial pre-computed relevance scores", {
+            targetFilePath,
+            validScoreCount: validScores.length,
+            totalFiles: allFiles.length - 1,
+          });
+          const missingFiles = this.findMissingFiles(validScores, allFiles, targetFilePath);
+          const newScores = await this.analyzeMissingFiles(
+            targetFilePath,
+            missingFiles,
+            projectType,
+            onProgress,
+          );
+          const mergedScores = [...validScores, ...newScores];
+          await this.indexCacheService.setRelevanceScores(targetFilePath, mergedScores);
+          return mergedScores;
+        }
+      }
+    }
+
     const cachedScores = await this.workspaceStructureCache.getFileRelevanceScores(targetFilePath);
 
     if (cachedScores) {
@@ -39,6 +77,9 @@ export class FileRelevanceBatchService {
         targetFilePath,
         scoreCount: cachedScores.length,
       });
+      if (this.indexCacheService) {
+        await this.indexCacheService.setRelevanceScores(targetFilePath, cachedScores);
+      }
       return cachedScores;
     }
 
@@ -151,6 +192,65 @@ export class FileRelevanceBatchService {
 
     await this.workspaceStructureCache.setFileRelevanceScores(targetFilePath, fileRelevanceScores);
 
+    if (this.indexCacheService) {
+      await this.indexCacheService.setRelevanceScores(targetFilePath, fileRelevanceScores);
+    }
+
     return fileRelevanceScores;
+  }
+
+  private findMissingFiles(
+    validScores: FileRelevanceScore[],
+    allFiles: Uri[],
+    targetFilePath: string,
+  ): Uri[] {
+    const scoredFilePaths = new Set(validScores.map((s) => s.filePath));
+    return allFiles.filter(
+      (fileUri) => fileUri.fsPath !== targetFilePath && !scoredFilePaths.has(fileUri.fsPath),
+    );
+  }
+
+  private async analyzeMissingFiles(
+    targetFilePath: string,
+    missingFiles: Uri[],
+    projectType: ProjectTypeDetection,
+    onProgress?: (step: LoadingStep) => void,
+  ): Promise<FileRelevanceScore[]> {
+    if (missingFiles.length === 0) {
+      return [];
+    }
+
+    const newScores: FileRelevanceScore[] = [];
+    const concurrencyLimit = ServiceLimits.contextIntelligenceConcurrencyLimit;
+
+    for (let i = 0; i < missingFiles.length; i += concurrencyLimit) {
+      const batch = missingFiles.slice(i, i + concurrencyLimit);
+      const batchPromises = batch.map(async (fileUri) => {
+        try {
+          return await this.fileRelevanceAnalysisService.analyzeFileRelevance(
+            targetFilePath,
+            fileUri.fsPath,
+            projectType,
+          );
+        } catch (error) {
+          this.logger.error(`Failed to analyze missing file ${fileUri.fsPath}`, { error });
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      newScores.push(
+        ...batchResults.filter((score): score is FileRelevanceScore => score !== null),
+      );
+
+      if (
+        onProgress &&
+        (i + batch.length) % ServiceLimits.contextIntelligenceProgressInterval === 0
+      ) {
+        onProgress(LoadingSteps.analyzingFileRelevance);
+      }
+    }
+
+    return newScores;
   }
 }

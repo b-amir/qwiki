@@ -20,6 +20,7 @@ import { VSCodeCommandIds } from "@/constants/Commands";
 import type { WikiService } from "@/application/services/core/WikiService";
 import type { CachedWikiService } from "@/application/services/core/CachedWikiService";
 import type { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
+import { COMMAND_TIMEOUTS, GENERATION_TIMEOUTS } from "@/constants/ServiceTiers";
 
 export class WikiGenerationExecutor {
   private logger: Logger;
@@ -200,8 +201,28 @@ export class WikiGenerationExecutor {
     });
 
     let accumulatedContent = "";
+    let generationContinuingInBackground = false;
 
-    const result = await service.generateWiki(
+    const generationTimeout = GENERATION_TIMEOUTS.generateWiki || GENERATION_TIMEOUTS.default;
+    const commandTimeout = COMMAND_TIMEOUTS.generateWiki || COMMAND_TIMEOUTS.default;
+
+    const warningInterval = setInterval(() => {
+      const elapsed = Date.now() - generateWikiStart;
+
+      if (elapsed >= 90000) {
+        this.eventBus.publish(OutboundEvents.loadingStep, {
+          step: LoadingSteps.waitingForLLMResponse,
+          message: `Generation taking longer than expected (${Math.round(elapsed / 1000)}s)...`,
+        });
+      } else if (elapsed >= 60000) {
+        this.eventBus.publish(OutboundEvents.loadingStep, {
+          step: LoadingSteps.waitingForLLMResponse,
+          message: `Still generating... (${Math.round(elapsed / 1000)}s)`,
+        });
+      }
+    }, 10000);
+
+    const generationPromise = service.generateWiki(
       payload,
       projectContext,
       (step: LoadingStep) => {
@@ -234,18 +255,78 @@ export class WikiGenerationExecutor {
         });
       },
     );
-    const generationDuration = Date.now() - generateWikiStart;
-    this.logger.info("Wiki generation completed", {
-      duration: generationDuration,
-      durationSeconds: Math.round(generationDuration / 1000),
-      accumulatedContentLength: accumulatedContent.length,
-      success: result?.success,
-      contentLength: result?.content?.length || 0,
-      hasError: !!result?.error,
-      errorMessage: result?.error || undefined,
-      hasResult: !!result,
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        const elapsed = Date.now() - generateWikiStart;
+
+        if (elapsed < commandTimeout) {
+          generationContinuingInBackground = true;
+          this.logger.warn("Generation timeout reached, continuing in background", {
+            elapsed,
+            commandTimeout,
+            generationTimeout,
+          });
+          this.eventBus.publish(OutboundEvents.loadingStep, {
+            step: LoadingSteps.waitingForLLMResponse,
+            message: "Generation taking longer than expected, continuing in background...",
+          });
+          return;
+        }
+
+        reject(new Error(`Generation timed out after ${generationTimeout}ms`));
+      }, generationTimeout);
     });
-    return result;
+
+    try {
+      const result = await Promise.race([generationPromise, timeoutPromise]);
+      clearInterval(warningInterval);
+      const generationDuration = Date.now() - generateWikiStart;
+      this.logger.info("Wiki generation completed", {
+        duration: generationDuration,
+        durationSeconds: Math.round(generationDuration / 1000),
+        accumulatedContentLength: accumulatedContent.length,
+        success: result?.success,
+        contentLength: result?.content?.length || 0,
+        hasError: !!result?.error,
+        errorMessage: result?.error || undefined,
+        hasResult: !!result,
+      });
+      return result;
+    } catch (error: any) {
+      clearInterval(warningInterval);
+      if (generationContinuingInBackground) {
+        generationPromise
+          .then((result) => {
+            const generationDuration = Date.now() - generateWikiStart;
+            this.logger.info("Background wiki generation completed", {
+              duration: generationDuration,
+              durationSeconds: Math.round(generationDuration / 1000),
+              success: result?.success,
+            });
+            if (result && result.success) {
+              this.eventBus.publish(OutboundEvents.wikiGenerationComplete, {
+                content: result.content,
+                success: true,
+              });
+              this.eventBus.publish(OutboundEvents.wikiResult, {
+                content: result.content,
+                success: true,
+              });
+            }
+          })
+          .catch((bgError) => {
+            this.logger.error("Background generation failed", { error: bgError });
+          });
+        return {
+          success: false,
+          content: "",
+          error: "Generation continuing in background",
+          background: true,
+        };
+      }
+      throw error;
+    }
   }
 
   private async handleGenerationFailure(

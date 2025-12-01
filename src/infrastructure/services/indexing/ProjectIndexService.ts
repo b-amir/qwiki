@@ -170,6 +170,10 @@ export class ProjectIndexService {
     }
   }
 
+  getIndexCacheService(): IndexCacheService {
+    return this.cacheService;
+  }
+
   dispose(): void {
     this.logger.debug("Disposing ProjectIndexService");
     this.fileWatcherManager.dispose();

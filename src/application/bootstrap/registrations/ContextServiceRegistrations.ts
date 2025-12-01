@@ -174,9 +174,14 @@ export function registerContextServices(
   });
 
   container.registerLazy("fileRelevanceBatchService", async () => {
+    const projectIndexService = (await container.resolveLazy(
+      "projectIndexService",
+    )) as ProjectIndexService;
+    const indexCacheService = projectIndexService.getIndexCacheService();
     return new FileRelevanceBatchService(
       container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
       (await container.resolveLazy("fileRelevanceAnalysisService")) as FileRelevanceAnalysisService,
+      indexCacheService,
       loggingService,
     );
   });

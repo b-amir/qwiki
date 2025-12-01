@@ -140,6 +140,16 @@ export const COMMAND_TIMEOUTS: Record<string, number> = {
 };
 
 /**
+ * Generation timeouts in milliseconds (separate from command timeouts)
+ * These are for actual LLM generation operations
+ */
+export const GENERATION_TIMEOUTS: Record<string, number> = {
+  generateWiki: 180000, // 180s - separate from command timeout
+  updateReadme: 180000, // 180s
+  default: 120000, // 120s
+};
+
+/**
  * Commands that can execute immediately without waiting for any services
  */
 export const IMMEDIATE_COMMANDS = new Set([

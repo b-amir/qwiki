@@ -50,7 +50,7 @@ export const ServiceLimits = {
   contextIntelligenceMaxFileAnalysis: 200,
   contextIntelligenceSlowAnalysisThreshold: 1000,
   contextIntelligenceKeyFilesLimit: 10,
-  contextIntelligenceConcurrencyLimit: 8,
+  contextIntelligenceConcurrencyLimit: 16,
   statusBarItemPriority: 100,
   treeViewInitializationDelay: 1000,
   commandThrottleDelay: 1000,
