@@ -27,6 +27,8 @@ export class LLMGenerationService {
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
+    projectType?: any,
+    examples?: string[],
   ): Promise<{ content: string }> {
     if (cancellationToken?.isCancellationRequested) {
       throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
@@ -43,6 +45,8 @@ export class LLMGenerationService {
         onProgress,
         cancellationToken,
         onChunk,
+        projectType,
+        examples,
       );
     }
 
@@ -66,6 +70,8 @@ export class LLMGenerationService {
       filePath: request.filePath,
       semanticInfo,
       project: generationInput.project,
+      projectType,
+      examples,
     });
     const sendStepDuration = Date.now() - sendStepStart;
     this.logger.debug("Sending LLM request step completed", {
@@ -119,6 +125,8 @@ export class LLMGenerationService {
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
+    projectType?: any,
+    examples?: string[],
   ): Promise<{ content: string }> {
     this.logger.info("Sending streaming request to LLM", {
       providerId: request.providerId,
@@ -154,6 +162,8 @@ export class LLMGenerationService {
         filePath: request.filePath,
         semanticInfo,
         project: generationInput.project,
+        projectType,
+        examples,
       })) {
         if (cancellationToken?.isCancellationRequested) {
           throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");

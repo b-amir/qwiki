@@ -80,6 +80,7 @@ export class ContextIntelligenceService {
     providerId: string,
     model?: string,
     onProgress?: (step: LoadingStep) => void,
+    snippet?: string,
   ): Promise<OptimalContextSelection> {
     const provider = this.llmRegistry.getProvider(providerId);
     if (!provider) {
@@ -96,7 +97,17 @@ export class ContextIntelligenceService {
     }
 
     onProgress?.(LoadingSteps.calculatingTokenBudget);
-    const tokenBudget = this.calculateTokenBudget(capabilities);
+    let tokenBudget = this.calculateTokenBudget(capabilities);
+
+    if (snippet) {
+      const complexity = this.analyzeSnippetComplexity(snippet);
+      tokenBudget = this.calculateAdaptiveTokenBudget(snippet, tokenBudget, complexity);
+      this.logger.debug("Adaptive token budget calculated", {
+        complexity,
+        originalBudget: this.calculateTokenBudget(capabilities).availableForContext,
+        adjustedBudget: tokenBudget.availableForContext,
+      });
+    }
 
     onProgress?.(LoadingSteps.validatingProvider);
     return this.selectionOrchestrator.selectOptimalContext(
@@ -106,6 +117,44 @@ export class ContextIntelligenceService {
       tokenBudget,
       onProgress,
     );
+  }
+
+  private analyzeSnippetComplexity(snippet: string): "low" | "medium" | "high" {
+    const lines = snippet.split("\n").length;
+    const functions = (snippet.match(/function\s+\w+|const\s+\w+\s*=\s*(?:async\s+)?\(/g) || [])
+      .length;
+    const classes = (snippet.match(/class\s+\w+/g) || []).length;
+    const asyncPatterns = (snippet.match(/async\s+|await\s+/g) || []).length;
+    const complexity = lines + functions * 10 + classes * 20 + asyncPatterns * 5;
+
+    if (complexity < 50) return "low";
+    if (complexity < 150) return "medium";
+    return "high";
+  }
+
+  private calculateAdaptiveTokenBudget(
+    snippet: string,
+    baseBudget: TokenBudget,
+    complexity: "low" | "medium" | "high",
+  ): TokenBudget {
+    let multiplier = 1.0;
+    switch (complexity) {
+      case "high":
+        multiplier = 1.2;
+        break;
+      case "medium":
+        multiplier = 1.0;
+        break;
+      case "low":
+        multiplier = 0.8;
+        break;
+    }
+
+    return {
+      ...baseBudget,
+      availableForContext: Math.floor(baseBudget.availableForContext * multiplier),
+      totalTokens: Math.floor(baseBudget.totalTokens * multiplier),
+    };
   }
 
   analyzeContextSuggestions(request: WikiGenerationRequest, projectContext: ProjectContext) {

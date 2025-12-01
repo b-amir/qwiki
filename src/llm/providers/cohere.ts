@@ -105,7 +105,7 @@ export class CohereProvider implements LLMProvider {
 
     const model = params.model || COHERE_MODELS[0];
     const url = "https://api.cohere.com/v1/chat";
-    const prompt = buildWikiPrompt(params);
+    const prompt = buildWikiPrompt(params, this.id);
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     const controller = new AbortController();

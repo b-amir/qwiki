@@ -58,6 +58,7 @@ export class ContextEnhancementService {
         request.providerId || "",
         request.model,
         onProgress,
+        request.snippet,
       );
 
       if (cancellationToken?.isCancellationRequested) {

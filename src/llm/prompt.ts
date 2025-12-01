@@ -1,7 +1,22 @@
 import type { GenerateParams } from "@/llm/types";
 import type { SemanticCodeInfo } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
+import { EnhancedPromptBuilder } from "@/application/services/prompts/building/EnhancedPromptBuilder";
+import type { ProjectTypeDetection } from "@/domain/entities/ContextIntelligence";
 
-export function buildWikiPrompt(params: GenerateParams) {
+const enhancedPromptBuilder = new EnhancedPromptBuilder();
+
+export function buildWikiPrompt(
+  params: GenerateParams,
+  providerId?: string,
+  projectType?: ProjectTypeDetection,
+  examples?: string[],
+) {
+  const finalProjectType = params.projectType || projectType;
+  const finalExamples = params.examples || examples;
+  return enhancedPromptBuilder.buildWikiPrompt(params, providerId, finalProjectType, finalExamples);
+}
+
+export function buildWikiPromptLegacy(params: GenerateParams) {
   const { snippet, languageId, filePath, semanticInfo } = params;
 
   const systemPrompt = `You are an expert technical documentation specialist. Your task is to create accurate, comprehensive documentation for code snippets. Follow these rules strictly:

@@ -119,7 +119,7 @@ export class ZAiProvider implements LLMProvider {
         content:
           "You are a senior software engineer helping with code comprehension and best practices.",
       },
-      { role: "user", content: buildWikiPrompt(params) },
+      { role: "user", content: buildWikiPrompt(params, this.id) },
     ];
 
     const controller = new AbortController();
@@ -150,7 +150,6 @@ export class ZAiProvider implements LLMProvider {
     } catch (error) {
       clearTimeout(timeoutId);
       handleTimeoutError(error, this.id, "Z.ai", timeout);
-      return;
     }
 
     if (!res.ok) {

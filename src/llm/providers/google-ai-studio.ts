@@ -110,7 +110,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
       this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined
     ) as "openai-compatible" | "native" | undefined;
     const useNativeEndpoint = endpointType === "native";
-    const prompt = buildWikiPrompt(params);
+    const prompt = buildWikiPrompt(params, this.id);
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     if (useNativeEndpoint) {

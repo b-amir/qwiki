@@ -109,7 +109,7 @@ export class OpenRouterProvider implements LLMProvider {
 
     const model = params.model || OPENROUTER_MODELS[0];
     const url = "https://openrouter.ai/api/v1/chat/completions";
-    const prompt = buildWikiPrompt(params);
+    const prompt = buildWikiPrompt(params, this.id);
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
     const messages = [
@@ -148,13 +148,11 @@ export class OpenRouterProvider implements LLMProvider {
     } catch (error) {
       clearTimeout(timeoutId);
       handleTimeoutError(error, this.id, "OpenRouter", timeout);
-      return;
     }
 
     if (!res.ok) {
       const text = await res.text();
       handleHttpError(res, this.id, "OpenRouter", text);
-      return;
     }
 
     if (!res.body) {

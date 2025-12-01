@@ -19,7 +19,10 @@ import { ContextEnhancementService } from "@/application/services/core/generatio
 import { LLMGenerationService } from "@/application/services/core/generation/LLMGenerationService";
 import { SemanticInfoCollector } from "@/application/services/core/generation/SemanticInfoCollector";
 import { PromptQualityService } from "@/application/services/prompts/PromptQualityService";
+import { PromptExampleService } from "@/application/services/prompts/examples/PromptExampleService";
 import type { ImprovementSuggestion } from "@/domain/entities/PromptEngineering";
+import type { ProjectTypeDetection } from "@/domain/entities/ContextIntelligence";
+import { CachingService } from "@/infrastructure/services/caching/CachingService";
 
 interface GenerateParams {
   snippet: string;
@@ -37,6 +40,8 @@ export class WikiGenerationFlow {
   private llmGenerationService: LLMGenerationService;
   private semanticInfoCollector: SemanticInfoCollector;
 
+  private promptExampleService?: PromptExampleService;
+
   constructor(
     private llmRegistry: LLMRegistry,
     private generationCacheService: GenerationCacheService,
@@ -47,6 +52,7 @@ export class WikiGenerationFlow {
     private languageServerIntegrationService?: any,
     private promptQualityService?: PromptQualityService,
     private qualityMetricsService?: QualityMetricsService,
+    private cachingService?: CachingService,
   ) {
     this.logger = loggingService
       ? createLogger("WikiGenerationFlow")
@@ -65,6 +71,9 @@ export class WikiGenerationFlow {
       languageServerIntegrationService,
       loggingService,
     );
+    if (cachingService && loggingService) {
+      this.promptExampleService = new PromptExampleService(cachingService, loggingService);
+    }
   }
 
   async execute(
@@ -261,6 +270,41 @@ export class WikiGenerationFlow {
     );
     completeStep(LoadingSteps.collectingSemanticInfo);
 
+    let projectType: ProjectTypeDetection | undefined;
+    let examples: string[] | undefined;
+
+    if (this.contextIntelligenceService?.projectTypeDetectionService) {
+      try {
+        const detectedProjectType =
+          await this.contextIntelligenceService.projectTypeDetectionService.detectProjectType();
+        projectType = detectedProjectType;
+        if (detectedProjectType) {
+          this.logger.debug("Project type detected for prompt", {
+            primaryLanguage: detectedProjectType.primaryLanguage,
+            framework: detectedProjectType.framework,
+          });
+        }
+      } catch (error) {
+        this.logger.debug("Failed to detect project type for prompt", error);
+      }
+    }
+
+    if (this.promptExampleService && request.snippet && request.languageId) {
+      try {
+        const retrievedExamples = await this.promptExampleService.getRelevantExamples(
+          request.snippet,
+          request.languageId,
+          2,
+        );
+        examples = retrievedExamples;
+        if (retrievedExamples && retrievedExamples.length > 0) {
+          this.logger.debug("Examples retrieved for prompt", { count: retrievedExamples.length });
+        }
+      } catch (error) {
+        this.logger.debug("Failed to get examples for prompt", error);
+      }
+    }
+
     const rawResult = await this.llmGenerationService.callLLM(
       request,
       generationInput,
@@ -268,6 +312,8 @@ export class WikiGenerationFlow {
       onProgress,
       cancellationToken,
       onChunk,
+      projectType,
+      examples,
     );
 
     if (cancellationToken?.isCancellationRequested) {
@@ -329,6 +375,25 @@ export class WikiGenerationFlow {
       content: finalContent,
       success: true,
     };
+
+    if (this.promptQualityService && promptSeed) {
+      try {
+        const qualityResult = await this.promptQualityService.runQualityAssurance(
+          promptSeed,
+          enhancedContext,
+        );
+        await this.promptQualityService.trackPromptQuality(
+          promptSeed,
+          qualityResult.report.overallScore,
+          finalResult,
+          JSON.stringify(enhancedContext).length,
+          request.providerId,
+          request.model,
+        );
+      } catch (error) {
+        this.logger.debug("Failed to track prompt quality", error);
+      }
+    }
 
     const generationTime = Date.now() - startTime;
     this.logger.info("Wiki generation flow completed successfully", {

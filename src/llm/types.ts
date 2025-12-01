@@ -5,6 +5,7 @@ import {
   HealthCheckResult,
 } from "./types/ProviderCapabilities";
 import type { SemanticCodeInfo } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
+import type { ProjectTypeDetection } from "@/domain/entities/ContextIntelligence";
 
 export type GenerateParams = {
   snippet: string;
@@ -24,6 +25,8 @@ export type GenerateParams = {
       reason?: string;
     }>;
   };
+  projectType?: ProjectTypeDetection;
+  examples?: string[];
 };
 
 export type GenerateResult = {

@@ -128,25 +128,29 @@ export const COMMAND_REQUIREMENTS: CommandRequirements[] = [
 
 /**
  * Command timeouts in milliseconds
+ * These are generous to account for:
+ * - Large projects with 200+ files for relevance analysis (30-60s)
+ * - Slow LLM responses during peak times (60-120s)
+ * - Network latency and connection issues
  */
 export const COMMAND_TIMEOUTS: Record<string, number> = {
-  generateWiki: 120000, // 120s - context analysis (up to 80s) + LLM generation (20-40s) + buffer
-  updateReadme: 120000, // 120s - README generation (60-90s for large wiki sets) + LLM response + buffer
-  getProviders: 5000, // 5s - should be instant from cache
-  selectProvider: 5000, // 5s
-  getSettings: 5000, // 5s
-  updateSettings: 5000, // 5s
-  default: 10000, // 10s
+  generateWiki: 300000, // 5 min - context analysis (60s) + LLM generation (90-180s) + buffer
+  updateReadme: 300000, // 5 min - README generation (60-120s) + LLM response (90-180s) + buffer
+  getProviders: 10000, // 10s - provider listing with health status
+  selectProvider: 10000, // 10s
+  getSettings: 10000, // 10s
+  updateSettings: 10000, // 10s
+  default: 30000, // 30s - increased default for safety
 };
 
 /**
  * Generation timeouts in milliseconds (separate from command timeouts)
- * These are for actual LLM generation operations
+ * These are for actual LLM generation operations - very generous for slow connections
  */
 export const GENERATION_TIMEOUTS: Record<string, number> = {
-  generateWiki: 180000, // 180s - separate from command timeout
-  updateReadme: 180000, // 180s
-  default: 120000, // 120s
+  generateWiki: 300000, // 5 min - matches command timeout
+  updateReadme: 300000, // 5 min - matches command timeout
+  default: 180000, // 3 min - generous default
 };
 
 /**

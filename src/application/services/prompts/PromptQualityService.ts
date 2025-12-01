@@ -10,6 +10,17 @@ import { PromptStructureValidator } from "@/application/services/prompts/quality
 import { PromptClarityAnalyzer } from "@/application/services/prompts/quality/PromptClarityAnalyzer";
 import { PromptSpecificityAnalyzer } from "@/application/services/prompts/quality/PromptSpecificityAnalyzer";
 import { PromptConsistencyChecker } from "@/application/services/prompts/quality/PromptConsistencyChecker";
+import type { WikiGenerationResult } from "@/domain/entities/Wiki";
+
+interface PromptQualityMetrics {
+  promptScore: number;
+  generationQuality?: number;
+  promptLength: number;
+  contextLength: number;
+  timestamp: number;
+  providerId?: string;
+  model?: string;
+}
 
 export class PromptQualityService {
   private logger: Logger;
@@ -126,5 +137,86 @@ export class PromptQualityService {
       suggestions,
       canProceed,
     };
+  }
+
+  async trackPromptQuality(
+    prompt: string,
+    promptScore: number,
+    generationResult?: WikiGenerationResult,
+    contextLength?: number,
+    providerId?: string,
+    model?: string,
+  ): Promise<void> {
+    const metrics: PromptQualityMetrics = {
+      promptScore,
+      promptLength: prompt.length,
+      contextLength: contextLength || 0,
+      timestamp: Date.now(),
+      providerId,
+      model,
+    };
+
+    if (generationResult) {
+      const qualityMetrics = this.calculateGenerationQuality(generationResult);
+      metrics.generationQuality = qualityMetrics.overallScore;
+
+      const correlation = this.calculateCorrelation(promptScore, qualityMetrics.overallScore);
+
+      this.logger.debug("Prompt quality tracked", {
+        promptScore,
+        generationQuality: qualityMetrics.overallScore,
+        correlation,
+        promptLength: prompt.length,
+        contextLength: metrics.contextLength,
+        providerId,
+        model,
+      });
+
+      if (this.eventBus) {
+        this.eventBus.publish("prompt-quality-tracked", {
+          metrics,
+          correlation,
+        });
+      }
+    } else {
+      this.logger.debug("Prompt quality tracked (no generation result)", {
+        promptScore,
+        promptLength: prompt.length,
+        contextLength: metrics.contextLength,
+        providerId,
+        model,
+      });
+    }
+  }
+
+  private calculateGenerationQuality(result: WikiGenerationResult): {
+    overallScore: number;
+  } {
+    if (!result.content) {
+      return { overallScore: 0 };
+    }
+
+    const content = result.content;
+    const hasHeading = /^#\s+/.test(content);
+    const hasSections = (content.match(/^##\s+/gm) || []).length;
+    const hasCodeBlocks = (content.match(/```/g) || []).length / 2;
+    const hasExamples = /example|usage|sample/i.test(content);
+    const length = content.length;
+
+    let score = 0;
+    if (hasHeading) score += 0.2;
+    if (hasSections >= 3) score += 0.3;
+    if (hasSections >= 5) score += 0.2;
+    if (hasCodeBlocks > 0) score += 0.15;
+    if (hasExamples) score += 0.15;
+    if (length > 500 && length < 5000) score += 0.1;
+
+    return { overallScore: Math.min(1.0, score) };
+  }
+
+  private calculateCorrelation(promptScore: number, generationScore: number): number {
+    if (promptScore === 0 || generationScore === 0) return 0;
+    const diff = Math.abs(promptScore - generationScore);
+    return Math.max(0, 1 - diff);
   }
 }
