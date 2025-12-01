@@ -5,18 +5,22 @@ import {
   type Logger,
 } from "@/infrastructure/services/logging/LoggingService";
 
+type MessagePriority = "immediate" | "high" | "normal" | "low";
+
 interface QueuedMessage {
   command: string;
   payload?: any;
   timestamp: number;
   id: string;
+  priority: MessagePriority;
 }
 
 export class WebviewOptimizerService {
   private messageQueue: QueuedMessage[] = [];
   private batchTimeout: NodeJS.Timeout | null = null;
   private readonly BATCH_DELAY = 50; // 50ms batch delay
-  private readonly MAX_BATCH_SIZE = 10;
+  private readonly LOW_PRIORITY_BATCH_DELAY = 200; // 200ms for low priority
+  private readonly MAX_BATCH_SIZE = 20; // Changed from 10
   private messageId = 0;
   private lastEnvironmentStatusPayload: string | undefined;
   private logger: Logger;
@@ -36,7 +40,13 @@ export class WebviewOptimizerService {
     this.logger.error(message, data);
   }
 
-  postMessage(command: string, payload?: any): void {
+  postMessage(command: string, payload?: any, priority: MessagePriority = "normal"): void {
+    if (priority === "immediate") {
+      this.flushQueue();
+      this.safePostMessage({ command, payload });
+      return;
+    }
+
     if (command === "environmentStatus") {
       const payloadHash = JSON.stringify(payload);
       if (this.lastEnvironmentStatusPayload === payloadHash) {
@@ -50,10 +60,11 @@ export class WebviewOptimizerService {
       payload,
       timestamp: Date.now(),
       id: this.generateMessageId(),
+      priority,
     };
 
     this.messageQueue.push(message);
-    this.scheduleBatch();
+    this.scheduleBatch(priority);
   }
 
   postImmediate(command: string, payload?: any): void {
@@ -61,14 +72,16 @@ export class WebviewOptimizerService {
     this.safePostMessage({ command, payload });
   }
 
-  private scheduleBatch(): void {
+  private scheduleBatch(priority: MessagePriority = "normal"): void {
     if (this.batchTimeout) {
       return;
     }
 
+    const delay = priority === "low" ? this.LOW_PRIORITY_BATCH_DELAY : this.BATCH_DELAY;
+
     this.batchTimeout = setTimeout(() => {
       this.flushQueue();
-    }, this.BATCH_DELAY);
+    }, delay);
   }
 
   private flushQueue(): void {
@@ -80,6 +93,16 @@ export class WebviewOptimizerService {
     if (this.messageQueue.length === 0) {
       return;
     }
+
+    this.messageQueue.sort((a, b) => {
+      const priorityOrder: Record<MessagePriority, number> = {
+        immediate: 0,
+        high: 1,
+        normal: 2,
+        low: 3,
+      };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
 
     const batch = this.messageQueue.splice(0, this.MAX_BATCH_SIZE);
 
@@ -100,7 +123,8 @@ export class WebviewOptimizerService {
     }
 
     if (this.messageQueue.length > 0) {
-      this.scheduleBatch();
+      const nextPriority = this.messageQueue[0]?.priority || "normal";
+      this.scheduleBatch(nextPriority);
     }
   }
 

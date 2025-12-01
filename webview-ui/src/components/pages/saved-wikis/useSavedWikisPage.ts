@@ -10,6 +10,7 @@ import { createLogger } from "@/utilities/logging";
 import { useDebouncedRef } from "@/composables/useDebouncedRef";
 import { ErrorCodes, ErrorMessages } from "@/constants/ErrorCodes";
 import { MessageStrings } from "@/constants/MessageConstants";
+import { useVirtualList } from "@vueuse/core";
 
 export interface SavedWiki {
   id: string;
@@ -105,6 +106,32 @@ export function useSavedWikisPage() {
     });
 
     return groups;
+  });
+
+  interface VirtualListItem {
+    type: "header" | "wiki";
+    date?: string;
+    wiki?: SavedWiki;
+    id: string;
+  }
+
+  const virtualListItems = computed(() => {
+    const items: VirtualListItem[] = [];
+    const groups = groupedWikis.value;
+
+    for (const [date, wikis] of Object.entries(groups)) {
+      items.push({ type: "header", date, id: `header-${date}` });
+      for (const wiki of wikis) {
+        items.push({ type: "wiki", wiki, id: wiki.id });
+      }
+    }
+
+    return items;
+  });
+
+  const { list, containerProps, wrapperProps } = useVirtualList(virtualListItems, {
+    itemHeight: 80,
+    overscan: 5,
   });
 
   const setError = (
@@ -453,6 +480,10 @@ export function useSavedWikisPage() {
     savedWikis,
     filteredWikis,
     groupedWikis,
+    virtualListItems,
+    virtualList: list,
+    containerProps,
+    wrapperProps,
     previewWiki,
     updateReadmeState,
     undoReadmeState,

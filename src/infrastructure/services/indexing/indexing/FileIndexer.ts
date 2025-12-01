@@ -1,10 +1,11 @@
-import { workspace, Uri } from "vscode";
+import { workspace, Uri, commands } from "vscode";
 import { ServiceLimits } from "@/constants";
 import { FilePatterns } from "@/constants";
 import type { Logger } from "@/infrastructure/services";
 import type { FileMetadataExtractionService } from "@/infrastructure/services/indexing/FileMetadataExtractionService";
 import type { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
 import type { IndexedFile } from "@/infrastructure/services/indexing/ProjectIndexService";
+import type { DocumentSymbol } from "vscode";
 
 export class FileIndexer {
   private binaryPatterns: RegExp[];
@@ -66,8 +67,34 @@ export class FileIndexer {
       const indexedFile = await this.metadataExtractor.extractFileMetadata(uri, stat.size);
       this.cacheService.getIndex().set(uri.fsPath, indexedFile);
       this.cacheService.updateLanguageIndexForFile(uri.fsPath, indexedFile.language);
+
+      await this.prefetchSymbols(uri);
     } catch (error) {
       this.logger.debug(`Failed to index file ${uri.fsPath}`, error);
+    }
+  }
+
+  private async prefetchSymbols(uri: Uri): Promise<void> {
+    try {
+      const cachedSymbols = await this.cacheService.getSymbols(uri.fsPath);
+      if (cachedSymbols) {
+        return;
+      }
+
+      const symbols = await commands.executeCommand<Array<DocumentSymbol>>(
+        "vscode.executeDocumentSymbolProvider",
+        uri,
+      );
+
+      if (symbols && symbols.length > 0) {
+        await this.cacheService.setSymbols(uri.fsPath, symbols);
+        this.logger.debug("Symbols pre-fetched during indexing", {
+          filePath: uri.fsPath,
+          symbolCount: symbols.length,
+        });
+      }
+    } catch (error) {
+      this.logger.debug(`Failed to pre-fetch symbols for ${uri.fsPath}`, error);
     }
   }
 

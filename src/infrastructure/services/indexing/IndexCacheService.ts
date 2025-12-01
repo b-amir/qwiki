@@ -11,6 +11,7 @@ import {
 } from "@/infrastructure/services/logging/LoggingService";
 import type { FileRelevanceScore } from "@/domain/entities/ContextIntelligence";
 import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
+import type { DocumentSymbol } from "vscode";
 
 interface CachedRelevanceScores {
   targetFilePath: string;
@@ -245,6 +246,62 @@ export class IndexCacheService {
         fileHashes: new Map<string, string>(cached.fileHashes),
       };
     } catch {
+      return null;
+    }
+  }
+
+  async setSymbols(filePath: string, symbols: DocumentSymbol[]): Promise<void> {
+    try {
+      const fileHash = await this.getFileHash(filePath);
+      const key = `index:symbols:${filePath}`;
+      const cached = {
+        filePath,
+        symbols,
+        fileHash,
+        cachedAt: Date.now(),
+        expiresAt: Date.now() + 30 * 60 * 1000,
+      };
+      await this.extensionContext.workspaceState.update(key, cached);
+      this.logger.debug("Symbols cached in index", { filePath, symbolCount: symbols.length });
+    } catch (error) {
+      this.logger.error("Failed to cache symbols in index", { error, filePath });
+    }
+  }
+
+  async getSymbols(filePath: string): Promise<DocumentSymbol[] | null> {
+    try {
+      const key = `index:symbols:${filePath}`;
+      const cached = this.extensionContext.workspaceState.get(key) as
+        | {
+            filePath: string;
+            symbols: DocumentSymbol[];
+            fileHash: string;
+            cachedAt: number;
+            expiresAt: number;
+          }
+        | undefined;
+
+      if (!cached) {
+        return null;
+      }
+
+      const now = Date.now();
+      if (now > cached.expiresAt) {
+        this.logger.debug("Symbol cache expired", { filePath, age: now - cached.cachedAt });
+        await this.extensionContext.workspaceState.update(key, undefined);
+        return null;
+      }
+
+      const currentHash = await this.getFileHash(filePath);
+      if (currentHash !== cached.fileHash) {
+        this.logger.debug("Symbol cache invalidated due to file change", { filePath });
+        await this.extensionContext.workspaceState.update(key, undefined);
+        return null;
+      }
+
+      return cached.symbols;
+    } catch (error) {
+      this.logger.error("Failed to get symbols from index cache", { error, filePath });
       return null;
     }
   }

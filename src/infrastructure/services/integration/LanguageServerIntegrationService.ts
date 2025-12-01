@@ -25,6 +25,7 @@ import {
   type ServerCapabilities,
 } from "./capabilities/ServerCapabilityDetector";
 import { SemanticInfoEnricher } from "@/infrastructure/services/integration/enrichment/SemanticInfoEnricher";
+import type { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
 
 export interface SemanticCodeInfo {
   symbolName: string;
@@ -49,6 +50,7 @@ export class LanguageServerIntegrationService {
     private eventBus?: EventBus,
     private debouncingService?: DebouncingService,
     private cachingService?: CachingService,
+    private indexCacheService?: IndexCacheService | null,
   ) {
     this.logger = createLogger("LanguageServerIntegrationService");
     this.symbolProcessor = new SymbolProcessor();
@@ -76,10 +78,50 @@ export class LanguageServerIntegrationService {
         return null;
       }
 
-      const symbols = await commands.executeCommand<Array<SymbolInformation | DocumentSymbol>>(
-        "vscode.executeDocumentSymbolProvider",
-        document.uri,
-      );
+      let symbols: Array<SymbolInformation | DocumentSymbol> | undefined;
+
+      if (this.indexCacheService) {
+        const cachedSymbols = await this.indexCacheService.getSymbols(document.uri.fsPath);
+        if (cachedSymbols && cachedSymbols.length > 0) {
+          this.logger.debug("Using cached symbols from index", {
+            filePath: document.uri.fsPath,
+            symbolCount: cachedSymbols.length,
+          });
+          symbols = cachedSymbols;
+        }
+      }
+
+      if (!symbols) {
+        const queryPromise = commands.executeCommand<Array<SymbolInformation | DocumentSymbol>>(
+          "vscode.executeDocumentSymbolProvider",
+          document.uri,
+        );
+
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Language server query timeout")), 10000);
+        });
+
+        try {
+          symbols = await Promise.race([queryPromise, timeoutPromise]);
+        } catch (error: any) {
+          if (error?.message?.includes("timeout")) {
+            this.logger.warn("Language server query timeout, using fallback", {
+              filePath: document.uri.fsPath,
+            });
+            return this.fallbackToCodeAnalysis(document, position);
+          }
+          throw error;
+        }
+
+        if (this.indexCacheService && symbols && symbols.length > 0) {
+          const documentSymbols = symbols.filter(
+            (s): s is DocumentSymbol => !this.symbolProcessor.isSymbolInformation(s),
+          );
+          if (documentSymbols.length > 0) {
+            await this.indexCacheService.setSymbols(document.uri.fsPath, documentSymbols);
+          }
+        }
+      }
 
       if (cancellationToken?.isCancellationRequested) {
         return null;
@@ -126,13 +168,37 @@ export class LanguageServerIntegrationService {
       return semanticInfo;
     } catch (error: any) {
       this.logger.error("Failed to get semantic info for selection", error);
-      this.publishError(
-        "Failed to retrieve semantic code information",
-        ErrorCodes.unknown,
-        "The language server may not be available. Try again later.",
-        { filePath: document.uri.fsPath, error: error?.message },
-        error?.message,
-      );
+      return this.fallbackToCodeAnalysis(document, position);
+    }
+  }
+
+  private fallbackToCodeAnalysis(
+    document: TextDocument,
+    position: Position,
+  ): SemanticCodeInfo | null {
+    try {
+      const line = document.lineAt(position.line);
+      const text = line.text.trim();
+
+      const functionMatch = text.match(/(?:function|const|let|var)\s+(\w+)/);
+      const classMatch = text.match(/class\s+(\w+)/);
+
+      const symbolName = functionMatch?.[1] || classMatch?.[1] || "unknown";
+      const symbolKind = classMatch ? SymbolKind.Class : SymbolKind.Function;
+
+      this.logger.debug("Using code analysis fallback", {
+        symbolName,
+        symbolKind,
+        filePath: document.uri.fsPath,
+      });
+
+      return {
+        symbolName,
+        symbolKind,
+        location: document.uri,
+      };
+    } catch (error) {
+      this.logger.debug("Fallback code analysis failed", { error });
       return null;
     }
   }

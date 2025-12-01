@@ -107,11 +107,16 @@ export function registerInfrastructureServices(
   });
 
   container.registerLazy("languageServerIntegrationService", async () => {
+    const projectIndexService = (await container.resolveLazy(
+      "projectIndexService",
+    )) as ProjectIndexService;
+    const indexCacheService = projectIndexService.getIndexCacheService();
     return new LanguageServerIntegrationService(
       loggingService,
       container.resolve("eventBus"),
       container.resolve("debouncingService") as DebouncingService,
       container.resolve("cachingService") as CachingService,
+      indexCacheService,
     );
   });
 

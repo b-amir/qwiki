@@ -41,14 +41,14 @@ export class MessageBusService {
     );
   }
 
-  postMessage(command: string, payload?: any): void {
+  postMessage(command: string, payload?: any, priority: "immediate" | "high" | "normal" | "low" = "normal"): void {
     if (command === "navigate") {
       this.logger.info("postMessage: navigate", { page: payload?.page });
     }
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
     } else {
-      this.optimizer.postMessage(command, payload);
+      this.optimizer.postMessage(command, payload, priority);
     }
   }
 
@@ -97,7 +97,7 @@ export class MessageBusService {
   }
 
   postLoadingStep(step: LoadingStep): void {
-    this.postMessage(OutboundEvents.loadingStep, { step });
+    this.postMessage(OutboundEvents.loadingStep, { step }, "high");
   }
 
   postChunk(chunk: string, accumulatedContent: string): void {

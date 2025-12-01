@@ -13,6 +13,10 @@ const {
   debouncedSearchQuery,
   filteredWikis,
   groupedWikis,
+  virtualListItems,
+  virtualList,
+  containerProps,
+  wrapperProps,
   previewWiki,
   updateReadmeState,
   undoReadmeState,
@@ -63,32 +67,72 @@ const {
         ref="scrollableContainer"
         :class="[
           'relative flex min-h-0 flex-1 flex-col',
-          isReadmeUpdateLoading ? 'overflow-hidden' : 'overflow-y-auto',
+          isReadmeUpdateLoading ? 'overflow-hidden' : '',
         ]"
         @wheel="preventScroll"
         @touchmove="preventScroll"
       >
         <div
-          v-for="(wikis, date) in groupedWikis"
-          :key="date"
-          class="border-border min-w-0 border-b last:border-b-0"
+          v-if="filteredWikis.length > 50"
+          v-bind="containerProps"
+          :class="[
+            'relative flex min-h-0 flex-1 flex-col',
+            isReadmeUpdateLoading ? 'overflow-hidden' : 'overflow-y-auto',
+          ]"
+        >
+          <div v-bind="wrapperProps">
+            <div
+              v-for="{ data: item, index } in virtualList"
+              :key="item.id"
+              :style="{ height: item.type === 'header' ? '32px' : '80px' }"
+            >
+              <div
+                v-if="item.type === 'header'"
+                class="bg-muted/90 text-muted-foreground border-border sticky top-0 z-10 min-w-0 border-b px-3 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-sm sm:px-4"
+              >
+                {{ item.date }}
+              </div>
+              <WikiListItem
+                v-else-if="item.wiki"
+                v-memo="[item.wiki.id, item.wiki.title, item.wiki.tags.length]"
+                :wiki="item.wiki"
+                :selected="false"
+                @preview="showPreview"
+                @delete="deleteWiki"
+                @open="openWiki"
+              />
+            </div>
+          </div>
+        </div>
+        <div
+          v-else
+          :class="[
+            'relative flex min-h-0 flex-1 flex-col',
+            isReadmeUpdateLoading ? 'overflow-hidden' : 'overflow-y-auto',
+          ]"
         >
           <div
-            class="bg-muted/90 text-muted-foreground border-border sticky top-0 z-10 min-w-0 border-b px-3 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-sm sm:px-4"
+            v-for="(wikis, date) in groupedWikis"
+            :key="date"
+            class="border-border min-w-0 border-b last:border-b-0"
           >
-            {{ date }}
-          </div>
-          <div class="divide-border divide-y">
-            <WikiListItem
-              v-for="wiki in wikis"
-              :key="wiki.id"
-              v-memo="[wiki.id, wiki.title, wiki.tags.length]"
-              :wiki="wiki"
-              :selected="false"
-              @preview="showPreview"
-              @delete="deleteWiki"
-              @open="openWiki"
-            />
+            <div
+              class="bg-muted/90 text-muted-foreground border-border sticky top-0 z-10 min-w-0 border-b px-3 py-2 text-xs font-medium uppercase tracking-wider backdrop-blur-sm sm:px-4"
+            >
+              {{ date }}
+            </div>
+            <div class="divide-border divide-y">
+              <WikiListItem
+                v-for="wiki in wikis"
+                :key="wiki.id"
+                v-memo="[wiki.id, wiki.title, wiki.tags.length]"
+                :wiki="wiki"
+                :selected="false"
+                @preview="showPreview"
+                @delete="deleteWiki"
+                @open="openWiki"
+              />
+            </div>
           </div>
         </div>
         <ReadmeStatusOverlay

@@ -9,6 +9,7 @@ import {
 } from "@/infrastructure/services/logging/LoggingService";
 import type { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
 import { TaskPriority } from "@/infrastructure/services/orchestration/TaskSchedulerService";
+import type { DocumentSymbol } from "vscode";
 
 export interface FileContextCache {
   hash: string;
@@ -273,6 +274,53 @@ export class ContextCacheService {
       },
       estimatedDuration: 50 * filePaths.length,
     });
+  }
+
+  async cacheSymbols(filePath: string, symbols: DocumentSymbol[]): Promise<void> {
+    try {
+      const currentHash = await this.getFileHash(filePath);
+      const cacheKey = `symbols:${filePath}`;
+      const symbolCache = {
+        hash: currentHash,
+        symbols: symbols,
+        cachedAt: Date.now(),
+      };
+      this.cache.files[filePath] = {
+        ...this.cache.files[filePath],
+        ...symbolCache,
+      } as any;
+      this.saveCache();
+      this.logger.debug("Symbols cached", { filePath, symbolCount: symbols.length });
+    } catch (error) {
+      this.logger.error(`Failed to cache symbols for ${filePath}`, error);
+    }
+  }
+
+  async getCachedSymbols(filePath: string): Promise<DocumentSymbol[] | null> {
+    try {
+      const currentHash = await this.getFileHash(filePath);
+      const fileCache = this.cache.files[filePath] as any;
+      if (!fileCache || !fileCache.symbols) {
+        return null;
+      }
+
+      if (fileCache.hash !== currentHash) {
+        this.logger.debug("Symbol cache invalidated due to file change", { filePath });
+        return null;
+      }
+
+      const cacheAge = Date.now() - (fileCache.cachedAt || 0);
+      const TTL = 30 * 60 * 1000;
+      if (cacheAge > TTL) {
+        this.logger.debug("Symbol cache expired", { filePath, age: cacheAge });
+        return null;
+      }
+
+      return fileCache.symbols as DocumentSymbol[];
+    } catch (error) {
+      this.logger.debug(`Failed to get cached symbols for ${filePath}`, error);
+      return null;
+    }
   }
 
   dispose(): void {
