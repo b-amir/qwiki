@@ -50,9 +50,7 @@ const handleClose = () => {
   <Modal v-model="isOpen" max-width="max-w-4xl">
     <template #default="{ close }">
       <ModalHeader @close="handleClose">
-        <div>
-          <h2 class="text-lg font-semibold">{{ wiki?.title }}</h2>
-        </div>
+        <h2 class="text-lg font-semibold">{{ wiki?.title }}</h2>
       </ModalHeader>
       <ModalContent>
         <div class="px-2 py-1">
