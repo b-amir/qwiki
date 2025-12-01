@@ -188,7 +188,10 @@ watch(() => props.content, render);
 </script>
 
 <template>
-  <div ref="container" class="prose prose-invert max-w-none min-w-0 text-sm overflow-x-hidden"></div>
+  <div
+    ref="container"
+    class="prose prose-invert min-w-0 max-w-none overflow-x-hidden text-sm"
+  ></div>
 </template>
 
 <style scoped>
@@ -202,6 +205,7 @@ watch(() => props.content, render);
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   line-height: 1.6;
   font-size: 0.875rem;
+  color: var(--vscode-editor-foreground, var(--foreground));
 }
 
 .prose :where(pre code) {
@@ -224,6 +228,91 @@ watch(() => props.content, render);
 
 .prose :where(pre code, .hljs code) {
   background-image: none !important;
+}
+
+/* Highlight.js syntax highlighting - use VS Code editor colors */
+.prose .hljs {
+  background: var(--vscode-editor-background, var(--background)) !important;
+}
+
+.prose .hljs-keyword,
+.prose .hljs-selector-tag,
+.prose .hljs-literal,
+.prose .hljs-section,
+.prose .hljs-link {
+  color: var(--vscode-textLink-foreground, #569cd6) !important;
+}
+
+.prose .hljs-function .hljs-keyword {
+  color: var(--vscode-textLink-foreground, #569cd6) !important;
+}
+
+.prose .hljs-subst {
+  color: var(--vscode-editor-foreground, var(--foreground)) !important;
+}
+
+.prose .hljs-string,
+.prose .hljs-title,
+.prose .hljs-name,
+.prose .hljs-type,
+.prose .hljs-attribute,
+.prose .hljs-symbol,
+.prose .hljs-bullet,
+.prose .hljs-addition,
+.prose .hljs-variable,
+.prose .hljs-template-tag,
+.prose .hljs-template-variable {
+  color: var(--vscode-terminal-ansiGreen, #ce9178) !important;
+}
+
+.prose .hljs-comment,
+.prose .hljs-quote,
+.prose .hljs-deletion,
+.prose .hljs-meta {
+  color: var(--vscode-descriptionForeground, #6a9955) !important;
+  font-style: italic;
+}
+
+.prose .hljs-keyword,
+.prose .hljs-selector-tag,
+.prose .hljs-literal,
+.prose .hljs-doctag,
+.prose .hljs-title,
+.prose .hljs-section,
+.prose .hljs-type,
+.prose .hljs-name,
+.prose .hljs-strong {
+  font-weight: 600;
+}
+
+.prose .hljs-number {
+  color: var(--vscode-terminal-ansiBrightBlue, #b5cea8) !important;
+}
+
+.prose .hljs-emphasis {
+  font-style: italic;
+}
+
+.prose .hljs-built_in,
+.prose .hljs-builtin-name {
+  color: var(--vscode-textLink-foreground, #4ec9b0) !important;
+}
+
+.prose .hljs-params {
+  color: var(--vscode-editor-foreground, var(--foreground)) !important;
+}
+
+.prose .hljs-attr {
+  color: var(--vscode-textLink-foreground, #9cdcfe) !important;
+}
+
+.prose .hljs-tag {
+  color: var(--vscode-textLink-foreground, #569cd6) !important;
+}
+
+.prose .hljs-regexp,
+.prose .hljs-link {
+  color: var(--vscode-terminal-ansiGreen, #d16969) !important;
 }
 
 /* Ensure proper spacing for first/last elements */

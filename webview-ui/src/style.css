@@ -123,6 +123,13 @@ a:hover {
   color: var(--selection-fg);
 }
 
+pre code::selection,
+.hljs ::selection,
+.hljs code::selection {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+}
+
 *:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -289,6 +296,90 @@ body {
   font-size: 0.875rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   max-width: 100%;
+}
+
+.prose pre code {
+  background-color: transparent !important;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.prose pre.hljs code,
+.prose .hljs code {
+  color: inherit;
+}
+
+.prose .hljs-keyword,
+.prose .hljs-selector-tag,
+.prose .hljs-literal,
+.prose .hljs-section,
+.prose .hljs-link {
+  color: var(--vscode-textLink-foreground, #569cd6) !important;
+}
+
+.prose .hljs-function .hljs-keyword {
+  color: var(--vscode-textLink-foreground, #569cd6) !important;
+}
+
+.prose .hljs-subst {
+  color: var(--vscode-editor-foreground, var(--foreground)) !important;
+}
+
+.prose .hljs-string,
+.prose .hljs-title,
+.prose .hljs-name,
+.prose .hljs-type,
+.prose .hljs-attribute,
+.prose .hljs-symbol,
+.prose .hljs-bullet,
+.prose .hljs-addition,
+.prose .hljs-variable,
+.prose .hljs-template-tag,
+.prose .hljs-template-variable {
+  color: var(--vscode-terminal-ansiGreen, #ce9178) !important;
+}
+
+.prose .hljs-comment,
+.prose .hljs-quote,
+.prose .hljs-deletion,
+.prose .hljs-meta {
+  color: var(--vscode-descriptionForeground, #6a9955) !important;
+  font-style: italic;
+}
+
+.prose .hljs-number {
+  color: var(--vscode-terminal-ansiBrightBlue, #b5cea8) !important;
+}
+
+.prose .hljs-emphasis {
+  font-style: italic;
+}
+
+.prose .hljs-built_in,
+.prose .hljs-builtin-name {
+  color: var(--vscode-textLink-foreground, #4ec9b0) !important;
+}
+
+.prose .hljs-params {
+  color: var(--vscode-editor-foreground, var(--foreground)) !important;
+}
+
+.prose .hljs-attr {
+  color: var(--vscode-textLink-foreground, #9cdcfe) !important;
+}
+
+.prose .hljs-tag {
+  color: var(--vscode-textLink-foreground, #569cd6) !important;
+}
+
+.prose .hljs-regexp,
+.prose .hljs-link {
+  color: var(--vscode-terminal-ansiGreen, #d16969) !important;
+}
+
+.prose pre code::selection {
+  background: var(--selection-bg) !important;
+  color: var(--selection-fg) !important;
 }
 
 .prose pre:first-child {
