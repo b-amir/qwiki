@@ -85,7 +85,7 @@ When users select code and initiate wiki generation, the system follows this flo
 
 ### Command Initiation
 
-The frontend sends a `generateWiki` command via MessageBus with the code snippet, file path, and provider selection. `WebviewMessageHandler` receives the command and checks service readiness. `CommandRegistry` executes the command with a configurable timeout.
+The frontend sends a `generateWiki` command via MessageBus with the code snippet, file path, and provider selection. `WebviewMessageHandler` receives the command and checks service readiness. `CommandRegistry` executes the command with a configurable timeout (default 120 seconds). Note that if generation takes longer than the timeout, the command may report a timeout error even though generation continues in the background and completes successfully.
 
 ### Context Building
 
@@ -107,7 +107,7 @@ The system selects relevant files using intelligent scoring and prioritization.
 
 **Essential Files**: Retrieves essential configuration files like package.json and config files.
 
-**File Relevance Scoring**: Scores all indexed files for relevance to the target file. Uses cached scores when available to avoid recomputation.
+**File Relevance Scoring**: Scores all indexed files for relevance to the target file. Uses cached scores when available to avoid recomputation. File relevance analysis processes files in batches with concurrency limits (typically 8 concurrent analyses). This phase can take 20-30 seconds for large projects (200+ files) but uses cached results on subsequent runs. Progress updates emit periodically during analysis. Slow file analysis warnings log for files taking longer than expected, helping identify performance bottlenecks.
 
 **Token Budget Calculation**: Calculates available tokens from the provider's context limit. Applies a target utilization percentage. Essential files always included with highest priority. Regular files selected up to remaining budget, with duplicate prevention ensuring essential files are not counted twice.
 
@@ -130,7 +130,7 @@ Language server integration retrieves symbol information from VS Code's language
 
 ### LLM Request and Streaming
 
-Rate limiting checks the provider's rate limit status. Request batching uses a delay for deduplication. The streaming request sends to the selected LLM provider. Response content streams in chunks to the webview in real-time. The system tracks time to first result as a user experience metric.
+Rate limiting checks the provider's rate limit status using a sliding window algorithm. Request batching uses a delay (typically 100ms) for deduplication to prevent duplicate requests. The streaming request sends to the selected LLM provider. Response content streams in chunks to the webview in real-time. The system tracks time to first result as a user experience metric. Generation typically completes in 15-20 seconds for standard requests, but can vary based on provider response time and content length.
 
 ### Post-Processing
 
@@ -138,7 +138,7 @@ The system processes the LLM response, performs final formatting and cleanup, an
 
 ### Completion
 
-Wiki results publish via EventBus, and results cache for future use. User experience metrics record including time to first result, documentation quality, and error rates.
+Wiki results publish via EventBus, and results cache for future use. User experience metrics record including time to first result, documentation quality, and error rates. The system logs high latency warnings for loading steps that exceed 5 seconds, helping identify performance bottlenecks. Loading step progression prevents backward steps (e.g., moving from a later step back to an earlier step) to maintain consistent UI state. Total generation time typically ranges from 60-120 seconds for complex projects with intelligent context enabled, with most time spent on file relevance analysis (20-30 seconds) and LLM generation (15-20 seconds).
 
 ### Saving the Wiki
 
@@ -150,7 +150,7 @@ When users update the project README using saved wikis, the system follows this 
 
 ### Navigation and State Check
 
-Users navigate to the "Saved Wikis" page. The `getSavedWikis` command loads all saved wikis. `checkReadmeBackupState` checks if a backup exists and sync status. In-memory caching with short time-to-live prevents redundant I/O operations. Cache automatically invalidates on backup or README update events.
+Users navigate to the "Saved Wikis" page. The `getSavedWikis` command loads all saved wikis from the `.qwiki/saved/` folder. `checkReadmeBackupState` checks if a backup exists and sync status by examining `.qwiki/backup/README.backup.md` and `.qwiki/state/readme-sync.json`. In-memory caching with short time-to-live (2 seconds) prevents redundant I/O operations. Cache automatically invalidates on backup creation, README update, or undo events. Multiple rapid state checks reuse cached results to minimize file system operations.
 
 ### README Update Initiation
 
@@ -162,7 +162,7 @@ Users click the "Update README" button. The `updateReadme` command executes with
 
 ### Safety Check and Backup Creation
 
-For user-contributed READMEs, the system logs warnings and publishes events. The system proceeds with backup and generation. `ReadmeBackupService` creates a backup before modification, saving to `.qwiki/backup/README.backup.md`. Event publication triggers cache invalidation. File watchers detect backup creation and update backup state. State check cache invalidates to ensure fresh state on next check.
+For user-contributed READMEs, the system logs warnings and publishes events. The system proceeds with backup and generation (confirmation flow for overwriting user-contributed READMEs is planned but not yet implemented). `ReadmeBackupService` creates a backup before modification, saving to `.qwiki/backup/README.backup.md`. Event publication triggers cache invalidation. File watchers detect backup creation and update backup state. State check cache invalidates to ensure fresh state on next check. The backup file persists until explicitly deleted via undo operation or manual cleanup.
 
 ### Project Context Building
 
@@ -190,7 +190,7 @@ Users can click "Show Diff" to open a VS Code diff view comparing the backup to 
 
 ### Undo Operation
 
-Users can click "Undo" to restore the README from backup. `ReadmeBackupService` restores the file, and `ReadmeSyncTrackerService` clears sync state. Backup file deletion occurs, and saved wikis refresh with `readmeSynced` set to false. Cache invalidates to ensure fresh state.
+Users can click "Undo" to restore the README from backup. `ReadmeBackupService` restores the README.md file from `.qwiki/backup/README.backup.md`. `ReadmeSyncTrackerService` clears sync state by deleting `.qwiki/state/readme-sync.json`. The backup file itself is deleted after successful restoration. File watchers detect both the README change and backup deletion, triggering cache invalidation. Saved wikis refresh automatically with `readmeSynced` set to false. Multiple cache invalidations occur during undo to ensure all related caches (backup state, sync state, project context) refresh correctly. The undo operation completes quickly (typically under 100ms) since it only involves file restoration and cleanup.
 
 ## Settings and Configuration Workflow
 
@@ -226,7 +226,7 @@ API keys store in VS Code SecretStorage with encryption. Provider configurations
 
 ## File Watching and Cache Invalidation
 
-The system uses Git integration to detect file changes efficiently. When files change, cache entries invalidate automatically. Only changed files require re-analysis through incremental updates. A wiki watcher monitors the `.qwiki/saved/` folder for wiki file changes.
+The system uses Git integration to detect file changes efficiently. When files change, cache entries invalidate automatically. Only changed files require re-analysis through incremental updates. A wiki watcher monitors the `.qwiki/saved/` folder for wiki file changes. The `ProjectContextCacheInvalidationService` watches for file creation, deletion, and modification events, triggering targeted cache invalidation. File watchers also monitor `.qwiki/backup/` for backup file changes and `.qwiki/state/` for sync state changes. Cache invalidation cascades appropriately: README changes invalidate project context caches, backup operations invalidate backup state caches, and wiki file changes trigger saved wikis refresh.
 
 ## Service Readiness System
 
