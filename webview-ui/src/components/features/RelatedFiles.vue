@@ -11,6 +11,7 @@ const wiki = useWikiStore();
       <li
         v-for="item in wiki.related"
         :key="item.path + ':' + (item.line || 0)"
+        v-memo="[item.path, item.line, item.preview]"
         class="hover:bg-accent/50 cursor-pointer px-3 py-2 text-sm"
         @click="wiki.openFile(item.path, item.line)"
       >

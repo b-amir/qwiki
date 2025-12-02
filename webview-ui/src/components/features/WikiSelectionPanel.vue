@@ -101,6 +101,7 @@ const updateSearchQuery = (value: string) => {
         <label
           v-for="wiki in filteredWikis"
           :key="wiki.id"
+          v-memo="[wiki.id, wiki.title, wiki.tags.length, selectedWikis.has(wiki.id)]"
           class="hover:bg-accent/50 flex cursor-pointer items-start gap-3 p-3 transition-colors"
         >
           <input
