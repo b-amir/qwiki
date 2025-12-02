@@ -102,7 +102,7 @@ export function registerInfrastructureServices(
       container.resolve("debouncingService") as DebouncingService,
       container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
     );
-    await service.initialize();
+    await service.quickInit();
     return service;
   });
 

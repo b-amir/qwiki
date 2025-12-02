@@ -83,7 +83,7 @@ export class ManagerInitializer {
     );
 
     const webviewMessageHandler = new WebviewMessageHandler(
-      webview as unknown as Webview,
+      webview.webview,
       this.messageBus,
       this.commandRegistry,
       this.errorHandler,
