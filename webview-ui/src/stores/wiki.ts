@@ -48,6 +48,9 @@ export const useWikiStore = defineStore("wiki", {
               if (this.snippet?.trim()) {
                 await this._doGenerate();
               } else {
+                this.loading = false;
+                this.loadingStep = "";
+                loadingStore.cancel({ context: "wiki", reason: "No selection" });
                 const errorInfo = getErrorMessage(ErrorCodes.MISSING_SNIPPET);
                 const { useErrorStore } = await import("./error");
                 const errorStore = useErrorStore();
@@ -306,8 +309,21 @@ export const useWikiStore = defineStore("wiki", {
         },
       });
 
-      this.pendingAutoGenerate = true;
-      vscode.postMessage({ command: "getSelection" });
+      const loadingStore = useLoadingStore();
+      const hasSnippet = !!this.snippet?.trim();
+
+      if (hasSnippet) {
+        this.loading = true;
+        this.loadingStep = "validating";
+        loadingStore.start({ context: "wiki", step: "validating" });
+        await this._doGenerate();
+      } else {
+        this.loading = true;
+        this.loadingStep = "";
+        loadingStore.start({ context: "wiki", step: "validating" });
+        this.pendingAutoGenerate = true;
+        vscode.postMessage({ command: "getSelection" });
+      }
     },
     async _doGenerate() {
       if (!this.snippet?.trim()) {
