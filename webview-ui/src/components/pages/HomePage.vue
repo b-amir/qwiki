@@ -55,8 +55,8 @@ const buttonText = computed(() => {
         One <span class="qwiki-gradient-text">Qwiki</span> and you'll know.
       </h1>
 
-      <div class="bg-muted/20 border-border/50 w-full max-w-md rounded-lg border px-2 py-2 sm:px-3">
-        <div class="flex flex-col items-center space-y-2">
+      <div class="bg-muted/20 border-border/50 w-70 rounded-lg border px-2 py-2 sm:w-96 sm:px-3">
+        <div class="flex flex-col items-center space-y-2 opacity-70">
           <div class="flex flex-col items-center gap-1 text-center">
             <p class="text-muted-foreground break-words text-xs">
               Select code, then press:
@@ -69,7 +69,7 @@ const buttonText = computed(() => {
             <span class="text-muted-foreground break-words text-xs"
               >or right-click:
               <span
-                class="bg-background text-foreground shadow-xs ml-1 inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-xs font-medium"
+                class="bg-background text-foreground shadow-xs inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-[10.8px] font-medium"
                 >Qwiki: Generate a Quick Wiki</span
               ></span
             >
