@@ -47,6 +47,7 @@ function normalizePayload(payload: unknown): LoadingMessage | null {
   const message = payloadObj.message;
   const elapsed = payloadObj.elapsed;
   const estimatedRemaining = payloadObj.estimatedRemaining;
+  const sequence = payloadObj.sequence;
 
   return {
     context,
@@ -56,6 +57,7 @@ function normalizePayload(payload: unknown): LoadingMessage | null {
     message: typeof message === "string" ? message : undefined,
     elapsed: typeof elapsed === "number" ? elapsed : undefined,
     estimatedRemaining: typeof estimatedRemaining === "number" ? estimatedRemaining : undefined,
+    sequence: typeof sequence === "number" ? sequence : undefined,
   };
 }
 

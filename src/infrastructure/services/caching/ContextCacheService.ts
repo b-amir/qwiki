@@ -99,7 +99,6 @@ export class ContextCacheService {
       try {
         await fs.mkdir(path.dirname(this.cacheFilePath), { recursive: true });
         await fs.writeFile(this.cacheFilePath, JSON.stringify(this.cache, null, 2));
-        this.logger.debug("Context cache saved to disk");
       } catch (error) {
         this.logger.error("Failed to save context cache", error);
       }

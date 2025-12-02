@@ -98,9 +98,9 @@ export const useLoadingStore = defineStore("loading", {
       } else {
         if (currentState.startedAt) {
           const latency = receiveTime - currentState.startedAt;
-          const threshold = 5000;
+          const threshold = 10000;
           if (latency > threshold) {
-            logger.warn("High latency detected for loading step", {
+            logger.debug("High latency detected for loading step", {
               context: message.context,
               step: message.step,
               latency,
@@ -155,7 +155,7 @@ export const useLoadingStore = defineStore("loading", {
       }
 
       if (current.step && this.isStepBefore(options.context, options.step, current.step)) {
-        logger.warn("Ignoring backward step progression", {
+        logger.debug("Ignoring backward step progression", {
           context: options.context,
           attemptedStep: options.step,
           currentStep: current.step,
@@ -168,7 +168,7 @@ export const useLoadingStore = defineStore("loading", {
         const currentIndex = steps.findIndex((s) => s.key === current.step);
         const newIndex = steps.findIndex((s) => s.key === options.step);
         if (currentIndex >= 0 && newIndex >= 0 && newIndex > currentIndex + 1) {
-          logger.warn("Step skipped in sequence", {
+          logger.debug("Step skipped in sequence", {
             context: options.context,
             fromStep: current.step,
             toStep: options.step,

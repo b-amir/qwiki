@@ -117,6 +117,8 @@ export class MessageBusService {
   postSuccess(command: string, payload?: MessagePayload): void {
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
+    } else if (command === OutboundEvents.loadingStep) {
+      this.postImmediate(command, payload);
     } else {
       this.postMessage(command, payload);
     }

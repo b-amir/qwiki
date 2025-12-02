@@ -159,7 +159,7 @@ export class WikiService {
         projectContext,
         generateParams,
         onProgress,
-        undefined,
+        onProgressFull,
         cancellationToken,
         onChunk,
       );

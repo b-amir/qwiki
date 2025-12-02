@@ -232,7 +232,7 @@ export function useBatchMessageBridge() {
     } catch {}
 
     const seenInBatch = new Set<string>();
-    const loadingStepsByContext = new Map<string, BatchMessage>();
+    const loadingStepsByContext = new Map<string, BatchMessage[]>();
     const coalesced: BatchMessage[] = [];
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
@@ -247,13 +247,31 @@ export function useBatchMessageBridge() {
       const message = m as BatchMessage;
 
       if (message.command === "loadingStep" && message.payload) {
-        const context = (message.payload as { context?: string })?.context;
+        const payload = message.payload as { step?: string; sequence?: number; context?: string };
+        const step = payload.step;
+        const sequence = payload.sequence;
+        const context =
+          payload.context || (step && step.includes("extension") ? "environment" : "wiki");
+
         if (context) {
           const key = `loadingStep:${context}`;
           const existing = loadingStepsByContext.get(key);
 
-          if (!existing || isNewerLoadingStep(message, existing)) {
-            loadingStepsByContext.set(key, message);
+          if (sequence !== undefined) {
+            if (!existing) {
+              loadingStepsByContext.set(key, [message]);
+            } else {
+              const existingSeqs = existing.map(
+                (m) => (m.payload as { sequence?: number })?.sequence ?? 0,
+              );
+              if (!existingSeqs.includes(sequence)) {
+                existing.push(message);
+              }
+            }
+          } else {
+            if (!existing || isNewerLoadingStep(message, existing[existing.length - 1])) {
+              loadingStepsByContext.set(key, [message]);
+            }
           }
           continue;
         }
@@ -271,8 +289,10 @@ export function useBatchMessageBridge() {
       }
     }
 
-    for (const step of loadingStepsByContext.values()) {
-      coalesced.push(step);
+    for (const steps of loadingStepsByContext.values()) {
+      for (const step of steps) {
+        coalesced.push(step);
+      }
     }
 
     coalesced.reverse();

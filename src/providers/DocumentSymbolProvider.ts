@@ -45,14 +45,15 @@ export class QwikiDocumentSymbolProvider implements DocumentSymbolProvider {
       const now = Date.now();
 
       if (
-        (symbols.length !== lastCount && Math.abs(symbols.length - lastCount) > 5) ||
+        symbols.length !== lastCount &&
+        Math.abs(symbols.length - lastCount) > 10 &&
         now - lastLog > this.LOG_THROTTLE_MS
       ) {
         this.logger.debug("Document symbols extracted", {
           path: filePath,
           symbolCount: symbols.length,
           language: languageId,
-          countChanged: symbols.length !== lastCount,
+          countChanged: true,
         });
         this.lastSymbolCounts.set(filePath, symbols.length);
         this.lastLogTime.set(filePath, now);
