@@ -12,8 +12,8 @@ export function createCommonValidationRules(): ValidationRule[] {
       description: "Validates temperature is within acceptable range for all providers",
       priority: 5,
       field: "temperature",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -49,8 +49,8 @@ export function createCommonValidationRules(): ValidationRule[] {
       description: "Validates max tokens is within acceptable range",
       priority: 6,
       field: "maxTokens",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -93,8 +93,8 @@ export function createCommonValidationRules(): ValidationRule[] {
       description: "Validates rate limit is reasonable",
       priority: 7,
       field: "rateLimitPerMinute",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 

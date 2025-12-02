@@ -13,13 +13,13 @@ export interface ValidationRule {
   description: string;
   priority: number;
   field?: string;
-  condition: (value: any, context: ValidationContext) => boolean;
-  validator: (value: any, context: ValidationContext) => ValidationResult;
+  condition: (value: unknown, context: ValidationContext) => boolean;
+  validator: (value: unknown, context: ValidationContext) => ValidationResult;
   enabled: boolean;
 }
 
 export interface ValidationContext {
-  configuration: any;
+  configuration: unknown;
   schema?: ConfigurationSchema;
   providerId?: string;
   operation: "create" | "update" | "delete";
@@ -46,7 +46,7 @@ export class ConfigurationValidationEngineService {
   };
 
   validateConfiguration(
-    config: any,
+    config: unknown,
     schema: ConfigurationSchema,
     context: ValidationContext,
   ): ValidationResult {
@@ -150,15 +150,19 @@ export class ConfigurationValidationEngineService {
     };
   }
 
-  private hasField(config: any, fieldPath: string): boolean {
+  private hasField(config: unknown, fieldPath: string): boolean {
+    if (typeof config !== "object" || config === null) {
+      return false;
+    }
+
     const parts = fieldPath.split(".");
-    let current = config;
+    let current: unknown = config;
 
     for (const part of parts) {
-      if (current === null || current === undefined) {
+      if (typeof current !== "object" || current === null) {
         return false;
       }
-      current = current[part];
+      current = (current as Record<string, unknown>)[part];
     }
 
     return current !== undefined;

@@ -9,12 +9,16 @@ export type { PageType, NavigationGuard };
 export function useNavigation() {
   const navigationStore = useNavigationStore();
 
-  const handleMessage = (event: MessageEvent<{ command?: string; payload?: any }>): void => {
+  const handleMessage = (event: MessageEvent<{ command?: string; payload?: unknown }>): void => {
     const command = event.data?.command;
     if (command !== "navigate") return;
 
-    const nextPage = event.data?.payload?.page as PageType;
-    const isBack = event.data?.payload?.isBack || false;
+    const payload = event.data?.payload;
+    if (!payload || typeof payload !== "object" || payload === null) return;
+
+    const navigatePayload = payload as { page?: unknown; isBack?: unknown };
+    const nextPage = navigatePayload.page as PageType;
+    const isBack = Boolean(navigatePayload.isBack);
 
     logger.info("navigate message received", {
       nextPage,

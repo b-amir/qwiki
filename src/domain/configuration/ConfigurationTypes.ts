@@ -9,7 +9,7 @@ export interface ProviderConfiguration {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
-  customFields?: Record<string, any>;
+  customFields?: Record<string, unknown>;
   rateLimitPerMinute?: number;
   timeout?: number;
   retryAttempts?: number;
@@ -62,7 +62,7 @@ export interface SchemaField {
   name: string;
   type: "string" | "number" | "boolean" | "array" | "object";
   required: boolean;
-  defaultValue?: any;
+  defaultValue?: unknown;
   validation?: FieldValidation;
   description?: string;
 }
@@ -71,14 +71,14 @@ export interface FieldValidation {
   min?: number;
   max?: number;
   pattern?: string;
-  enum?: any[];
-  custom?: (value: any) => boolean;
+  enum?: unknown[];
+  custom?: (value: unknown) => boolean;
 }
 
 export interface SchemaDependency {
   field: string;
   dependsOn: string;
-  condition: (value: any) => boolean;
+  condition: (value: unknown) => boolean;
   action: "show" | "hide" | "enable" | "disable";
 }
 
@@ -149,8 +149,8 @@ export interface TemplateMetadata {
 export interface MigrationStep {
   version: string;
   description: string;
-  migrate: (config: any) => Promise<any>;
-  rollback: (config: any) => Promise<any>;
+  migrate: (config: unknown) => Promise<unknown>;
+  rollback: (config: unknown) => Promise<unknown>;
 }
 
 export interface HealthCheckResult {

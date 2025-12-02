@@ -5,11 +5,11 @@ import {
   type Logger,
 } from "@/infrastructure/services/logging/LoggingService";
 
-export interface BatchedRequest<T = any> {
+export interface BatchedRequest<T = unknown> {
   id: string;
   request: () => Promise<T>;
   resolve: (value: T) => void;
-  reject: (reason: any) => void;
+  reject: (reason: unknown) => void;
   timestamp: number;
   priority: number;
   key?: string;
@@ -33,9 +33,9 @@ export interface BatchStatistics {
 }
 
 export class RequestBatchingService extends EventEmitter {
-  private batches = new Map<string, BatchedRequest[]>();
+  private batches = new Map<string, BatchedRequest<unknown>[]>();
   private batchTimers = new Map<string, NodeJS.Timeout>();
-  private requestsByKey = new Map<string, BatchedRequest[]>();
+  private requestsByKey = new Map<string, BatchedRequest<unknown>[]>();
   private statistics = {
     totalBatches: 0,
     totalRequests: 0,
@@ -84,7 +84,9 @@ export class RequestBatchingService extends EventEmitter {
             key: deduplicationKey,
           };
 
-          existingRequest.push(batchedRequest);
+          (existingRequest as BatchedRequest<unknown>[]).push(
+            batchedRequest as BatchedRequest<unknown>,
+          );
           this.statistics.deduplicatedRequests++;
         });
       }
@@ -106,14 +108,14 @@ export class RequestBatchingService extends EventEmitter {
       }
 
       const batch = this.batches.get(key)!;
-      batch.push(batchedRequest);
+      (batch as BatchedRequest<unknown>[]).push(batchedRequest as BatchedRequest<unknown>);
       batch.sort((a, b) => b.priority - a.priority);
 
       if (deduplicationKey) {
         if (!this.requestsByKey.has(deduplicationKey)) {
           this.requestsByKey.set(deduplicationKey, []);
         }
-        this.requestsByKey.get(deduplicationKey)!.push(batchedRequest);
+        this.requestsByKey.get(deduplicationKey)!.push(batchedRequest as BatchedRequest<unknown>);
       }
 
       if (priority > 0) {
@@ -206,7 +208,7 @@ export class RequestBatchingService extends EventEmitter {
 
     this.batches.delete(key);
 
-    const deduplicatedGroups = new Map<string, BatchedRequest[]>();
+    const deduplicatedGroups = new Map<string, BatchedRequest<unknown>[]>();
 
     for (const request of batch) {
       if (request.key) {
@@ -239,7 +241,7 @@ export class RequestBatchingService extends EventEmitter {
 
           const allRequestsWithKey = this.requestsByKey.get(groupKey) || [];
 
-          const requestMap = new Map<string, BatchedRequest>();
+          const requestMap = new Map<string, BatchedRequest<unknown>>();
           for (const req of requests) {
             requestMap.set(req.id, req);
           }
@@ -263,7 +265,7 @@ export class RequestBatchingService extends EventEmitter {
           });
 
           const allRequestsWithKey = this.requestsByKey.get(groupKey) || [];
-          const requestMap = new Map<string, BatchedRequest>();
+          const requestMap = new Map<string, BatchedRequest<unknown>>();
           for (const req of requests) {
             requestMap.set(req.id, req);
           }
@@ -295,9 +297,9 @@ export class RequestBatchingService extends EventEmitter {
     this.emit("batchProcessed", key, batch.length);
   }
 
-  private findExistingRequest<T>(key: string): BatchedRequest<T>[] | null {
+  private findExistingRequest<T>(key: string): BatchedRequest<unknown>[] | null {
     const existing = this.requestsByKey.get(key);
-    return existing && existing.length > 0 ? (existing as BatchedRequest<T>[]) : null;
+    return existing && existing.length > 0 ? existing : null;
   }
 
   private generateId(): string {

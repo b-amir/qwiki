@@ -74,3 +74,48 @@ export const ServiceLimits = {
   rateLimitMaxRequests: 10,
   rateLimitWindowMs: 60000,
 } as const;
+
+export const PerformanceBudgets = {
+  generateWiki: {
+    p50: 30000,
+    p95: 60000,
+    p99: 90000,
+    alertThreshold: 120000,
+  },
+  fileRelevanceAnalysis: {
+    p50: 2000,
+    p95: 5000,
+    p99: 10000,
+    alertThreshold: 15000,
+  },
+  languageServerQuery: {
+    p50: 2000,
+    p95: 5000,
+    p99: 10000,
+    alertThreshold: 15000,
+  },
+  projectContextBuild: {
+    p50: 5000,
+    p95: 15000,
+    p99: 30000,
+    alertThreshold: 45000,
+  },
+  wikiGeneration: {
+    p50: 30000,
+    p95: 60000,
+    p99: 90000,
+    alertThreshold: 120000,
+  },
+  providerSelection: {
+    p50: 1000,
+    p95: 3000,
+    p99: 5000,
+    alertThreshold: 8000,
+  },
+  contextAnalysis: {
+    p50: 3000,
+    p95: 8000,
+    p99: 15000,
+    alertThreshold: 20000,
+  },
+} as const;

@@ -122,7 +122,7 @@ async function performHealthCheck(
         timeoutHandle = null;
       }
       if (eventHandler) {
-        window.removeEventListener("apiKeyHealthValidated", eventHandler as any);
+        window.removeEventListener("apiKeyHealthValidated", eventHandler as EventListener);
         eventHandler = null;
       }
     };
@@ -139,7 +139,7 @@ async function performHealthCheck(
       }
     };
 
-    window.addEventListener("apiKeyHealthValidated", eventHandler as any);
+    window.addEventListener("apiKeyHealthValidated", eventHandler as EventListener);
 
     timeoutHandle = setTimeout(() => {
       cleanup();

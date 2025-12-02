@@ -31,7 +31,7 @@ interface BatchProcessingMetric {
 const batchMetrics = ref<BatchProcessingMetric[]>([]);
 const messageLatencyMetrics = ref<MessageLatencyMetric[]>([]);
 
-function stringifyPayload(payload: any): string {
+function stringifyPayload(payload: unknown): string {
   try {
     return JSON.stringify(payload);
   } catch {
@@ -132,7 +132,7 @@ function getLatencyStatistics(): {
 }
 
 function dispatchWithAnimationFrame(
-  message: { command: string; payload: any },
+  message: { command: string; payload: unknown },
   batchReceiveTime: number,
 ): void {
   requestAnimationFrame(() => {
@@ -158,7 +158,7 @@ function dispatchWithAnimationFrame(
 }
 
 function dispatchImmediately(
-  message: { command: string; payload: any },
+  message: { command: string; payload: unknown },
   batchReceiveTime: number,
 ): void {
   const forwardTime = performance.now();
@@ -181,10 +181,19 @@ function dispatchImmediately(
   }
 }
 
+interface BatchMessage {
+  command: string;
+  payload?: unknown;
+}
+
+interface BatchPayload {
+  messages?: unknown[];
+}
+
 export function useBatchMessageBridge() {
   const handler = (event: MessageEvent) => {
     const batchReceiveTime = performance.now();
-    const data = (event as any).data as { command?: string; payload?: any };
+    const data = event.data as unknown as { command?: string; payload?: BatchPayload };
     if (data?.command !== "batch") return;
     const messages = data?.payload?.messages;
     if (!Array.isArray(messages)) return;
@@ -194,29 +203,43 @@ export function useBatchMessageBridge() {
     let throttledCount = 0;
 
     try {
-      const cmds = messages.map((m: any) => m?.command).filter(Boolean);
+      const cmds = messages
+        .map((m: unknown) =>
+          m && typeof m === "object" && "command" in m
+            ? (m as { command?: string }).command
+            : undefined,
+        )
+        .filter((cmd): cmd is string => typeof cmd === "string");
       logger.debug(`Batch received: ${messages.length} messages [${cmds.join(", ")}]`);
     } catch {}
 
     const seenInBatch = new Set<string>();
-    const coalesced: Array<{ command: string; payload: any }> = [];
+    const coalesced: BatchMessage[] = [];
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
-      if (!m || !m.command) continue;
-      if (DEDUP_IN_BATCH.has(m.command)) {
-        if (seenInBatch.has(m.command)) {
+      if (
+        !m ||
+        typeof m !== "object" ||
+        m === null ||
+        !("command" in m) ||
+        typeof (m as BatchMessage).command !== "string"
+      )
+        continue;
+      const message = m as BatchMessage;
+      if (DEDUP_IN_BATCH.has(message.command)) {
+        if (seenInBatch.has(message.command)) {
           deduplicatedCount++;
           continue;
         }
-        seenInBatch.add(m.command);
-        coalesced.push(m);
+        seenInBatch.add(message.command);
+        coalesced.push(message);
       } else {
-        coalesced.push(m);
+        coalesced.push(message);
       }
     }
     coalesced.reverse();
 
-    const toForward: Array<{ command: string; payload: any }> = [];
+    const toForward: Array<{ command: string; payload: unknown }> = [];
     const now = Date.now();
 
     for (const m of coalesced) {
@@ -241,14 +264,14 @@ export function useBatchMessageBridge() {
           continue;
         }
         lastPayloadByCommand.set(key, snapshot);
-        toForward.push(m);
+        toForward.push({ command: m.command, payload: m.payload ?? undefined });
       } else {
-        toForward.push(m);
+        toForward.push({ command: m.command, payload: m.payload ?? undefined });
       }
     }
 
-    const animationMessages: Array<{ command: string; payload: any }> = [];
-    const regularMessages: Array<{ command: string; payload: any }> = [];
+    const animationMessages: Array<{ command: string; payload: unknown }> = [];
+    const regularMessages: Array<{ command: string; payload: unknown }> = [];
 
     for (const m of toForward) {
       if (ANIMATION_COMMANDS.has(m.command)) {

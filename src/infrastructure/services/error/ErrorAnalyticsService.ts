@@ -145,6 +145,8 @@ export class ErrorAnalyticsService {
 
     this.calculateAverageTimeBetweenOccurrences(analytics);
 
+    this.checkErrorRateSpike(code, context?.operation as string | undefined);
+
     this.eventBus.publish("errorAnalyticsUpdated", {
       errorCode: code,
       analytics,
@@ -158,7 +160,7 @@ export class ErrorAnalyticsService {
     });
   }
 
-  recordErrorRecovery(error: ProviderError, context?: Record<string, any>): void {
+  recordErrorRecovery(error: ProviderError, context?: Record<string, unknown>): void {
     this.logger.debug("Recorded error recovery", {
       errorCode: error.code,
       providerId: error.providerId,
@@ -292,6 +294,67 @@ export class ErrorAnalyticsService {
     ).length;
 
     return recentOperations > 0 ? recentErrors / recentOperations : 0;
+  }
+
+  getErrorRateByOperation(operation: string, timeWindowMs: number = 3600000): number {
+    const cutoffTime = Date.now() - timeWindowMs;
+    const operationErrors = this.errorHistory.filter(
+      (entry) => entry.timestamp > cutoffTime && entry.context?.operation === operation,
+    ).length;
+
+    const operationTotal = this.errorHistory.filter(
+      (entry) => entry.timestamp > cutoffTime && entry.context?.operation === operation,
+    ).length;
+
+    return operationTotal > 0 ? operationErrors / operationTotal : 0;
+  }
+
+  private checkErrorRateSpike(errorCode: string, operation?: string): void {
+    const shortWindow = 300000;
+    const longWindow = 3600000;
+
+    const shortWindowRate = operation
+      ? this.getErrorRateByOperation(operation, shortWindow)
+      : this.getErrorRate(shortWindow);
+    const longWindowRate = operation
+      ? this.getErrorRateByOperation(operation, longWindow)
+      : this.getErrorRate(longWindow);
+
+    if (shortWindowRate > longWindowRate * 2 && shortWindowRate > 0.1) {
+      this.logger.warn("Error rate spike detected", {
+        errorCode,
+        operation,
+        shortWindowRate,
+        longWindowRate,
+        spikeFactor: shortWindowRate / (longWindowRate || 0.001),
+      });
+
+      this.eventBus.publish("errorRateSpike", {
+        errorCode,
+        operation,
+        shortWindowRate,
+        longWindowRate,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  getCommonErrors(operation?: string, limit: number = 5): Array<{ error: string; count: number }> {
+    const operationErrors = operation
+      ? this.errorHistory.filter((entry) => entry.context?.operation === operation)
+      : this.errorHistory;
+
+    const errorCounts = new Map<string, number>();
+
+    for (const entry of operationErrors) {
+      const key = `${entry.error.code}:${entry.error.message}`;
+      errorCounts.set(key, (errorCounts.get(key) || 0) + 1);
+    }
+
+    return Array.from(errorCounts.entries())
+      .map(([error, count]) => ({ error, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
   }
 
   clearAnalytics(): void {

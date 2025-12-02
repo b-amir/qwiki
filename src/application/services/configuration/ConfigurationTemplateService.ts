@@ -2,6 +2,8 @@ import type {
   ConfigurationTemplate,
   TemplateMetadata,
   ValidationResult,
+  GlobalConfiguration,
+  ProviderConfigurationMap,
 } from "@/domain/configuration";
 import type { ConfigurationValidationEngineService } from "@/application/services/configuration/ConfigurationValidationEngineService";
 import { TemplateRepository } from "@/application/services/configuration/templates/TemplateRepository";
@@ -15,12 +17,12 @@ export interface TemplateVariable {
   description: string;
   type: "string" | "number" | "boolean" | "array" | "object";
   required: boolean;
-  defaultValue?: any;
+  defaultValue?: unknown;
   validation?: {
     pattern?: string;
     min?: number;
     max?: number;
-    enum?: any[];
+    enum?: unknown[];
   };
 }
 
@@ -61,17 +63,21 @@ export class ConfigurationTemplateService {
   }
 
   createTemplate(
-    config: any,
+    config: unknown,
     metadata: TemplateMetadata & { version?: string; compatibleProviders?: string[] },
   ): ConfigurationTemplate {
+    const cfg = config as { global?: unknown; providers?: unknown };
+    const globalConfig = typeof cfg.global === "object" && cfg.global !== null ? cfg.global : {};
+    const providersConfig =
+      typeof cfg.providers === "object" && cfg.providers !== null ? cfg.providers : {};
     const template: ConfigurationTemplate = {
       id: this.generateTemplateId(metadata.name),
       name: metadata.name,
       description: metadata.description,
       category: metadata.category as "development" | "production" | "enterprise" | "custom",
       configuration: {
-        global: config.global || {},
-        providers: config.providers || {},
+        global: globalConfig as Partial<GlobalConfiguration>,
+        providers: providersConfig as ProviderConfigurationMap,
       },
       metadata: {
         author: metadata.author,
@@ -85,7 +91,7 @@ export class ConfigurationTemplateService {
     return template;
   }
 
-  async applyTemplate(templateId: string, variables: Record<string, any>): Promise<void> {
+  async applyTemplate(templateId: string, variables: Record<string, unknown>): Promise<void> {
     const template = this.templateRepository.getTemplate(templateId);
     if (!template) {
       throw new Error(`Template with ID ${templateId} not found`);
@@ -96,7 +102,7 @@ export class ConfigurationTemplateService {
 
     if (!validationResult.isValid) {
       throw new Error(
-        `Template validation failed: ${validationResult.errors.map((e: any) => e.message).join(", ")}`,
+        `Template validation failed: ${validationResult.errors.map((e) => e.message).join(", ")}`,
       );
     }
 
@@ -180,7 +186,10 @@ export class ConfigurationTemplateService {
       .replace(/^-|-$/g, "");
   }
 
-  private getMigrationSteps(fromVersion: string, toVersion: string): any[] {
+  private getMigrationSteps(
+    fromVersion: string,
+    toVersion: string,
+  ): Array<{ migrate: (template: ConfigurationTemplate) => Promise<ConfigurationTemplate> }> {
     return [];
   }
 

@@ -1,4 +1,8 @@
-export interface DebouncedFunction<T extends (...args: any[]) => any> {
+type FunctionConstraint = {
+  (...args: never[]): unknown;
+};
+
+export interface DebouncedFunction<T extends FunctionConstraint> {
   (...args: Parameters<T>): void;
   cancel(): void;
   flush(): ReturnType<T> | undefined;
@@ -7,10 +11,10 @@ export interface DebouncedFunction<T extends (...args: any[]) => any> {
 
 export class DebouncingService {
   private debouncedFunctions = new Map<string, NodeJS.Timeout>();
-  private functionArgs = new Map<string, any[]>();
+  private functionArgs = new Map<string, unknown[]>();
   private defaultDelay = 300;
 
-  debounce<T extends (...args: any[]) => any>(
+  debounce<T extends FunctionConstraint>(
     func: T,
     delay: number = this.defaultDelay,
     options: {
@@ -35,8 +39,9 @@ export class DebouncingService {
       const args = lastArgs || ([] as unknown as Parameters<T>);
       lastArgs = undefined;
       lastInvokeTime = time;
-      result = func(...args);
-      return result as ReturnType<T>;
+      const funcResult = func(...(args as Parameters<T>)) as ReturnType<T>;
+      result = funcResult;
+      return funcResult;
     };
 
     const leadingEdge = (time: number): void => {
@@ -108,7 +113,7 @@ export class DebouncingService {
 
     const flush = (): ReturnType<T> | undefined => {
       if (timeoutId === null) {
-        return result;
+        return result as ReturnType<T> | undefined;
       }
       const time = Date.now();
       const invokeResult = invokeFunc(time);
@@ -157,11 +162,11 @@ export class DebouncingService {
     return debouncedFn;
   }
 
-  cancel<T extends (...args: unknown[]) => unknown>(debouncedFunc: DebouncedFunction<T>): void {
+  cancel<T extends (...args: never[]) => unknown>(debouncedFunc: DebouncedFunction<T>): void {
     debouncedFunc.cancel();
   }
 
-  flush<T extends (...args: unknown[]) => unknown>(debouncedFunc: DebouncedFunction<T>): void {
+  flush<T extends (...args: never[]) => unknown>(debouncedFunc: DebouncedFunction<T>): void {
     debouncedFunc.flush();
   }
 

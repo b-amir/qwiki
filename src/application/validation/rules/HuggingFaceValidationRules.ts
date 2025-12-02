@@ -12,11 +12,11 @@ export function createHuggingFaceValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => {
         if (context.operation !== "create" && context.operation !== "update") return false;
         return value !== undefined && value !== null && value !== "";
       },
-      validator: (value: any, context: ValidationContext) => {
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -43,8 +43,8 @@ export function createHuggingFaceValidationRules(): ValidationRule[] {
       description: "Validates that the model is supported",
       priority: 2,
       field: "model",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
         const validModels = [

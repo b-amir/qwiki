@@ -13,13 +13,13 @@ export interface ValidationRule {
   description: string;
   priority: number;
   field?: string;
-  condition: (value: any, context: ValidationContext) => boolean;
-  validator: (value: any, context: ValidationContext) => ValidationResult;
+  condition: (value: unknown, context: ValidationContext) => boolean;
+  validator: (value: unknown, context: ValidationContext) => ValidationResult;
   enabled: boolean;
 }
 
 export interface ValidationContext {
-  configuration: any;
+  configuration: unknown;
   schema?: ConfigurationSchema;
   providerId?: string;
   operation: "create" | "update" | "delete";
@@ -46,7 +46,7 @@ export class ConfigurationValidationEngineService {
   };
 
   validateConfiguration(
-    config: any,
+    config: unknown,
     schema: ConfigurationSchema,
     context: ValidationContext,
   ): ValidationResult {
@@ -175,7 +175,7 @@ export class ConfigurationValidationEngineService {
 
   validateProviderConfig(
     providerId: string,
-    config: any,
+    config: unknown,
     availableModels?: string[],
   ): ValidationResult {
     const context: ValidationContext = {
@@ -241,22 +241,23 @@ export class ConfigurationValidationEngineService {
       warnings,
     };
 
-    if (config.model && availableModels && availableModels.length > 0) {
+    const configObj = config as Record<string, unknown>;
+    if (configObj.model && availableModels && availableModels.length > 0) {
       const modelErrors: ValidationError[] = [];
       const modelWarnings: ValidationWarning[] = [];
 
-      if (typeof config.model !== "string") {
+      if (typeof configObj.model !== "string") {
         modelErrors.push({
           field: "model",
           code: "MODEL_INVALID_TYPE",
           message: "Model must be a string",
           severity: "error",
         });
-      } else if (!availableModels.includes(config.model)) {
+      } else if (!availableModels.includes(configObj.model)) {
         modelWarnings.push({
           field: "model",
           code: "MODEL_NOT_IN_LIST",
-          message: `Model "${config.model}" is not in the provider's available models. Available models: ${availableModels.slice(0, 5).join(", ")}${availableModels.length > 5 ? "..." : ""}`,
+          message: `Model "${configObj.model}" is not in the provider's available models. Available models: ${availableModels.slice(0, 5).join(", ")}${availableModels.length > 5 ? "..." : ""}`,
         });
       }
 
@@ -270,7 +271,7 @@ export class ConfigurationValidationEngineService {
     return baseResult;
   }
 
-  validateGlobalConfig(config: any): ValidationResult {
+  validateGlobalConfig(config: unknown): ValidationResult {
     const context: ValidationContext = {
       configuration: config,
       operation: "update",
@@ -286,29 +287,33 @@ export class ConfigurationValidationEngineService {
     return this.validateConfiguration(config, emptySchema, context);
   }
 
-  private hasField(config: any, fieldPath: string): boolean {
+  private hasField(config: unknown, fieldPath: string): boolean {
     const parts = fieldPath.split(".");
-    let current = config;
+    let current = config as Record<string, unknown>;
 
     for (const part of parts) {
       if (current === null || current === undefined) {
         return false;
       }
-      current = current[part];
+      current = current[part] as Record<string, unknown>;
     }
 
     return current !== undefined;
   }
 
-  private getFieldValue(config: any, fieldPath: string): any {
+  private getFieldValue(config: unknown, fieldPath: string): unknown {
+    if (typeof config !== "object" || config === null) {
+      return undefined;
+    }
+
     const parts = fieldPath.split(".");
-    let current = config;
+    let current: unknown = config;
 
     for (const part of parts) {
-      if (current === null || current === undefined) {
+      if (typeof current !== "object" || current === null) {
         return undefined;
       }
-      current = current[part];
+      current = (current as Record<string, unknown>)[part];
     }
 
     return current;

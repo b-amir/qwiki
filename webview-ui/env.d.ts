@@ -2,7 +2,7 @@
 
 declare module "*.vue" {
   import type { DefineComponent } from "vue";
-  const component: DefineComponent<{}, {}, any>;
+  const component: DefineComponent<{}, {}, unknown>;
   export default component;
 }
 
@@ -15,7 +15,7 @@ declare const acquireVsCodeApi: () => {
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      [elemName: string]: any;
+      [elemName: string]: unknown;
     }
   }
 }

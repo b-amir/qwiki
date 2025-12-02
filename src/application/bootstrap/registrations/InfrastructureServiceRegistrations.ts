@@ -5,6 +5,7 @@ import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VS
 import { ExtensionContextStorageService } from "@/infrastructure/services/storage/ExtensionContextStorageService";
 import { CachingService } from "@/infrastructure/services";
 import { PerformanceMonitorService } from "@/infrastructure/services/performance/PerformanceMonitorService";
+import { PerformanceBudgetService } from "@/infrastructure/services/performance/PerformanceBudgetService";
 import { GenerationCacheService } from "@/infrastructure/services/caching/GenerationCacheService";
 import { RequestBatchingService } from "@/infrastructure/services/optimization/RequestBatchingService";
 import { DebouncingService } from "@/infrastructure/services/optimization/DebouncingService";
@@ -51,6 +52,10 @@ export function registerInfrastructureServices(
   );
   container.registerInstance("cachingService", new CachingService());
   container.registerInstance("performanceMonitor", new PerformanceMonitorService());
+  container.registerInstance(
+    "performanceBudgetService",
+    new PerformanceBudgetService(loggingService),
+  );
   container.registerInstance(
     "generationCacheService",
     new GenerationCacheService(container.resolve("cachingService") as CachingService),

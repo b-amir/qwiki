@@ -4,7 +4,7 @@ export interface PerformanceMetric {
   name: string;
   duration: number;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PerformanceStats {
@@ -16,13 +16,27 @@ export interface PerformanceStats {
   lastUpdated: number;
 }
 
+export interface CacheHitStats {
+  hits: number;
+  misses: number;
+}
+
+export interface TokenUsageStats {
+  tokensUsed: number;
+  tokensAvailable: number;
+  efficiency: number;
+  count: number;
+}
+
 export class PerformanceMonitorService {
   private metrics = new Map<string, PerformanceMetric[]>();
   private stats = new Map<string, PerformanceStats>();
+  private cacheStats = new Map<string, CacheHitStats>();
+  private tokenStats = new Map<string, TokenUsageStats>();
   private readonly MAX_METRICS = 1000;
   private readonly STATS_UPDATE_THRESHOLD = 10;
 
-  startTimer(name: string, metadata?: Record<string, any>): () => void {
+  startTimer(name: string, metadata?: Record<string, unknown>): () => void {
     const startTime = performance.now();
 
     return () => {
@@ -33,7 +47,7 @@ export class PerformanceMonitorService {
     };
   }
 
-  recordMetric(name: string, duration: number, metadata?: Record<string, any>): void {
+  recordMetric(name: string, duration: number, metadata?: Record<string, unknown>): void {
     const metric: PerformanceMetric = {
       name,
       duration,
@@ -144,5 +158,94 @@ export class PerformanceMonitorService {
     }
 
     return report.join("\n");
+  }
+
+  recordCacheHit(operation: string, hit: boolean): void {
+    const key = `cache:${operation}`;
+    if (!this.cacheStats.has(key)) {
+      this.cacheStats.set(key, { hits: 0, misses: 0 });
+    }
+
+    const stats = this.cacheStats.get(key)!;
+    if (hit) {
+      stats.hits++;
+    } else {
+      stats.misses++;
+    }
+  }
+
+  getCacheHitRate(operation: string): number {
+    const key = `cache:${operation}`;
+    const stats = this.cacheStats.get(key);
+    if (!stats) {
+      return 0;
+    }
+
+    const total = stats.hits + stats.misses;
+    return total > 0 ? stats.hits / total : 0;
+  }
+
+  getCacheStats(operation: string): CacheHitStats | undefined {
+    const key = `cache:${operation}`;
+    return this.cacheStats.get(key);
+  }
+
+  getAllCacheStats(): Record<string, CacheHitStats> {
+    const result: Record<string, CacheHitStats> = {};
+    for (const [key, stats] of this.cacheStats.entries()) {
+      result[key] = { ...stats };
+    }
+    return result;
+  }
+
+  recordTokenUsage(operation: string, tokensUsed: number, tokensAvailable: number): void {
+    const key = `tokens:${operation}`;
+    const efficiency = tokensAvailable > 0 ? tokensUsed / tokensAvailable : 0;
+
+    if (!this.tokenStats.has(key)) {
+      this.tokenStats.set(key, {
+        tokensUsed: 0,
+        tokensAvailable: 0,
+        efficiency: 0,
+        count: 0,
+      });
+    }
+
+    const stats = this.tokenStats.get(key)!;
+    stats.tokensUsed += tokensUsed;
+    stats.tokensAvailable += tokensAvailable;
+    stats.count++;
+    stats.efficiency = stats.tokensAvailable > 0 ? stats.tokensUsed / stats.tokensAvailable : 0;
+  }
+
+  getTokenUsageStats(operation: string): TokenUsageStats | undefined {
+    const key = `tokens:${operation}`;
+    return this.tokenStats.get(key);
+  }
+
+  getAllTokenUsageStats(): Record<string, TokenUsageStats> {
+    const result: Record<string, TokenUsageStats> = {};
+    for (const [key, stats] of this.tokenStats.entries()) {
+      result[key] = { ...stats };
+    }
+    return result;
+  }
+
+  clearCacheStats(operation?: string): void {
+    if (operation) {
+      const key = `cache:${operation}`;
+      this.cacheStats.delete(key);
+    } else {
+      this.cacheStats.clear();
+    }
+  }
+
+  clearTokenStats(operation?: string): void {
+    if (operation) {
+      const key = `tokens:${operation}`;
+      this.tokenStats.delete(key);
+    } else {
+      this.tokenStats.clear();
+    }
   }
 }

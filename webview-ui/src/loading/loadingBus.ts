@@ -31,17 +31,18 @@ export function initializeLoadingBus(targetWindow: Window = window) {
 }
 
 function normalizePayload(payload: unknown): LoadingMessage | null {
-  if (!payload || typeof payload !== "object") return null;
-  const maybeStep = (payload as any).step;
+  if (!payload || typeof payload !== "object" || payload === null) return null;
+  const payloadObj = payload as Record<string, unknown>;
+  const maybeStep = payloadObj.step;
   if (typeof maybeStep !== "string" || !maybeStep.trim()) return null;
 
-  const maybeContext = (payload as any).context;
+  const maybeContext = payloadObj.context;
   const context: LoadingContext =
     typeof maybeContext === "string" && maybeContext.trim()
       ? maybeContext
       : inferContextFromStep(maybeStep);
 
-  const percent = (payload as any).percent;
+  const percent = payloadObj.percent;
   return {
     context,
     step: maybeStep,

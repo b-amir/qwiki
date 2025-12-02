@@ -1,4 +1,10 @@
-import type { MigrationStep, ExportedConfiguration } from "@/domain/configuration";
+import type {
+  MigrationStep,
+  ExportedConfiguration,
+  ProviderConfigurationMap,
+  ProviderConfiguration,
+  GlobalConfiguration,
+} from "@/domain/configuration";
 import type { ConfigurationRepository } from "@/domain/repositories/ConfigurationRepository";
 import { EventBus } from "@/events";
 
@@ -49,7 +55,7 @@ export class ConfigurationMigrationService {
           description: migration.description,
         });
 
-        config = await migration.migrate(config);
+        config = (await migration.migrate(config)) as ExportedConfiguration;
 
         await this.eventBus.publish("migrationCompleted", {
           version: migration.version,
@@ -144,22 +150,22 @@ export class ConfigurationMigrationService {
 
   private async getAllConfiguration(): Promise<ExportedConfiguration> {
     const allConfigs = await this.configurationRepository.getAll();
-    const providers: Record<string, any> = {};
-    let global: any = {};
+    const providers: ProviderConfigurationMap = {};
+    let global: Partial<GlobalConfiguration> = {};
 
     for (const [key, value] of Object.entries(allConfigs)) {
       if (key.startsWith("provider.") && value) {
         const providerId = key.replace("provider.", "");
-        providers[providerId] = value;
+        providers[providerId] = value as ProviderConfiguration;
       } else if (key === "global" && value) {
-        global = value;
+        global = value as Partial<GlobalConfiguration>;
       }
     }
 
     return {
       version: await this.getCurrentVersion(),
       exportedAt: new Date().toISOString(),
-      global,
+      global: global as GlobalConfiguration,
       providers,
       metadata: {
         exportedBy: "qwiki-migration",
@@ -215,121 +221,176 @@ export class ConfigurationMigrationService {
     this.addMigrationStep({
       version: "1.1.0",
       description: "Add backup configuration settings",
-      migrate: async (config: any) => {
-        if (config.global && !config.global.backupEnabled) {
-          config.global.backupEnabled = true;
-          config.global.backupRetentionDays = 30;
+      migrate: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        if (cfg.global) {
+          const global = cfg.global as unknown as Record<string, unknown>;
+          if (!global.backupEnabled) {
+            global.backupEnabled = true;
+            global.backupRetentionDays = 30;
+          }
         }
-        return config;
+        return cfg;
       },
-      rollback: async (config: any) => {
-        if (config.global) {
-          delete config.global.backupEnabled;
-          delete config.global.backupRetentionDays;
+      rollback: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        if (cfg.global) {
+          const global = cfg.global as unknown as Record<string, unknown>;
+          if ("backupEnabled" in global) {
+            delete global.backupEnabled;
+          }
+          if ("backupRetentionDays" in global) {
+            delete global.backupRetentionDays;
+          }
         }
-        return config;
+        return cfg;
       },
     });
 
     this.addMigrationStep({
       version: "1.2.0",
       description: "Migrate provider configuration structure",
-      migrate: async (config: any) => {
-        const migratedProviders: Record<string, any> = {};
+      migrate: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        const migratedProviders: Record<string, unknown> = {};
 
-        for (const [providerId, providerConfig] of Object.entries(config.providers || {})) {
-          const oldConfig = providerConfig as any;
+        for (const [providerId, providerConfig] of Object.entries(cfg.providers || {})) {
+          const oldConfig = providerConfig as unknown as Record<string, unknown>;
 
           migratedProviders[providerId] = {
             id: providerId,
-            name: oldConfig.name || providerId,
-            enabled: oldConfig.enabled !== undefined ? oldConfig.enabled : true,
-            apiKey: oldConfig.apiKey,
-            model: oldConfig.model,
-            temperature: oldConfig.temperature,
-            maxTokens: oldConfig.maxTokens,
-            topP: oldConfig.topP,
-            frequencyPenalty: oldConfig.frequencyPenalty,
-            presencePenalty: oldConfig.presencePenalty,
-            customFields: oldConfig.customFields,
-            rateLimitPerMinute: oldConfig.rateLimitPerMinute,
-            timeout: oldConfig.timeout,
-            retryAttempts: oldConfig.retryAttempts || 3,
-            fallbackProviderIds: oldConfig.fallbackProviderIds,
+            name: (typeof oldConfig.name === "string" ? oldConfig.name : undefined) || providerId,
+            enabled: oldConfig.enabled !== undefined ? Boolean(oldConfig.enabled) : true,
+            apiKey: typeof oldConfig.apiKey === "string" ? oldConfig.apiKey : undefined,
+            model: typeof oldConfig.model === "string" ? oldConfig.model : undefined,
+            temperature:
+              typeof oldConfig.temperature === "number" ? oldConfig.temperature : undefined,
+            maxTokens: typeof oldConfig.maxTokens === "number" ? oldConfig.maxTokens : undefined,
+            topP: typeof oldConfig.topP === "number" ? oldConfig.topP : undefined,
+            frequencyPenalty:
+              typeof oldConfig.frequencyPenalty === "number"
+                ? oldConfig.frequencyPenalty
+                : undefined,
+            presencePenalty:
+              typeof oldConfig.presencePenalty === "number" ? oldConfig.presencePenalty : undefined,
+            customFields:
+              typeof oldConfig.customFields === "object" && oldConfig.customFields !== null
+                ? (oldConfig.customFields as Record<string, unknown>)
+                : undefined,
+            rateLimitPerMinute:
+              typeof oldConfig.rateLimitPerMinute === "number"
+                ? oldConfig.rateLimitPerMinute
+                : undefined,
+            timeout: typeof oldConfig.timeout === "number" ? oldConfig.timeout : undefined,
+            retryAttempts:
+              typeof oldConfig.retryAttempts === "number" ? oldConfig.retryAttempts : 3,
+            fallbackProviderIds: Array.isArray(oldConfig.fallbackProviderIds)
+              ? (oldConfig.fallbackProviderIds as string[])
+              : undefined,
           };
         }
 
-        config.providers = migratedProviders;
-        return config;
+        cfg.providers = migratedProviders as ProviderConfigurationMap;
+        return cfg;
       },
-      rollback: async (config: any) => {
-        const originalProviders: Record<string, any> = {};
+      rollback: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        const originalProviders: Record<string, unknown> = {};
 
-        for (const [providerId, providerConfig] of Object.entries(config.providers || {})) {
-          const newConfig = providerConfig as any;
+        for (const [providerId, providerConfig] of Object.entries(cfg.providers || {})) {
+          const newConfig = providerConfig as unknown as Record<string, unknown>;
 
           originalProviders[providerId] = {
-            name: newConfig.name,
-            enabled: newConfig.enabled,
-            apiKey: newConfig.apiKey,
-            model: newConfig.model,
-            temperature: newConfig.temperature,
-            maxTokens: newConfig.maxTokens,
-            topP: newConfig.topP,
-            frequencyPenalty: newConfig.frequencyPenalty,
-            presencePenalty: newConfig.presencePenalty,
-            customFields: newConfig.customFields,
-            rateLimitPerMinute: newConfig.rateLimitPerMinute,
-            timeout: newConfig.timeout,
-            retryAttempts: newConfig.retryAttempts,
-            fallbackProviderIds: newConfig.fallbackProviderIds,
+            name: typeof newConfig.name === "string" ? newConfig.name : providerId,
+            enabled: typeof newConfig.enabled === "boolean" ? newConfig.enabled : true,
+            apiKey: typeof newConfig.apiKey === "string" ? newConfig.apiKey : undefined,
+            model: typeof newConfig.model === "string" ? newConfig.model : undefined,
+            temperature:
+              typeof newConfig.temperature === "number" ? newConfig.temperature : undefined,
+            maxTokens: typeof newConfig.maxTokens === "number" ? newConfig.maxTokens : undefined,
+            topP: typeof newConfig.topP === "number" ? newConfig.topP : undefined,
+            frequencyPenalty:
+              typeof newConfig.frequencyPenalty === "number"
+                ? newConfig.frequencyPenalty
+                : undefined,
+            presencePenalty:
+              typeof newConfig.presencePenalty === "number" ? newConfig.presencePenalty : undefined,
+            customFields:
+              typeof newConfig.customFields === "object" && newConfig.customFields !== null
+                ? (newConfig.customFields as Record<string, unknown>)
+                : undefined,
+            rateLimitPerMinute:
+              typeof newConfig.rateLimitPerMinute === "number"
+                ? newConfig.rateLimitPerMinute
+                : undefined,
+            timeout: typeof newConfig.timeout === "number" ? newConfig.timeout : undefined,
+            retryAttempts:
+              typeof newConfig.retryAttempts === "number" ? newConfig.retryAttempts : undefined,
+            fallbackProviderIds: Array.isArray(newConfig.fallbackProviderIds)
+              ? (newConfig.fallbackProviderIds as string[])
+              : undefined,
           };
         }
 
-        config.providers = originalProviders;
-        return config;
+        cfg.providers = originalProviders as ProviderConfigurationMap;
+        return cfg;
       },
     });
 
     this.addMigrationStep({
       version: "1.3.0",
       description: "Add performance monitoring settings",
-      migrate: async (config: any) => {
-        if (config.global && !config.global.enablePerformanceMonitoring) {
-          config.global.enablePerformanceMonitoring = true;
-          config.global.enableErrorReporting = true;
+      migrate: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        if (cfg.global && !cfg.global.enablePerformanceMonitoring) {
+          cfg.global.enablePerformanceMonitoring = true;
+          cfg.global.enableErrorReporting = true;
         }
-        return config;
+        return cfg;
       },
-      rollback: async (config: any) => {
-        if (config.global) {
-          delete config.global.enablePerformanceMonitoring;
-          delete config.global.enableErrorReporting;
+      rollback: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        if (cfg.global) {
+          const global = cfg.global as unknown as Record<string, unknown>;
+          if ("enablePerformanceMonitoring" in global) {
+            delete global.enablePerformanceMonitoring;
+          }
+          if ("enableErrorReporting" in global) {
+            delete global.enableErrorReporting;
+          }
         }
-        return config;
+        return cfg;
       },
     });
 
     this.addMigrationStep({
       version: "1.4.0",
       description: "Add language and theme settings",
-      migrate: async (config: any) => {
-        if (config.global) {
-          if (!config.global.language) {
-            config.global.language = "en";
+      migrate: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        if (cfg.global) {
+          const global = cfg.global as unknown as Record<string, unknown>;
+          if (!global.language) {
+            global.language = "en";
           }
-          if (!config.global.uiTheme) {
-            config.global.uiTheme = "auto";
+          if (!global.uiTheme) {
+            global.uiTheme = "auto";
           }
         }
-        return config;
+        return cfg;
       },
-      rollback: async (config: any) => {
-        if (config.global) {
-          delete config.global.language;
-          delete config.global.uiTheme;
+      rollback: async (config: unknown) => {
+        const cfg = config as ExportedConfiguration;
+        if (cfg.global) {
+          const global = cfg.global as unknown as Record<string, unknown>;
+          if ("language" in global) {
+            delete global.language;
+          }
+          if ("uiTheme" in global) {
+            delete global.uiTheme;
+          }
         }
-        return config;
+        return cfg;
       },
     });
   }

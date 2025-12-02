@@ -381,6 +381,84 @@ export class ErrorRecoveryService {
     return cacheFallbackCodes.includes(error.code);
   }
 
+  async executeWithFallback<T>(primary: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
+    try {
+      return await primary();
+    } catch (error: unknown) {
+      this.logger.warn("Primary operation failed, using fallback", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      try {
+        return await fallback();
+      } catch (fallbackError: unknown) {
+        this.logger.error("Fallback operation also failed", {
+          primaryError: error instanceof Error ? error.message : String(error),
+          fallbackError:
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        });
+        throw fallbackError;
+      }
+    }
+  }
+
+  async executeWithGracefulDegradation<T>(
+    operation: () => Promise<T>,
+    degradedOperation: () => Promise<Partial<T>>,
+    errorClassifier: (error: unknown) => ProviderError,
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      const providerError = errorClassifier(error);
+
+      if (!this.shouldDegrade(providerError)) {
+        throw error;
+      }
+
+      this.logger.warn("Operation failed, attempting graceful degradation", {
+        errorCode: providerError.code,
+        providerId: providerError.providerId,
+      });
+
+      try {
+        const degradedResult = await degradedOperation();
+        this.logger.info("Graceful degradation successful", {
+          errorCode: providerError.code,
+          providerId: providerError.providerId,
+        });
+
+        if (this.eventBus) {
+          this.eventBus.publish("gracefulDegradationUsed", {
+            error: providerError,
+            providerId: providerError.providerId,
+            operation: "executeWithGracefulDegradation",
+          });
+        }
+
+        return degradedResult as T;
+      } catch (degradedError: unknown) {
+        this.logger.error("Graceful degradation also failed", {
+          originalError: providerError.message,
+          degradedError:
+            degradedError instanceof Error ? degradedError.message : String(degradedError),
+        });
+        throw error;
+      }
+    }
+  }
+
+  private shouldDegrade(error: ProviderError): boolean {
+    const degradeableCodes: string[] = [
+      ErrorCodes.RATE_LIMIT_EXCEEDED,
+      ErrorCodes.MODEL_NOT_SUPPORTED,
+      ErrorCodes.GENERATION_FAILED,
+      ErrorCodes.NETWORK_ERROR,
+    ];
+
+    return degradeableCodes.includes(error.code);
+  }
+
   private getRetryStrategyForError(error: ProviderError): RetryStrategy {
     const strategy = this.retryStrategies.get(error.code as ErrorCode);
     if (strategy) {

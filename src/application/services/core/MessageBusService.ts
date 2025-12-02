@@ -9,6 +9,7 @@ import {
   type DebouncedFunction,
 } from "@/infrastructure/services/optimization/DebouncingService";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import { ErrorContextBuilder } from "@/infrastructure/services/error/ErrorContextBuilder";
 
 type MessagePayload = Record<string, unknown> | undefined;
 type PostMessageFn = (command: string, payload?: MessagePayload) => void;
@@ -71,30 +72,45 @@ export class MessageBusService {
     code: string = ErrorCodes.unknown,
     suggestion?: string,
     context?: Record<string, unknown>,
-    originalError?: string,
+    originalError?: string | Error,
   ): void {
-    const suggestions = suggestion ? [suggestion] : undefined;
+    const error =
+      originalError instanceof Error
+        ? originalError
+        : originalError
+          ? new Error(originalError)
+          : new Error(message);
+
+    const operation = (context?.operation as string) || "unknown";
+
+    const errorContext = ErrorContextBuilder.build(operation, error, {
+      ...context,
+      code,
+      originalMessage: message,
+    });
+
+    const suggestions = suggestion
+      ? [suggestion, ...errorContext.suggestions]
+      : errorContext.suggestions;
 
     this.logger.error("Error posted to frontend", {
       code,
-      message,
-      suggestion,
+      message: errorContext.userMessage,
       suggestions,
-      context,
-      originalError,
-      timestamp: new Date().toISOString(),
+      context: errorContext.data,
+      originalError: originalError instanceof Error ? originalError.message : originalError,
+      timestamp: new Date(errorContext.timestamp).toISOString(),
     });
 
     this.postImmediate(OutboundEvents.error, {
       code,
-      message,
+      message: errorContext.userMessage,
       suggestions,
-      suggestion,
-      originalError,
-      timestamp: new Date().toISOString(),
-      context: context
-        ? JSON.stringify(context).substring(0, ServiceLimits.errorContextMaxLength)
+      timestamp: new Date(errorContext.timestamp).toISOString(),
+      context: errorContext.data
+        ? JSON.stringify(errorContext.data).substring(0, ServiceLimits.errorContextMaxLength)
         : undefined,
+      originalError: originalError instanceof Error ? originalError.message : originalError,
     });
   }
 

@@ -12,7 +12,8 @@ function applyVscodeThemeClass() {
   const isDark =
     body.classList.contains("vscode-dark") || body.classList.contains("vscode-high-contrast");
   document.documentElement.classList.toggle("dark", isDark && !isLight);
-  (document.documentElement.style as any).colorScheme = isLight ? "light" : "dark";
+  (document.documentElement.style as CSSStyleDeclaration & { colorScheme?: string }).colorScheme =
+    isLight ? "light" : "dark";
 }
 
 applyVscodeThemeClass();

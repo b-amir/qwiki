@@ -6,6 +6,61 @@ import { ApiKeyTimings } from "@/constants/apiKeyTimings";
 
 const logger = createLogger("SettingsStore");
 
+interface ProviderHealthStatus {
+  providerId: string;
+  isHealthy: boolean;
+  lastChecked: string;
+  responseTime?: number;
+  error?: string;
+  consecutiveFailures: number;
+}
+
+interface ProviderPerformanceStats {
+  providerId: string;
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  averageResponseTime: number;
+  successRate: number;
+  lastRequestTime: string;
+  averageTokensPerRequest?: number;
+}
+
+interface ConfigurationTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  metadata: {
+    author: string;
+    version: string;
+    tags: string[];
+    compatibleProviders: string[];
+  };
+}
+
+interface ConfigurationBackup {
+  id: string;
+  createdAt: string;
+  description?: string;
+  size: number;
+  compressed: boolean;
+}
+
+interface ProviderCapability {
+  feature: string;
+  supported: boolean;
+  details?: Record<string, unknown>;
+}
+
+interface Provider {
+  id: string;
+  name: string;
+  hasKey?: boolean;
+  requiresApiKey?: boolean;
+  [key: string]: unknown;
+}
+
 export const useSettingsStore = defineStore("settings", {
   state: () => ({
     apiKeyInputs: {} as Record<string, string>,
@@ -27,15 +82,15 @@ export const useSettingsStore = defineStore("settings", {
     validationState: {
       isValidating: false,
       lastValidationTime: 0,
-      validationCache: {} as Record<string, any>,
+      validationCache: {} as Record<string, ValidationCacheEntry>,
     },
-    configurationTemplates: [] as any[],
-    availableBackups: [] as any[],
-    providerHealthStatus: {} as any,
-    providerPerformanceStats: {} as any,
+    configurationTemplates: [] as ConfigurationTemplate[],
+    availableBackups: [] as ConfigurationBackup[],
+    providerHealthStatus: {} as Record<string, ProviderHealthStatus>,
+    providerPerformanceStats: {} as Record<string, ProviderPerformanceStats>,
     validationErrors: [] as string[],
     validationWarnings: [] as string[],
-    providerCapabilities: {} as Record<string, any>,
+    providerCapabilities: {} as Record<string, ProviderCapability>,
     providerValidationErrors: {} as Record<
       string,
       Array<{ field?: string; code?: string; message: string; severity?: string }>
@@ -215,10 +270,13 @@ export const useSettingsStore = defineStore("settings", {
               }
 
               if (!this.selectedProvider && providers.length > 0) {
-                if (activeProviderId && providers.find((p: any) => p.id === activeProviderId)) {
+                if (
+                  activeProviderId &&
+                  providers.find((p: ProviderInfo) => p.id === activeProviderId)
+                ) {
                   this.selectedProvider = activeProviderId;
                 } else {
-                  const withKey = providers.find((p: any) => p.hasKey);
+                  const withKey = providers.find((p: ProviderInfo) => p.hasKey);
                   this.selectedProvider = withKey?.id || providers[0]?.id || "google-ai-studio";
                 }
               }
@@ -245,14 +303,23 @@ export const useSettingsStore = defineStore("settings", {
               );
 
               if (providerId) {
-                const formattedErrors = errors.map((e: any) => {
+                const formattedErrors = errors.map((e: unknown) => {
                   if (typeof e === "string") return { message: e, severity: "error" };
-                  return {
-                    field: e?.field,
-                    code: e?.code,
-                    message: e?.message || e?.error || JSON.stringify(e),
-                    severity: e?.severity || "error",
-                  };
+                  if (typeof e === "object" && e !== null) {
+                    const err = e as Record<string, unknown>;
+                    return {
+                      field: typeof err.field === "string" ? err.field : undefined,
+                      code: typeof err.code === "string" ? err.code : undefined,
+                      message:
+                        typeof err.message === "string"
+                          ? err.message
+                          : typeof err.error === "string"
+                            ? err.error
+                            : JSON.stringify(e),
+                      severity: typeof err.severity === "string" ? err.severity : "error",
+                    };
+                  }
+                  return { message: String(e), severity: "error" };
                 });
                 this.providerValidationErrors[providerId] = formattedErrors;
               }
@@ -302,7 +369,11 @@ export const useSettingsStore = defineStore("settings", {
             case "providerHealthRetrieved": {
               const healthStatus = message.payload.healthStatus;
               const healthyCount = Object.values(healthStatus).filter(
-                (status: any) => status.isHealthy,
+                (status: unknown) =>
+                  typeof status === "object" &&
+                  status !== null &&
+                  "isHealthy" in status &&
+                  (status as { isHealthy: unknown }).isHealthy === true,
               ).length;
               logger.debug(`Retrieved provider health - ${healthyCount} healthy providers`);
               this.providerHealthStatus = healthStatus;
@@ -687,7 +758,7 @@ export const useSettingsStore = defineStore("settings", {
         payload: { providerId, model },
       });
     },
-    async validateConfiguration(config: any, providerId?: string) {
+    async validateConfiguration(config: unknown, providerId?: string) {
       const validationStartTime = Date.now();
       logger.debug(`Validating configuration for provider ${providerId || "unknown"}`);
 
@@ -801,10 +872,11 @@ export const useSettingsStore = defineStore("settings", {
     getProvidersRequiringKeys(): string[] {
       return this.providersRequiringKeys;
     },
-    updateProvidersRequiringKeys(providers: any[]): void {
+    updateProvidersRequiringKeys(providers: ProviderInfo[]): void {
       this.providersRequiringKeys = providers
-        .filter((p: any) => p.requiresApiKey !== false)
-        .map((p: any) => p.id);
+        .filter((p: ProviderInfo) => p.requiresApiKey !== false)
+        .map((p: ProviderInfo) => (typeof p.id === "string" ? p.id : ""))
+        .filter((id): id is string => id !== "");
     },
     checkAllApiKeysStatus(): Record<string, boolean> {
       const allKeys = { ...this.originalApiKeys, ...this.apiKeyInputs };

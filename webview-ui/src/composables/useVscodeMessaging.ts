@@ -8,7 +8,7 @@ export function useVscodeMessaging() {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  const postMessage = (message: { command: string; payload?: any }) => {
+  const postMessage = (message: { command: string; payload?: unknown }) => {
     try {
       vscode.postMessage(message);
     } catch (err) {

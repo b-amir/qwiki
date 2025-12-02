@@ -12,11 +12,11 @@ export function createGoogleAIStudioValidationRules(): ValidationRule[] {
       description: "Validates that API key is present and properly formatted",
       priority: 1,
       field: "apiKey",
-      condition: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => {
         if (context.operation !== "create" && context.operation !== "update") return false;
         return value !== undefined && value !== null && value !== "";
       },
-      validator: (value: any, context: ValidationContext) => {
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -43,8 +43,8 @@ export function createGoogleAIStudioValidationRules(): ValidationRule[] {
       description: "Validates that the model is supported",
       priority: 2,
       field: "model",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
         const validModels = ["gemini-2.5-pro", "gemini-2.5-flash"];
@@ -74,8 +74,8 @@ export function createGoogleAIStudioValidationRules(): ValidationRule[] {
       description: "Validates temperature is within acceptable range",
       priority: 3,
       field: "temperature",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
 
@@ -105,8 +105,8 @@ export function createGoogleAIStudioValidationRules(): ValidationRule[] {
       description: "Validates endpoint type is supported",
       priority: 4,
       field: "googleAIEndpoint",
-      condition: (value: any, context: ValidationContext) => value !== undefined,
-      validator: (value: any, context: ValidationContext) => {
+      condition: (value: unknown, context: ValidationContext) => value !== undefined,
+      validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
         const validEndpoints = ["openai-compatible", "native"];

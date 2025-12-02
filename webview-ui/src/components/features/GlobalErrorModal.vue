@@ -5,6 +5,7 @@ import { useNavigation } from "@/composables/useNavigation";
 import { useErrorCategory } from "@/composables/useErrorCategory";
 import { ErrorTitles } from "@/utilities/errorMessages";
 import type { ErrorAction } from "@/utilities/errorActions";
+import type { PageType } from "@/stores/navigation";
 import Modal from "@/components/ui/Modal.vue";
 import ModalHeader from "@/components/ui/ModalHeader.vue";
 import ModalContent from "@/components/ui/ModalContent.vue";
@@ -32,7 +33,7 @@ const handleClose = () => {
 
 const handleAction = (action: ErrorAction) => {
   if (action.action === "navigate" && action.target) {
-    navigateTo(action.target as any);
+    navigateTo(action.target as PageType);
     handleClose();
   } else if (action.action === "none") {
     if (action.handler) {
