@@ -28,6 +28,8 @@ export const useWikiStore = defineStore("wiki", {
       timestamp: number;
     } | null,
     getRelatedDebounceTimer: null as number | null,
+    initialized: false as boolean,
+    initTimeoutId: null as number | null,
   }),
   actions: {
     init() {
@@ -70,6 +72,14 @@ export const useWikiStore = defineStore("wiki", {
             const activeModel = Array.isArray(payload) ? undefined : payload.activeModel;
 
             this.providers = providers;
+
+            if (!this.initialized) {
+              this.initialized = true;
+              if (this.initTimeoutId !== null) {
+                clearTimeout(this.initTimeoutId);
+                this.initTimeoutId = null;
+              }
+            }
 
             vscode.postMessage({
               command: "frontendLog",
@@ -264,10 +274,10 @@ export const useWikiStore = defineStore("wiki", {
       vscode.postMessage({ command: "getSelection" });
       this.debouncedGetRelated();
 
-      setTimeout(async () => {
-        if (this.loading) {
-          this.loading = false;
-          this.loadingStep = "";
+      this.initTimeoutId = window.setTimeout(async () => {
+        if (!this.initialized) {
+          this.initialized = true;
+          this.initTimeoutId = null;
           const errorInfo = getErrorMessage(ErrorCodes.INIT_TIMEOUT);
           const { useErrorStore } = await import("./error");
           const errorStore = useErrorStore();
@@ -282,6 +292,8 @@ export const useWikiStore = defineStore("wiki", {
             },
           });
           useLoadingStore().fail({ context: "wiki", error: errorInfo.message });
+        } else {
+          this.initTimeoutId = null;
         }
       }, 30000);
     },
