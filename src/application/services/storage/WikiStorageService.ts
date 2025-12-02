@@ -1,4 +1,4 @@
-import { workspace } from "vscode";
+import { workspace, FileType } from "vscode";
 import { join } from "path";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { VSCodeFileSystemService } from "@/infrastructure/services";
@@ -67,6 +67,7 @@ export class WikiStorageService {
   async getAllSavedWikis(): Promise<SavedWiki[]> {
     const workspaceFolders = workspace.workspaceFolders;
     if (!workspaceFolders?.length) {
+      this.logger.debug("No workspace folders found");
       return [];
     }
 
@@ -75,29 +76,58 @@ export class WikiStorageService {
     const savedFolderPath = join(qwikiFolderPath, "saved");
 
     try {
-      if (!(await this.vscodeFileSystem.fileExists(savedFolderPath))) {
-        return [];
-      }
-
       const entries = await this.vscodeFileSystem.readDirectory(savedFolderPath);
+      this.logger.debug(`Found ${entries.length} entries in saved folder: ${savedFolderPath}`);
+
       const wikis: SavedWiki[] = [];
+      let processedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
 
       for (const [name, type] of entries) {
-        if (type === 1 && name.endsWith(".md")) {
+        const isFile = (type & FileType.File) === FileType.File;
+        const isMarkdown = name.endsWith(".md");
+
+        if (isFile && isMarkdown) {
           try {
             const filePath = join(savedFolderPath, name);
+            this.logger.debug(`Processing wiki file: ${name}`);
             const contentStr = await this.vscodeFileSystem.readFile(filePath, true);
             const parsed = this.parseWikiContent(contentStr, filePath);
             wikis.push(parsed);
+            processedCount++;
           } catch (error) {
-            this.logger.error(`Failed to read wiki file ${name}`, error);
+            errorCount++;
+            this.logger.error(`Failed to read wiki file ${name}`, {
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            });
+          }
+        } else {
+          skippedCount++;
+          if (!isFile) {
+            this.logger.debug(`Skipping non-file entry: ${name} (type: ${type})`);
+          } else if (!isMarkdown) {
+            this.logger.debug(`Skipping non-markdown file: ${name}`);
           }
         }
       }
 
+      this.logger.debug(
+        `Processed ${processedCount} wikis, skipped ${skippedCount} entries, ${errorCount} errors`,
+      );
       return wikis.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
-      this.logger.error("Failed to get saved wikis", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("does not exist") || errorMessage.includes("ENOENT")) {
+        this.logger.debug(`Saved folder does not exist: ${savedFolderPath}`);
+      } else {
+        this.logger.error("Failed to get saved wikis", {
+          error: errorMessage,
+          stack: error instanceof Error ? error.stack : undefined,
+          savedFolderPath,
+        });
+      }
       return [];
     }
   }
@@ -119,7 +149,8 @@ export class WikiStorageService {
 
       const entries = await this.vscodeFileSystem.readDirectory(savedFolderPath);
       for (const [name, type] of entries) {
-        if (type === 1 && name.startsWith(wikiId) && name.endsWith(".md")) {
+        const isFile = (type & FileType.File) === FileType.File;
+        if (isFile && name.startsWith(wikiId) && name.endsWith(".md")) {
           const filePath = join(savedFolderPath, name);
           await this.vscodeFileSystem.delete(filePath);
           break;
