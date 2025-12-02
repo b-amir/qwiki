@@ -3,8 +3,13 @@ import { createLogger } from "@/utilities/logging";
 
 const lastPayloadByCommand = new Map<string, string>();
 const lastExecutionTime = new Map<string, number>();
-const DEDUP_IN_BATCH = new Set<string>(["environmentStatus", "getSavedWikis"]);
-const DEDUP_ACROSS_BATCHES = new Set<string>(["environmentStatus", "getSavedWikis"]);
+const DEDUP_IN_BATCH = new Set<string>([
+  "environmentStatus",
+  "getSavedWikis",
+  "navigate",
+  "loadingStep",
+]);
+const DEDUP_ACROSS_BATCHES = new Set<string>(["environmentStatus", "getSavedWikis", "navigate"]);
 const THROTTLED_COMMANDS = new Set<string>(["getSavedWikis"]);
 const ANIMATION_COMMANDS = new Set<string>(["loadingStep", "wikiContentChunk"]);
 const THROTTLE_DELAY = 1000;
@@ -190,6 +195,19 @@ interface BatchPayload {
   messages?: unknown[];
 }
 
+function isNewerLoadingStep(msg1: BatchMessage, msg2: BatchMessage): boolean {
+  const seq1 = (msg1.payload as { sequence?: number })?.sequence ?? 0;
+  const seq2 = (msg2.payload as { sequence?: number })?.sequence ?? 0;
+
+  if (seq1 !== seq2) {
+    return seq1 > seq2;
+  }
+
+  const ts1 = (msg1 as { timestamp?: number }).timestamp ?? 0;
+  const ts2 = (msg2 as { timestamp?: number }).timestamp ?? 0;
+  return ts1 > ts2;
+}
+
 export function useBatchMessageBridge() {
   const handler = (event: MessageEvent) => {
     const batchReceiveTime = performance.now();
@@ -214,6 +232,7 @@ export function useBatchMessageBridge() {
     } catch {}
 
     const seenInBatch = new Set<string>();
+    const loadingStepsByContext = new Map<string, BatchMessage>();
     const coalesced: BatchMessage[] = [];
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
@@ -226,6 +245,20 @@ export function useBatchMessageBridge() {
       )
         continue;
       const message = m as BatchMessage;
+
+      if (message.command === "loadingStep" && message.payload) {
+        const context = (message.payload as { context?: string })?.context;
+        if (context) {
+          const key = `loadingStep:${context}`;
+          const existing = loadingStepsByContext.get(key);
+
+          if (!existing || isNewerLoadingStep(message, existing)) {
+            loadingStepsByContext.set(key, message);
+          }
+          continue;
+        }
+      }
+
       if (DEDUP_IN_BATCH.has(message.command)) {
         if (seenInBatch.has(message.command)) {
           deduplicatedCount++;
@@ -237,6 +270,11 @@ export function useBatchMessageBridge() {
         coalesced.push(message);
       }
     }
+
+    for (const step of loadingStepsByContext.values()) {
+      coalesced.push(step);
+    }
+
     coalesced.reverse();
 
     const toForward: Array<{ command: string; payload: unknown }> = [];

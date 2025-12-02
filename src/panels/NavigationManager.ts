@@ -14,6 +14,8 @@ export class NavigationManager {
   private _pendingSelection: { payload: SelectionPayload; autoGenerate: boolean } | undefined;
   private _lastSelection: SelectionPayload | undefined;
   private _webviewReady = false;
+  private lastNavigationTime = 0;
+  private readonly NAVIGATION_DEBOUNCE_MS = 100;
   private logger: Logger;
 
   constructor(
@@ -37,7 +39,24 @@ export class NavigationManager {
   }
 
   queueNavigation(page: Page): void {
+    const now = Date.now();
+
     this.logger.debug("queueNavigation called", { page, webviewReady: this._webviewReady });
+
+    if (now - this.lastNavigationTime < this.NAVIGATION_DEBOUNCE_MS) {
+      this.logger.debug("Navigation request debounced", {
+        page,
+        timeSinceLast: now - this.lastNavigationTime,
+      });
+      return;
+    }
+
+    if (this._pendingPage === page) {
+      this.logger.debug("Navigation already queued for page", { page });
+      return;
+    }
+
+    this.lastNavigationTime = now;
     this._pendingPage = page;
     this.flushPendingNavigation();
   }

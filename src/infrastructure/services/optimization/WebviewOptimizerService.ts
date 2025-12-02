@@ -29,6 +29,7 @@ export class WebviewOptimizerService {
   private readonly MAX_BATCH_SIZE = 20; // Changed from 10
   private messageId = 0;
   private lastEnvironmentStatusPayload: string | undefined;
+  private lastNavigationPayload: string | undefined;
   private logger: Logger;
 
   constructor(
@@ -63,6 +64,15 @@ export class WebviewOptimizerService {
         return;
       }
       this.lastEnvironmentStatusPayload = payloadHash;
+    }
+
+    if (command === "navigate") {
+      const payloadHash = JSON.stringify(payload);
+      if (this.lastNavigationPayload === payloadHash) {
+        this.logDebug("Deduplicating duplicate navigation command");
+        return;
+      }
+      this.lastNavigationPayload = payloadHash;
     }
 
     const message: QueuedMessage = {
@@ -114,7 +124,10 @@ export class WebviewOptimizerService {
       return priorityOrder[a.priority] - priorityOrder[b.priority];
     });
 
-    const batch = this.messageQueue.splice(0, this.MAX_BATCH_SIZE);
+    const deduplicatedQueue = this.deduplicateMessages([...this.messageQueue]);
+    this.messageQueue = [];
+    const batch = deduplicatedQueue.splice(0, this.MAX_BATCH_SIZE);
+    this.messageQueue = deduplicatedQueue;
 
     if (batch.length === 1) {
       const message = batch[0];
@@ -132,8 +145,8 @@ export class WebviewOptimizerService {
       });
     }
 
-    if (this.messageQueue.length > 0) {
-      const nextPriority = this.messageQueue[0]?.priority || "normal";
+    if (deduplicatedQueue.length > 0) {
+      const nextPriority = deduplicatedQueue[0]?.priority || "normal";
       this.scheduleBatch(nextPriority);
     }
   }
@@ -170,6 +183,60 @@ export class WebviewOptimizerService {
     }
   }
 
+  private deduplicateMessages(messages: QueuedMessage[]): QueuedMessage[] {
+    const loadingSteps = new Map<string, QueuedMessage>();
+    const navigations = new Map<string, QueuedMessage>();
+    const deduplicated: QueuedMessage[] = [];
+
+    for (const msg of messages) {
+      if (msg.command === "loadingStep" && msg.payload) {
+        const context = (msg.payload as { context?: string }).context;
+        if (context) {
+          const key = `loadingStep:${context}`;
+          const existing = loadingSteps.get(key);
+
+          if (!existing || this.isNewerStep(msg, existing)) {
+            loadingSteps.set(key, msg);
+          }
+          continue;
+        }
+      }
+
+      if (msg.command === "navigate") {
+        const payloadHash = JSON.stringify(msg.payload);
+        const existing = navigations.get("navigate");
+
+        if (!existing || msg.timestamp > existing.timestamp) {
+          navigations.set("navigate", msg);
+        }
+        continue;
+      }
+
+      deduplicated.push(msg);
+    }
+
+    for (const step of loadingSteps.values()) {
+      deduplicated.push(step);
+    }
+
+    for (const nav of navigations.values()) {
+      deduplicated.push(nav);
+    }
+
+    return deduplicated.sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  private isNewerStep(msg1: QueuedMessage, msg2: QueuedMessage): boolean {
+    const seq1 = (msg1.payload as { sequence?: number })?.sequence ?? 0;
+    const seq2 = (msg2.payload as { sequence?: number })?.sequence ?? 0;
+
+    if (seq1 !== seq2) {
+      return seq1 > seq2;
+    }
+
+    return msg1.timestamp > msg2.timestamp;
+  }
+
   private generateMessageId(): string {
     return `msg_${++this.messageId}_${Date.now()}`;
   }
@@ -180,6 +247,7 @@ export class WebviewOptimizerService {
       this.batchTimeout = null;
     }
     this.lastEnvironmentStatusPayload = undefined;
+    this.lastNavigationPayload = undefined;
     this.flushQueue();
   }
 }
