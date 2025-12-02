@@ -77,7 +77,6 @@ export class WikiStorageService {
 
     try {
       const entries = await this.vscodeFileSystem.readDirectory(savedFolderPath);
-      this.logger.debug(`Found ${entries.length} entries in saved folder: ${savedFolderPath}`);
 
       const wikis: SavedWiki[] = [];
       let processedCount = 0;
@@ -91,7 +90,6 @@ export class WikiStorageService {
         if (isFile && isMarkdown) {
           try {
             const filePath = join(savedFolderPath, name);
-            this.logger.debug(`Processing wiki file: ${name}`);
             const contentStr = await this.vscodeFileSystem.readFile(filePath, true);
             const parsed = this.parseWikiContent(contentStr, filePath);
             wikis.push(parsed);
@@ -105,17 +103,12 @@ export class WikiStorageService {
           }
         } else {
           skippedCount++;
-          if (!isFile) {
-            this.logger.debug(`Skipping non-file entry: ${name} (type: ${type})`);
-          } else if (!isMarkdown) {
-            this.logger.debug(`Skipping non-markdown file: ${name}`);
-          }
         }
       }
 
-      this.logger.debug(
-        `Processed ${processedCount} wikis, skipped ${skippedCount} entries, ${errorCount} errors`,
-      );
+      if (errorCount > 0) {
+        this.logger.warn(`Failed to load ${errorCount} wiki file(s) from saved folder`);
+      }
       return wikis.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
