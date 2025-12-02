@@ -15,6 +15,7 @@ import { LoggingService, createLogger, type Logger } from "@/infrastructure/serv
 export class CachedProjectContextService {
   private readonly CACHE_TTL = ServiceLimits.projectContextCacheTTL;
   private logger: Logger;
+  private inFlightBuilds = new Map<string, Promise<ProjectContext>>();
 
   constructor(
     private cachingService: CachingService,
@@ -97,14 +98,23 @@ export class CachedProjectContextService {
       return cached;
     }
 
+    const inFlight = this.inFlightBuilds.get(cacheKey);
+    if (inFlight) {
+      this.logger.debug("Deduplicating concurrent build request", { cacheKey });
+      endTimer();
+      return inFlight;
+    }
+
     this.logger.debug("Cache miss, delegating to ProjectContextService");
     const buildStart = Date.now();
-    const context = await this.projectContextService.buildContext(
-      snippet,
-      filePath,
-      languageId,
-      webview,
-    );
+    const buildPromise = this.projectContextService
+      .buildContext(snippet, filePath, languageId, webview)
+      .finally(() => {
+        this.inFlightBuilds.delete(cacheKey);
+      });
+    this.inFlightBuilds.set(cacheKey, buildPromise);
+
+    const context = await buildPromise;
     this.logger.debug("ProjectContextService.buildContext completed", {
       duration: Date.now() - buildStart,
       rootName: context.rootName,

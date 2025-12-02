@@ -9,7 +9,7 @@ export class IndexInitializer {
   ) {}
 
   async quickInit(): Promise<boolean> {
-    this.logger.info("Starting quick initialization (cache only)");
+    this.logger.debug("Starting quick initialization (cache only)");
     const startTime = Date.now();
 
     try {
