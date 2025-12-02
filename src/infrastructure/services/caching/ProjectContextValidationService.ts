@@ -78,8 +78,9 @@ export class ProjectContextValidationService {
       }
 
       return { isValid: true };
-    } catch (error: any) {
-      if (error.code === "FileNotFound") {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
+      if (errObj?.code === "FileNotFound") {
         this.logger.debug("package.json not found", { path: packageJsonPath });
         return {
           isValid: false,

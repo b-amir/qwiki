@@ -117,7 +117,7 @@ export class ProviderPerformanceService {
     return this.statisticsCalculationService.getWeightedScore(providerId, metrics);
   }
 
-  recordSelection(providerId: string, context: any): void {
+  recordSelection(providerId: string, context: Record<string, unknown>): void {
     this.metricsCollectionService.recordSelection(providerId, context);
   }
 

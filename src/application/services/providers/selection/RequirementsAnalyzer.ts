@@ -11,21 +11,21 @@ export class RequirementsAnalyzer {
     const requiredFeatures: ProviderFeature[] = [];
     const complexity = context.complexity.overall;
 
-    if (context.patterns.some((p: any) => p.type === PatternType.FUNCTION_DECLARATION)) {
+    if (context.patterns.some((p) => p.type === PatternType.FUNCTION_DECLARATION)) {
       requiredFeatures.push(ProviderFeature.FUNCTION_CALLING);
     }
 
-    if (context.patterns.some((p: any) => p.type === PatternType.CLASS_DECLARATION)) {
+    if (context.patterns.some((p) => p.type === PatternType.CLASS_DECLARATION)) {
       requiredFeatures.push(ProviderFeature.CODE_ANALYSIS);
     }
 
-    if (context.patterns.some((p: any) => p.type === PatternType.INTERFACE_DECLARATION)) {
+    if (context.patterns.some((p) => p.type === PatternType.INTERFACE_DECLARATION)) {
       requiredFeatures.push(ProviderFeature.MULTI_LANGUAGE);
     }
 
     if (
       context.relationships.some(
-        (r: any) => r.type === RelationshipType.INHERITS || r.type === RelationshipType.IMPLEMENTS,
+        (r) => r.type === RelationshipType.INHERITS || r.type === RelationshipType.IMPLEMENTS,
       )
     ) {
       requiredFeatures.push(ProviderFeature.CONTEXT_AWARENESS);
@@ -37,15 +37,11 @@ export class RequirementsAnalyzer {
     const minContextWindow = complexity > 0.8 ? 16000 : 8000;
 
     let domain: "general" | "technical" | "scientific" | "business" = "general";
-    if (context.patterns.some((p: any) => p.confidence > 0.8 && p.name.includes("API"))) {
+    if (context.patterns.some((p) => p.confidence > 0.8 && p.name.includes("API"))) {
       domain = "technical";
-    } else if (
-      context.patterns.some((p: any) => p.confidence > 0.8 && p.name.includes("Database"))
-    ) {
+    } else if (context.patterns.some((p) => p.confidence > 0.8 && p.name.includes("Database"))) {
       domain = "business";
-    } else if (
-      context.patterns.some((p: any) => p.confidence > 0.8 && p.name.includes("Algorithm"))
-    ) {
+    } else if (context.patterns.some((p) => p.confidence > 0.8 && p.name.includes("Algorithm"))) {
       domain = "scientific";
     }
 

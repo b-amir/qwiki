@@ -4,7 +4,7 @@ import {
   CapabilityRequirement,
   ProviderCapabilities,
 } from "@/llm/types/ProviderCapabilities";
-import { GenerateParams } from "@/llm/types";
+import { GenerateParams, type LLMProvider } from "@/llm/types";
 import { SmartProviderSelectionService } from "@/application/services/providers/SmartProviderSelectionService";
 import { ProviderFallbackManagerService } from "@/application/services/providers/ProviderFallbackManagerService";
 import {
@@ -169,7 +169,7 @@ export class ProviderSelectionService {
   }
 
   private checkProviderMeetsRequirements(
-    provider: any,
+    provider: LLMProvider,
     requirements: CapabilityRequirement,
   ): { isValid: boolean; reasons: string[] } {
     const reasons: string[] = [];
@@ -222,7 +222,10 @@ export class ProviderSelectionService {
     };
   }
 
-  private calculateSuitabilityScore(provider: any, requirements: CapabilityRequirement): number {
+  private calculateSuitabilityScore(
+    provider: LLMProvider,
+    requirements: CapabilityRequirement,
+  ): number {
     const capabilities = provider.capabilities as ProviderCapabilities;
     let score = 0;
     const featuresSet = new Set(capabilities.features);
@@ -264,7 +267,7 @@ export class ProviderSelectionService {
     return score;
   }
 
-  private calculateProviderScore(provider: any): number {
+  private calculateProviderScore(provider: LLMProvider): number {
     const capabilities = provider.capabilities as ProviderCapabilities;
     let score = 0;
 

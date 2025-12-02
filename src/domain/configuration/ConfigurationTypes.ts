@@ -105,6 +105,7 @@ export interface ExportedConfiguration {
   exportedAt: string;
   global: GlobalConfiguration;
   providers: ProviderConfigurationMap;
+  templates?: Record<string, ConfigurationTemplate>;
   metadata: {
     exportedBy: string;
     description?: string;

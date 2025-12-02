@@ -25,7 +25,7 @@ export interface PromptVariable {
   name: string;
   type: "string" | "number" | "boolean" | "array" | "object";
   required: boolean;
-  defaultValue?: any;
+  defaultValue?: string | number | boolean | unknown[] | Record<string, unknown>;
 }
 
 export interface DynamicPromptConfig {

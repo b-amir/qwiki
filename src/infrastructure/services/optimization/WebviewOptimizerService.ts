@@ -6,13 +6,19 @@ import {
 } from "@/infrastructure/services/logging/LoggingService";
 
 type MessagePriority = "immediate" | "high" | "normal" | "low";
+type MessagePayload = Record<string, unknown> | undefined;
 
 interface QueuedMessage {
   command: string;
-  payload?: any;
+  payload?: MessagePayload;
   timestamp: number;
   id: string;
   priority: MessagePriority;
+}
+
+interface WebviewMessage {
+  command: string;
+  payload?: MessagePayload | { messages: QueuedMessage[] };
 }
 
 export class WebviewOptimizerService {
@@ -40,7 +46,11 @@ export class WebviewOptimizerService {
     this.logger.error(message, data);
   }
 
-  postMessage(command: string, payload?: any, priority: MessagePriority = "normal"): void {
+  postMessage(
+    command: string,
+    payload?: MessagePayload,
+    priority: MessagePriority = "normal",
+  ): void {
     if (priority === "immediate") {
       this.flushQueue();
       this.safePostMessage({ command, payload });
@@ -67,7 +77,7 @@ export class WebviewOptimizerService {
     this.scheduleBatch(priority);
   }
 
-  postImmediate(command: string, payload?: any): void {
+  postImmediate(command: string, payload?: MessagePayload): void {
     this.flushQueue();
     this.safePostMessage({ command, payload });
   }
@@ -128,7 +138,7 @@ export class WebviewOptimizerService {
     }
   }
 
-  private safePostMessage(message: any): void {
+  private safePostMessage(message: WebviewMessage): void {
     try {
       this.webview.postMessage(message);
       const command = message?.command ?? "unknown";
@@ -179,8 +189,8 @@ export class Debouncer {
 
   constructor(private delay: number) {}
 
-  debounce<T extends (...args: any[]) => void>(fn: T): T {
-    return ((...args: any[]) => {
+  debounce<T extends (...args: unknown[]) => void>(fn: T): T {
+    return ((...args: unknown[]) => {
       if (this.timeout) {
         clearTimeout(this.timeout);
       }

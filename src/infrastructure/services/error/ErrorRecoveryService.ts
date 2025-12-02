@@ -79,7 +79,7 @@ export class ErrorRecoveryService {
   }
 
   private extractRetryAfter(error: ProviderError): number | undefined {
-    const originalError = error.originalError;
+    const originalError = error.originalError as Record<string, any> | undefined;
     if (!originalError) return undefined;
 
     if (typeof originalError === "object" && originalError !== null) {
@@ -131,13 +131,14 @@ export class ErrorRecoveryService {
     return baseMessage;
   }
 
-  async handleProviderDiscoveryError(error: any, providerId: string): Promise<void> {
+  async handleProviderDiscoveryError(error: unknown, providerId: string): Promise<void> {
+    const errObj = error as Record<string, unknown> | null;
     const providerError =
       error instanceof ProviderError
         ? error
         : new ProviderError(
             "PROVIDER_DISCOVERY_FAILED",
-            `Failed to discover provider ${providerId}: ${error?.message || error}`,
+            `Failed to discover provider ${providerId}: ${errObj?.message || error}`,
             providerId,
           );
 
@@ -146,17 +147,18 @@ export class ErrorRecoveryService {
     }
   }
 
-  async handleMemoryError(error: any): Promise<void> {
+  async handleMemoryError(error: unknown): Promise<void> {
     if (this.memoryOptimizationService) {
       await this.memoryOptimizationService.optimizeMemory();
     }
 
+    const errObj = error as Record<string, unknown> | null;
     const memoryError =
       error instanceof ProviderError
         ? error
         : new ProviderError(
             "MEMORY_ERROR",
-            `Memory optimization required: ${error?.message || error}`,
+            `Memory optimization required: ${errObj?.message || error}`,
             "system",
           );
 
@@ -165,13 +167,14 @@ export class ErrorRecoveryService {
     }
   }
 
-  async handlePerformanceError(error: any, operation: string): Promise<void> {
+  async handlePerformanceError(error: unknown, operation: string): Promise<void> {
+    const errObj = error as Record<string, unknown> | null;
     const performanceError =
       error instanceof ProviderError
         ? error
         : new ProviderError(
             "PERFORMANCE_ERROR",
-            `Performance issue in ${operation}: ${error?.message || error}`,
+            `Performance issue in ${operation}: ${errObj?.message || error}`,
             "system",
           );
 
@@ -184,13 +187,14 @@ export class ErrorRecoveryService {
     }
   }
 
-  async handleCacheError(error: any, operation: string): Promise<void> {
+  async handleCacheError(error: unknown, operation: string): Promise<void> {
+    const errObj = error as Record<string, unknown> | null;
     const cacheError =
       error instanceof ProviderError
         ? error
         : new ProviderError(
             "CACHE_ERROR",
-            `Cache operation failed in ${operation}: ${error?.message || error}`,
+            `Cache operation failed in ${operation}: ${errObj?.message || error}`,
             "system",
           );
 
@@ -226,7 +230,7 @@ export class ErrorRecoveryService {
 
   async executeWithRetry<T>(
     operation: () => Promise<T>,
-    errorClassifier: (error: any) => ProviderError,
+    errorClassifier: (error: unknown) => ProviderError,
     providerId: string,
   ): Promise<T> {
     let lastError: ProviderError | undefined;
@@ -234,7 +238,7 @@ export class ErrorRecoveryService {
     for (let attempt = 1; attempt <= this.MAX_RETRY_ATTEMPTS * 2; attempt++) {
       try {
         return await operation();
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = errorClassifier(error);
 
         if (lastError.code === ErrorCodes.CONFIGURATION_ERROR && this.memoryOptimizationService) {
@@ -309,13 +313,13 @@ export class ErrorRecoveryService {
   async executeWithRetryAndCacheFallback<T>(
     operation: () => Promise<T>,
     getCachedResult: () => Promise<T | null>,
-    errorClassifier: (error: any) => ProviderError,
+    errorClassifier: (error: unknown) => ProviderError,
     providerId: string,
   ): Promise<T> {
     const operationStartTime = Date.now();
     try {
       return await this.executeWithRetry(operation, errorClassifier, providerId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorTime = Date.now();
       const providerError = errorClassifier(error);
 

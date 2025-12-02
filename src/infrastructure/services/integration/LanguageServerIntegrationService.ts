@@ -103,8 +103,10 @@ export class LanguageServerIntegrationService {
 
         try {
           symbols = await Promise.race([queryPromise, timeoutPromise]);
-        } catch (error: any) {
-          if (error?.message?.includes("timeout")) {
+        } catch (error: unknown) {
+          const errObj = error as Record<string, unknown> | null;
+          const errMsg = errObj?.message as string | undefined;
+          if (errMsg?.includes("timeout")) {
             this.logger.warn("Language server query timeout, using fallback", {
               filePath: document.uri.fsPath,
             });
@@ -166,7 +168,7 @@ export class LanguageServerIntegrationService {
       });
 
       return semanticInfo;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger.error("Failed to get semantic info for selection", error);
       return this.fallbackToCodeAnalysis(document, position);
     }
@@ -249,14 +251,15 @@ export class LanguageServerIntegrationService {
       }
 
       return symbolInfos;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
       this.logger.error("Failed to get symbols for file", { uri: uri.fsPath, error });
       this.publishError(
         "Failed to retrieve symbols for file",
         ErrorCodes.unknown,
         "The language server may not be available for this file type.",
-        { filePath: uri.fsPath, error: error?.message },
-        error?.message,
+        { filePath: uri.fsPath, error: errObj?.message },
+        errObj?.message as string | undefined,
       );
       return [];
     }
@@ -300,7 +303,7 @@ export class LanguageServerIntegrationService {
       }
 
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger.debug("Failed to get type information", { error });
       return null;
     }
@@ -310,7 +313,7 @@ export class LanguageServerIntegrationService {
     message: string,
     code: string,
     suggestion?: string,
-    context?: any,
+    context?: Record<string, unknown>,
     originalError?: string,
   ): void {
     if (!this.eventBus) {

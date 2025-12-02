@@ -77,8 +77,9 @@ export async function tryOpenFile(path: string, line?: number) {
         : undefined,
     );
     return true;
-  } catch (e: any) {
-    window.showErrorMessage(MessageTemplates.failedToOpenFile(e?.message || String(e)));
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    window.showErrorMessage(MessageTemplates.failedToOpenFile(errorMessage));
     return false;
   }
 }

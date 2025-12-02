@@ -6,7 +6,7 @@ import { ErrorCodes } from "@/constants/ErrorCodes";
 
 export interface ValidateConfigurationPayload {
   providerId?: string;
-  config: any;
+  config: Record<string, unknown>;
 }
 
 export class ValidateConfigurationCommand implements Command<ValidateConfigurationPayload> {
@@ -37,7 +37,7 @@ export class ValidateConfigurationCommand implements Command<ValidateConfigurati
 
         const suggestions = validationResult.errors
           .filter((e) => typeof e !== "string" && e.code)
-          .map((e: any) => {
+          .map((e) => {
             if (e.code === "API_KEY_REQUIRED") return "Please enter a valid API key";
             if (e.code === "API_KEY_TOO_SHORT")
               return "API key appears to be too short. Please check and enter a valid key.";

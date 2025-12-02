@@ -1,4 +1,8 @@
-import type { GlobalConfiguration, ProviderConfigurationMap } from "@/domain/configuration";
+import type {
+  GlobalConfiguration,
+  ProviderConfigurationMap,
+  ExportedConfiguration,
+} from "@/domain/configuration";
 import type {
   ImportOptions,
   ImportPreview,
@@ -7,7 +11,7 @@ import type {
 
 export class ConfigurationImportPreview {
   async previewImport(
-    data: any,
+    data: ExportedConfiguration,
     existingGlobal: GlobalConfiguration,
     existingProviders: ProviderConfigurationMap,
     options: ImportOptions,

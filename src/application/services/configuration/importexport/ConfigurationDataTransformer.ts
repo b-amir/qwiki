@@ -1,17 +1,19 @@
+import type { ExportedConfiguration } from "@/domain/configuration";
+
 export class ConfigurationDataTransformer {
-  async compressData(data: any): Promise<any> {
+  async compressData(data: ExportedConfiguration): Promise<ExportedConfiguration> {
     return data;
   }
 
-  async decompressData(data: any): Promise<any> {
+  async decompressData(data: ExportedConfiguration): Promise<ExportedConfiguration> {
     return data;
   }
 
-  async encryptData(data: any, password: string): Promise<any> {
+  async encryptData(data: ExportedConfiguration, password: string): Promise<ExportedConfiguration> {
     return data;
   }
 
-  async decryptData(data: any, password: string): Promise<any> {
+  async decryptData(data: ExportedConfiguration, password: string): Promise<ExportedConfiguration> {
     return data;
   }
 }

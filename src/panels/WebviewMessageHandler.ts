@@ -41,8 +41,8 @@ export class WebviewMessageHandler {
 
   setupMessageListener(): void {
     this.webview.onDidReceiveMessage(
-      async (message: any) => {
-        const command = message.command as string;
+      async (message: { command: string; payload?: Record<string, unknown> }) => {
+        const command = message.command;
         const payload = message.payload;
 
         try {
@@ -77,10 +77,11 @@ export class WebviewMessageHandler {
           switch (command) {
             case "frontendLog": {
               try {
-                const msg = payload?.message ?? "";
-                const level = payload?.level || "debug";
-                const source = payload?.source || "Frontend";
-                const data = payload?.data;
+                const logPayload = payload as Record<string, unknown> | undefined;
+                const msg = (logPayload?.message as string) ?? "";
+                const level = (logPayload?.level as string) || "debug";
+                const source = (logPayload?.source as string) || "Frontend";
+                const data = logPayload?.data;
 
                 if (level === "error") {
                   this.loggingService.error(source, msg, data);
@@ -117,8 +118,9 @@ export class WebviewMessageHandler {
               return;
             }
           }
-        } catch (err: any) {
-          this.errorHandler?.handle(err, { source: "webviewMessage", command });
+        } catch (err: unknown) {
+          const errorObj = err instanceof Error ? err : new Error(String(err));
+          this.errorHandler?.handle(errorObj, { source: "webviewMessage", command });
         }
       },
       undefined,
@@ -195,7 +197,11 @@ export class WebviewMessageHandler {
     }
   }
 
-  private async handleCommand(command: string, payload: any, receiveTs: number): Promise<void> {
+  private async handleCommand(
+    command: string,
+    payload: Record<string, unknown> | undefined,
+    receiveTs: number,
+  ): Promise<void> {
     // Commands that work immediately (no service dependencies)
     if (IMMEDIATE_COMMANDS.has(command)) {
       if (!this.commandRegistry) {
@@ -300,12 +306,13 @@ export class WebviewMessageHandler {
           duration: totalDuration,
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as Error | null;
       this.logger.error("Command execution failed", {
         command,
         duration: Date.now() - executeStart,
-        error: err?.message,
-        stack: err?.stack,
+        error: errorObj?.message,
+        stack: errorObj?.stack,
       });
       throw err;
     }

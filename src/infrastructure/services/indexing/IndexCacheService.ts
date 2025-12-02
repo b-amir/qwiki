@@ -1,4 +1,4 @@
-import { workspace, Uri } from "vscode";
+import { workspace, Uri, type ExtensionContext } from "vscode";
 import type {
   IndexedFile,
   ProjectIndexCache,
@@ -28,7 +28,7 @@ export class IndexCacheService {
   private fileSystemService: VSCodeFileSystemService;
 
   constructor(
-    private extensionContext: any,
+    private extensionContext: ExtensionContext,
     private loggingService: LoggingService,
   ) {
     this.logger = createLogger("IndexCacheService");

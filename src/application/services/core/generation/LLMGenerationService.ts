@@ -1,12 +1,13 @@
 import { CancellationToken, Position } from "vscode";
 import type { LLMRegistry } from "@/llm";
 import type { ProviderId } from "@/llm/types";
-import { createLogger, type Logger } from "@/infrastructure/services";
+import { createLogger, type Logger, type SemanticCodeInfo } from "@/infrastructure/services";
 import { LoggingService } from "@/infrastructure/services";
 import { ProviderError, ErrorCodes } from "@/errors";
 import { LoadingSteps, type LoadingStep } from "@/constants/Events";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
 import type { GenerationInput } from "@/application/transformers/WikiTransformer";
+import type { ProjectTypeDetection } from "@/domain/entities/ContextIntelligence";
 
 export class LLMGenerationService {
   private logger: Logger;
@@ -23,11 +24,11 @@ export class LLMGenerationService {
   async callLLM(
     request: WikiGenerationRequest,
     generationInput: GenerationInput,
-    semanticInfo: any,
+    semanticInfo: SemanticCodeInfo | null,
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
-    projectType?: any,
+    projectType?: ProjectTypeDetection,
     examples?: string[],
   ): Promise<{ content: string }> {
     if (cancellationToken?.isCancellationRequested) {
@@ -68,7 +69,7 @@ export class LLMGenerationService {
       snippet: generationInput.snippet,
       languageId: request.languageId,
       filePath: request.filePath,
-      semanticInfo,
+      semanticInfo: semanticInfo ?? undefined,
       project: generationInput.project,
       projectType,
       examples,
@@ -102,15 +103,16 @@ export class LLMGenerationService {
         model: request.model,
       });
       return rawResult;
-    } catch (llmError: any) {
+    } catch (llmError: unknown) {
       const llmErrorDuration = Date.now() - llmRequestStart;
+      const errObj = llmError as Record<string, unknown> | null;
       this.logger.error("LLM generation FAILED", {
         duration: llmErrorDuration,
         durationSeconds: Math.round(llmErrorDuration / 1000),
-        error: llmError?.message,
-        errorCode: llmError?.code,
-        errorName: llmError?.name,
-        stack: llmError?.stack,
+        error: errObj?.message,
+        errorCode: errObj?.code,
+        errorName: errObj?.name,
+        stack: errObj?.stack,
         providerId: request.providerId,
         model: request.model,
       });
@@ -121,11 +123,11 @@ export class LLMGenerationService {
   private async callLLMStreaming(
     request: WikiGenerationRequest,
     generationInput: GenerationInput,
-    semanticInfo: any,
+    semanticInfo: SemanticCodeInfo | null,
     onProgress?: (step: LoadingStep) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
-    projectType?: any,
+    projectType?: ProjectTypeDetection,
     examples?: string[],
   ): Promise<{ content: string }> {
     this.logger.info("Sending streaming request to LLM", {
@@ -160,7 +162,7 @@ export class LLMGenerationService {
         snippet: generationInput.snippet,
         languageId: request.languageId,
         filePath: request.filePath,
-        semanticInfo,
+        semanticInfo: semanticInfo ?? undefined,
         project: generationInput.project,
         projectType,
         examples,
@@ -197,15 +199,16 @@ export class LLMGenerationService {
       });
 
       return { content: accumulatedContent };
-    } catch (llmError: any) {
+    } catch (llmError: unknown) {
       const llmErrorDuration = Date.now() - llmRequestStart;
+      const errObj = llmError as Record<string, unknown> | null;
       this.logger.error("LLM streaming generation FAILED", {
         duration: llmErrorDuration,
         durationSeconds: Math.round(llmErrorDuration / 1000),
-        error: llmError?.message,
-        errorCode: llmError?.code,
-        errorName: llmError?.name,
-        stack: llmError?.stack,
+        error: errObj?.message,
+        errorCode: errObj?.code,
+        errorName: errObj?.name,
+        stack: errObj?.stack,
         providerId: request.providerId,
         model: request.model,
       });

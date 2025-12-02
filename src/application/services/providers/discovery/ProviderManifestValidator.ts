@@ -1,7 +1,7 @@
 import { ValidationResult } from "@/llm/types/ProviderCapabilities";
 
 export class ProviderManifestValidator {
-  validateProviderManifest(manifest: any): ValidationResult {
+  validateProviderManifest(manifest: Record<string, unknown>): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 

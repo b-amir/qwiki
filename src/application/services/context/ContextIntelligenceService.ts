@@ -16,7 +16,11 @@ import { PerformanceMonitorService } from "@/infrastructure/services";
 import { LLMRegistry } from "@/llm/providers/registry";
 import { ProviderCapabilities } from "@/llm/types/ProviderCapabilities";
 import { LoadingSteps, type LoadingStep } from "@/constants/loading";
-import type { TokenBudget, OptimalContextSelection } from "@/domain/entities/ContextIntelligence";
+import type {
+  TokenBudget,
+  OptimalContextSelection,
+  ProjectTypeDetection,
+} from "@/domain/entities/ContextIntelligence";
 import type { ProjectContext } from "@/domain/entities/Selection";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
 import { TokenBudgetCalculator } from "@/application/services/context/orchestration/TokenBudgetCalculator";
@@ -163,5 +167,13 @@ export class ContextIntelligenceService {
     }
 
     return this.contextSuggestionService.analyzeContext(request, projectContext);
+  }
+
+  async detectProjectType(): Promise<ProjectTypeDetection> {
+    return this.projectTypeDetectionService.detectProjectType();
+  }
+
+  async getLanguageSpecificEssentials(projectType: ProjectTypeDetection) {
+    return this.projectTypeDetectionService.getLanguageSpecificEssentials(projectType);
   }
 }

@@ -9,6 +9,7 @@ import type {
   CodeStructure,
   ComplexityScore,
 } from "@/application/services/context/analysis/shared-types";
+import type { ProjectContext } from "@/domain/entities/Selection";
 
 export interface DeepContextAnalysis {
   structure: CodeStructure;
@@ -108,7 +109,7 @@ export class ContextAnalysisService {
   async analyzeDeepContext(
     snippet: string,
     filePath: string,
-    projectContext?: any,
+    projectContext?: ProjectContext,
   ): Promise<DeepContextAnalysis> {
     this.logDebug("Starting deep context analysis for:", filePath);
 

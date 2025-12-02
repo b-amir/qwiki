@@ -1,4 +1,8 @@
-import type { ConfigurationTemplate, ValidationResult } from "@/domain/configuration";
+import type {
+  ConfigurationTemplate,
+  ValidationResult,
+  ConfigurationSchema,
+} from "@/domain/configuration";
 import type {
   ConfigurationValidationEngineService,
   ValidationContext,
@@ -21,7 +25,7 @@ export class TemplateValidator {
     );
   }
 
-  private createTemplateSchema(template: ConfigurationTemplate): any {
+  private createTemplateSchema(template: ConfigurationTemplate): ConfigurationSchema {
     return {
       version: "1.0.0",
       fields: [

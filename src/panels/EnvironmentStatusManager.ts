@@ -105,7 +105,10 @@ export class EnvironmentStatusManager {
         languageServerReady: payload.languageServer.ready,
         hasMessageBus: !!this.messageBus,
       });
-      this.messageBus?.postImmediate(Outbound.environmentStatus, payload);
+      this.messageBus?.postImmediate(
+        Outbound.environmentStatus,
+        payload as unknown as Record<string, unknown>,
+      );
     } catch (error) {
       this.logger.error("Failed to post environment status", error);
     }

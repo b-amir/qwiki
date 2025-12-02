@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
 
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
   value: T;
   createdAt: number;
   expiresAt: number;
@@ -197,7 +197,7 @@ export class CachingService extends EventEmitter {
     }
   }
 
-  private calculateSize(value: any): number {
+  private calculateSize(value: unknown): number {
     if (value === null || value === undefined) {
       return 0;
     }

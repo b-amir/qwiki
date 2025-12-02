@@ -1,5 +1,5 @@
-import { CancellationToken, workspace, Uri, Position } from "vscode";
-import { createLogger, type Logger } from "@/infrastructure/services";
+import { CancellationToken, workspace, Uri, Position, type TextDocument } from "vscode";
+import { createLogger, type Logger, type SemanticCodeInfo } from "@/infrastructure/services";
 import { LoggingService } from "@/infrastructure/services";
 import { LanguageServerIntegrationService } from "@/infrastructure/services";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
@@ -19,7 +19,7 @@ export class SemanticInfoCollector {
   async collectSemanticInfo(
     request: WikiGenerationRequest,
     cancellationToken?: CancellationToken,
-  ): Promise<any | null> {
+  ): Promise<SemanticCodeInfo | null> {
     if (!this.languageServerIntegrationService || !request.filePath) {
       return null;
     }
@@ -54,16 +54,17 @@ export class SemanticInfoCollector {
       }
 
       return semanticInfo;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
       this.logger.debug("Failed to collect semantic info", {
-        error: error?.message,
+        error: errObj?.message,
         filePath: request.filePath,
       });
       return null;
     }
   }
 
-  private getSelectionFromSnippet(document: any, snippet: string): Position | null {
+  private getSelectionFromSnippet(document: TextDocument, snippet: string): Position | null {
     try {
       const documentText = document.getText();
       const snippetStart = documentText.indexOf(snippet);

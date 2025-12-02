@@ -123,7 +123,7 @@ export class ProviderFileSystemService {
   ): Promise<{ close: () => void }> {
     return await this.vscodeFileSystem.watchDirectory(
       directory,
-      (eventType: any, filename: any) => {
+      (eventType: string, filename: string | null) => {
         if (filename) {
           const filePath = path.join(directory, filename);
           const ext = path.extname(filePath).toLowerCase();
@@ -165,7 +165,7 @@ export class ProviderFileSystemService {
     }
   }
 
-  private validateManifestStructure(manifest: any): ValidationResult {
+  private validateManifestStructure(manifest: Record<string, unknown>): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -204,14 +204,14 @@ export class ProviderFileSystemService {
     };
   }
 
-  private isValidManifest(manifest: any): boolean {
+  private isValidManifest(manifest: unknown): boolean {
+    if (!manifest || typeof manifest !== "object") return false;
+    const obj = manifest as Record<string, unknown>;
     return (
-      manifest &&
-      typeof manifest === "object" &&
-      typeof manifest.id === "string" &&
-      typeof manifest.name === "string" &&
-      typeof manifest.version === "string" &&
-      typeof manifest.entryPoint === "string"
+      typeof obj.id === "string" &&
+      typeof obj.name === "string" &&
+      typeof obj.version === "string" &&
+      typeof obj.entryPoint === "string"
     );
   }
 

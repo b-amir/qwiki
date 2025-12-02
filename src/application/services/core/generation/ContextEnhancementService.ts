@@ -79,10 +79,10 @@ export class ContextEnhancementService {
         rootName: projectContext.rootName,
         overview: projectContext.overview,
         filesSample: [
-          ...optimalContext.essentialFiles.map((f: any) => f.filePath),
-          ...optimalContext.selectedFiles.slice(0, 10).map((f: any) => f.filePath),
+          ...optimalContext.essentialFiles.map((f) => f.filePath),
+          ...optimalContext.selectedFiles.slice(0, 10).map((f) => f.filePath),
         ],
-        related: optimalContext.selectedFiles.slice(0, 20).map((f: any) => ({
+        related: optimalContext.selectedFiles.slice(0, 20).map((f) => ({
           path: f.filePath,
           reason: f.relevanceType,
           preview: undefined,
@@ -103,14 +103,15 @@ export class ContextEnhancementService {
       });
 
       return enhancedContext;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (contextTimer) {
         contextTimer();
       }
+      const errObj = error as Record<string, unknown> | null;
       this.logger.warn("Failed to use intelligent context, falling back to standard context", {
-        error: error?.message,
-        errorCode: error?.code,
-        stack: error?.stack,
+        error: errObj?.message,
+        errorCode: errObj?.code,
+        stack: errObj?.stack,
         filePath: request.filePath,
       });
       return projectContext;

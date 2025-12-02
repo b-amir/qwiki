@@ -77,10 +77,11 @@ export class ProjectOverviewService {
         partCount: parts.length,
       });
       return overview;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
       this.logger.debug("readOverview failed", {
         totalDuration: Date.now() - startTime,
-        error: error?.message,
+        error: errObj?.message,
       });
       return "";
     }

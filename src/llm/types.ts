@@ -6,6 +6,7 @@ import {
 } from "./types/ProviderCapabilities";
 import type { SemanticCodeInfo } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
 import type { ProjectTypeDetection } from "@/domain/entities/ContextIntelligence";
+import type { ProviderConfig } from "@/domain/types";
 
 export type GenerateParams = {
   snippet: string;
@@ -43,7 +44,7 @@ export interface LLMProvider {
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
   supportsCapability(capability: ProviderFeature): boolean;
-  validateConfig(config: any): ValidationResult;
+  validateConfig(config: ProviderConfig): ValidationResult;
   initialize(): Promise<void>;
   dispose(): Promise<void>;
   healthCheck(): Promise<HealthCheckResult>;

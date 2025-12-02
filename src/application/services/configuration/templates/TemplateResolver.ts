@@ -62,7 +62,11 @@ export class TemplateResolver {
     return resolvedTemplate;
   }
 
-  private substituteVariable(template: any, variableName: string, value: any): void {
+  private substituteVariable(
+    template: Record<string, unknown>,
+    variableName: string,
+    value: unknown,
+  ): void {
     const templateString = JSON.stringify(template);
     const regex = new RegExp(`\\$\\{${variableName}\\}`, "g");
     const substituted = templateString.replace(regex, JSON.stringify(value));

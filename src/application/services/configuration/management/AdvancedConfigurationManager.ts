@@ -15,7 +15,10 @@ export class AdvancedConfigurationManager {
   constructor(
     private configurationRepository: ConfigurationRepository,
     private eventBus: EventBus,
-    private cacheManager: { get: (key: string) => any; set: (key: string, value: any) => void },
+    private cacheManager: {
+      get: (key: string) => unknown;
+      set: (key: string, value: unknown) => void;
+    },
     loggingService: LoggingService,
   ) {
     this.logger = createLogger("AdvancedConfigurationManager");
@@ -23,8 +26,9 @@ export class AdvancedConfigurationManager {
 
   async getContextIntelligenceConfig(): Promise<ContextIntelligenceConfig | undefined> {
     const cacheKey = "phase4.contextIntelligence";
-    if (this.cacheManager.get(cacheKey)) {
-      return this.cacheManager.get(cacheKey);
+    const cached = this.cacheManager.get(cacheKey) as ContextIntelligenceConfig | undefined;
+    if (cached) {
+      return cached;
     }
 
     const config = await this.configurationRepository.get<ContextIntelligenceConfig>(cacheKey);
@@ -71,8 +75,9 @@ export class AdvancedConfigurationManager {
 
   async getPromptEngineeringConfig(): Promise<PromptEngineeringConfig | undefined> {
     const cacheKey = "phase4.promptEngineering";
-    if (this.cacheManager.get(cacheKey)) {
-      return this.cacheManager.get(cacheKey);
+    const cached = this.cacheManager.get(cacheKey) as PromptEngineeringConfig | undefined;
+    if (cached) {
+      return cached;
     }
 
     const config = await this.configurationRepository.get<PromptEngineeringConfig>(cacheKey);
@@ -111,8 +116,9 @@ export class AdvancedConfigurationManager {
 
   async getWikiManagementConfig(): Promise<WikiManagementConfig | undefined> {
     const cacheKey = "phase4.wikiManagement";
-    if (this.cacheManager.get(cacheKey)) {
-      return this.cacheManager.get(cacheKey);
+    const cached = this.cacheManager.get(cacheKey) as WikiManagementConfig | undefined;
+    if (cached) {
+      return cached;
     }
 
     const config = await this.configurationRepository.get<WikiManagementConfig>(cacheKey);

@@ -6,6 +6,7 @@ import {
   Uri,
   workspace,
   window,
+  Webview,
 } from "vscode";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import type { WikiStorageService } from "@/application/services/storage/WikiStorageService";
@@ -58,7 +59,7 @@ export class WikiCustomEditorProvider implements CustomTextEditorProvider {
     updateWebview();
   }
 
-  private getWebviewContent(content: string, webview: any): string {
+  private getWebviewContent(content: string, webview: Webview): string {
     const nonce = getNonce();
     return `<!DOCTYPE html>
 <html lang="en">

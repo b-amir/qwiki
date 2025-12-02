@@ -39,7 +39,10 @@ export class GetProviderConfigsCommand implements Command<void> {
         `Retrieved ${configs.length} provider configs in ${configsEndTime - configsStartTime}ms`,
       );
 
-      this.messageBus.postSuccess(OutboundEvents.providerConfigs, configs);
+      this.messageBus.postSuccess(OutboundEvents.providerConfigs, { configs } as Record<
+        string,
+        unknown
+      >);
 
       // Also fetch and send capabilities together to avoid flash
       const capabilitiesStartTime = Date.now();

@@ -29,7 +29,7 @@ export class DocumentationDiagnosticsProvider {
 
       const wikis = await this.wikiStorageService.getAllSavedWikis();
       const wikiMap = new Map(
-        wikis.map((wiki: any) => [this.extractFilePathFromWiki(wiki.filePath), wiki]),
+        wikis.map((wiki) => [this.extractFilePathFromWiki(wiki.filePath), wiki]),
       );
 
       const currentFilePath = document.uri.fsPath;

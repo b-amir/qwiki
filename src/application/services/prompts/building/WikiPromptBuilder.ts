@@ -28,7 +28,7 @@ export class WikiPromptBuilder {
           semanticInfo.isAsync ? `- Execution: Async function (returns Promise)` : undefined,
           semanticInfo.returnType ? `- Return Type: ${semanticInfo.returnType}` : undefined,
           semanticInfo.parameters && semanticInfo.parameters.length > 0
-            ? `- Parameters:\n${semanticInfo.parameters.map((p: any) => `  - ${p.name}${p.type ? `: ${p.type}` : ""}`).join("\n")}`
+            ? `- Parameters:\n${semanticInfo.parameters.map((p) => `  - ${p.name}${p.type ? `: ${p.type}` : ""}`).join("\n")}`
             : undefined,
           semanticInfo.documentation ? `- Documentation: ${semanticInfo.documentation}` : undefined,
         ]
@@ -48,7 +48,7 @@ export class WikiPromptBuilder {
           proj.related && proj.related.length
             ? `- Related Files & Usages:\n${proj.related
                 .map(
-                  (r: any) =>
+                  (r) =>
                     `  - [${r.path}${r.line ? `:${r.line}` : ""}](openfile:${r.path}${r.line ? `:${r.line}` : ""})${r.reason ? ` - ${r.reason}` : ""}${
                       r.preview ? `\n    \`${r.preview.trim()}\`` : ""
                     }`,

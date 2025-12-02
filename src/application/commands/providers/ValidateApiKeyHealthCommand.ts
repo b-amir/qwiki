@@ -140,7 +140,7 @@ export class ValidateApiKeyHealthCommand implements Command<ValidateApiKeyHealth
         error: result.error,
         errorCode,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 

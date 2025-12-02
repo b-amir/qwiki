@@ -9,7 +9,10 @@ import type { ProviderId } from "@/llm/types";
 import { WikiError } from "@/errors";
 import { GenerationCacheService } from "@/infrastructure/services/caching/GenerationCacheService";
 import { RequestBatchingService } from "@/infrastructure/services/optimization/RequestBatchingService";
-import { DebouncingService } from "@/infrastructure/services/optimization/DebouncingService";
+import {
+  DebouncingService,
+  type DebouncedFunction,
+} from "@/infrastructure/services/optimization/DebouncingService";
 import {
   BackgroundProcessingService,
   TaskPriority,
@@ -24,9 +27,17 @@ import { LoggingService, createLogger, type Logger } from "@/infrastructure/serv
 import { CachedProjectContextService } from "@/application/services/context/project/CachedProjectContextService";
 import { WikiGenerationFlow } from "@/application/services/core/WikiGenerationFlow";
 import { LanguageServerIntegrationService } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
+import { PromptQualityService } from "@/application/services/prompts/PromptQualityService";
+
+type GenerateFn = (
+  request: WikiGenerationRequest,
+  projectContext: ProjectContext,
+  onProgress?: (step: LoadingStep) => void,
+  cancellationToken?: CancellationToken,
+  onChunk?: (chunk: string, accumulatedContent: string) => void,
+) => Promise<WikiGenerationResult>;
 
 export class WikiService {
-  private debouncedGenerate: any;
   private generationCacheKeyPrefix = "wiki_generation";
   private logger: Logger;
   private intelligentContextEnabled = false;
@@ -46,17 +57,12 @@ export class WikiService {
     private cachedProjectContextService?: CachedProjectContextService,
     private loggingService?: LoggingService,
     private languageServerIntegrationService?: LanguageServerIntegrationService,
-    private promptQualityService?: any,
+    private promptQualityService?: PromptQualityService,
     private qualityMetricsService?: QualityMetricsService,
   ) {
     this.logger = loggingService
       ? createLogger("WikiService")
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
-    this.debouncedGenerate = this.debouncingService.debounce(
-      this.performGeneration.bind(this),
-      ServiceLimits.debounceDelay,
-      { leading: false, trailing: true },
-    );
     this.intelligentContextEnabled = Boolean(
       contextIntelligenceService && advancedPromptService && cachedProjectContextService,
     );
@@ -156,14 +162,16 @@ export class WikiService {
         success: result?.success,
       });
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorDuration = Date.now() - startTime;
+      const errObj = error as Record<string, unknown> | null;
+      const errMsg = errObj?.message as string | undefined;
       this.logger.error("generateWiki FAILED with exception", {
         duration: errorDuration,
         durationSeconds: Math.round(errorDuration / 1000),
-        error: error?.message,
-        errorCode: error?.code,
-        stack: error?.stack,
+        error: errMsg,
+        errorCode: errObj?.code,
+        stack: errObj?.stack,
         providerId: request.providerId,
         snippetLength: request.snippet?.length || 0,
         filePath: request.filePath,
@@ -171,7 +179,7 @@ export class WikiService {
       return {
         content: "",
         success: false,
-        error: error?.message || ErrorMessages[ErrorCodes.generationFailed],
+        error: errMsg || ErrorMessages[ErrorCodes.generationFailed],
       };
     }
   }
@@ -220,10 +228,11 @@ export class WikiService {
         success: result?.success,
       });
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
       this.logger.debug("performGeneration failed", {
         duration: Date.now() - startTime,
-        error: error?.message,
+        error: errObj?.message,
       });
       throw error;
     }

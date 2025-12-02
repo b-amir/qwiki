@@ -4,6 +4,7 @@ import type {
   ValidationResult,
   ValidationError,
   ConfigurationSchema,
+  SchemaField,
 } from "@/domain/configuration";
 import { ConfigurationError } from "@/errors";
 import { Result, ok, err } from "@/domain/types";
@@ -15,7 +16,10 @@ export class ConfigurationValidator {
     this.logger = createLogger("ConfigurationValidator");
   }
 
-  validateConfiguration(config: any, schema: ConfigurationSchema): ValidationResult {
+  validateConfiguration(
+    config: Record<string, unknown>,
+    schema: ConfigurationSchema,
+  ): ValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationError[] = [];
 
@@ -45,8 +49,8 @@ export class ConfigurationValidator {
   }
 
   private validateFieldValue(
-    value: any,
-    field: any,
+    value: unknown,
+    field: SchemaField,
     errors: ValidationError[],
     warnings: ValidationError[],
   ): void {
@@ -61,7 +65,7 @@ export class ConfigurationValidator {
         return;
       }
 
-      if (field.validation.min !== undefined && value < field.validation.min) {
+      if (field.validation?.min !== undefined && value < field.validation.min) {
         errors.push({
           field: field.name,
           code: "VALUE_TOO_SMALL",
@@ -70,7 +74,7 @@ export class ConfigurationValidator {
         });
       }
 
-      if (field.validation.max !== undefined && value > field.validation.max) {
+      if (field.validation?.max !== undefined && value > field.validation.max) {
         errors.push({
           field: field.name,
           code: "VALUE_TOO_LARGE",
@@ -91,7 +95,7 @@ export class ConfigurationValidator {
         return;
       }
 
-      if (field.validation.pattern) {
+      if (field.validation?.pattern) {
         const regex = new RegExp(field.validation.pattern);
         if (!regex.test(value)) {
           errors.push({
@@ -114,7 +118,7 @@ export class ConfigurationValidator {
       return;
     }
 
-    if (field.validation.enum && !field.validation.enum.includes(value)) {
+    if (field.validation?.enum && !field.validation.enum.includes(value)) {
       errors.push({
         field: field.name,
         code: "INVALID_ENUM_VALUE",
@@ -123,7 +127,7 @@ export class ConfigurationValidator {
       });
     }
 
-    if (field.validation.custom && !field.validation.custom(value)) {
+    if (field.validation?.custom && !field.validation.custom(value)) {
       errors.push({
         field: field.name,
         code: "CUSTOM_VALIDATION_FAILED",
@@ -224,7 +228,7 @@ export class ConfigurationValidator {
   }
 
   validateAndReturnResult(
-    config: any,
+    config: Record<string, unknown>,
     schema: ConfigurationSchema,
     providerId: string,
   ): Result<void, ConfigurationError> {

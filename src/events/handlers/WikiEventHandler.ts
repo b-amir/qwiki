@@ -1,6 +1,7 @@
 import { CancellationToken, CancellationTokenSource } from "vscode";
 import type { EventBus } from "@/events/EventBus";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import type { ProjectContext } from "@/domain/entities/Selection";
 import { InboundEvents, OutboundEvents } from "@/constants/Events";
 import {
   ErrorLoggingService,
@@ -16,6 +17,10 @@ import { qwikiStatusBarItem, HAS_ACTIVE_GENERATION_CONTEXT } from "@//extension"
 import { VSCodeCommandIds } from "@/constants/Commands";
 import { commands } from "vscode";
 import { WikiGenerationExecutor } from "@/events/handlers/WikiGenerationExecutor";
+import type { WikiService } from "@/application/services/core/WikiService";
+import type { CachedWikiService } from "@/application/services/core/CachedWikiService";
+import type { CachedProjectContextService } from "@/application/services/context/project/CachedProjectContextService";
+import type { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
 
 export class WikiEventHandler {
   private logger: Logger;
@@ -23,21 +28,21 @@ export class WikiEventHandler {
   private generationExecutor: WikiGenerationExecutor | null = null;
   public static instance: WikiEventHandler | null = null;
   private emptySnippetContextCache: {
-    context: any;
+    context: ProjectContext;
     timestamp: number;
   } | null = null;
   private readonly EMPTY_SNIPPET_CACHE_TTL = 5000;
 
   constructor(
     private eventBus: EventBus,
-    private wikiService: any,
-    private cachedWikiService: any,
-    private projectContextService: any,
+    private wikiService: WikiService,
+    private cachedWikiService: CachedWikiService,
+    private projectContextService: CachedProjectContextService,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
     private providerValidationService: ProviderValidationService,
     private loggingService: LoggingService = new LoggingService(),
-    private contextCacheService?: any,
+    private contextCacheService?: ContextCacheService,
     private uxMetricsService?: UXMetricsService,
   ) {
     this.logger = createLogger("WikiEventHandler");
@@ -178,7 +183,7 @@ export class WikiEventHandler {
         filesSample: projectContext.filesSample,
         related: projectContext.related,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const providerError = ProviderError.fromError(error);
 
       this.logger.error("Exception in handleGetRelated", {

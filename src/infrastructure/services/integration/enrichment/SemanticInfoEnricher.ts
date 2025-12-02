@@ -66,7 +66,7 @@ export class SemanticInfoEnricher {
           semanticInfo.returnType = this.hoverExtractor.extractReturnType(content);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger.debug("Failed to enrich semantic info", { error });
     }
   }

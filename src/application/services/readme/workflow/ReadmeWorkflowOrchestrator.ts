@@ -131,7 +131,7 @@ export class ReadmeWorkflowOrchestrator {
     this.emitProgress(LoadingSteps.loadingSavedWikis, 10);
 
     const allWikis = await this.wikiStorageService.getAllSavedWikis();
-    const wikis = allWikis.filter((w: any) => wikiIds.includes(w.id));
+    const wikis = allWikis.filter((w) => wikiIds.includes(w.id));
 
     if (wikis.length === 0) {
       throw new Error("No wikis found for the provided IDs");

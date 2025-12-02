@@ -146,7 +146,7 @@ export class ProviderDiscoveryService {
     }
   }
 
-  async validateProviderManifest(manifest: any) {
+  async validateProviderManifest(manifest: Record<string, unknown>) {
     return this.manifestValidator.validateProviderManifest(manifest);
   }
 

@@ -46,7 +46,7 @@ export class ErrorLoggingService {
     this.logger.warn(message, data);
   }
 
-  logError(error: ProviderError, context?: any): void {
+  logError(error: ProviderError, context?: Record<string, unknown>): void {
     const timestamp = Date.now();
 
     this.logErrorEntry(`Provider Error logged: ${error.code}`, {
@@ -176,14 +176,14 @@ export class ErrorLoggingService {
     }
   }
 
-  private isValidStatistics(data: any): data is ErrorStatistics {
+  private isValidStatistics(data: unknown): data is ErrorStatistics {
+    if (!data || typeof data !== "object") return false;
+    const obj = data as Record<string, unknown>;
     return (
-      data &&
-      typeof data === "object" &&
-      typeof data.totalErrors === "number" &&
-      typeof data.errorsByCode === "object" &&
-      typeof data.errorsByProvider === "object" &&
-      Array.isArray(data.recentErrors)
+      typeof obj.totalErrors === "number" &&
+      typeof obj.errorsByCode === "object" &&
+      typeof obj.errorsByProvider === "object" &&
+      Array.isArray(obj.recentErrors)
     );
   }
 }

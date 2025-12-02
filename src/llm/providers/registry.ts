@@ -22,7 +22,7 @@ import {
   type Logger,
 } from "@/infrastructure/services/logging/LoggingService";
 
-export type GetSetting = (key: string) => Promise<any>;
+export type GetSetting = (key: string) => Promise<string | undefined>;
 
 export class LLMRegistry {
   private providers: Record<string, LLMProvider> = {};
@@ -95,7 +95,7 @@ export class LLMRegistry {
 
   getProviderMetadata(providerId: string): ProviderMetadata | null {
     const discoveredProviders = this.providerDiscoveryService.getDiscoveredProviders();
-    return discoveredProviders.find((p: any) => p.id === providerId) || null;
+    return discoveredProviders.find((p) => p.id === providerId) || null;
   }
 
   getAllProviderCapabilities(): Record<string, ProviderCapabilities> {
@@ -156,7 +156,7 @@ export class LLMRegistry {
         async () => {
           return this.cachingService.get<GenerateResult>(cacheKey);
         },
-        (error: any) => {
+        (error: unknown): ProviderError => {
           if (error instanceof Error) {
             return new ProviderError(
               ErrorCodes.GENERATION_FAILED,
@@ -165,7 +165,7 @@ export class LLMRegistry {
               error.stack,
             );
           }
-          return error;
+          return ProviderError.fromError(error, providerId);
         },
         providerId,
       );
@@ -221,8 +221,8 @@ export class LLMRegistry {
     }
   }
 
-  private getSetting = (key: string): Promise<any> => {
-    return Promise.resolve(null);
+  private getSetting = (key: string): Promise<string | undefined> => {
+    return Promise.resolve(undefined);
   };
 }
 
@@ -251,13 +251,13 @@ export function loadProviders(getSetting: GetSetting): Record<string, LLMProvide
 }
 
 export function getProviderCapabilities(providerId: string): ProviderCapabilities | null {
-  const legacyProviders = loadProviders(() => Promise.resolve(null));
+  const legacyProviders = loadProviders(() => Promise.resolve(undefined));
   const provider = legacyProviders[providerId];
   return provider ? provider.capabilities : null;
 }
 
 export function getAllProviderCapabilities(): Record<string, ProviderCapabilities> {
-  const legacyProviders = loadProviders(() => Promise.resolve(null));
+  const legacyProviders = loadProviders(() => Promise.resolve(undefined));
   const result: Record<string, ProviderCapabilities> = {};
 
   for (const [providerId, provider] of Object.entries(legacyProviders)) {
@@ -268,7 +268,7 @@ export function getAllProviderCapabilities(): Record<string, ProviderCapabilitie
 }
 
 export function findProvidersWithCapability(capability: ProviderFeature): string[] {
-  const legacyProviders = loadProviders(() => Promise.resolve(null));
+  const legacyProviders = loadProviders(() => Promise.resolve(undefined));
   const result: string[] = [];
 
   for (const [providerId, provider] of Object.entries(legacyProviders)) {

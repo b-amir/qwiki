@@ -1,3 +1,5 @@
+import type { GenerateParams } from "@/llm/types";
+
 export { openrouterPromptTemplate } from "./openrouter-template";
 export { zaiPromptTemplate } from "./zai-template";
 export { googlePromptTemplate } from "./google-template";
@@ -7,5 +9,5 @@ export { defaultPromptTemplate } from "./default-template";
 
 export type PromptTemplate = {
   system: string;
-  buildUserPrompt: (params: any, context?: string, examples?: string[]) => string;
+  buildUserPrompt: (params: GenerateParams, context?: string, examples?: string[]) => string;
 };

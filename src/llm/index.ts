@@ -164,7 +164,7 @@ export class LLMRegistry {
       apiKey = providerConfig?.apiKey;
     }
 
-    const errorClassifier = (error: any): ProviderError => {
+    const errorClassifier = (error: unknown): ProviderError => {
       if (error instanceof ProviderError) {
         return error;
       }
@@ -182,7 +182,7 @@ export class LLMRegistry {
       this.errorLoggingService.logGenerationMetrics(providerId, true, duration);
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       this.errorLoggingService.logGenerationMetrics(providerId, false, duration);
       this.errorLoggingService.logError(errorClassifier(error));
@@ -237,7 +237,7 @@ export class LLMRegistry {
       for await (const chunk of provider.generateStream(params, apiKey || undefined)) {
         yield chunk;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const providerError =
         error instanceof ProviderError ? error : ProviderError.fromError(error, providerId);
       this.errorLoggingService.logError(providerError);
@@ -287,12 +287,12 @@ export class LLMRegistry {
       }
 
       return await this.healthCheckProviderWithKey(providerId, apiKey || undefined);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - start;
       return {
         isHealthy: false,
         responseTime,
-        error: error?.message || String(error),
+        error: error instanceof Error ? error.message : String(error),
         lastChecked: new Date(),
       };
     }
@@ -314,9 +314,10 @@ export class LLMRegistry {
 
     const start = Date.now();
     try {
-      const maybeWithKey = (provider as any).healthCheckWithKey as
-        | ((apiKey?: string) => Promise<HealthCheckResult>)
-        | undefined;
+      const providerWithKey = provider as LLMProvider & {
+        healthCheckWithKey?: (apiKey?: string) => Promise<HealthCheckResult>;
+      };
+      const maybeWithKey = providerWithKey.healthCheckWithKey;
 
       if (maybeWithKey) {
         const res = await maybeWithKey.call(provider, apiKey);
@@ -333,12 +334,12 @@ export class LLMRegistry {
       }
       if (!res.lastChecked) res.lastChecked = new Date();
       return res;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const responseTime = Date.now() - start;
       return {
         isHealthy: false,
         responseTime,
-        error: error?.message || String(error),
+        error: error instanceof Error ? error.message : String(error),
         lastChecked: new Date(),
       };
     }

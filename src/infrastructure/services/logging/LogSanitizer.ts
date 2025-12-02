@@ -66,7 +66,7 @@ export class LogSanitizer {
     return patternStr;
   }
 
-  static sanitizeData(data: any): any {
+  static sanitizeData(data: unknown): unknown {
     if (!data || typeof data !== "object") {
       return data;
     }
@@ -75,7 +75,7 @@ export class LogSanitizer {
       return data.map((item) => this.sanitizeData(item));
     }
 
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       if (
         key === "path" ||

@@ -37,7 +37,7 @@ export class QwikiWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
         if (
           wiki.title.toLowerCase().includes(queryLower) ||
           wiki.content.toLowerCase().includes(queryLower) ||
-          wiki.tags.some((tag: any) => tag.toLowerCase().includes(queryLower))
+          wiki.tags.some((tag) => tag.toLowerCase().includes(queryLower))
         ) {
           symbols.push(
             new SymbolInformation(

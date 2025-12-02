@@ -1,9 +1,9 @@
 export class ProviderError extends Error {
   public readonly code: string;
   public readonly providerId?: string;
-  public readonly originalError?: any;
+  public readonly originalError?: unknown;
 
-  constructor(code: string, message: string, providerId?: string, originalError?: any) {
+  constructor(code: string, message: string, providerId?: string, originalError?: unknown) {
     super(message);
     this.name = this.constructor.name;
     this.code = code;
@@ -26,13 +26,15 @@ export class ProviderError extends Error {
     };
   }
 
-  static fromError(error: any, providerId?: string): ProviderError {
+  static fromError(error: unknown, providerId?: string): ProviderError {
     if (error instanceof ProviderError) {
       return error;
     }
 
-    const code = error.code || "UNKNOWN_ERROR";
-    const message = error.message || error.toString();
+    const errorObj = error as Record<string, unknown> | null;
+    const code = (errorObj?.code as string) || "UNKNOWN_ERROR";
+    const message =
+      (errorObj?.message as string) || (error instanceof Error ? error.message : String(error));
     return new ProviderError(code, message, providerId, error);
   }
 }

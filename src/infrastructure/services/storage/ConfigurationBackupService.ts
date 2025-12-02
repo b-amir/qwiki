@@ -1,5 +1,10 @@
 import type { ConfigurationRepository } from "@/domain/repositories/ConfigurationRepository";
-import type { ConfigurationBackup, ExportedConfiguration } from "@/domain/configuration";
+import type {
+  ConfigurationBackup,
+  ExportedConfiguration,
+  ProviderConfiguration,
+  GlobalConfiguration,
+} from "@/domain/configuration";
 import { EventBus } from "@/events";
 
 export class ConfigurationBackupService {
@@ -14,15 +19,15 @@ export class ConfigurationBackupService {
 
   async createBackup(description?: string): Promise<ConfigurationBackup> {
     const allConfigs = await this.configurationRepository.getAll();
-    const providers: Record<string, any> = {};
-    let global: any = {};
+    const providers: Record<string, ProviderConfiguration> = {};
+    let global: GlobalConfiguration = {} as GlobalConfiguration;
 
     for (const [key, value] of Object.entries(allConfigs)) {
       if (key.startsWith("provider.") && value) {
         const providerId = key.replace("provider.", "");
         providers[providerId] = value;
       } else if (key === "global" && value) {
-        global = value;
+        global = value as GlobalConfiguration;
       }
     }
 
@@ -201,9 +206,16 @@ export class ConfigurationBackupService {
     }
   }
 
-  private async decompressConfiguration(compressedConfig: any): Promise<ExportedConfiguration> {
+  private async decompressConfiguration(
+    compressedConfig: ExportedConfiguration | { compressed: true; data: string },
+  ): Promise<ExportedConfiguration> {
     try {
-      if (compressedConfig && typeof compressedConfig === "object" && compressedConfig.compressed) {
+      if (
+        compressedConfig &&
+        typeof compressedConfig === "object" &&
+        "compressed" in compressedConfig &&
+        compressedConfig.compressed
+      ) {
         if (typeof Buffer !== "undefined") {
           const decompressed = Buffer.from(compressedConfig.data, "base64").toString("utf8");
           return JSON.parse(decompressed);

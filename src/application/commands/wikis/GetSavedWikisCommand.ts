@@ -33,7 +33,7 @@ export class GetSavedWikisCommand implements Command<GetSavedWikisPayload> {
     try {
       this.logDebug("Starting to get saved wikis");
       const wikis = await this.wikiStorageService.getAllSavedWikis();
-      const wikiIds = wikis.map((wiki: any) => wiki.id);
+      const wikiIds = wikis.map((wiki) => wiki.id);
       const readmeStatus: ReadmeStatus = await this.readmeUpdateService.getReadmeStatus(wikiIds);
 
       this.logDebug("Retrieved saved wikis", {

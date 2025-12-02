@@ -67,7 +67,7 @@ export class SavedWikisTreeDataProvider implements TreeDataProvider<WikiTreeItem
     try {
       const wikis = await this.wikiStorage.getAllSavedWikis();
       this.logger.debug(`Retrieved ${wikis.length} saved wikis for tree view`);
-      return wikis.map((wiki: any) => new WikiTreeItem(wiki, TreeItemCollapsibleState.None));
+      return wikis.map((wiki) => new WikiTreeItem(wiki, TreeItemCollapsibleState.None));
     } catch (error) {
       this.logger.error("Failed to get saved wikis for tree view", error);
       return [];

@@ -120,7 +120,7 @@ export class ManagerInitializer {
       });
     };
 
-    const handleInitError = (error: any) => {
+    const handleInitError = (error: unknown) => {
       this.logger.error("Initialization failed", error);
       environmentStatusManager.setExtensionStatus({
         ready: false,

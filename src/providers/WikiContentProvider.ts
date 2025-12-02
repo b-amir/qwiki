@@ -34,7 +34,7 @@ export class WikiContentProvider implements TextDocumentContentProvider {
 
       const wikiId = uri.path;
       const wikis = await this.wikiStorageService.getAllSavedWikis();
-      const wiki = wikis.find((w: any) => w.id === wikiId);
+      const wiki = wikis.find((w) => w.id === wikiId);
 
       if (!wiki) {
         return `# Wiki not found\n\nWiki with ID "${wikiId}" could not be found.`;

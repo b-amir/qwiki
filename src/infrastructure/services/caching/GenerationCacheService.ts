@@ -76,14 +76,12 @@ export class GenerationCacheService {
             rootName: params.project.rootName?.toLowerCase(),
             overview: params.project.overview?.substring(0, 500),
             filesSample: params.project.filesSample?.slice(0, ServiceLimits.maxCacheFileSample),
-            related: params.project.related
-              ?.slice(0, ServiceLimits.maxCacheRelated)
-              .map((r: any) => ({
-                path: r.path.toLowerCase(),
-                preview: r.preview?.substring(0, 200),
-                line: r.line,
-                reason: r.reason?.toLowerCase(),
-              })),
+            related: params.project.related?.slice(0, ServiceLimits.maxCacheRelated).map((r) => ({
+              path: r.path.toLowerCase(),
+              preview: r.preview?.substring(0, 200),
+              line: r.line,
+              reason: r.reason?.toLowerCase(),
+            })),
           }
         : undefined,
     };

@@ -1,5 +1,6 @@
 import type { Webview } from "vscode";
 import { CommandRegistry } from "@/application";
+import type { Command } from "@/application/commands/Command";
 import type { LoggingService, Logger } from "@/infrastructure/services";
 
 export class FallbackCommandRegistryFactory {
@@ -30,7 +31,7 @@ export class FallbackCommandRegistryFactory {
       }
     };
 
-    fallbackRegistry.register = <T>(name: string, command: any): void => {
+    fallbackRegistry.register = <T>(name: string, command: Command<T>): void => {
       this.logger.info(`Fallback command registry registered command "${name}"`);
       return originalRegister(name, command);
     };

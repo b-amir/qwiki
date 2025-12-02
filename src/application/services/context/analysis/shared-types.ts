@@ -25,7 +25,7 @@ export interface ParameterInfo {
   name: string;
   type: string;
   optional: boolean;
-  defaultValue?: any;
+  defaultValue?: string | number | boolean | unknown[] | Record<string, unknown>;
   description?: string;
 }
 

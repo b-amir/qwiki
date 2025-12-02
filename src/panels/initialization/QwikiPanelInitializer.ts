@@ -24,7 +24,7 @@ export class QwikiPanelInitializer {
         reason: "error",
       });
       return {
-        handle: (error: any, context?: any) => {
+        handle: (error: unknown, context?: Record<string, unknown>) => {
           this.logger.error("Fallback error handler", { error, context });
         },
       } as ErrorHandler;
@@ -41,7 +41,7 @@ export class QwikiPanelInitializer {
         reason: "error",
       });
       return {
-        handle: (error: any, context?: any) => {
+        handle: (error: unknown, context?: Record<string, unknown>) => {
           this.logger.error("Fallback error handler", { error, context });
         },
       } as ErrorHandler;
@@ -54,7 +54,7 @@ export class QwikiPanelInitializer {
     } catch (e) {
       this.logger.error("getErrorHandler failed", e);
       return {
-        handle: (error: any, context?: any) => {
+        handle: (error: unknown, context?: Record<string, unknown>) => {
           this.logger.error("Fallback error handler", { error, context });
         },
       } as ErrorHandler;

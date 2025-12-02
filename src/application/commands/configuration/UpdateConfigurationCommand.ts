@@ -5,12 +5,12 @@ import type { ConfigurationManagerService } from "@/application/services";
 export class UpdateConfigurationCommand implements Command {
   constructor(private configManager: ConfigurationManagerService) {}
 
-  async execute(payload: { key: string; value: any }): Promise<any> {
+  async execute(payload: { key: string; value: unknown }): Promise<{ success: boolean }> {
     const { key, value } = payload;
 
     try {
       await this.configManager.set(key, value);
-      return { success: true, key, value };
+      return { success: true };
     } catch (error) {
       if (error instanceof ConfigurationError) {
         throw error;

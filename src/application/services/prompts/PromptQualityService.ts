@@ -1,7 +1,18 @@
 import { EventBus } from "@/events/EventBus";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import type { ProjectContext } from "@/domain/entities/Selection";
-import type { QualityThreshold, QualityAssuranceResult } from "@/domain/entities/PromptEngineering";
+import type {
+  QualityThreshold,
+  QualityAssuranceResult,
+  StructureValidation,
+  ClarityScore,
+  SpecificityScore,
+  ConsistencyScore,
+  QualityReport,
+  ImprovementSuggestion,
+  OutputValidation,
+  QualityMetrics,
+} from "@/domain/entities/PromptEngineering";
 import { PromptQualityAnalyzer } from "@/application/services/prompts/PromptQualityAnalyzer";
 import { QualityReportGenerator } from "@/application/services/prompts/quality/QualityReportGenerator";
 import { ImprovementSuggestionGenerator } from "@/application/services/prompts/quality/ImprovementSuggestionGenerator";
@@ -52,31 +63,34 @@ export class PromptQualityService {
     this.safetyChecker = new PromptSafetyChecker();
   }
 
-  async validatePromptStructure(prompt: string): Promise<any> {
+  async validatePromptStructure(prompt: string): Promise<StructureValidation> {
     return this.structureValidator.validatePromptStructure(prompt);
   }
 
-  async testPromptClarity(prompt: string): Promise<any> {
+  async testPromptClarity(prompt: string): Promise<ClarityScore> {
     return this.clarityAnalyzer.testPromptClarity(prompt);
   }
 
-  async measurePromptSpecificity(prompt: string): Promise<any> {
+  async measurePromptSpecificity(prompt: string): Promise<SpecificityScore> {
     return this.specificityAnalyzer.measurePromptSpecificity(prompt);
   }
 
-  async checkPromptConsistency(prompt: string): Promise<any> {
+  async checkPromptConsistency(prompt: string): Promise<ConsistencyScore> {
     return this.consistencyChecker.checkPromptConsistency(prompt);
   }
 
-  async generateQualityReport(prompt: string): Promise<any> {
+  async generateQualityReport(prompt: string): Promise<QualityReport> {
     return this.reportGenerator.generateQualityReport(prompt);
   }
 
-  async suggestImprovements(prompt: string, metrics: any): Promise<any> {
+  async suggestImprovements(
+    prompt: string,
+    metrics: QualityMetrics,
+  ): Promise<ImprovementSuggestion[]> {
     return this.suggestionGenerator.suggestImprovements(prompt, metrics);
   }
 
-  private validateOutputRequirements(prompt: string): any {
+  private validateOutputRequirements(prompt: string): OutputValidation {
     const hasFormatSpecification = /markdown|format|output|structure/i.test(prompt);
     const hasExample = /example|sample|demonstration/i.test(prompt);
 

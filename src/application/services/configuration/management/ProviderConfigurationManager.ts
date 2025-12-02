@@ -73,7 +73,7 @@ export class ProviderConfigurationManager {
     this.validator.throwIfInvalid(validationResult, providerId);
 
     if (validationResult.warnings.length > 0) {
-      const warningMessages = validationResult.warnings.map((w: any) => w.message).join(", ");
+      const warningMessages = validationResult.warnings.map((w) => w.message).join(", ");
       this.logger.warn(`Configuration warnings for ${providerId}: ${warningMessages}`);
     }
 

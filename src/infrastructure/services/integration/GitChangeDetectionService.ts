@@ -54,14 +54,15 @@ export class GitChangeDetectionService {
       this.logger.info("Git extension initialized", {
         repositoryCount: this.repositories.length,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
       this.logger.error("Failed to initialize Git extension", error);
       this.publishError(
         "Failed to initialize Git change detection",
         ErrorCodes.unknown,
         "Git extension may not be available. File indexing will use filesystem watchers instead.",
-        { error: error?.message },
-        error?.message,
+        { error: errObj?.message },
+        errObj?.message as string | undefined,
       );
     }
   }
@@ -93,7 +94,8 @@ export class GitChangeDetectionService {
             });
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errObj = error as Record<string, unknown> | null;
         this.logger.error("Failed to get changed files from repository", {
           repoPath: repo.rootUri.fsPath,
           error,
@@ -102,8 +104,8 @@ export class GitChangeDetectionService {
           "Failed to retrieve Git changes",
           ErrorCodes.unknown,
           "Git change detection may be temporarily unavailable.",
-          { repoPath: repo.rootUri.fsPath, error: error?.message },
-          error?.message,
+          { repoPath: repo.rootUri.fsPath, error: errObj?.message },
+          errObj?.message as string | undefined,
         );
       }
     }
@@ -139,14 +141,15 @@ export class GitChangeDetectionService {
         try {
           const changedFiles = await this.getChangedFiles();
           await callback(changedFiles);
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errObj = error as Record<string, unknown> | null;
           this.logger.error("Error in Git change callback", error);
           this.publishError(
             "Git change detection callback failed",
             ErrorCodes.unknown,
             "File indexing may not update automatically.",
-            { error: error?.message },
-            error?.message,
+            { error: errObj?.message },
+            errObj?.message as string | undefined,
           );
         }
       });
@@ -172,7 +175,7 @@ export class GitChangeDetectionService {
     message: string,
     code: string,
     suggestion?: string,
-    context?: any,
+    context?: Record<string, unknown>,
     originalError?: string,
   ): void {
     if (!this.eventBus) {

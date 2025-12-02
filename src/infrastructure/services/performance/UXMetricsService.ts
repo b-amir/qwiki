@@ -7,11 +7,24 @@ import {
 import { ServiceLimits } from "@/constants";
 import type { PerformanceMetric } from "@/infrastructure/services/providers/ProviderPerformanceService";
 
+interface UXMetricEntry {
+  value: number;
+  context?: Record<string, unknown>;
+  timestamp: number;
+}
+
+interface CachedResultEvent {
+  recoveryTime?: number;
+  error?: { code?: string };
+  providerId?: string;
+}
+
+interface OperationEvent {
+  operation?: string;
+}
+
 export class UXMetricsService {
-  private uxMetrics = new Map<
-    string,
-    { value: number; context?: Record<string, any>; timestamp: number }[]
-  >();
+  private uxMetrics = new Map<string, UXMetricEntry[]>();
   private errorRateCounts = new Map<string, { errorCount: number; totalCount: number }>();
   private logger: Logger;
 
@@ -24,7 +37,7 @@ export class UXMetricsService {
   }
 
   private subscribeToEvents(): void {
-    this.eventBus.subscribe("cachedResultUsed", (event: any) => {
+    this.eventBus.subscribe("cachedResultUsed", (event: CachedResultEvent) => {
       const recoveryTime = event.recoveryTime || 0;
       this.recordUXMetric("errorRecovery", recoveryTime, {
         errorCode: event.error?.code,
@@ -32,15 +45,15 @@ export class UXMetricsService {
       });
     });
 
-    this.eventBus.subscribe("operationFailed", (event: any) => {
+    this.eventBus.subscribe("operationFailed", (event: OperationEvent) => {
       this.recordErrorRate(event.operation || "unknown", 1, 1);
     });
 
-    this.eventBus.subscribe("providerGenerationFailed", (event: any) => {
+    this.eventBus.subscribe("providerGenerationFailed", () => {
       this.recordErrorRate("providerGeneration", 1, 1);
     });
 
-    this.eventBus.subscribe("generationSuccessful", (event: any) => {
+    this.eventBus.subscribe("generationSuccessful", () => {
       this.recordErrorRate("providerGeneration", 0, 1);
     });
   }
@@ -48,7 +61,7 @@ export class UXMetricsService {
   recordUXMetric(
     metricType: "timeToFirstResult" | "featureDiscovery" | "errorRecovery",
     value: number,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
   ): void {
     if (!this.uxMetrics.has(metricType)) {
       this.uxMetrics.set(metricType, []);

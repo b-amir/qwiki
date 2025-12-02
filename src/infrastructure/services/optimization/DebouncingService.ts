@@ -157,11 +157,11 @@ export class DebouncingService {
     return debouncedFn;
   }
 
-  cancel<T extends (...args: any[]) => any>(debouncedFunc: DebouncedFunction<T>): void {
+  cancel<T extends (...args: unknown[]) => unknown>(debouncedFunc: DebouncedFunction<T>): void {
     debouncedFunc.cancel();
   }
 
-  flush<T extends (...args: any[]) => any>(debouncedFunc: DebouncedFunction<T>): void {
+  flush<T extends (...args: unknown[]) => unknown>(debouncedFunc: DebouncedFunction<T>): void {
     debouncedFunc.flush();
   }
 
@@ -181,7 +181,7 @@ export class DebouncingService {
     return this.debouncedFunctions.size;
   }
 
-  getDebounceFunctionArgs(id: string): any[] | undefined {
+  getDebounceFunctionArgs(id: string): unknown[] | undefined {
     return this.functionArgs.get(id);
   }
 

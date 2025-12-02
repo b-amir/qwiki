@@ -1,4 +1,5 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "@/llm/types";
+import type { ProviderConfig } from "@/domain/types";
 import type { GetSetting } from "@/llm/providers/registry";
 import { buildWikiPrompt } from "@/llm/prompt";
 import { getNonce } from "@/utilities/getNonce";
@@ -246,7 +247,7 @@ export class ZAiProvider implements LLMProvider {
     return this.capabilities.features.includes(capability);
   }
 
-  validateConfig(config: any): ValidationResult {
+  validateConfig(config: ProviderConfig): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 

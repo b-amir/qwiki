@@ -14,6 +14,7 @@ import type {
   WikiOutline,
   DocumentationType,
   ProviderVariants,
+  DynamicPromptConfig,
 } from "@/domain/entities/PromptEngineering";
 import type { GenerateParams } from "@/llm/types";
 import { WikiPromptBuilder } from "@/application/services/prompts/building/WikiPromptBuilder";
@@ -52,7 +53,7 @@ export class AdvancedPromptService {
     return WikiPromptBuilder.buildWikiPrompt(params);
   }
 
-  async generateDynamicPrompt(config: any): Promise<string> {
+  async generateDynamicPrompt(config: DynamicPromptConfig): Promise<string> {
     return this.dynamicPromptGenerator.generateDynamicPrompt(config);
   }
 

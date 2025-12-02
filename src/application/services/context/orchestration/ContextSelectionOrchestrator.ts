@@ -16,7 +16,13 @@ import { LLMRegistry } from "@/llm/providers/registry";
 import { ProviderCapabilities } from "@/llm/types/ProviderCapabilities";
 import { ServiceLimits } from "@/constants";
 import { LoadingSteps, type LoadingStep } from "@/constants/loading";
-import type { TokenBudget, OptimalContextSelection } from "@/domain/entities/ContextIntelligence";
+import type {
+  TokenBudget,
+  OptimalContextSelection,
+  ProjectTypeDetection,
+  FileRelevanceScore,
+  ProjectEssentialFile,
+} from "@/domain/entities/ContextIntelligence";
 import { TokenBudgetCalculator } from "@/application/services/context/orchestration/TokenBudgetCalculator";
 
 export class ContextSelectionOrchestrator {
@@ -117,7 +123,7 @@ export class ContextSelectionOrchestrator {
     return projectType;
   }
 
-  private async getEssentialFiles(projectType: any) {
+  private async getEssentialFiles(projectType: ProjectTypeDetection) {
     const essentialFilesStart = Date.now();
     this.logger.debug("Getting language-specific essentials");
     const essentialFiles =
@@ -154,7 +160,7 @@ export class ContextSelectionOrchestrator {
   private async analyzeFileRelevance(
     targetFilePath: string,
     allFiles: Uri[],
-    projectType: any,
+    projectType: ProjectTypeDetection,
     onProgress?: (step: LoadingStep) => void,
   ) {
     const fileRelevanceScores =
@@ -166,7 +172,7 @@ export class ContextSelectionOrchestrator {
       );
 
     const sortStart = Date.now();
-    fileRelevanceScores.sort((a: any, b: any) => b.score - a.score);
+    fileRelevanceScores.sort((a, b) => b.score - a.score);
     this.logger.debug("File relevance scores sorted", {
       duration: Date.now() - sortStart,
       topScore: fileRelevanceScores[0]?.score,
@@ -177,8 +183,8 @@ export class ContextSelectionOrchestrator {
   }
 
   private async selectFiles(
-    fileRelevanceScores: any[],
-    essentialFiles: any[],
+    fileRelevanceScores: FileRelevanceScore[],
+    essentialFiles: ProjectEssentialFile[],
     tokenBudget: TokenBudget,
   ): Promise<OptimalContextSelection> {
     const availableTokens = tokenBudget.availableForContext;
@@ -206,7 +212,7 @@ export class ContextSelectionOrchestrator {
     providerId: string,
     selection: OptimalContextSelection,
     tokenBudget: TokenBudget,
-    projectType: any,
+    projectType: ProjectTypeDetection,
   ) {
     this.logger.debug("Publishing context-selected event");
     await this.eventBus.publish("context-selected", {

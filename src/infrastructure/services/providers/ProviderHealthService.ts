@@ -72,9 +72,11 @@ export class ProviderHealthService {
     try {
       this.logDebug(`Executing health check for provider ${providerId}`);
 
-      const reg: any = this.llmRegistry as any;
+      const reg = this.llmRegistry as LLMRegistry & {
+        healthCheckProvider?: (id: string) => Promise<HealthCheckResult>;
+      };
       if (typeof reg.healthCheckProvider === "function") {
-        healthResult = await reg.healthCheckProvider(providerId as any);
+        healthResult = await reg.healthCheckProvider(providerId);
       } else {
         healthResult = await provider.healthCheck();
       }
@@ -151,7 +153,7 @@ export class ProviderHealthService {
 
       try {
         const providers = this.llmRegistry.list();
-        const providerIds = providers.map((p: any) => p.id);
+        const providerIds = providers.map((p) => p.id);
         this.logDebug(`Checking health for ${providerIds.length} providers`);
 
         const healthCheckPromises = providerIds.map(async (providerId) => {
@@ -248,7 +250,7 @@ export class ProviderHealthService {
 
     try {
       const providers = this.llmRegistry.list();
-      const providerIds = providers.map((p: any) => p.id);
+      const providerIds = providers.map((p) => p.id);
       const results: Record<string, HealthStatus> = {};
 
       this.logDebug(`Forcing health checks for ${providerIds.length} providers`);

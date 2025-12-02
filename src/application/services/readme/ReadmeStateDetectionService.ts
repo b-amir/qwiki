@@ -385,7 +385,7 @@ export class ReadmeStateDetectionService {
       return undefined;
     }
 
-    return this.gitAPI.repositories.find((repo: any) => uri.fsPath.startsWith(repo.rootUri.fsPath));
+    return this.gitAPI.repositories.find((repo) => uri.fsPath.startsWith(repo.rootUri.fsPath));
   }
 
   private getRelativePath(uri: Uri, rootPath: string): string {

@@ -2,6 +2,10 @@ import type {
   ValidationResult,
   GlobalConfiguration,
   ProviderConfigurationMap,
+  ExportedConfiguration,
+  ConfigurationSchema,
+  ProviderConfiguration,
+  ConfigurationTemplate,
 } from "@/domain/configuration";
 import type {
   ConfigurationValidationEngineService,
@@ -41,7 +45,7 @@ export interface ConfigurationExport {
   format: string;
   encrypted: boolean;
   compressed: boolean;
-  data: any;
+  data: ExportedConfiguration;
   metadata: {
     exportedBy?: string;
     description?: string;
@@ -64,8 +68,8 @@ export interface ImportConflict {
   type: "global" | "provider" | "template";
   id: string;
   field: string;
-  existingValue: any;
-  incomingValue: any;
+  existingValue: unknown;
+  incomingValue: unknown;
   resolution?: "replace" | "keep" | "merge";
 }
 
@@ -133,7 +137,7 @@ export class ConfigurationImportExportService {
       const validationResult = await this.validateImportData(data);
       if (!validationResult.isValid) {
         throw new Error(
-          `Import validation failed: ${validationResult.errors.map((e: any) => e.message).join(", ")}`,
+          `Import validation failed: ${validationResult.errors.map((e) => e.message).join(", ")}`,
         );
       }
     }
@@ -160,7 +164,7 @@ export class ConfigurationImportExportService {
     await this.applyImport(data, existingGlobal, existingProviders, importOptions);
   }
 
-  async validateImportData(data: any): Promise<ValidationResult> {
+  async validateImportData(data: ExportedConfiguration): Promise<ValidationResult> {
     const context: ValidationContext = {
       configuration: data,
       operation: "create",
@@ -171,14 +175,14 @@ export class ConfigurationImportExportService {
     return this.validationEngine.validateConfiguration(data, schema, context);
   }
 
-  async previewImport(data: any, options: ImportOptions): Promise<ImportPreview> {
+  async previewImport(data: ExportedConfiguration, options: ImportOptions): Promise<ImportPreview> {
     const existingGlobal = await this.getCurrentGlobalConfiguration();
     const existingProviders = await this.getCurrentProviderConfigurations();
     return this.importPreview.previewImport(data, existingGlobal, existingProviders, options);
   }
 
   private async applyImport(
-    data: any,
+    data: ExportedConfiguration,
     existingGlobal: GlobalConfiguration,
     existingProviders: ProviderConfigurationMap,
     options: ImportOptions,
@@ -213,7 +217,7 @@ export class ConfigurationImportExportService {
     }
   }
 
-  private createImportSchema(): any {
+  private createImportSchema(): ConfigurationSchema {
     return {
       version: "1.0.0",
       fields: [
@@ -249,7 +253,10 @@ export class ConfigurationImportExportService {
 
   private async saveGlobalConfiguration(config: GlobalConfiguration): Promise<void> {}
 
-  private async saveProviderConfiguration(providerId: string, config: any): Promise<void> {}
+  private async saveProviderConfiguration(
+    providerId: string,
+    config: ProviderConfiguration,
+  ): Promise<void> {}
 
-  private async saveTemplate(templateId: string, template: any): Promise<void> {}
+  private async saveTemplate(templateId: string, template: ConfigurationTemplate): Promise<void> {}
 }

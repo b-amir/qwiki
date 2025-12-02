@@ -10,6 +10,7 @@ import {
   PerformanceMonitorService,
   GenerationCacheService,
   QualityMetricsService,
+  LanguageServerIntegrationService,
 } from "@/infrastructure/services";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { ProviderError, ErrorCodes } from "@/errors";
@@ -23,6 +24,7 @@ import { PromptExampleService } from "@/application/services/prompts/examples/Pr
 import type { ImprovementSuggestion } from "@/domain/entities/PromptEngineering";
 import type { ProjectTypeDetection } from "@/domain/entities/ContextIntelligence";
 import { CachingService } from "@/infrastructure/services/caching/CachingService";
+import { ContextIntelligenceService } from "@/application/services/context/ContextIntelligenceService";
 
 interface GenerateParams {
   snippet: string;
@@ -45,11 +47,11 @@ export class WikiGenerationFlow {
   constructor(
     private llmRegistry: LLMRegistry,
     private generationCacheService: GenerationCacheService,
-    private contextIntelligenceService?: any,
+    private contextIntelligenceService?: ContextIntelligenceService,
     private performanceMonitor?: PerformanceMonitorService,
     private loggingService?: LoggingService,
     private intelligentContextEnabled = false,
-    private languageServerIntegrationService?: any,
+    private languageServerIntegrationService?: LanguageServerIntegrationService,
     private promptQualityService?: PromptQualityService,
     private qualityMetricsService?: QualityMetricsService,
     private cachingService?: CachingService,
@@ -123,14 +125,15 @@ export class WikiGenerationFlow {
         cancellationToken,
       );
       completeStep(LoadingSteps.initializingContext);
-    } catch (error: any) {
-      if (error?.code === ErrorCodes.GENERATION_CANCELLED) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
+      if (errObj?.code === ErrorCodes.GENERATION_CANCELLED) {
         throw error;
       }
       this.logger.error("Context intelligence failed with exception, using fallback", {
-        error: error?.message,
-        errorCode: error?.code,
-        stack: error?.stack,
+        error: errObj?.message,
+        errorCode: errObj?.code,
+        stack: errObj?.stack,
         filePath: request.filePath,
       });
       enhancedContext = projectContext;
@@ -273,16 +276,20 @@ export class WikiGenerationFlow {
     let projectType: ProjectTypeDetection | undefined;
     let examples: string[] | undefined;
 
-    if (this.contextIntelligenceService?.projectTypeDetectionService) {
+    if (this.contextIntelligenceService) {
       try {
-        const detectedProjectType =
-          await this.contextIntelligenceService.projectTypeDetectionService.detectProjectType();
+        const detectedProjectType = await this.contextIntelligenceService.detectProjectType();
         projectType = detectedProjectType;
         if (detectedProjectType) {
           this.logger.debug("Project type detected for prompt", {
             primaryLanguage: detectedProjectType.primaryLanguage,
             framework: detectedProjectType.framework,
           });
+        }
+        const examplesData =
+          await this.contextIntelligenceService.getLanguageSpecificEssentials(detectedProjectType);
+        if (examplesData && examplesData.length > 0) {
+          examples = examplesData.slice(0, 3).map((file) => file.filePath);
         }
       } catch (error) {
         this.logger.debug("Failed to detect project type for prompt", error);

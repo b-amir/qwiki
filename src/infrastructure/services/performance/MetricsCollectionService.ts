@@ -159,7 +159,7 @@ export class MetricsCollectionService {
     }
   }
 
-  recordSelection(providerId: string, context: any): void {
+  recordSelection(providerId: string, context: Record<string, unknown>): void {
     this.logDebug(`Recording provider selection for ${providerId}`);
 
     try {

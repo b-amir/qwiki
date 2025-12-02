@@ -1,4 +1,5 @@
 import type { LLMProvider, GenerateParams, GenerateResult, ProviderUiConfig } from "@/llm/types";
+import type { ProviderConfig } from "@/domain/types";
 import { buildWikiPrompt } from "@/llm/prompt";
 import { ProviderError, ErrorCodes } from "@/errors";
 import {
@@ -143,7 +144,9 @@ export class HuggingFaceProvider implements LLMProvider {
       handleHttpError(res, this.id, "Hugging Face", text);
     }
 
-    const data: any = await res.json();
+    const data = (await res.json()) as
+      | Array<{ generated_text?: string }>
+      | { generated_text?: string };
     let content = "";
     if (Array.isArray(data)) {
       content = data[0]?.generated_text || "";
@@ -173,7 +176,7 @@ export class HuggingFaceProvider implements LLMProvider {
     return this.capabilities.features.includes(capability);
   }
 
-  validateConfig(config: any): ValidationResult {
+  validateConfig(config: ProviderConfig): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 

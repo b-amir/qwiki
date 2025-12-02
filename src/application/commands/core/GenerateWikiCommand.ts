@@ -46,11 +46,12 @@ export class GenerateWikiCommand implements Command<GenerateWikiPayload> {
       this.logger.debug("GenerateWikiCommand.execute completed", {
         duration: Date.now() - startTime,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errObj = error as Record<string, unknown> | null;
       this.logger.error("GenerateWikiCommand.execute failed", {
         duration: Date.now() - startTime,
-        error: error?.message,
-        stack: error?.stack,
+        error: errObj?.message,
+        stack: errObj?.stack,
       });
       throw error;
     }

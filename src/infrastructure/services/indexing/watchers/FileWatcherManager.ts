@@ -4,7 +4,10 @@ import type {
   DebouncingService,
   DebouncedFunction,
 } from "@/infrastructure/services/optimization/DebouncingService";
-import type { GitChangeDetectionService } from "@/infrastructure/services/integration/GitChangeDetectionService";
+import type {
+  GitChangeDetectionService,
+  ChangedFile,
+} from "@/infrastructure/services/integration/GitChangeDetectionService";
 import type { Logger } from "@/infrastructure/services";
 import type { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
 
@@ -74,7 +77,7 @@ export class FileWatcherManager {
     }
 
     this.gitUnsubscribe = this.gitChangeDetectionService.subscribeToChanges(
-      async (changedFiles: any) => {
+      async (changedFiles: ChangedFile[]) => {
         for (const changedFile of changedFiles) {
           if (changedFile.status === "deleted") {
             this.removeFromIndex(changedFile.uri);

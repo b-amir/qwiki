@@ -129,7 +129,7 @@ export class ProviderValidationService {
 
     const providers = this.llmRegistry.getAllProviders();
     const providersRequiringKeys = Object.values(providers).filter(
-      (p: any) => p.requiresApiKey === true,
+      (p) => p.requiresApiKey === true,
     );
 
     if (providersRequiringKeys.length === 0) {

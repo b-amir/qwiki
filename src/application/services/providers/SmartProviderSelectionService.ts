@@ -39,7 +39,7 @@ export interface ProviderScore {
 }
 
 export interface ContextualRequirements {
-  requiredFeatures: any[];
+  requiredFeatures: string[];
   minTokens?: number;
   preferredLanguages?: string[];
   requiresStreaming?: boolean;

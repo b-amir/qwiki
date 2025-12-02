@@ -67,7 +67,7 @@ export class ProjectContextService {
       const findFilesStart = Date.now();
       this.logger.debug("Getting indexed files");
       const indexedFiles = await this.projectIndexService.getIndexedFiles();
-      const files = indexedFiles.slice(0, FileLimits.projectFiles).map((f: any) => f.uri);
+      const files = indexedFiles.slice(0, FileLimits.projectFiles).map((f) => f.uri);
       this.logger.debug("Indexed files retrieved", {
         duration: Date.now() - findFilesStart,
         fileCount: files.length,

@@ -7,6 +7,9 @@ import type {
   PromptEngineeringConfig,
   WikiManagementConfig,
   Phase4Configuration,
+  ProviderConfiguration,
+  GlobalConfiguration,
+  ConfigurationSchema,
 } from "@/domain/configuration";
 import { EventBus } from "@/events";
 import type { ConfigurationValidationEngineService } from "@/application/services/configuration/ConfigurationValidationEngineService";
@@ -15,6 +18,7 @@ import type {
   ConfigurationImportExportService,
   ExportOptions,
   ImportOptions,
+  ConfigurationExport,
 } from "./ConfigurationImportExportService";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import type { ProjectContextCacheInvalidationService } from "@/infrastructure/services";
@@ -219,19 +223,27 @@ export class ConfigurationManagerService {
     return this.providerManager.getProviderConfig(providerId);
   }
 
-  async setProviderConfig(providerId: string, config: any): Promise<void> {
-    return this.providerManager.setProviderConfig(providerId, config);
+  async setProviderConfig(
+    providerId: string,
+    config: Partial<ProviderConfiguration>,
+  ): Promise<void> {
+    const existingConfig = await this.providerManager.getProviderConfig(providerId);
+    const mergedConfig = { ...existingConfig, ...config } as ProviderConfiguration;
+    return this.providerManager.setProviderConfig(providerId, mergedConfig);
   }
 
   async getGlobalConfig() {
     return this.globalManager.getGlobalConfig();
   }
 
-  async setGlobalConfig(config: any): Promise<void> {
+  async setGlobalConfig(config: Partial<GlobalConfiguration>): Promise<void> {
     return this.globalManager.setGlobalConfig(config);
   }
 
-  async validateConfiguration(config: any, schema: any): Promise<ValidationResult> {
+  async validateConfiguration(
+    config: Record<string, unknown>,
+    schema: ConfigurationSchema,
+  ): Promise<ValidationResult> {
     return this.validator.validateConfiguration(config, schema);
   }
 
@@ -271,10 +283,19 @@ export class ConfigurationManagerService {
   }
 
   async importConfigurationWithImportExportService(
-    config: any,
+    config: ExportedConfiguration,
     options: ImportOptions = {},
   ): Promise<void> {
-    await this.importExportService.importConfiguration(config, options);
+    const configurationExport: ConfigurationExport = {
+      version: config.version,
+      exportedAt: config.exportedAt,
+      format: "json",
+      encrypted: false,
+      compressed: false,
+      data: config,
+      metadata: config.metadata,
+    };
+    await this.importExportService.importConfiguration(configurationExport, options);
     await this.eventBus.publish("configurationImported", { config });
   }
 

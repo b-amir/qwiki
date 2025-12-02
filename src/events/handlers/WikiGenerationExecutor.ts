@@ -1,6 +1,6 @@
 import { CancellationToken, workspace } from "vscode";
 import type { EventBus } from "@/events/EventBus";
-import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import type { WikiGenerationRequest, WikiGenerationResult } from "@/domain/entities/Wiki";
 import type { ProjectContext } from "@/domain/entities/Selection";
 import { OutboundEvents, LoadingSteps } from "@/constants/Events";
 import type { LoadingStep } from "@/constants/Events";
@@ -8,6 +8,7 @@ import {
   ErrorLoggingService,
   ErrorRecoveryService,
   UXMetricsService,
+  LoggingService,
   createLogger,
   type Logger,
   type ProviderValidationService,
@@ -20,6 +21,7 @@ import { VSCodeCommandIds } from "@/constants/Commands";
 import type { WikiService } from "@/application/services/core/WikiService";
 import type { CachedWikiService } from "@/application/services/core/CachedWikiService";
 import type { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
+import type { CachedProjectContextService } from "@/application/services/context/project/CachedProjectContextService";
 import { COMMAND_TIMEOUTS, GENERATION_TIMEOUTS } from "@/constants/ServiceTiers";
 
 export class WikiGenerationExecutor {
@@ -31,11 +33,11 @@ export class WikiGenerationExecutor {
     private eventBus: EventBus,
     private wikiService: WikiService,
     private cachedWikiService: CachedWikiService,
-    private projectContextService: any,
+    private projectContextService: CachedProjectContextService,
     private errorRecoveryService: ErrorRecoveryService,
     private errorLoggingService: ErrorLoggingService,
     private providerValidationService: ProviderValidationService,
-    private loggingService: any,
+    private loggingService: LoggingService,
     private updateStatusBar: (message: string) => void,
     private resetStatusBar: () => void,
     private contextCacheService?: ContextCacheService,
@@ -137,7 +139,7 @@ export class WikiGenerationExecutor {
       this.logger.debug("runGenerationSteps completed successfully", {
         totalDuration: Date.now() - startTime,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       await this.handleGenerationError(error, payload, Date.now() - startTime);
     }
   }
@@ -293,7 +295,7 @@ export class WikiGenerationExecutor {
         hasResult: !!result,
       });
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearInterval(warningInterval);
       if (generationContinuingInBackground) {
         generationPromise
@@ -331,7 +333,7 @@ export class WikiGenerationExecutor {
 
   private async handleGenerationFailure(
     payload: WikiGenerationRequest,
-    result: any,
+    result: WikiGenerationResult | null,
   ): Promise<void> {
     const errorMessage = (result && result.error) || "Wiki generation failed";
     const isCancellationError =
@@ -401,11 +403,17 @@ export class WikiGenerationExecutor {
   }
 
   private async handleGenerationError(
-    error: any,
+    error: unknown,
     payload: WikiGenerationRequest,
     errorDuration: number,
   ): Promise<void> {
-    if (error?.code === ErrorCodes.GENERATION_CANCELLED) {
+    const errorObj = error as Record<string, unknown> | null;
+    const errorCode = errorObj?.code as string | undefined;
+    const errorMessage = errorObj?.message as string | undefined;
+    const errorName = errorObj?.name as string | undefined;
+    const errorStack = errorObj?.stack as string | undefined;
+
+    if (errorCode === ErrorCodes.GENERATION_CANCELLED) {
       this.logger.info("Wiki generation cancelled by user", {
         totalDuration: errorDuration,
       });
@@ -415,10 +423,10 @@ export class WikiGenerationExecutor {
     this.logger.error("runGenerationSteps FAILED with exception", {
       totalDuration: errorDuration,
       totalDurationSeconds: Math.round(errorDuration / 1000),
-      error: error?.message,
-      errorCode: error?.code,
-      errorName: error?.name,
-      stack: error?.stack,
+      error: errorMessage,
+      errorCode: errorCode,
+      errorName: errorName,
+      stack: errorStack,
       providerId: payload.providerId,
       snippetLength: payload.snippet?.length || 0,
       filePath: payload.filePath,

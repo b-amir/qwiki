@@ -119,7 +119,7 @@ export class StatisticsCalculationService {
     try {
       const result: Record<string, PerformanceStats> = {};
       const providers = this.llmRegistry.list();
-      const providerIdSet = new Set(providers.map((p: any) => p.id));
+      const providerIdSet = new Set(providers.map((p) => p.id));
 
       this.logDebug(`Processing stats for ${providerIdSet.size} providers`);
 

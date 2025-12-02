@@ -113,7 +113,7 @@ export function registerCoreServices(
         container.resolve("eventBus"),
         await container.resolveLazy("wikiService"),
         await container.resolveLazy("cachedWikiService"),
-        (await container.resolveLazy("projectContextService")) as ProjectContextService,
+        (await container.resolveLazy("cachedProjectContextService")) as CachedProjectContextService,
         container.resolve("errorRecoveryService"),
         container.resolve("errorLoggingService"),
         await container.resolveLazy("providerValidationService"),

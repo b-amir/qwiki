@@ -125,48 +125,51 @@ export class AppBootstrap {
     });
 
     const unsubSelection = eventBus.subscribe(OutboundEvents.selection, (payload) => {
-      messageBus.postSuccess(OutboundEvents.selection, payload);
+      messageBus.postSuccess(OutboundEvents.selection, payload as Record<string, unknown>);
     });
     commandRegistry.addDisposer(unsubSelection);
 
     const unsubWikiResult = eventBus.subscribe(OutboundEvents.wikiResult, (payload) => {
-      messageBus.postSuccess(OutboundEvents.wikiResult, payload);
+      messageBus.postSuccess(OutboundEvents.wikiResult, payload as Record<string, unknown>);
     });
     commandRegistry.addDisposer(unsubWikiResult);
 
-      const unsubWikiContentChunk = eventBus.subscribe(
-        OutboundEvents.wikiContentChunk,
-        (payload: any) => {
-          if (
-            payload &&
-            typeof payload === "object" &&
-            "chunk" in payload &&
-            "accumulatedContent" in payload
-          ) {
-            messageBus.postChunk(payload.chunk as string, payload.accumulatedContent as string);
-          } else {
-            messageBus.postMessage(OutboundEvents.wikiContentChunk, payload);
-          }
-        },
-      );
+    const unsubWikiContentChunk = eventBus.subscribe(
+      OutboundEvents.wikiContentChunk,
+      (payload: { chunk?: string; accumulatedContent?: string } | Record<string, unknown>) => {
+        if (
+          payload &&
+          typeof payload === "object" &&
+          "chunk" in payload &&
+          "accumulatedContent" in payload
+        ) {
+          messageBus.postChunk(payload.chunk as string, payload.accumulatedContent as string);
+        } else {
+          messageBus.postMessage(OutboundEvents.wikiContentChunk, payload);
+        }
+      },
+    );
     commandRegistry.addDisposer(unsubWikiContentChunk);
 
     const unsubWikiGenerationComplete = eventBus.subscribe(
       OutboundEvents.wikiGenerationComplete,
       (payload) => {
         messageBus.flushChunksImmediately();
-        messageBus.postMessage(OutboundEvents.wikiGenerationComplete, payload);
+        messageBus.postMessage(
+          OutboundEvents.wikiGenerationComplete,
+          payload as Record<string, unknown>,
+        );
       },
     );
     commandRegistry.addDisposer(unsubWikiGenerationComplete);
 
     const unsubRelated = eventBus.subscribe(OutboundEvents.related, (payload) => {
-      messageBus.postSuccess(OutboundEvents.related, payload);
+      messageBus.postSuccess(OutboundEvents.related, payload as Record<string, unknown>);
     });
     commandRegistry.addDisposer(unsubRelated);
 
     const unsubLoading = eventBus.subscribe(OutboundEvents.loadingStep, (payload) => {
-      messageBus.postSuccess(OutboundEvents.loadingStep, payload);
+      messageBus.postSuccess(OutboundEvents.loadingStep, payload as Record<string, unknown>);
     });
 
     const unsubReadmeProgress = eventBus.subscribe(
@@ -182,7 +185,16 @@ export class AppBootstrap {
     commandRegistry.addDisposer(unsubReadmeProgress);
     commandRegistry.addDisposer(unsubLoading);
 
-    const unsubError = eventBus.subscribe(OutboundEvents.error, (payload: any) => {
+    interface ErrorPayload {
+      code?: string;
+      message?: string;
+      suggestion?: string;
+      suggestions?: string[];
+      context?: Record<string, unknown>;
+      originalError?: string;
+      timestamp?: string;
+    }
+    const unsubError = eventBus.subscribe(OutboundEvents.error, (payload: ErrorPayload) => {
       this.logger.info("Error event received in AppBootstrap, forwarding to MessageBus", {
         code: payload.code,
         message: payload.message,
@@ -197,7 +209,7 @@ export class AppBootstrap {
           ? payload.suggestions[0]
           : payload.suggestion;
       messageBus.postError(
-        payload.message,
+        payload.message || "Unknown error",
         payload.code,
         suggestion,
         payload.context,
@@ -215,7 +227,10 @@ export class AppBootstrap {
     const unsubReadmeBackupCreated = eventBus.subscribe(
       OutboundEvents.readmeBackupCreated,
       (payload) => {
-        messageBus.postImmediate(OutboundEvents.readmeBackupCreated, payload);
+        messageBus.postImmediate(
+          OutboundEvents.readmeBackupCreated,
+          payload as Record<string, unknown>,
+        );
       },
     );
     commandRegistry.addDisposer(unsubReadmeBackupCreated);
@@ -223,7 +238,10 @@ export class AppBootstrap {
     const unsubReadmeBackupDeleted = eventBus.subscribe(
       OutboundEvents.readmeBackupDeleted,
       (payload) => {
-        messageBus.postImmediate(OutboundEvents.readmeBackupDeleted, payload);
+        messageBus.postImmediate(
+          OutboundEvents.readmeBackupDeleted,
+          payload as Record<string, unknown>,
+        );
       },
     );
     commandRegistry.addDisposer(unsubReadmeBackupDeleted);

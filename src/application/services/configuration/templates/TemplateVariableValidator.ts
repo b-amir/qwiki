@@ -1,7 +1,7 @@
 import type { TemplateVariable } from "@/application/services/configuration/ConfigurationTemplateService";
 
 export class TemplateVariableValidator {
-  validateVariableValue(variable: TemplateVariable, value: any): any {
+  validateVariableValue(variable: TemplateVariable, value: unknown): unknown {
     if (variable.type === "string" && typeof value !== "string") {
       throw new Error(`Variable ${variable.name} must be a string`);
     }

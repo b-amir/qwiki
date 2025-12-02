@@ -1,5 +1,6 @@
 import { LLMRegistry } from "@/llm/providers/registry";
 import { ProviderCapabilities } from "@/llm/types/ProviderCapabilities";
+import type { ProviderFeature } from "@/llm/types/ProviderCapabilities";
 import type { DeepContextAnalysis } from "@/application/services/context/ContextAnalysisService";
 import type {
   ContextualRequirements,
@@ -30,7 +31,7 @@ export class ProviderScoringService {
     const breakdown = { performance: 0, cost: 0, quality: 0, speed: 0, reliability: 0 };
 
     for (const feature of requirements.requiredFeatures) {
-      if (provider.supportsCapability(feature)) {
+      if (provider.supportsCapability(feature as ProviderFeature)) {
         score += 20;
       }
     }
@@ -107,7 +108,13 @@ export class ProviderScoringService {
   private generateReasoning(
     capabilities: ProviderCapabilities,
     requirements: ContextualRequirements,
-    breakdown: any,
+    breakdown: {
+      performance: number;
+      cost: number;
+      quality: number;
+      speed: number;
+      reliability: number;
+    },
     context: DeepContextAnalysis,
   ): string {
     const reasons: string[] = [];

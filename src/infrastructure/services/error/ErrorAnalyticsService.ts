@@ -14,7 +14,7 @@ export interface ErrorAnalytics {
   lastOccurrence: number;
   totalOccurrences: number;
   providerIds: Set<string>;
-  contexts: Array<Record<string, any>>;
+  contexts: Array<Record<string, unknown>>;
   averageTimeBetweenOccurrences?: number;
 }
 
@@ -25,18 +25,39 @@ export interface ErrorAggregation {
   recentErrors: Array<{
     error: ProviderError;
     timestamp: number;
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
   }>;
   errorRate: number;
   timeWindow: number;
 }
 
+interface OperationFailedEvent {
+  error: unknown;
+  context?: Record<string, unknown>;
+}
+
+interface ProviderGenerationFailedEvent {
+  error: unknown;
+  params?: unknown;
+}
+
+interface CachedResultUsedEvent {
+  error: unknown;
+  context?: Record<string, unknown>;
+}
+
+interface GenerationEvent {
+  success?: boolean;
+}
+
+interface ErrorHistoryEntry {
+  error: ProviderError;
+  timestamp: number;
+  context?: Record<string, unknown>;
+}
+
 export class ErrorAnalyticsService {
-  private errorHistory: Array<{
-    error: ProviderError;
-    timestamp: number;
-    context?: Record<string, any>;
-  }> = [];
+  private errorHistory: ErrorHistoryEntry[] = [];
   private errorAnalytics = new Map<string, ErrorAnalytics>();
   private totalOperations = 0;
   private readonly MAX_ERROR_HISTORY = ServiceLimits.maxPerformanceMetrics;
@@ -48,40 +69,40 @@ export class ErrorAnalyticsService {
   ) {
     this.logger = createLogger("ErrorAnalyticsService");
 
-    this.eventBus.subscribe("operationFailed", (event: any) => {
+    this.eventBus.subscribe("operationFailed", (event: OperationFailedEvent) => {
       if (event.error instanceof ProviderError) {
         this.recordError(event.error, event.context);
       }
     });
 
-    this.eventBus.subscribe("providerGenerationFailed", (event: any) => {
+    this.eventBus.subscribe("providerGenerationFailed", (event: ProviderGenerationFailedEvent) => {
       if (event.error instanceof ProviderError) {
         this.recordError(event.error, { operation: "providerGeneration", params: event.params });
       }
     });
 
-    this.eventBus.subscribe("cachedResultUsed", (event: any) => {
+    this.eventBus.subscribe("cachedResultUsed", (event: CachedResultUsedEvent) => {
       if (event.error instanceof ProviderError) {
         this.recordErrorRecovery(event.error, event.context);
       }
     });
 
-    this.eventBus.subscribe("generationSuccessful", (event: any) => {
+    this.eventBus.subscribe("generationSuccessful", (_event: GenerationEvent) => {
       this.recordOperation(true);
     });
 
-    this.eventBus.subscribe("operationSuccessful", (event: any) => {
+    this.eventBus.subscribe("operationSuccessful", (_event: GenerationEvent) => {
       this.recordOperation(true);
     });
 
-    this.eventBus.subscribe("wikiGenerationComplete", (event: any) => {
+    this.eventBus.subscribe("wikiGenerationComplete", (event: GenerationEvent) => {
       if (event.success) {
         this.recordOperation(true);
       }
     });
   }
 
-  recordError(error: ProviderError, context?: Record<string, any>): void {
+  recordError(error: ProviderError, context?: Record<string, unknown>): void {
     const timestamp = Date.now();
     this.totalOperations++;
 
@@ -255,10 +276,7 @@ export class ErrorAnalyticsService {
     return errors.sort((a, b) => b.count - a.count).slice(0, limit);
   }
 
-  getErrorsByProvider(
-    providerId: string,
-    timeWindowMs: number = 3600000,
-  ): Array<{ error: ProviderError; timestamp: number; context?: Record<string, any> }> {
+  getErrorsByProvider(providerId: string, timeWindowMs: number = 3600000): ErrorHistoryEntry[] {
     const cutoffTime = Date.now() - timeWindowMs;
 
     return this.errorHistory.filter(
@@ -289,7 +307,7 @@ export class ErrorAnalyticsService {
     errorHistory: Array<{
       error: { code: string; message: string; providerId?: string };
       timestamp: number;
-      context?: Record<string, any>;
+      context?: Record<string, unknown>;
     }>;
     errorAnalytics: Record<string, Omit<ErrorAnalytics, "providerIds"> & { providerIds: string[] }>;
     totalOperations: number;

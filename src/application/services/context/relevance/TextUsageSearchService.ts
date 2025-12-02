@@ -125,12 +125,14 @@ export class TextUsageSearchService {
         }
 
         return null;
-      } catch (error: any) {
+      } catch (error: unknown) {
         errorCount++;
-        if (!error.message?.includes("binary")) {
+        const errObj = error as Record<string, unknown> | null;
+        const errMsg = errObj?.message as string | undefined;
+        if (!errMsg?.includes("binary")) {
           this.logger.error("Exception in findTextUsages", {
             file: uri.fsPath,
-            error: error.message,
+            error: errMsg,
           });
         }
         return null;

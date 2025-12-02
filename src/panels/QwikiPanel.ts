@@ -1,4 +1,4 @@
-import { Disposable, WebviewView, Uri, window, ExtensionContext, commands } from "vscode";
+import { Disposable, WebviewView, Uri, window, ExtensionContext, commands, Webview } from "vscode";
 import { AppBootstrap, CommandRegistry } from "@/application";
 import { getWebviewHtml } from "@/panels/webviewContent";
 import { Pages } from "@/panels/constants";
@@ -121,8 +121,8 @@ export class QwikiPanel {
     );
   }
 
-  private setupEarlyMessageListener(webview: any): void {
-    const disposable = webview.onDidReceiveMessage((message: any) => {
+  private setupEarlyMessageListener(webview: Webview): void {
+    const disposable = webview.onDidReceiveMessage((message: { command: string }) => {
       if (message.command === "webviewReady") {
         this.logger.info("Early webviewReady message received");
         this._webviewReadyReceived = true;
@@ -137,7 +137,7 @@ export class QwikiPanel {
     this._disposables.push(disposable);
   }
 
-  private initializeManagers(webview: any): void {
+  private initializeManagers(webview: Webview): void {
     const panelUtilities = new PanelUtilities(this.logger, this.bootstrap, this.navigationManager);
     const languageStatusMonitorRef: { current?: LanguageStatusMonitor } = {};
     const managerInitializer = new ManagerInitializer(
@@ -157,7 +157,7 @@ export class QwikiPanel {
       },
     );
 
-    const result = managerInitializer.initializeManagers(webview, languageStatusMonitorRef);
+    const result = managerInitializer.initializeManagers(this.view!, languageStatusMonitorRef);
     this.environmentStatusManager = result.environmentStatusManager;
     this.languageStatusMonitor = result.languageStatusMonitor;
     this.navigationManager = result.navigationManager;

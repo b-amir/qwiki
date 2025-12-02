@@ -58,7 +58,7 @@ export function buildWikiPromptLegacy(params: GenerateParams) {
         proj.rootName ? `- Project Name: ${proj.rootName}` : undefined,
         proj.overview ? `- Project Overview: ${proj.overview}` : undefined,
         proj.filesSample && proj.filesSample.length
-          ? `- Project Structure:\n${proj.filesSample.map((p: any) => `  - ${p}`).join("\n")}`
+          ? `- Project Structure:\n${proj.filesSample.map((p) => `  - ${p}`).join("\n")}`
           : undefined,
         proj.related && proj.related.length
           ? `- Related Files & Usages:\n${proj.related

@@ -4,14 +4,20 @@ import type { LoadingStep } from "@/constants/Events";
 import { ErrorCodes } from "@/constants/ErrorCodes";
 import { ServiceLimits } from "@/constants";
 import { WebviewOptimizerService } from "@/infrastructure/services/optimization/WebviewOptimizerService";
-import { DebouncingService } from "@/infrastructure/services/optimization/DebouncingService";
+import {
+  DebouncingService,
+  type DebouncedFunction,
+} from "@/infrastructure/services/optimization/DebouncingService";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+
+type MessagePayload = Record<string, unknown> | undefined;
+type PostMessageFn = (command: string, payload?: MessagePayload) => void;
 
 export class MessageBusService {
   private optimizer: WebviewOptimizerService;
   private debouncingService: DebouncingService;
-  private debouncedPostMessage: any;
-  private debouncedEnvironmentStatus: any;
+  private debouncedPostMessage: DebouncedFunction<PostMessageFn>;
+  private debouncedEnvironmentStatus: DebouncedFunction<PostMessageFn>;
   private chunkBuffer: Array<{ chunk: string; accumulatedContent: string }> = [];
   private chunkTimer?: NodeJS.Timeout;
   private readonly CHUNK_BATCH_DELAY = 50;
@@ -26,14 +32,14 @@ export class MessageBusService {
     this.optimizer = new WebviewOptimizerService(webview, this.loggingService);
     this.debouncingService = new DebouncingService();
     this.debouncedPostMessage = this.debouncingService.debounce(
-      (command: string, payload?: any) => {
+      (command: string, payload?: MessagePayload) => {
         this.optimizer.postMessage(command, payload);
       },
       ServiceLimits.messageBusDebounceDelay,
       { leading: false, trailing: true },
     );
     this.debouncedEnvironmentStatus = this.debouncingService.debounce(
-      (command: string, payload?: any) => {
+      (command: string, payload?: MessagePayload) => {
         this.optimizer.postMessage(command, payload);
       },
       ServiceLimits.environmentStatusDebounceDelay,
@@ -41,7 +47,11 @@ export class MessageBusService {
     );
   }
 
-  postMessage(command: string, payload?: any, priority: "immediate" | "high" | "normal" | "low" = "normal"): void {
+  postMessage(
+    command: string,
+    payload?: MessagePayload,
+    priority: "immediate" | "high" | "normal" | "low" = "normal",
+  ): void {
     if (command === "navigate") {
       this.logger.info("postMessage: navigate", { page: payload?.page });
     }
@@ -52,7 +62,7 @@ export class MessageBusService {
     }
   }
 
-  postImmediate(command: string, payload?: any): void {
+  postImmediate(command: string, payload?: MessagePayload): void {
     this.optimizer.postImmediate(command, payload);
   }
 
@@ -60,7 +70,7 @@ export class MessageBusService {
     message: string,
     code: string = ErrorCodes.unknown,
     suggestion?: string,
-    context?: any,
+    context?: Record<string, unknown>,
     originalError?: string,
   ): void {
     const suggestions = suggestion ? [suggestion] : undefined;
@@ -88,7 +98,7 @@ export class MessageBusService {
     });
   }
 
-  postSuccess(command: string, payload?: any): void {
+  postSuccess(command: string, payload?: MessagePayload): void {
     if (command === "environmentStatus") {
       this.debouncedEnvironmentStatus(command, payload);
     } else {
