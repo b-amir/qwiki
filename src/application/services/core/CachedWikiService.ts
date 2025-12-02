@@ -14,6 +14,7 @@ import type { ProjectContext } from "@/domain/entities/Selection";
 import type { LoadingStep } from "@/constants/Events";
 import { ServiceLimits } from "@/constants";
 import { WikiService } from "@/application/services/core/WikiService";
+import type { LoadingStepProgress } from "@/application/services/core/WikiGenerationFlow";
 
 export class CachedWikiService {
   private readonly CACHE_TTL = ServiceLimits.cacheDefaultTTL;
@@ -43,7 +44,9 @@ export class CachedWikiService {
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
     onProgress?: (step: LoadingStep) => void,
+    onProgressFull?: (progress: LoadingStepProgress) => void,
     cancellationToken?: CancellationToken,
+    onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
     const endTimer = this.performanceMonitor.startTimer("generateWiki", {
       providerId: request.providerId,
@@ -64,7 +67,9 @@ export class CachedWikiService {
       request,
       projectContext,
       onProgress,
+      onProgressFull,
       cancellationToken,
+      onChunk,
     );
 
     if (result.success) {

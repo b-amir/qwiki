@@ -23,6 +23,7 @@ import type { CachedWikiService } from "@/application/services/core/CachedWikiSe
 import type { ContextCacheService } from "@/infrastructure/services/caching/ContextCacheService";
 import type { CachedProjectContextService } from "@/application/services/context/project/CachedProjectContextService";
 import { COMMAND_TIMEOUTS, GENERATION_TIMEOUTS } from "@/constants/ServiceTiers";
+import type { LoadingStepProgress } from "@/application/services/core/WikiGenerationFlow";
 
 interface LoadingStepProgressPayload {
   step: LoadingStep;
@@ -30,6 +31,8 @@ interface LoadingStepProgressPayload {
   message?: string;
   elapsed?: number;
   estimatedRemaining?: number;
+  sequence?: number;
+  timestamp?: number;
 }
 
 export class WikiGenerationExecutor {
@@ -295,7 +298,22 @@ export class WikiGenerationExecutor {
         }
         const progress = this.calculateProgress(step, generateWikiStart);
         this.updateStatusBar(progress.message || "");
-        this.eventBus.publish(OutboundEvents.loadingStep, progress);
+      },
+      (progress: LoadingStepProgress) => {
+        if (cancellationToken.isCancellationRequested) {
+          return;
+        }
+        this.updateStatusBar(progress.message || "");
+        const progressPayload: LoadingStepProgressPayload = {
+          step: progress.step,
+          percentage: progress.percentage,
+          message: progress.message,
+          elapsed: progress.elapsed,
+          estimatedRemaining: progress.estimatedRemaining,
+          sequence: progress.sequence,
+          timestamp: progress.timestamp,
+        };
+        this.eventBus.publish(OutboundEvents.loadingStep, progressPayload);
       },
       cancellationToken,
       (chunk: string, accumulated: string) => {

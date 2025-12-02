@@ -29,6 +29,7 @@ const defaultSnapshot = (): LoadingStateSnapshot => ({
   timeoutMs: null,
   error: null,
   cancelled: false,
+  lastSequence: undefined,
 });
 
 const logger = createLogger("LoadingStore");
@@ -62,6 +63,20 @@ export const useLoadingStore = defineStore("loading", {
       const estimatedRemaining =
         typeof message.estimatedRemaining === "number" ? message.estimatedRemaining : null;
       const currentState = this.getState(message.context);
+
+      if (message.sequence !== undefined) {
+        if (
+          currentState.lastSequence !== undefined &&
+          message.sequence <= currentState.lastSequence
+        ) {
+          logger.debug("Ignoring out-of-order message", {
+            context: message.context,
+            received: message.sequence,
+            expected: currentState.lastSequence + 1,
+          });
+          return;
+        }
+      }
 
       if (!currentState.active) {
         this.start({ context: message.context, step: message.step });
@@ -101,6 +116,11 @@ export const useLoadingStore = defineStore("loading", {
           elapsed,
           estimatedRemaining,
         });
+
+        if (message.sequence !== undefined) {
+          const state = this.getState(message.context);
+          state.lastSequence = message.sequence;
+        }
       }
     },
     start(options: LoadingStartOptions) {

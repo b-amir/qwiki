@@ -31,6 +31,8 @@ export interface LoadingMessage {
   message?: string;
   elapsed?: number;
   estimatedRemaining?: number;
+  sequence?: number;
+  timestamp?: number;
 }
 
 export interface LoadingStateSnapshot {
@@ -45,6 +47,7 @@ export interface LoadingStateSnapshot {
   timeoutMs: number | null;
   error: string | null;
   cancelled: boolean;
+  lastSequence?: number;
 }
 
 export interface LoadingStartOptions {

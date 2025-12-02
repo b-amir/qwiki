@@ -35,12 +35,14 @@ interface GenerateParams {
   project: ProjectContext;
 }
 
-interface LoadingStepProgress {
+export interface LoadingStepProgress {
   step: LoadingStep;
   percentage: number;
   message: string;
   elapsed: number;
   estimatedRemaining?: number;
+  sequence?: number;
+  timestamp?: number;
 }
 
 export class WikiGenerationFlow {
@@ -50,6 +52,7 @@ export class WikiGenerationFlow {
   private contextEnhancementService: ContextEnhancementService;
   private llmGenerationService: LLMGenerationService;
   private semanticInfoCollector: SemanticInfoCollector;
+  private stepSequence = 0;
 
   private promptExampleService?: PromptExampleService;
   private readonly stepOrder: LoadingStep[] = [
@@ -119,10 +122,11 @@ export class WikiGenerationFlow {
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
     generateParams: GenerateParams,
-    onProgress?: (step: LoadingStep) => void,
+    onProgress?: (progress: LoadingStepProgress) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
+    this.stepSequence = 0;
     const startTime = Date.now();
     const stepStartTimes = new Map<LoadingStep, number>();
 
@@ -180,6 +184,7 @@ export class WikiGenerationFlow {
 
     const emitStep = (step: LoadingStep, context?: Record<string, unknown>) => {
       const timestamp = Date.now();
+      const sequence = ++this.stepSequence;
       stepStartTimes.set(step, timestamp);
       const elapsed = timestamp - startTime;
       const percentage = calculateProgress(step);
@@ -192,10 +197,18 @@ export class WikiGenerationFlow {
         message,
         elapsed,
         estimatedRemaining,
+        sequence,
+        timestamp,
       };
 
-      this.logger.debug("Loading step emitted", { step, timestamp, percentage, elapsed });
-      onProgress?.(step);
+      this.logger.debug("Loading step emitted", {
+        step,
+        sequence,
+        timestamp,
+        percentage,
+        elapsed,
+      });
+      onProgress?.(progress);
     };
 
     const completeStep = (step: LoadingStep) => {
@@ -225,7 +238,9 @@ export class WikiGenerationFlow {
         request,
         projectContext,
         this.intelligentContextEnabled,
-        onProgress,
+        (step: LoadingStep) => {
+          emitStep(step);
+        },
         cancellationToken,
       );
       completeStep(LoadingSteps.initializingContext);
@@ -420,7 +435,9 @@ export class WikiGenerationFlow {
       request,
       generationInput,
       semanticInfo,
-      onProgress,
+      (step: LoadingStep) => {
+        emitStep(step);
+      },
       cancellationToken,
       onChunk,
       projectType,

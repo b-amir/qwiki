@@ -25,7 +25,10 @@ import { PerformanceMonitorService } from "@/infrastructure/services/performance
 import { QualityMetricsService } from "@/infrastructure/services/performance/QualityMetricsService";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { CachedProjectContextService } from "@/application/services/context/project/CachedProjectContextService";
-import { WikiGenerationFlow } from "@/application/services/core/WikiGenerationFlow";
+import {
+  WikiGenerationFlow,
+  type LoadingStepProgress,
+} from "@/application/services/core/WikiGenerationFlow";
 import { LanguageServerIntegrationService } from "@/infrastructure/services/integration/LanguageServerIntegrationService";
 import { PromptQualityService } from "@/application/services/prompts/PromptQualityService";
 
@@ -83,6 +86,7 @@ export class WikiService {
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
     onProgress?: (step: LoadingStep) => void,
+    onProgressFull?: (progress: LoadingStepProgress) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
@@ -141,6 +145,7 @@ export class WikiService {
               projectContext,
               generateParams,
               onProgress,
+              onProgressFull,
               cancellationToken,
               onChunk,
             ),
@@ -154,6 +159,7 @@ export class WikiService {
         projectContext,
         generateParams,
         onProgress,
+        undefined,
         cancellationToken,
         onChunk,
       );
@@ -195,6 +201,7 @@ export class WikiService {
       project: ProjectContext;
     },
     onProgress?: (step: LoadingStep) => void,
+    onProgressFull?: (progress: LoadingStepProgress) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
@@ -212,7 +219,10 @@ export class WikiService {
             request,
             projectContext,
             generateParams,
-            onProgress,
+            (progress) => {
+              onProgress?.(progress.step);
+              onProgressFull?.(progress);
+            },
             cancellationToken,
             onChunk,
           );
@@ -249,6 +259,7 @@ export class WikiService {
       project: ProjectContext;
     },
     onProgress?: (step: LoadingStep) => void,
+    onProgressFull?: (progress: LoadingStepProgress) => void,
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
@@ -257,7 +268,10 @@ export class WikiService {
       request,
       projectContext,
       generateParams,
-      onProgress,
+      (progress) => {
+        onProgress?.(progress.step);
+        onProgressFull?.(progress);
+      },
       cancellationToken,
       onChunk,
     );
