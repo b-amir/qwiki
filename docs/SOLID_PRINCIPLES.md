@@ -88,7 +88,7 @@ export class VSCodeApiKeyRepository implements ApiKeyRepository {
 // src/infrastructure/repositories/VSCodeConfigurationRepository.ts
 export class VSCodeConfigurationRepository implements ConfigurationRepository {
   // Only responsible for configuration storage
-  async get(key: string): Promise<any> {
+  async get(key: string): Promise<unknown> {
     // Implementation
   }
 }
@@ -122,7 +122,7 @@ export class CommandRegistry {
     this.commands.set(name, serviceKey);
   }
 
-  async execute(name: string, ...args: any[]): Promise<any> {
+  async execute(name: string, ...args: unknown[]): Promise<unknown> {
     const serviceKey = this.commands.get(name);
     if (!serviceKey) {
       throw new Error(`Command ${name} not found`);
@@ -145,7 +145,7 @@ New LLM providers are added without modifying app code, by placing a single file
 // src/llm/providers/registry.ts
 import { MyProvider } from "./my-provider";
 
-export function loadProviders(getSetting: (key: string) => Promise<any>) {
+export function loadProviders(getSetting: (key: string) => Promise<unknown>) {
   return {
     "my-provider": new MyProvider(getSetting),
     // other providers ...
@@ -169,7 +169,7 @@ export class EventBusImpl implements EventBus {
     this.handlers.get(event)!.push(handler);
   }
 
-  emit(event: string, data: any): void {
+  emit(event: string, data: unknown): void {
     const eventHandlers = this.handlers.get(event) || [];
     eventHandlers.forEach((handler) => handler(data));
   }
@@ -201,7 +201,7 @@ All command implementations can be substituted for the Command interface:
 ```typescript
 // src/application/commands/Command.ts
 export interface Command {
-  execute(...args: any[]): Promise<any>;
+  execute(...args: unknown[]): Promise<unknown>;
 }
 
 // All command implementations can be used interchangeably
@@ -242,7 +242,7 @@ export interface LLMProvider {
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
   supportsCapability(capability: ProviderFeature): boolean;
-  validateConfig(config: any): ValidationResult;
+  validateConfig(config: unknown): ValidationResult;
   getModelCapabilities?(model?: string): ProviderCapabilities;
   initialize(): Promise<void>;
   dispose(): Promise<void>;
@@ -284,10 +284,10 @@ export interface ApiKeyRepository {
 
 // src/domain/repositories/ConfigurationRepository.ts
 export interface ConfigurationRepository {
-  get(key: string): Promise<any>;
-  set(key: string, value: any): Promise<void>;
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<void>;
   delete(key: string): Promise<void>;
-  getAll(): Promise<Record<string, any>>;
+  getAll(): Promise<Record<string, unknown>>;
 }
 
 // Separate interfaces for different responsibilities
@@ -307,7 +307,7 @@ export interface MessageBusService {
 
 // src/events/EventBus.ts
 export interface EventBus {
-  emit(event: string, data: any): void;
+  emit(event: string, data: unknown): void;
   on(event: string, handler: Function): void;
   off(event: string, handler: Function): void;
 }
@@ -404,7 +404,7 @@ The DI container manages dependencies and provides abstractions:
 ```typescript
 // src/container/Container.ts
 export class Container {
-  private services = new Map<string, () => any>();
+  private services = new Map<string, () => unknown>();
 
   register<T>(key: string, factory: () => T): void {
     this.services.set(key, factory);

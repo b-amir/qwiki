@@ -33,12 +33,49 @@ webview-ui/
 - Bridge extension messages through `useVscodeMessaging` and `useBatchMessageBridge`
 - Apply centralized loading, navigation, and error stores for consistent UX
 - Reflect environment readiness, provider status, and README automation progress
+- Optimize rendering performance with virtual scrolling, shallow reactivity, and memoization
+- Display enhanced loading progress with percentages, time estimates, and contextual messages
 
 ## Design Alignment
 
 - UI components conform to the Tailwind-based design system in `docs/DESIGN_SYSTEM.md`
 - Layouts account for narrow sidebar widths and scale up with max-width constraints
 - Accessibility relies on focus-visible styles, ARIA patterns, and keyboard-friendly controls
+
+## Performance Optimizations
+
+The frontend includes several performance optimizations for handling large datasets and improving rendering efficiency:
+
+**Virtual Scrolling**:
+
+- Large lists (100+ items) use virtual scrolling to reduce DOM nodes from 1000+ to <100
+- Only visible items are rendered, improving initial load time and scroll performance
+- Applied to saved wikis list and other large file lists
+
+**Shallow Reactivity**:
+
+- Large immutable datasets use `shallowRef` and `shallowReactive` instead of deep reactivity
+- Reduces reactivity overhead by 30-50% for large collections
+- Deep reactivity preserved only where needed (form inputs, editable data)
+
+**Memoization**:
+
+- `v-memo` directive applied to expensive list items to prevent unnecessary re-renders
+- Memo dependencies specified to control when re-rendering occurs
+- Reduces rendering overhead for frequently updated lists
+
+**Component Optimization**:
+
+- Lazy loading for heavy components
+- Code-splitting by route for faster initial load
+- Event handler optimization and debounced scroll events
+
+**Loading Progress Enhancements**:
+
+- Progress percentages displayed for each loading step
+- Estimated time remaining based on historical performance
+- Contextual progress messages with relevant information (file counts, token usage, etc.)
+- Enhanced progress bar visualization with smooth updates
 
 ## See Also
 

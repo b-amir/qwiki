@@ -36,7 +36,7 @@ interface LLMProvider {
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
   supportsCapability(capability: ProviderFeature): boolean;
-  validateConfig(config: any): ValidationResult;
+  validateConfig(config: unknown): ValidationResult;
   getModelCapabilities?(model?: string): ProviderCapabilities;
 
   // Lifecycle and monitoring capabilities
@@ -755,7 +755,7 @@ Saves a configuration setting.
 ```typescript
 {
   key: string; // Setting key
-  value: any; // Setting value
+  value: unknown; // Setting value
 }
 ```
 
@@ -773,7 +773,7 @@ Gets current configuration.
 
 ```typescript
 {
-  [key: string]: any;      // Configuration key-value pairs
+  [key: string]: unknown;      // Configuration key-value pairs
 }
 ```
 
@@ -787,7 +787,7 @@ Updates multiple configuration settings.
 
 ```typescript
 {
-  settings: Record<string, any>; // Settings to update
+  settings: Record<string, unknown>; // Settings to update
 }
 ```
 
@@ -1113,7 +1113,7 @@ Messages sent from the webview to the extension follow this structure:
 interface WebviewMessage {
   command: string; // Command ID
   requestId?: string; // Request identifier for async operations
-  params?: any; // Command parameters
+  params?: unknown; // Command parameters
 }
 ```
 
@@ -1125,7 +1125,7 @@ Responses from the extension to the webview:
 interface ExtensionMessage {
   type: "response" | "event" | "error";
   requestId?: string; // Original request ID
-  data?: any; // Response data
+  data?: unknown; // Response data
   error?: string; // Error message (if type is 'error')
 }
 ```
@@ -1142,6 +1142,49 @@ Common outbound events currently emitted by the extension include:
 - `wikiSaved`, `savedWikisLoaded`, `wikiDeleted` – saved wiki lifecycle events
 - `showNotification` – ephemeral toast notifications surfaced in the webview
 - `environmentStatus`, `commandWaiting`, `loadingStep`, `wikiResult`, `error` – readiness, progress, and error reporting primitives
+
+## Loading Step Progress Events
+
+### `loadingStep` Event
+
+The `loadingStep` event provides enhanced progress tracking with percentages, time estimates, and contextual messages:
+
+```typescript
+interface LoadingStepProgress {
+  step: LoadingStep; // Current loading step identifier
+  percentage: number; // Progress percentage (0-100)
+  message: string; // Contextual progress message
+  elapsed: number; // Elapsed time in milliseconds
+  estimatedRemaining?: number; // Estimated time remaining in milliseconds (optional)
+}
+```
+
+**Enhanced Features**:
+
+- **Progress Percentages**: Calculated based on step order in the generation workflow
+- **Time Estimates**: Estimated time remaining based on historical performance data
+- **Contextual Messages**: Dynamic messages that include relevant context (file counts, token usage, etc.)
+- **Progressive Warnings**: Timeout warnings at 60s, 70s, 80s, and 90s for long-running operations
+
+**Example Payload**:
+
+```typescript
+{
+  step: "analyzingFileRelevance",
+  percentage: 25,
+  message: "Analyzing file relevance (45/200 files)...",
+  elapsed: 5000,
+  estimatedRemaining: 15000
+}
+```
+
+**Step Messages with Context**:
+
+- `analyzingFileRelevance`: Includes file count and analyzed count (e.g., "Analyzing file relevance (45/200 files)...")
+- `buildingContextSummary`: Includes selected file count (e.g., "Building context summary (12 files selected)...")
+- `waitingForLLMResponse`: Includes token generation count (e.g., "Generating documentation (1250 tokens)...")
+
+**Usage**: The frontend loading store (`webview-ui/src/stores/loading.ts`) receives these events and updates the UI with progress bars, percentages, and time estimates.
 
 ## Initialization Readiness Events
 
@@ -1318,18 +1361,18 @@ class ProviderError extends Error {
   code: string;
   message: string;
   providerId?: string;
-  originalError?: any;
+  originalError?: unknown;
 
-  constructor(code: string, message: string, providerId?: string, originalError?: any);
+  constructor(code: string, message: string, providerId?: string, originalError?: unknown);
   toJSON(): ErrorObject;
-  static fromError(error: any, providerId?: string): ProviderError;
+  static fromError(error: unknown, providerId?: string): ProviderError;
 }
 
 interface ErrorObject {
   code: string;
   message: string;
   providerId?: string;
-  originalError?: any;
+  originalError?: Error;
 }
 ```
 
@@ -1509,7 +1552,7 @@ class ProviderDiscoveryService {
 
   async discoverProviders(): Promise<ProviderMetadata[]>;
   async scanDirectory(directoryPath: string): Promise<ProviderMetadata[]>;
-  validateProviderManifest(manifest: any): ValidationResult;
+  validateProviderManifest(manifest: unknown): ValidationResult;
   async loadProviderFromMetadata(metadata: ProviderMetadata): Promise<LLMProvider>;
   startWatching(directories: string[]): void;
   stopWatching(): void;
@@ -1589,7 +1632,7 @@ interface SelectionCriteria {
 ```typescript
 class ConfigurationValidationEngineService {
   validateConfiguration(
-    config: any,
+    config: unknown,
     schema: ValidationSchema,
     context: ValidationContext,
   ): ValidationResult;
@@ -1603,7 +1646,7 @@ interface ValidationRule {
   id: string;
   name: string;
   description: string;
-  validator: (value: any, context: ValidationContext) => ValidationResult;
+  validator: (value: unknown, context: ValidationContext) => ValidationResult;
   severity: "error" | "warning" | "info";
 }
 
@@ -1611,7 +1654,7 @@ interface ValidationResult {
   isValid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  correctedValue?: any;
+  correctedValue?: unknown;
 }
 ```
 
@@ -1619,7 +1662,7 @@ interface ValidationResult {
 
 ```typescript
 class ConfigurationTemplateService {
-  createTemplate(config: any, metadata: TemplateMetadata): ConfigurationTemplate;
+  createTemplate(config: unknown, metadata: TemplateMetadata): ConfigurationTemplate;
 
   async applyTemplate(templateId: string, variables: Record<string, any>): Promise<void>;
 
@@ -1635,14 +1678,14 @@ interface ConfigurationTemplate {
   description: string;
   metadata: TemplateMetadata;
   variables: TemplateVariable[];
-  configuration: any;
+  configuration: unknown;
 }
 
 interface TemplateVariable {
   name: string;
   type: "string" | "number" | "boolean" | "select";
   description: string;
-  defaultValue?: any;
+  defaultValue?: unknown;
   required: boolean;
   options?: string[];
 }
@@ -2189,7 +2232,7 @@ class ContextAnalysisService {
   async analyzeDeepContext(
     snippet: string,
     filePath: string,
-    projectContext?: any
+    projectContext?: unknown
   ): Promise<DeepContextAnalysis>;
 }
 ```

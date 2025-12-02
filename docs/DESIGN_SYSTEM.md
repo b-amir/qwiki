@@ -767,7 +767,7 @@ import { defineStore } from "pinia";
 export const useExampleStore = defineStore("example", () => {
   const data = ref(null);
 
-  function updateData(newData: any) {
+  function updateData(newData: unknown) {
     data.value = newData;
   }
 
