@@ -34,7 +34,8 @@ export class FileRelevanceAnalysisService {
     targetPath: string,
     candidatePath: string,
     projectType: ProjectTypeDetection,
-  ): Promise<FileRelevanceScore> {
+    minRelevanceThreshold: number = 0.1,
+  ): Promise<FileRelevanceScore | null> {
     const cacheKey = `${this.FILE_RELEVANCE_PREFIX}${targetPath}:${candidatePath}`;
     const cached = await this.cachingService.get<FileRelevanceScore>(cacheKey);
     if (cached) {
@@ -67,6 +68,30 @@ export class FileRelevanceAnalysisService {
         ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
       });
       return skipScore;
+    }
+
+    const quickScore = await this.quickRelevanceCheck(targetPath, candidatePath);
+    if (quickScore !== null && quickScore < minRelevanceThreshold) {
+      const lowScore: FileRelevanceScore = {
+        filePath: candidatePath,
+        score: quickScore * 100,
+        relevanceType: "structural",
+        tokenCost: 0,
+        compressionRatio: 0.3,
+        metadata: {
+          isDependency: false,
+          isImportedBy: [],
+          importsFrom: [],
+          semanticSimilarity: quickScore,
+          lastModified: new Date(),
+          complexity: 0,
+          fileCategory: this.detectFileCategory(candidatePath),
+        },
+      };
+      await this.cachingService.set(cacheKey, lowScore, {
+        ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+      });
+      return lowScore;
     }
 
     let fileContent = "";
@@ -489,6 +514,41 @@ export class FileRelevanceAnalysisService {
     if (fileSize < 10000) return 1.0;
     if (fileSize < 50000) return 0.7;
     return 0.3;
+  }
+
+  private async quickRelevanceCheck(
+    targetPath: string,
+    candidatePath: string,
+  ): Promise<number | null> {
+    const pathSimilarity = this.calculatePathSimilarity(targetPath, candidatePath);
+    const isDependency = await this.isDependencyFile(candidatePath);
+
+    if (isDependency) {
+      return 0.3;
+    }
+
+    if (pathSimilarity > 0.5) {
+      return pathSimilarity;
+    }
+
+    const targetDir = targetPath.substring(
+      0,
+      targetPath.lastIndexOf("/") || targetPath.lastIndexOf("\\"),
+    );
+    const candidateDir = candidatePath.substring(
+      0,
+      candidatePath.lastIndexOf("/") || candidatePath.lastIndexOf("\\"),
+    );
+
+    if (targetDir === candidateDir) {
+      return 0.4;
+    }
+
+    if (pathSimilarity < 0.1) {
+      return pathSimilarity;
+    }
+
+    return null;
   }
 
   private shouldSkipFile(filePath: string): boolean {

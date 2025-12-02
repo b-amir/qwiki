@@ -9,6 +9,7 @@ import type {
   FileRelevanceScore,
   ProjectTypeDetection,
 } from "@/domain/entities/ContextIntelligence";
+import { FilePriorityCalculator } from "@/application/services/context/relevance/FilePriorityCalculator";
 
 export class FileRelevanceBatchService {
   private logger: Logger;
@@ -109,6 +110,9 @@ export class FileRelevanceBatchService {
     const filesToAnalyze = allFiles.filter((fileUri) => fileUri.fsPath !== targetFilePath);
     skippedCount = allFiles.length - filesToAnalyze.length;
 
+    const prioritizedFiles = FilePriorityCalculator.prioritizeFiles(filesToAnalyze, targetFilePath);
+    const minRelevanceThreshold = 0.1;
+
     const processBatch = async (batch: Uri[]): Promise<void> => {
       const batchPromises = batch.map(async (fileUri) => {
         const filePath = fileUri.fsPath;
@@ -149,6 +153,7 @@ export class FileRelevanceBatchService {
             targetFilePath,
             filePath,
             projectType,
+            minRelevanceThreshold,
           );
           const fileAnalysisDuration = Date.now() - fileAnalysisStart;
 
@@ -159,7 +164,11 @@ export class FileRelevanceBatchService {
             });
           }
 
-          fileRelevanceScores.push(relevanceScore);
+          if (relevanceScore) {
+            fileRelevanceScores.push(relevanceScore);
+          } else {
+            skippedCount++;
+          }
         } catch (error) {
           errorCount++;
           this.logger.error(`Failed to analyze file relevance for ${filePath}`, {
@@ -174,8 +183,8 @@ export class FileRelevanceBatchService {
       await Promise.all(batchPromises);
     };
 
-    for (let i = 0; i < filesToAnalyze.length; i += concurrencyLimit) {
-      const batch = filesToAnalyze.slice(i, i + concurrencyLimit);
+    for (let i = 0; i < prioritizedFiles.length; i += concurrencyLimit) {
+      const batch = prioritizedFiles.slice(i, i + concurrencyLimit);
       await processBatch(batch);
     }
 
@@ -222,15 +231,18 @@ export class FileRelevanceBatchService {
 
     const newScores: FileRelevanceScore[] = [];
     const concurrencyLimit = ServiceLimits.contextIntelligenceConcurrencyLimit;
+    const minRelevanceThreshold = 0.1;
+    const prioritizedFiles = FilePriorityCalculator.prioritizeFiles(missingFiles, targetFilePath);
 
-    for (let i = 0; i < missingFiles.length; i += concurrencyLimit) {
-      const batch = missingFiles.slice(i, i + concurrencyLimit);
+    for (let i = 0; i < prioritizedFiles.length; i += concurrencyLimit) {
+      const batch = prioritizedFiles.slice(i, i + concurrencyLimit);
       const batchPromises = batch.map(async (fileUri) => {
         try {
           return await this.fileRelevanceAnalysisService.analyzeFileRelevance(
             targetFilePath,
             fileUri.fsPath,
             projectType,
+            minRelevanceThreshold,
           );
         } catch (error) {
           this.logger.error(`Failed to analyze missing file ${fileUri.fsPath}`, { error });
