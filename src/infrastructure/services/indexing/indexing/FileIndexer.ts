@@ -6,14 +6,18 @@ import type { FileMetadataExtractionService } from "@/infrastructure/services/in
 import type { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
 import type { IndexedFile } from "@/infrastructure/services/indexing/ProjectIndexService";
 import type { DocumentSymbol } from "vscode";
+import type { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
+import { TaskPriority } from "@/infrastructure/services/orchestration/TaskSchedulerService";
 
 export class FileIndexer {
   private binaryPatterns: RegExp[];
+  private filesPendingSymbolPrefetch: Uri[] = [];
 
   constructor(
     private metadataExtractor: FileMetadataExtractionService,
     private cacheService: IndexCacheService,
     private logger: Logger,
+    private taskScheduler?: TaskSchedulerService,
   ) {
     this.binaryPatterns = [
       FilePatterns.excludeBinary,
@@ -36,10 +40,12 @@ export class FileIndexer {
 
       this.logger.debug("Found files for indexing", { fileCount: files.length });
 
+      this.filesPendingSymbolPrefetch = [];
+
       const batchSize = ServiceLimits.indexBatchSize;
       for (let i = 0; i < files.length; i += batchSize) {
         const batch = files.slice(i, i + batchSize);
-        await Promise.all(batch.map((uri) => this.indexFile(uri)));
+        await Promise.all(batch.map((uri) => this.indexFile(uri, false)));
 
         if (i % (batchSize * 5) === 0) {
           this.logger.debug("Indexing progress", {
@@ -51,13 +57,15 @@ export class FileIndexer {
 
       await this.cacheService.persistIndex();
       this.logger.info("Initial index completed", { fileCount: this.cacheService.getIndex().size });
+
+      this.scheduleBackgroundSymbolPrefetch();
     } catch (error) {
       this.logger.error("Failed during initial index", error);
       throw error;
     }
   }
 
-  async indexFile(uri: Uri): Promise<void> {
+  async indexFile(uri: Uri, prefetchSymbols = true): Promise<void> {
     try {
       const stat = await workspace.fs.stat(uri);
       if (!this.shouldIndexFile(uri.fsPath, stat.size)) {
@@ -68,9 +76,46 @@ export class FileIndexer {
       this.cacheService.getIndex().set(uri.fsPath, indexedFile);
       this.cacheService.updateLanguageIndexForFile(uri.fsPath, indexedFile.language);
 
-      await this.prefetchSymbols(uri);
+      if (prefetchSymbols) {
+        await this.prefetchSymbols(uri);
+      } else {
+        this.filesPendingSymbolPrefetch.push(uri);
+      }
     } catch (error) {
       this.logger.debug(`Failed to index file ${uri.fsPath}`, error);
+    }
+  }
+
+  private scheduleBackgroundSymbolPrefetch(): void {
+    if (this.filesPendingSymbolPrefetch.length === 0) {
+      return;
+    }
+
+    if (!this.taskScheduler) {
+      this.logger.debug("TaskScheduler not available, skipping background symbol prefetch");
+      return;
+    }
+
+    const filesToPrefetch = [...this.filesPendingSymbolPrefetch];
+    this.filesPendingSymbolPrefetch = [];
+
+    this.logger.debug("Scheduling background symbol prefetch", {
+      fileCount: filesToPrefetch.length,
+    });
+
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < filesToPrefetch.length; i += BATCH_SIZE) {
+      const batch = filesToPrefetch.slice(i, i + BATCH_SIZE);
+      this.taskScheduler.schedule({
+        id: `prefetch-symbols-batch-${i}`,
+        priority: TaskPriority.LOW,
+        execute: async () => {
+          for (const uri of batch) {
+            await this.prefetchSymbols(uri);
+          }
+        },
+        estimatedDuration: 100 * batch.length,
+      });
     }
   }
 

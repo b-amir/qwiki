@@ -62,12 +62,26 @@ export class ContextCacheService {
   }
 
   private async loadCache(): Promise<void> {
+    const startTime = Date.now();
     try {
-      const data = await fs.readFile(this.cacheFilePath, "utf-8");
+      const loadPromise = fs.readFile(this.cacheFilePath, "utf-8");
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Cache load timeout")), 5000),
+      );
+
+      const data = await Promise.race([loadPromise, timeoutPromise]);
       this.cache = JSON.parse(data);
-      this.logger.info(`Loaded context cache with ${Object.keys(this.cache.files).length} files`);
+      const duration = Date.now() - startTime;
+      this.logger.info(
+        `Loaded context cache with ${Object.keys(this.cache.files).length} files in ${duration}ms`,
+      );
     } catch (error) {
-      this.logger.info("No existing cache found, starting fresh");
+      const duration = Date.now() - startTime;
+      if (error instanceof Error && error.message === "Cache load timeout") {
+        this.logger.warn(`Cache load timed out after ${duration}ms, starting fresh`);
+      } else {
+        this.logger.info(`No existing cache found (${duration}ms), starting fresh`);
+      }
       this.cache = {
         files: {},
         version: "1.0.0",

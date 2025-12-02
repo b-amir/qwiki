@@ -106,6 +106,7 @@ export function registerInfrastructureServices(
       loggingService,
       container.resolve("debouncingService") as DebouncingService,
       container.resolve("gitChangeDetectionService") as GitChangeDetectionService,
+      container.resolve("taskScheduler") as TaskSchedulerService,
     );
     await service.quickInit();
     return service;

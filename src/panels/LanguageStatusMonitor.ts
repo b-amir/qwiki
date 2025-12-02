@@ -19,6 +19,8 @@ export class LanguageStatusMonitor {
   };
   private _languageStatusInterval: NodeJS.Timeout | undefined;
   private onStatusChange: (status: LanguageStatus) => void;
+  private debounceTimer?: NodeJS.Timeout;
+  private readonly DEBOUNCE_DELAY_MS = 300;
 
   constructor(loggingService: LoggingService, onStatusChange: (status: LanguageStatus) => void) {
     this.logger = createLogger("LanguageStatusMonitor");
@@ -27,7 +29,7 @@ export class LanguageStatusMonitor {
 
   startMonitoring(): void {
     const update = () => {
-      void this.updateLanguageServerStatus();
+      this.debouncedUpdate();
     };
 
     window.onDidChangeActiveTextEditor(() => {
@@ -44,6 +46,17 @@ export class LanguageStatusMonitor {
     });
 
     update();
+  }
+
+  private debouncedUpdate(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+
+    this.debounceTimer = setTimeout(() => {
+      void this.updateLanguageServerStatus();
+      this.debounceTimer = undefined;
+    }, this.DEBOUNCE_DELAY_MS);
   }
 
   getLanguageStatus(): LanguageStatus {

@@ -16,6 +16,8 @@ export class NavigationManager {
   private _webviewReady = false;
   private lastNavigationTime = 0;
   private readonly NAVIGATION_DEBOUNCE_MS = 100;
+  private lastFlushTime = 0;
+  private readonly FLUSH_DEBOUNCE_MS = 50;
   private logger: Logger;
 
   constructor(
@@ -29,6 +31,15 @@ export class NavigationManager {
   setWebviewReady(ready: boolean): void {
     this._webviewReady = ready;
     if (ready) {
+      const now = Date.now();
+      if (now - this.lastFlushTime < this.FLUSH_DEBOUNCE_MS) {
+        this.logger.debug("Flush call debounced", {
+          timeSinceLastFlush: now - this.lastFlushTime,
+        });
+        return;
+      }
+      this.lastFlushTime = now;
+
       this.logger.debug("Webview ready, flushing pending navigation and selection", {
         hadPendingPage: !!this._pendingPage,
         hadPendingSelection: !!this._pendingSelection,

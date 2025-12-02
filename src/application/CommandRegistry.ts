@@ -31,6 +31,8 @@ export class CommandRegistry {
   private metadata = new Map<string, CommandMetadata>();
   private disposers: Array<() => void> = [];
   private logger: Logger;
+  private inFlightCommands = new Map<string, Promise<void>>();
+  private readonly DEDUPLICATION_COOLDOWN_MS = 100;
 
   constructor(
     private loggingService: LoggingService = new LoggingService(),
@@ -74,16 +76,38 @@ export class CommandRegistry {
       return;
     }
 
-    if (metadata?.requiresReadiness && this.readinessManager) {
-      await this.validateReadiness(name, metadata.requiresReadiness);
+    const hasPayload = payload !== undefined && payload !== null;
+    const payloadKey = hasPayload ? JSON.stringify(payload) : "";
+    const deduplicationKey = hasPayload ? `${name}:${payloadKey}` : name;
+    const existingExecution = this.inFlightCommands.get(deduplicationKey);
+
+    if (existingExecution) {
+      this.logDebug("Command already in flight, deduplicating", {
+        command: name,
+        hasPayload,
+      });
+      return existingExecution;
     }
 
-    const timeout =
-      metadata?.timeout ||
-      COMMAND_TIMEOUTS[name] ||
-      COMMAND_TIMEOUTS.default ||
-      DEFAULT_COMMAND_TIMEOUT;
-    await this.executeWithTimeout(name, command, payload, timeout, startTime);
+    const executionPromise = (async () => {
+      try {
+        if (metadata?.requiresReadiness && this.readinessManager) {
+          await this.validateReadiness(name, metadata.requiresReadiness);
+        }
+
+        const timeout =
+          metadata?.timeout ||
+          COMMAND_TIMEOUTS[name] ||
+          COMMAND_TIMEOUTS.default ||
+          DEFAULT_COMMAND_TIMEOUT;
+        await this.executeWithTimeout(name, command, payload, timeout, startTime);
+      } finally {
+        this.inFlightCommands.delete(deduplicationKey);
+      }
+    })();
+
+    this.inFlightCommands.set(deduplicationKey, executionPromise);
+    return executionPromise;
   }
 
   private async validateReadiness(commandId: string, requiredServices: string[]): Promise<void> {

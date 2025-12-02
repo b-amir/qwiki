@@ -254,6 +254,29 @@ export class IndexCacheService {
     try {
       const fileHash = await this.getFileHash(filePath);
       const key = `index:symbols:${filePath}`;
+
+      const existing = this.extensionContext.workspaceState.get(key) as
+        | {
+            filePath: string;
+            symbols: DocumentSymbol[];
+            fileHash: string;
+            cachedAt: number;
+            expiresAt: number;
+          }
+        | undefined;
+
+      if (existing && existing.fileHash === fileHash) {
+        if (existing.symbols.length !== symbols.length) {
+          this.logger.debug("Symbol count mismatch detected, but file hash unchanged", {
+            filePath,
+            existingCount: existing.symbols.length,
+            newCount: symbols.length,
+            usingExisting: true,
+          });
+          return;
+        }
+      }
+
       const cached = {
         filePath,
         symbols,

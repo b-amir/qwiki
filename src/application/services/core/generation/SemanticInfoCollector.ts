@@ -3,9 +3,17 @@ import { createLogger, type Logger, type SemanticCodeInfo } from "@/infrastructu
 import { LoggingService } from "@/infrastructure/services";
 import { LanguageServerIntegrationService } from "@/infrastructure/services";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
+import * as crypto from "crypto";
+
+interface CachedSemanticInfo {
+  info: SemanticCodeInfo;
+  cachedAt: number;
+}
 
 export class SemanticInfoCollector {
   private logger: Logger;
+  private semanticInfoCache = new Map<string, CachedSemanticInfo>();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000;
 
   constructor(
     private languageServerIntegrationService?: LanguageServerIntegrationService,
@@ -14,6 +22,11 @@ export class SemanticInfoCollector {
     this.logger = loggingService
       ? createLogger("SemanticInfoCollector")
       : ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger);
+  }
+
+  private getCacheKey(filePath: string, snippet: string): string {
+    const snippetHash = crypto.createHash("sha256").update(snippet).digest("hex").slice(0, 16);
+    return `${filePath}:${snippetHash}`;
   }
 
   async collectSemanticInfo(
@@ -26,6 +39,18 @@ export class SemanticInfoCollector {
 
     if (cancellationToken?.isCancellationRequested) {
       return null;
+    }
+
+    const cacheKey = this.getCacheKey(request.filePath, request.snippet);
+    const cached = this.semanticInfoCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now - cached.cachedAt < this.CACHE_TTL_MS) {
+      this.logger.debug("Using cached semantic info", {
+        filePath: request.filePath,
+        symbolName: cached.info.symbolName,
+      });
+      return cached.info;
     }
 
     try {
@@ -45,7 +70,11 @@ export class SemanticInfoCollector {
       );
 
       if (semanticInfo) {
-        this.logger.debug("Collected semantic info", {
+        this.semanticInfoCache.set(cacheKey, {
+          info: semanticInfo,
+          cachedAt: now,
+        });
+        this.logger.debug("Collected and cached semantic info", {
           symbolName: semanticInfo.symbolName,
           symbolKind: semanticInfo.symbolKind,
           hasType: !!semanticInfo.type,

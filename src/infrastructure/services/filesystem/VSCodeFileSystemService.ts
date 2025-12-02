@@ -147,8 +147,11 @@ export class VSCodeFileSystemService {
 
   async stat(filePath: string): Promise<FileStat> {
     const cacheKey = `stat:${filePath}`;
-    const cached = await this.statCache.get<FileStat>(cacheKey);
-    if (cached) {
+    const cached = await this.statCache.get<FileStat | null>(cacheKey);
+    if (cached !== undefined) {
+      if (cached === null) {
+        throw new Error(`File does not exist: ${filePath}`);
+      }
       return cached;
     }
 
@@ -163,7 +166,8 @@ export class VSCodeFileSystemService {
       this.statCache.set(cacheKey, fileStat, { ttl: this.STAT_CACHE_TTL });
       return fileStat;
     } catch (error) {
-      this.logger.error(`Failed to stat ${filePath}`, error);
+      this.statCache.set(cacheKey, null, { ttl: this.STAT_CACHE_TTL });
+      this.logger.debug(`File does not exist: ${filePath}`);
       throw new Error(`Failed to stat ${filePath}: ${error}`);
     }
   }

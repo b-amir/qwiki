@@ -34,13 +34,23 @@ export class BackgroundServicesInitializer {
 
     let completed = 0;
     const total = backgroundTasks.length;
+    const serviceNames = [
+      "ProjectIndexService",
+      "ProviderHealthService",
+      "ContextIntelligenceService",
+      "ContextCacheService",
+    ];
 
     backgroundTasks.forEach((task, index) => {
       task
         .then(() => {
           completed++;
           const percent = Math.round((completed / total) * 100);
-          this.logger.info(`Background service ${index + 1}/${total} ready`, { percent });
+          const serviceName = serviceNames[index] || `Service ${index + 1}`;
+          this.logger.info(`Background service ${completed}/${total} ready: ${serviceName}`, {
+            percent,
+            serviceName,
+          });
 
           const eventBus = this.container.resolve("eventBus") as EventBus;
           eventBus
@@ -54,7 +64,8 @@ export class BackgroundServicesInitializer {
             });
         })
         .catch((error) => {
-          this.logger.error(`Background service ${index + 1} failed`, error);
+          const serviceName = serviceNames[index] || `Service ${index + 1}`;
+          this.logger.error(`Background service failed: ${serviceName}`, error);
         });
     });
 
@@ -80,7 +91,9 @@ export class BackgroundServicesInitializer {
 
       const quickDuration = Date.now() - startTime;
       this.readinessManager.markReady("projectIndexService", { initDuration: quickDuration });
-      this.logger.info("ProjectIndexService quick initialization complete", { duration: quickDuration });
+      this.logger.info("ProjectIndexService quick initialization complete", {
+        duration: quickDuration,
+      });
 
       projectIndexService
         .initialize()

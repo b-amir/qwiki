@@ -12,6 +12,7 @@ import { IndexCacheService } from "@/infrastructure/services/indexing/IndexCache
 import { IndexInitializer } from "@/infrastructure/services/indexing/initialization/IndexInitializer";
 import { FileIndexer } from "@/infrastructure/services/indexing/indexing/FileIndexer";
 import { FileWatcherManager } from "@/infrastructure/services/indexing/watchers/FileWatcherManager";
+import type { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
 
 export interface IndexedFile {
   uri: Uri;
@@ -53,12 +54,18 @@ export class ProjectIndexService {
     private loggingService: LoggingService,
     private debouncingService: DebouncingService,
     gitChangeDetectionService?: GitChangeDetectionService,
+    taskScheduler?: TaskSchedulerService,
   ) {
     this.logger = createLogger("ProjectIndexService");
     this.metadataExtractor = new FileMetadataExtractionService(loggingService);
     this.cacheService = new IndexCacheService(extensionContext, loggingService);
     this.indexInitializer = new IndexInitializer(this.cacheService, this.logger);
-    this.fileIndexer = new FileIndexer(this.metadataExtractor, this.cacheService, this.logger);
+    this.fileIndexer = new FileIndexer(
+      this.metadataExtractor,
+      this.cacheService,
+      this.logger,
+      taskScheduler,
+    );
     this.fileWatcherManager = new FileWatcherManager(
       this.debouncingService,
       this.cacheService,
