@@ -43,10 +43,19 @@ function normalizePayload(payload: unknown): LoadingMessage | null {
       : inferContextFromStep(maybeStep);
 
   const percent = payloadObj.percent;
+  const percentage = payloadObj.percentage;
+  const message = payloadObj.message;
+  const elapsed = payloadObj.elapsed;
+  const estimatedRemaining = payloadObj.estimatedRemaining;
+
   return {
     context,
     step: maybeStep,
     percent: typeof percent === "number" ? percent : undefined,
+    percentage: typeof percentage === "number" ? percentage : undefined,
+    message: typeof message === "string" ? message : undefined,
+    elapsed: typeof elapsed === "number" ? elapsed : undefined,
+    estimatedRemaining: typeof estimatedRemaining === "number" ? estimatedRemaining : undefined,
   };
 }
 

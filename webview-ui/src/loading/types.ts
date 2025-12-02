@@ -27,12 +27,20 @@ export interface LoadingMessage {
   context: LoadingContext;
   step: string;
   percent?: number;
+  percentage?: number;
+  message?: string;
+  elapsed?: number;
+  estimatedRemaining?: number;
 }
 
 export interface LoadingStateSnapshot {
   active: boolean;
   step: string | null;
   percent: number | null;
+  percentage: number | null;
+  message: string | null;
+  elapsed: number | null;
+  estimatedRemaining: number | null;
   startedAt: number | null;
   timeoutMs: number | null;
   error: string | null;
@@ -49,6 +57,9 @@ export interface LoadingAdvanceOptions {
   context: LoadingContext;
   step: string;
   percent?: number | null;
+  message?: string | null;
+  elapsed?: number | null;
+  estimatedRemaining?: number | null;
 }
 
 export interface LoadingCompleteOptions {

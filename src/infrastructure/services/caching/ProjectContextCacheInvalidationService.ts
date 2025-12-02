@@ -12,11 +12,19 @@ import {
 } from "@/infrastructure/services/optimization/DebouncingService";
 import { ServiceLimits } from "@/constants";
 
+interface PendingInvalidation {
+  filePath: string;
+  type: "file" | "workspace" | "relevance";
+}
+
 export class ProjectContextCacheInvalidationService {
   private logger: Logger;
   private fileWatcher: FileSystemWatcher | null = null;
   private disposables: Disposable[] = [];
   private debouncedInvalidate: DebouncedFunction<(uri: string) => Promise<void>> | null = null;
+  private pendingInvalidations: PendingInvalidation[] = [];
+  private batchTimer: NodeJS.Timeout | null = null;
+  private readonly BATCH_DELAY = 100;
 
   constructor(
     private cacheService: ProjectContextCacheService,
@@ -97,52 +105,145 @@ export class ProjectContextCacheInvalidationService {
     return false;
   }
 
-  private async invalidateCacheForFile(filePath: string): Promise<void> {
-    try {
-      this.logger.debug("Invalidating cache for file change", { filePath });
+  private addInvalidation(type: "file" | "workspace" | "relevance", filePath: string): void {
+    this.pendingInvalidations.push({ type, filePath });
 
-      const workspaceFolders = workspace.workspaceFolders;
-      const workspaceRoot =
-        workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : "";
+    if (!this.batchTimer) {
+      this.batchTimer = setTimeout(() => {
+        this.executeBatch();
+      }, this.BATCH_DELAY);
+    }
+  }
 
+  private async executeBatch(): Promise<void> {
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+
+    const invalidations = this.pendingInvalidations.splice(0);
+    if (invalidations.length === 0) {
+      return;
+    }
+
+    this.logger.debug("Executing batch invalidation", { count: invalidations.length });
+
+    const filePaths = new Set<string>();
+    const workspaceInvalidations = new Set<string>();
+
+    for (const inv of invalidations) {
+      filePaths.add(inv.filePath);
+      if (inv.type === "workspace") {
+        workspaceInvalidations.add(inv.filePath);
+      }
+    }
+
+    const uniqueFilePaths = Array.from(filePaths);
+
+    await Promise.all([
+      this.invalidateFilesBatch(uniqueFilePaths),
+      this.invalidateWorkspaceBatch(Array.from(workspaceInvalidations)),
+    ]);
+  }
+
+  private async invalidateFilesBatch(filePaths: string[]): Promise<void> {
+    if (filePaths.length === 0) {
+      return;
+    }
+
+    const affectedCacheKeys = new Set<string>();
+
+    for (const filePath of filePaths) {
+      const affected = await this.determineAffectedCaches(filePath);
+      affected.forEach((key) => affectedCacheKeys.add(key));
+    }
+
+    if (affectedCacheKeys.size > 0) {
+      await Promise.all(Array.from(affectedCacheKeys).map((key) => this.cacheService.delete(key)));
+      this.logger.info("Batch invalidated cache entries", {
+        count: affectedCacheKeys.size,
+        fileCount: filePaths.length,
+      });
+    }
+  }
+
+  private async invalidateWorkspaceBatch(filePaths: string[]): Promise<void> {
+    if (filePaths.length === 0) {
+      return;
+    }
+
+    const workspaceFolders = workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return;
+    }
+
+    const workspaceRoots = new Set<string>();
+    for (const filePath of filePaths) {
       if (this.shouldInvalidateWorkspaceStructure(filePath)) {
-        if (workspaceRoot) {
-          await this.workspaceStructureCache.clear(workspaceRoot);
-          this.logger.info("Invalidated workspace structure cache", { filePath });
+        for (const folder of workspaceFolders) {
+          if (filePath.startsWith(folder.uri.fsPath)) {
+            workspaceRoots.add(folder.uri.fsPath);
+          }
         }
       }
+    }
 
-      // Invalidate dependency map for the changed file
-      await this.workspaceStructureCache.deleteDependencyMap(filePath);
+    await Promise.all(
+      Array.from(workspaceRoots).map((root) => this.workspaceStructureCache.clear(root)),
+    );
 
-      // Note: File relevance scores are cached per target file, so they'll be
-      // invalidated based on TTL. If needed, we could track all cached target files
-      // and invalidate their relevance scores when dependencies change.
+    await Promise.all(
+      filePaths.map((filePath) => this.workspaceStructureCache.deleteDependencyMap(filePath)),
+    );
 
-      const allKeys = await this.cacheService.getAllKeys();
-      const keysToInvalidate: string[] = [];
+    if (workspaceRoots.size > 0) {
+      this.logger.info("Batch invalidated workspace structure cache", {
+        workspaceCount: workspaceRoots.size,
+        fileCount: filePaths.length,
+      });
+    }
+  }
 
-      for (const key of allKeys) {
-        const metadata = await this.cacheService.getMetadata(key);
-        if (metadata && metadata.packageJsonPath === filePath) {
-          keysToInvalidate.push(key);
+  private async determineAffectedCaches(filePath: string): Promise<string[]> {
+    const affected: string[] = [];
+    const dependentFilePaths = new Set<string>();
+
+    dependentFilePaths.add(filePath);
+
+    try {
+      const dependencyMap = await this.workspaceStructureCache.getDependencyMap(filePath);
+      if (dependencyMap && dependencyMap.dependents) {
+        for (const dependent of dependencyMap.dependents) {
+          dependentFilePaths.add(dependent);
         }
-      }
-
-      if (keysToInvalidate.length > 0) {
-        for (const key of keysToInvalidate) {
-          await this.cacheService.delete(key);
-        }
-        this.logger.info("Invalidated cache entries", {
-          count: keysToInvalidate.length,
-          filePath,
-        });
-      } else {
-        this.logger.debug("No cache entries to invalidate", { filePath });
       }
     } catch (error) {
-      this.logger.error("Error invalidating cache", { filePath, error });
+      this.logger.debug("Failed to get dependency map for smart invalidation", {
+        filePath,
+        error,
+      });
     }
+
+    const allKeys = await this.cacheService.getAllKeys();
+    for (const key of allKeys) {
+      const metadata = await this.cacheService.getMetadata(key);
+      if (metadata) {
+        if (metadata.packageJsonPath === filePath) {
+          affected.push(key);
+        } else if (metadata.filePath && dependentFilePaths.has(metadata.filePath)) {
+          affected.push(key);
+        }
+      }
+    }
+
+    return affected;
+  }
+
+  private async invalidateCacheForFile(filePath: string): Promise<void> {
+    const invalidationType = this.shouldInvalidateWorkspaceStructure(filePath)
+      ? "workspace"
+      : "file";
+    this.addInvalidation(invalidationType, filePath);
   }
 
   private shouldInvalidateWorkspaceStructure(filePath: string): boolean {
@@ -177,12 +278,20 @@ export class ProjectContextCacheInvalidationService {
 
   dispose(): void {
     this.logger.debug("Disposing ProjectContextCacheInvalidationService");
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
     if (this.debouncedInvalidate) {
       this.debouncedInvalidate.cancel();
+    }
+    if (this.pendingInvalidations.length > 0) {
+      this.executeBatch();
     }
     this.disposables.forEach((d) => d.dispose());
     this.disposables = [];
     this.fileWatcher = null;
     this.debouncedInvalidate = null;
+    this.pendingInvalidations = [];
   }
 }

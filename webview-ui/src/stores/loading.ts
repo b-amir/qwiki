@@ -21,6 +21,10 @@ const defaultSnapshot = (): LoadingStateSnapshot => ({
   active: false,
   step: null,
   percent: null,
+  percentage: null,
+  message: null,
+  elapsed: null,
+  estimatedRemaining: null,
   startedAt: null,
   timeoutMs: null,
   error: null,
@@ -52,10 +56,30 @@ export const useLoadingStore = defineStore("loading", {
     handleMessage(message: LoadingMessage) {
       const receiveTime = Date.now();
       const percent = typeof message.percent === "number" ? message.percent : null;
+      const percentage = typeof message.percentage === "number" ? message.percentage : null;
+      const messageText = typeof message.message === "string" ? message.message : null;
+      const elapsed = typeof message.elapsed === "number" ? message.elapsed : null;
+      const estimatedRemaining =
+        typeof message.estimatedRemaining === "number" ? message.estimatedRemaining : null;
       const currentState = this.getState(message.context);
 
       if (!currentState.active) {
         this.start({ context: message.context, step: message.step });
+        if (
+          percentage !== null ||
+          messageText !== null ||
+          elapsed !== null ||
+          estimatedRemaining !== null
+        ) {
+          this.advance({
+            context: message.context,
+            step: message.step,
+            percent: percent || percentage,
+            message: messageText,
+            elapsed,
+            estimatedRemaining,
+          });
+        }
       } else {
         if (currentState.startedAt) {
           const latency = receiveTime - currentState.startedAt;
@@ -69,7 +93,14 @@ export const useLoadingStore = defineStore("loading", {
             });
           }
         }
-        this.advance({ context: message.context, step: message.step, percent });
+        this.advance({
+          context: message.context,
+          step: message.step,
+          percent: percent || percentage,
+          message: messageText,
+          elapsed,
+          estimatedRemaining,
+        });
       }
     },
     start(options: LoadingStartOptions) {
@@ -128,6 +159,18 @@ export const useLoadingStore = defineStore("loading", {
 
       current.step = options.step;
       current.percent = this.normalizePercent(options.percent, current.percent);
+      if (options.percent !== undefined && options.percent !== null) {
+        current.percentage = options.percent;
+      }
+      if (options.message !== undefined) {
+        current.message = options.message;
+      }
+      if (options.elapsed !== undefined) {
+        current.elapsed = options.elapsed;
+      }
+      if (options.estimatedRemaining !== undefined) {
+        current.estimatedRemaining = options.estimatedRemaining;
+      }
       current.error = null;
       current.cancelled = false;
 

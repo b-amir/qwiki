@@ -4,6 +4,7 @@ import type { WikiGenerationRequest, WikiGenerationResult } from "@/domain/entit
 import type { ProjectContext } from "@/domain/entities/Selection";
 import type { LoadingStep } from "@/constants/Events";
 import { LoadingSteps } from "@/constants/Events";
+import { getProgressMessageForStep } from "@/constants/loading";
 import { ServiceLimits } from "@/constants";
 import { WikiTransformer, type GenerationInput } from "@/application/transformers/WikiTransformer";
 import {
@@ -34,6 +35,14 @@ interface GenerateParams {
   project: ProjectContext;
 }
 
+interface LoadingStepProgress {
+  step: LoadingStep;
+  percentage: number;
+  message: string;
+  elapsed: number;
+  estimatedRemaining?: number;
+}
+
 export class WikiGenerationFlow {
   private logger: Logger;
   private qualityService: DocumentationQualityService;
@@ -43,6 +52,34 @@ export class WikiGenerationFlow {
   private semanticInfoCollector: SemanticInfoCollector;
 
   private promptExampleService?: PromptExampleService;
+  private readonly stepOrder: LoadingStep[] = [
+    LoadingSteps.validatingProvider,
+    LoadingSteps.initializingContext,
+    LoadingSteps.analyzingSnippet,
+    LoadingSteps.buildingContextSummary,
+    LoadingSteps.preparingGenerationInput,
+    LoadingSteps.buildingPrompt,
+    LoadingSteps.validatingPromptQuality,
+    LoadingSteps.collectingSemanticInfo,
+    LoadingSteps.sendingLLMRequest,
+    LoadingSteps.waitingForLLMResponse,
+    LoadingSteps.processingLLMOutput,
+    LoadingSteps.finalizingDocumentation,
+  ];
+  private readonly defaultStepDurations: Map<LoadingStep, number> = new Map([
+    [LoadingSteps.validatingProvider, 500],
+    [LoadingSteps.initializingContext, 3000],
+    [LoadingSteps.analyzingSnippet, 500],
+    [LoadingSteps.buildingContextSummary, 1000],
+    [LoadingSteps.preparingGenerationInput, 500],
+    [LoadingSteps.buildingPrompt, 1000],
+    [LoadingSteps.validatingPromptQuality, 2000],
+    [LoadingSteps.collectingSemanticInfo, 1500],
+    [LoadingSteps.sendingLLMRequest, 500],
+    [LoadingSteps.waitingForLLMResponse, 30000],
+    [LoadingSteps.processingLLMOutput, 1000],
+    [LoadingSteps.finalizingDocumentation, 500],
+  ]);
 
   constructor(
     private llmRegistry: LLMRegistry,
@@ -86,17 +123,85 @@ export class WikiGenerationFlow {
     cancellationToken?: CancellationToken,
     onChunk?: (chunk: string, accumulatedContent: string) => void,
   ): Promise<WikiGenerationResult> {
+    const startTime = Date.now();
     const stepStartTimes = new Map<LoadingStep, number>();
-    const emitStep = (step: LoadingStep) => {
+
+    const calculateProgress = (step: LoadingStep): number => {
+      const currentIndex = this.stepOrder.indexOf(step);
+      if (currentIndex < 0) {
+        return 0;
+      }
+      return Math.round(((currentIndex + 1) / this.stepOrder.length) * 100);
+    };
+
+    const estimateTimeRemaining = (
+      currentStep: LoadingStep,
+      elapsed: number,
+    ): number | undefined => {
+      const currentIndex = this.stepOrder.indexOf(currentStep);
+      if (currentIndex < 0) {
+        return undefined;
+      }
+
+      let estimatedTotal = 0;
+      for (let i = 0; i <= currentIndex; i++) {
+        const step = this.stepOrder[i];
+        const avgDuration = this.defaultStepDurations.get(step) || 1000;
+        estimatedTotal += avgDuration;
+      }
+
+      const remaining = estimatedTotal - elapsed;
+      return remaining > 0 ? remaining : undefined;
+    };
+
+    const getStepMessage = (step: LoadingStep, context?: Record<string, unknown>): string => {
+      const baseMessage = getProgressMessageForStep(step);
+      if (step === LoadingSteps.analyzingFileRelevance && context) {
+        const fileCount = (context.fileCount as number) || 0;
+        const analyzed = (context.analyzed as number) || 0;
+        if (fileCount > 0) {
+          return `Analyzing file relevance (${analyzed}/${fileCount} files)...`;
+        }
+      }
+      if (step === LoadingSteps.buildingContextSummary && context) {
+        const contextSize = (context.contextSize as number) || 0;
+        if (contextSize > 0) {
+          return `Building context summary (${contextSize} files selected)...`;
+        }
+      }
+      if (step === LoadingSteps.waitingForLLMResponse && context) {
+        const tokensGenerated = (context.tokensGenerated as number) || 0;
+        if (tokensGenerated > 0) {
+          return `Generating documentation (${tokensGenerated} tokens)...`;
+        }
+      }
+      return baseMessage;
+    };
+
+    const emitStep = (step: LoadingStep, context?: Record<string, unknown>) => {
       const timestamp = Date.now();
       stepStartTimes.set(step, timestamp);
-      this.logger.debug("Loading step emitted", { step, timestamp });
+      const elapsed = timestamp - startTime;
+      const percentage = calculateProgress(step);
+      const estimatedRemaining = estimateTimeRemaining(step, elapsed);
+      const message = getStepMessage(step, context);
+
+      const progress: LoadingStepProgress = {
+        step,
+        percentage,
+        message,
+        elapsed,
+        estimatedRemaining,
+      };
+
+      this.logger.debug("Loading step emitted", { step, timestamp, percentage, elapsed });
       onProgress?.(step);
     };
+
     const completeStep = (step: LoadingStep) => {
-      const startTime = stepStartTimes.get(step);
-      if (startTime) {
-        const duration = Date.now() - startTime;
+      const stepStartTime = stepStartTimes.get(step);
+      if (stepStartTime) {
+        const duration = Date.now() - stepStartTime;
         this.logger.debug("Loading step completed", { step, duration, durationMs: duration });
         stepStartTimes.delete(step);
       }
@@ -108,7 +213,6 @@ export class WikiGenerationFlow {
     }
 
     let enhancedContext = projectContext;
-    const startTime = Date.now();
     this.logger.debug("executeGenerationFlow started", {
       filePath: request.filePath,
       providerId: request.providerId,
