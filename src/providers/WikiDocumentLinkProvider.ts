@@ -18,12 +18,13 @@ export class WikiDocumentLinkProvider implements DocumentLinkProvider {
       const lines = text.split("\n");
 
       for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const line = lines[lineIndex];
+        const line = lines[lineIndex] ?? "";
         let match: RegExpExecArray | null;
 
         FILE_LINK_PATTERN.lastIndex = 0;
         while ((match = FILE_LINK_PATTERN.exec(line)) !== null) {
           const filePath = match[2];
+          if (!filePath) continue;
           const startPos = match.index;
           const endPos = match.index + match[0].length;
           const range = new Range(lineIndex, startPos, lineIndex, endPos);
@@ -38,7 +39,9 @@ export class WikiDocumentLinkProvider implements DocumentLinkProvider {
 
         MARKDOWN_LINK_PATTERN.lastIndex = 0;
         while ((match = MARKDOWN_LINK_PATTERN.exec(line)) !== null) {
+          if (!match[2]) continue;
           const filePath = match[2];
+          if (!filePath) continue;
           const startPos = match.index;
           const endPos = match.index + match[0].length;
           const range = new Range(lineIndex, startPos, lineIndex, endPos);

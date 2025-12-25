@@ -42,7 +42,7 @@ export function verifyCspInHtml(html: string, expectedNonce?: string): CspVerifi
   }
 
   result.hasCsp = true;
-  const cspContent = cspMatch[1];
+  const cspContent = cspMatch[1] ?? "";
 
   const directives = parseCspDirectives(cspContent);
   result.resourceRestrictions = {
@@ -58,7 +58,7 @@ export function verifyCspInHtml(html: string, expectedNonce?: string): CspVerifi
     if (scriptSrc.includes("'nonce-")) {
       result.hasNonce = true;
       const nonceMatch = scriptSrc.match(/'nonce-([^']+)'/);
-      if (nonceMatch) {
+      if (nonceMatch && nonceMatch[1]) {
         const nonce = nonceMatch[1];
         if (expectedNonce && nonce === expectedNonce) {
           result.scriptNonceUsed = true;
@@ -102,7 +102,9 @@ function parseCspDirectives(cspContent: string): Record<string, string> {
   let match;
 
   while ((match = directivePattern.exec(cspContent)) !== null) {
-    directives[match[1]] = match[2].trim();
+    if (match[1] && match[2]) {
+      directives[match[1]] = match[2].trim();
+    }
   }
 
   return directives;

@@ -27,7 +27,7 @@ export class WebviewMessageHandler {
     private criticalInitPromise: Promise<void>,
     private readinessManager: ServiceReadinessManager | undefined,
     private loggingService: LoggingService,
-    private onCancelGeneration: () => void,
+    private onCancelGeneration: (reason?: string) => void,
     private navigationManager?: NavigationManager,
     private environmentStatusManager?: EnvironmentStatusManager,
   ) {
@@ -110,7 +110,8 @@ export class WebviewMessageHandler {
               return;
             }
             case "cancelWikiGeneration": {
-              this.onCancelGeneration();
+              const reason = payload?.reason as string | undefined;
+              this.onCancelGeneration(reason);
               return;
             }
             default: {
@@ -271,7 +272,7 @@ export class WebviewMessageHandler {
       }
 
       // Wait for required services (with timeout)
-      const timeout = COMMAND_TIMEOUTS[command] || COMMAND_TIMEOUTS.default;
+      const timeout = COMMAND_TIMEOUTS[command] ?? COMMAND_TIMEOUTS.default ?? 5000;
       const waitPromises = unreadyServices.map((s) =>
         this.readinessManager!.waitForService(s, timeout),
       );

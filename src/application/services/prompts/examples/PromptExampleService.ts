@@ -121,7 +121,7 @@ export class PromptExampleService {
 
   private formatExample(wiki: SavedWiki): string {
     const codeMatch = wiki.content.match(/```[\w]*\n([\s\S]*?)```/);
-    const code = codeMatch ? codeMatch[1].trim() : "";
+    const code = codeMatch ? (codeMatch[1] ?? "").trim() : "";
     const documentation = wiki.content.replace(/```[\w]*\n[\s\S]*?```/g, "").trim();
 
     if (!code || !documentation) {

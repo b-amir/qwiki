@@ -90,6 +90,11 @@ export class AppBootstrap {
     const wikiEventHandler = await this.container.resolveLazy<WikiEventHandler>("wikiEventHandler");
     wikiEventHandler.register();
 
+    const readmeEventHandler = this.container.resolve(
+      "readmeEventHandler",
+    ) as import("@/events/handlers/ReadmeEventHandler").ReadmeEventHandler;
+    readmeEventHandler.register();
+
     const errorHandler = this.container.resolve("errorHandler") as ErrorHandlerImpl;
     errorHandler.registerGlobalHandlers();
   }

@@ -171,7 +171,7 @@ export class StatisticsCalculationService {
 
   getBestPerformingProvider(metricsMap: Map<string, PerformanceMetric[]>): string | undefined {
     const rankings = this.getProviderRankings(metricsMap);
-    return rankings.length > 0 ? rankings[0].providerId : undefined;
+    return rankings.length > 0 ? rankings[0]?.providerId : undefined;
   }
 
   getProvidersByPerformance(

@@ -131,7 +131,9 @@ export class WebviewOptimizerService {
 
     if (batch.length === 1) {
       const message = batch[0];
-      this.safePostMessage({ command: message.command, payload: message.payload });
+      if (message) {
+        this.safePostMessage({ command: message.command, payload: message.payload });
+      }
     } else {
       try {
         const cmds = batch.map((m) => m.command).filter(Boolean);

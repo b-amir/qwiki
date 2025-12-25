@@ -69,4 +69,10 @@ export interface ProviderCustomField {
   defaultValue?: string;
 }
 
-export type ProviderId = string;
+export type ProviderId = 
+  | "google-ai-studio"
+  | "zai"
+  | "openrouter"
+  | "cohere"
+  | "huggingface";
+

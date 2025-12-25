@@ -1,4 +1,4 @@
-import { CancellationToken, CancellationTokenSource } from "vscode";
+import { CancellationToken, CancellationTokenSource, window } from "vscode";
 import type { EventBus } from "@/events/EventBus";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
 import type { ProjectContext } from "@/domain/entities/Selection";
@@ -76,12 +76,15 @@ export class WikiEventHandler {
     this.logger.debug("WikiEventHandler.register completed");
   }
 
-  cancelActiveGeneration(): void {
+  cancelActiveGeneration(reason?: string): void {
     if (this.activeGenerationTokenSource) {
-      this.logger.debug("Cancelling active generation");
+      this.logger.debug("Cancelling active generation", { reason });
       this.activeGenerationTokenSource.cancel();
       this.activeGenerationTokenSource.dispose();
       this.activeGenerationTokenSource = null;
+
+      const notificationMessage = reason || "Generation cancelled";
+      window.showInformationMessage(`Qwiki: ${notificationMessage}`);
 
       this.eventBus.publish(OutboundEvents.generationCancelled, {});
 
@@ -126,6 +129,7 @@ export class WikiEventHandler {
       this.logger.debug("Cancelling previous generation");
       this.activeGenerationTokenSource.cancel();
       this.activeGenerationTokenSource.dispose();
+      window.showInformationMessage("Qwiki: Previous generation cancelled - starting new request");
     }
 
     this.activeGenerationTokenSource = new CancellationTokenSource();

@@ -27,7 +27,12 @@ export class ProjectContextValidationService {
         return { isValid: false, reason: "No workspace folders" };
       }
 
-      const currentRoot = workspaceFolders[0].uri.fsPath;
+      const rootFolder = workspaceFolders[0];
+      if (!rootFolder) {
+        return { isValid: false, reason: "No workspace folders" };
+      }
+
+      const currentRoot = rootFolder.uri.fsPath;
       if (metadata.workspaceRoot !== currentRoot) {
         this.logger.debug("Workspace root changed", {
           cached: metadata.workspaceRoot,
@@ -114,9 +119,11 @@ export class ProjectContextValidationService {
 
       if (packageJsonUris.length > 0) {
         const packageJsonUri = packageJsonUris[0];
-        metadata.packageJsonPath = packageJsonUri.fsPath;
-        const stat = await workspace.fs.stat(packageJsonUri);
-        metadata.packageJsonModified = stat.mtime;
+        if (packageJsonUri) {
+          metadata.packageJsonPath = packageJsonUri.fsPath;
+          const stat = await workspace.fs.stat(packageJsonUri);
+          metadata.packageJsonModified = stat.mtime;
+        }
       }
     } catch (error) {
       this.logger.debug("Error building metadata for package.json", { error });

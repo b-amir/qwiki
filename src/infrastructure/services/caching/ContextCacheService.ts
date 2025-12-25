@@ -216,10 +216,10 @@ export class ContextCacheService {
 
     let match;
     while ((match = functionRegex.exec(content)) !== null) {
-      symbols.push(match[1]);
+      if (match[1]) symbols.push(match[1]);
     }
     while ((match = classRegex.exec(content)) !== null) {
-      symbols.push(match[1]);
+      if (match[1]) symbols.push(match[1]);
     }
 
     return symbols;
@@ -231,7 +231,7 @@ export class ContextCacheService {
 
     let match;
     while ((match = importRegex.exec(content)) !== null) {
-      imports.push(match[1]);
+      if (match[1]) imports.push(match[1]);
     }
 
     return imports;
@@ -278,7 +278,7 @@ export class ContextCacheService {
 
   private scheduleBatchAnalysis(filePaths: string[]): void {
     this.taskScheduler.schedule({
-      id: `analyze-batch-${filePaths[0]}`,
+      id: `analyze-batch-${filePaths[0] ?? "unknown"}`,
       priority: TaskPriority.LOW,
       execute: async () => {
         for (const filePath of filePaths) {

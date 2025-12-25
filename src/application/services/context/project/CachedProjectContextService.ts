@@ -126,7 +126,7 @@ export class CachedProjectContextService {
     const cacheSetStart = Date.now();
     const workspaceFolders = workspace.workspaceFolders;
     const workspaceRoot =
-      workspaceFolders && workspaceFolders.length > 0 ? workspaceFolders[0].uri.fsPath : "";
+      workspaceFolders && workspaceFolders.length > 0 ? (workspaceFolders[0]?.uri.fsPath ?? "") : "";
 
     const metadata = await this.validationService.buildMetadata(
       workspaceRoot,

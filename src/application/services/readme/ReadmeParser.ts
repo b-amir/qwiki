@@ -14,7 +14,7 @@ export class ReadmeParser {
           sections.push(currentSection);
         }
 
-        const sectionName = headingMatch[1];
+        const sectionName = headingMatch[1] ?? "Untitled";
         currentSection = {
           name: sectionName,
           content: line + "\n",
@@ -41,10 +41,11 @@ export class ReadmeParser {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
       const headingMatch = line.match(/^##+\s+(.+)$/);
 
       if (headingMatch) {
-        const heading = headingMatch[1];
+        const heading = headingMatch[1] ?? "Untitled";
         const isPreservedSection = /^(custom|todo|notes?|changelog|license|copyright)/i.test(
           heading,
         );

@@ -54,9 +54,9 @@ export function activate(context: ExtensionContext) {
     try {
       const container = qwikiProvider?.getContainer?.();
       if (container) {
-        const wikiStorage = container.resolve("wikiStorageService") as any;
-        const eventBus = container.resolve("eventBus") as any;
-        const loggingService = container.resolve("loggingService") as any;
+        const wikiStorage = container.resolveTyped("wikiStorageService");
+        const eventBus = container.resolveTyped("eventBus");
+        const loggingService = container.resolveTyped("loggingService");
 
         savedWikisTreeProvider = new SavedWikisTreeDataProvider(
           wikiStorage,
@@ -87,8 +87,8 @@ export function activate(context: ExtensionContext) {
         return;
       }
 
-      const wikiStorage = container.resolve("wikiStorageService") as any;
-      const loggingService = container.resolve("loggingService") as any;
+      const wikiStorage = container.resolveTyped("wikiStorageService");
+      const loggingService = container.resolveTyped("loggingService");
 
       const workspaceSymbolProvider = new QwikiWorkspaceSymbolProvider(wikiStorage, loggingService);
       const hoverProvider = new DocumentationHoverProvider(
@@ -177,10 +177,10 @@ export function activate(context: ExtensionContext) {
           return;
         }
 
-        const llmRegistry = (await container.resolveLazy("llmRegistry")) as any;
-        const apiKeyRepository = container.resolve("apiKeyRepository") as any;
-        const configurationManager = container.resolve("configurationManager") as any;
-        const loggingService = container.resolve("loggingService") as any;
+        const llmRegistry = await container.resolveLazyTyped("llmRegistry");
+        const apiKeyRepository = container.resolveTyped("apiKeyRepository");
+        const configurationManager = container.resolveTyped("configurationManager");
+        const loggingService = container.resolveTyped("loggingService");
 
         const command = new SelectProviderCommand(
           llmRegistry,
@@ -226,8 +226,11 @@ export function activate(context: ExtensionContext) {
     VSCodeCommandIds.cancelActiveRequest,
     () => {
       if (WikiEventHandler.instance) {
-        WikiEventHandler.instance.cancelActiveGeneration();
-        window.showInformationMessage("Qwiki: Generation cancelled");
+        if (WikiEventHandler.instance.hasActiveGeneration()) {
+          WikiEventHandler.instance.cancelActiveGeneration();
+        } else {
+          window.showInformationMessage("Qwiki: No active generation to cancel");
+        }
       } else {
         window.showInformationMessage("Qwiki: No active generation to cancel");
       }
@@ -246,7 +249,7 @@ export function activate(context: ExtensionContext) {
           return;
         }
 
-        const loggingService = container.resolve("loggingService") as any;
+        const loggingService = container.resolveTyped("loggingService");
         loggingService.toggleOutputChannel();
       } catch (error) {
         window.showErrorMessage(
@@ -265,7 +268,7 @@ export function activate(context: ExtensionContext) {
         const modes: LogMode[] = ["normal", "verbose"];
         const currentIndex = modes.indexOf(currentMode);
         const nextIndex = (currentIndex + 1) % modes.length;
-        const nextMode = modes[nextIndex];
+        const nextMode = modes[nextIndex] ?? "normal";  // Fallback to "normal" if undefined
 
         loggingService.setMode(nextMode);
 
@@ -274,12 +277,13 @@ export function activate(context: ExtensionContext) {
           verbose: "Verbose Logs (All Levels)",
         };
 
-        window.showInformationMessage(`Qwiki: Logging mode set to "${modeLabels[nextMode]}"`);
+        const modeLabel = modeLabels[nextMode] ?? "Unknown Mode";
+        window.showInformationMessage(`Qwiki: Logging mode set to "${modeLabel}"` );
 
         if (qwikiProvider) {
           try {
             const container = qwikiProvider.getContainer();
-            const messageBus = container.resolve("messageBus") as any;
+            const messageBus = container.resolveTyped("messageBus");
             if (messageBus && typeof messageBus.postImmediate === "function") {
               messageBus.postImmediate("setLoggingMode", { mode: nextMode });
             }

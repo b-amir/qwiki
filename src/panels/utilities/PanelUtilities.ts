@@ -10,12 +10,12 @@ export class PanelUtilities {
     private navigationManager?: { getLastSelection(): SelectionPayload | undefined },
   ) {}
 
-  async cancelActiveGeneration(): Promise<void> {
+  async cancelActiveGeneration(reason?: string): Promise<void> {
     try {
       const container = this.bootstrap.getContainer();
-      const handler = await container.resolveLazy("wikiEventHandler");
-      if (handler && typeof (handler as any).cancelActiveGeneration === "function") {
-        (handler as any).cancelActiveGeneration();
+      const handler = await container.resolveLazyTyped("wikiEventHandler");
+      if (handler && "cancelActiveGeneration" in handler && typeof handler.cancelActiveGeneration === "function") {
+        handler.cancelActiveGeneration(reason);
       }
     } catch (error) {
       this.logger.debug("Failed to cancel active generation", error);

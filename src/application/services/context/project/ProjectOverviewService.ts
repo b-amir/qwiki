@@ -34,7 +34,11 @@ export class ProjectOverviewService {
 
       const readDocStart = Date.now();
       this.logger.debug("Reading package.json");
-      const doc = await workspace.openTextDocument(pkgUris[0]);
+      const pkgUri = pkgUris[0];
+      if (!pkgUri) {
+        return "";
+      }
+      const doc = await workspace.openTextDocument(pkgUri);
       const json = JSON.parse(doc.getText());
       this.logger.debug("Package.json parsed", {
         duration: Date.now() - readDocStart,

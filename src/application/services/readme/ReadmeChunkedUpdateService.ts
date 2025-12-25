@@ -58,6 +58,7 @@ export class ReadmeChunkedUpdateService {
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
+      if (!chunk) continue;
       const isFirstPass = i === 0;
       const isLastPass = i === chunks.length - 1;
 

@@ -27,7 +27,7 @@ export class ManagerInitializer {
     private logger: Logger,
     private commandRegistry?: CommandRegistry,
     private errorHandler?: ErrorHandler,
-    private cancelGeneration?: () => Promise<void>,
+    private cancelGeneration?: (reason?: string) => Promise<void>,
   ) {}
 
   initializeManagers(
@@ -60,7 +60,7 @@ export class ManagerInitializer {
     const disposables: Disposable[] = [];
 
     try {
-      const eventBus = this.bootstrap.getContainer().resolve("eventBus") as any;
+      const eventBus = this.bootstrap.getContainer().resolveTyped("eventBus");
       if (eventBus && typeof eventBus.subscribe === "function") {
         const unsubscribe = eventBus.subscribe(
           "backgroundInitProgress",

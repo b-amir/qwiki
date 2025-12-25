@@ -111,7 +111,7 @@ export class ContextCompressionService {
     let inClass = false;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i] ?? "";
       const trimmed = line.trim();
 
       if (trimmed.startsWith("/*")) {
@@ -153,7 +153,7 @@ export class ContextCompressionService {
       if (classMatch) {
         if (currentSection && inClass) {
           structure.classes.push({
-            name: classMatch[1],
+            name: classMatch[1] ?? "anonymous",
             content: currentSection.content,
             startLine: currentSection.startLine,
             endLine: currentSection.endLine,

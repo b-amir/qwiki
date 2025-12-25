@@ -108,7 +108,7 @@ export class HuggingFaceProvider implements LLMProvider {
       );
     }
 
-    const model = params.model || HUGGINGFACE_MODELS[0];
+    const model = params.model || HUGGINGFACE_MODELS[0] || "bigscience/bloomz-7b1";
     const url = `https://api-inference.huggingface.co/models/${encodeURIComponent(model)}`;
     const prompt = buildWikiPrompt(params, this.id);
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;

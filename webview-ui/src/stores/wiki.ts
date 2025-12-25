@@ -379,7 +379,10 @@ export const useWikiStore = defineStore("wiki", {
         if (this.generateRequestId) {
           vscode.postMessage({
             command: "cancelWikiGeneration",
-            payload: { requestId: this.generateRequestId },
+            payload: {
+              requestId: this.generateRequestId,
+              reason: "New generation requested",
+            },
           });
         }
 

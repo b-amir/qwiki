@@ -134,6 +134,7 @@ export class RelationshipAnalysisService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
 
       for (const char of line) {
         if (char === "{") {
@@ -151,7 +152,7 @@ export class RelationshipAnalysisService {
       const declMatch = functionDeclarationRegex.exec(line);
       if (declMatch && braceDepth === 0) {
         const funcName = declMatch[1];
-        if (functionMap.has(funcName)) {
+        if (funcName && functionMap.has(funcName)) {
           functionContextStack.push(funcName);
         }
       }
@@ -160,6 +161,8 @@ export class RelationshipAnalysisService {
       let match;
       while ((match = functionNameRegex.exec(line)) !== null) {
         const calleeName = match[1];
+        if (!calleeName) continue;
+
         const callerName =
           functionContextStack.length > 0
             ? functionContextStack[functionContextStack.length - 1]

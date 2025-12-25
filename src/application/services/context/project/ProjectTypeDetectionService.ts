@@ -35,7 +35,15 @@ export class ProjectTypeDetectionService {
       };
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const rootFolder = workspaceFolders[0];
+    if (!rootFolder) {
+      return {
+        primaryLanguage: "unknown",
+        confidence: 0,
+      };
+    }
+
+    const workspaceRoot = rootFolder.uri.fsPath;
     const cached = await this.workspaceStructureCache.getProjectType(workspaceRoot);
     if (cached) {
       this.logger.debug("Using cached project type");
@@ -71,6 +79,7 @@ export class ProjectTypeDetectionService {
           if (indicator.pattern === "package.json") {
             try {
               const fileUri = files[0];
+              if (!fileUri) continue;
               const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
               const packageJson = JSON.parse(contentStr);
 
@@ -125,7 +134,10 @@ export class ProjectTypeDetectionService {
       return [];
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const rootFolder = workspaceFolders[0];
+    if (!rootFolder) return [];
+    
+    const workspaceRoot = rootFolder.uri.fsPath;
     const cached = await this.workspaceStructureCache.getEssentialFiles(workspaceRoot);
     if (cached) {
       this.logger.debug("Using cached essential files");
@@ -151,6 +163,7 @@ export class ProjectTypeDetectionService {
           const files = await workspace.findFiles(`**/${essential.path}`, FilePatterns.exclude, 1);
           if (files.length > 0) {
             const fileUri = files[0];
+            if (!fileUri) continue;
             const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
             const tokenCost = this.estimateTokenCount(contentStr);
 
@@ -183,6 +196,7 @@ export class ProjectTypeDetectionService {
           const files = await workspace.findFiles(`**/${essential.path}`, FilePatterns.exclude, 1);
           if (files.length > 0) {
             const fileUri = files[0];
+            if (!fileUri) continue;
             const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
             const tokenCost = this.estimateTokenCount(contentStr);
 

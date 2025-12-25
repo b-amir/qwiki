@@ -42,17 +42,24 @@ export class ComplexityCalculationService {
     };
   }
 
-  calculateMaxNestingDepth(snippet: string): number {
-    let maxDepth = 0;
-    let currentDepth = 0;
+  calculateMaxNestingDepth(code: string): number {
+    const lines = code.split("\n");
+    let maxNesting = 0;
+    let currentNesting = 0;
 
-    for (const char of snippet) {
-      if (char === "{") currentDepth++;
-      if (char === "}") currentDepth--;
-      maxDepth = Math.max(maxDepth, currentDepth);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      // Count opening braces
+      const openBraces = (trimmed.match(/{/g) || []).length;
+      // Count closing braces
+      const closeBraces = (trimmed.match(/}/g) || []).length;
+      
+      currentNesting += openBraces - closeBraces;
+      maxNesting = Math.max(maxNesting, currentNesting);
     }
 
-    return maxDepth;
+    return Math.max(1, maxNesting);
   }
 
   calculateCyclomaticComplexity(structure: CodeStructure): number {
@@ -79,6 +86,7 @@ export class ComplexityCalculationService {
 
     for (let i = 0; i < linesArray.length; i++) {
       const line = linesArray[i];
+      if (!line) continue;  // Skip if undefined
 
       if (
         line.includes("if") ||
@@ -140,7 +148,9 @@ export class ComplexityCalculationService {
     let match;
 
     while ((match = operatorRegex.exec(line)) !== null) {
-      operators.push(match[1].trim());
+      const operator = match[1];
+      if (!operator) continue;
+      operators.push(operator.trim());
     }
 
     return operators;
@@ -202,9 +212,11 @@ export class ComplexityCalculationService {
 
     let match;
     while ((match = operandRegex.exec(line)) !== null) {
-      const operand = match[1].trim();
-      if (!keywords.has(operand) && !/^\d+$/.test(operand)) {
-        operands.push(operand);
+      const operand = match[1];
+      if (!operand) continue;
+      const trimmedOperand = operand.trim();
+      if (!keywords.has(trimmedOperand) && !/^\d+$/.test(trimmedOperand)) {
+        operands.push(trimmedOperand);
       }
     }
 

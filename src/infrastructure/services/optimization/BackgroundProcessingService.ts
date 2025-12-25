@@ -98,6 +98,7 @@ export class BackgroundProcessingService extends EventEmitter {
     }
 
     const task = this.taskQueue[taskIndex];
+    if (!task) return false;
     task.status = TaskStatus.CANCELLED;
     this.taskQueue.splice(taskIndex, 1);
     this.statistics.cancelledTasks++;
@@ -196,10 +197,12 @@ export class BackgroundProcessingService extends EventEmitter {
       task.result = result;
       task.status = TaskStatus.COMPLETED;
       task.completedAt = Date.now();
-
-      const executionTime = task.completedAt - task.startedAt!;
-      this.statistics.totalExecutionTime += executionTime;
       this.statistics.completedTasks++;
+
+      if (task.startedAt) {
+        const executionTime = task.completedAt - task.startedAt;
+        this.statistics.totalExecutionTime += executionTime;
+      }
 
       this.emit("taskCompleted", task);
     } catch (error) {

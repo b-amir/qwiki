@@ -224,9 +224,13 @@ export class SemanticCacheService {
     let magnitude2 = 0;
 
     for (let i = 0; i < vec1.length; i++) {
-      dotProduct += vec1[i] * vec2[i];
-      magnitude1 += vec1[i] * vec1[i];
-      magnitude2 += vec2[i] * vec2[i];
+      const v1 = vec1[i];
+      const v2 = vec2[i];
+      if (v1 === undefined || v2 === undefined) continue;
+      
+      dotProduct += v1 * v2;
+      magnitude1 += v1 * v1;
+      magnitude2 += v2 * v2;
     }
 
     if (magnitude1 === 0 || magnitude2 === 0) {

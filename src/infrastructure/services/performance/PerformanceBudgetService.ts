@@ -86,7 +86,7 @@ export class PerformanceBudgetService {
 
   private percentile(sorted: number[], p: number): number {
     const index = Math.ceil(sorted.length * p) - 1;
-    return sorted[Math.max(0, index)];
+    return sorted[Math.max(0, index)] ?? 0;
   }
 
   private getBudget(operation: string): {

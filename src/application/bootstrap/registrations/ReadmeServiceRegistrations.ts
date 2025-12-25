@@ -21,6 +21,7 @@ import { VSCodeDiffService } from "@/infrastructure/services";
 import { CachingService } from "@/infrastructure/services";
 import { GitChangeDetectionService } from "@/infrastructure/services";
 import { LLMRegistry } from "@/llm";
+import { ReadmeEventHandler } from "@/events/handlers/ReadmeEventHandler";
 
 export function registerReadmeServices(container: Container, loggingService: LoggingService): void {
   container.register(
@@ -120,6 +121,15 @@ export function registerReadmeServices(container: Container, loggingService: Log
         container.resolve("readmeCacheService") as ReadmeCacheService,
         container.resolve("readmeSyncTrackerService") as ReadmeSyncTrackerService,
         container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
+        container.resolve("eventBus"),
+        loggingService,
+      ),
+  );
+
+  container.register(
+    "readmeEventHandler",
+    () =>
+      new ReadmeEventHandler(
         container.resolve("eventBus"),
         loggingService,
       ),

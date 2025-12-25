@@ -91,7 +91,11 @@ export class LanguageStatusMonitor {
 
       const languageId = editor.document.languageId;
       const relevantExtensions = extensions.all.filter((ext) => {
-        const activationEvents = (ext.packageJSON as any)?.activationEvents;
+        const packageJSON = ext.packageJSON as unknown;
+        const activationEvents = 
+          packageJSON && typeof packageJSON === "object" && "activationEvents" in packageJSON
+            ? (packageJSON as { activationEvents: unknown }).activationEvents
+            : undefined;
         if (!Array.isArray(activationEvents)) {
           return false;
         }

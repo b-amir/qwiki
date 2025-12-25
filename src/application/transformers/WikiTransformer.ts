@@ -157,6 +157,7 @@ export class WikiTransformer {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
       const trimmed = line.trim();
 
       if (headingPattern.test(line)) {
@@ -199,10 +200,11 @@ export class WikiTransformer {
 
   static finalizeContent(processed: ProcessedGeneration, metadata: GenerationMetadata): string {
     const lines = processed.content.split("\n");
-    const hasHeading = /^#\s+/.test(lines[0] || "");
+    const firstLine = lines[0];
+    const hasHeading = firstLine ? /^#\s+/.test(firstLine) : false;
     const titleFromSymbol = metadata.analysis.symbols[0];
-    const heading = hasHeading
-      ? lines[0]
+    const heading = hasHeading && firstLine
+      ? firstLine
       : `# ${titleFromSymbol ? `${titleFromSymbol} Overview` : "Generated Wiki"}`;
 
     const body = hasHeading ? lines.slice(1).join("\n") : lines.join("\n");

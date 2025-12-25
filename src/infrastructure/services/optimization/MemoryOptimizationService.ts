@@ -186,7 +186,7 @@ export class MemoryOptimizationService extends EventEmitter {
     const leaks: MemoryLeak[] = [];
 
     if (this.memorySnapshots.length > 0) {
-      const previousUsage = this.memorySnapshots[this.memorySnapshots.length - 1];
+      const previousUsage = this.memorySnapshots[this.memorySnapshots.length - 1]!;
       const growth = currentUsage.heapUsed - previousUsage.heapUsed;
 
       if (growth > 10 * 1024 * 1024) {
@@ -213,7 +213,7 @@ export class MemoryOptimizationService extends EventEmitter {
     }, 0);
 
     const severityMap = ["low", "medium", "high", "critical"] as const;
-    const severity = severityMap[maxSeverity - 1];
+    const severity = severityMap[maxSeverity - 1] ?? "low";
 
     const report: MemoryLeakReport = {
       detectedLeaks: leaks,
@@ -255,6 +255,10 @@ export class MemoryOptimizationService extends EventEmitter {
     const recent = this.memorySnapshots.slice(-10);
     const first = recent[0];
     const last = recent[recent.length - 1];
+
+    if (!first || !last) {
+      return { trend: "stable", rate: 0 };
+    }
 
     const timeDiff = last.heapUsed - first.heapUsed;
     const rate = timeDiff / recent.length;

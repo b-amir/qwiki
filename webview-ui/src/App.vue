@@ -14,6 +14,7 @@ import { useEnvironmentStore } from "@/stores/environment";
 import { useNavigation } from "@/composables/useNavigation";
 import { usePageLoading } from "@/composables/usePageLoading";
 import { useBatchMessageBridge } from "@/composables/useBatchMessageBridge";
+import { useErrorStore } from "@/stores/error";
 import LoadingState from "@/components/features/LoadingState.vue";
 import GlobalErrorModal from "@/components/features/GlobalErrorModal.vue";
 import { createLogger, FrontendLoggingService, type LogMode } from "@/utilities/logging";
@@ -24,6 +25,7 @@ const { currentPage } = useNavigation();
 const wiki = useWikiStore();
 const settings = useSettingsStore();
 const environment = useEnvironmentStore();
+const errorStore = useErrorStore();
 
 // Initialize stores synchronously
 wiki.init();
@@ -56,6 +58,21 @@ watch(
   () => currentPage.value,
   (newPage, oldPage) => {
     logger.info("currentPage changed", { from: oldPage, to: newPage });
+
+    // Cancel generation if navigating away from wiki page while loading
+    if (oldPage === "wiki" && newPage !== "wiki" && wiki.loading) {
+      logger.info("Navigating away from wiki page while loading, cancelling generation");
+      const requestId = wiki.generateRequestId;
+      vscode.postMessage({
+        command: "cancelWikiGeneration",
+        payload: {
+          requestId: requestId,
+          reason: "Navigated away from wiki page",
+        },
+      });
+      wiki.cancelPendingActions();
+    }
+
     try {
       vscode.postMessage({
         command: "frontendLog",
@@ -215,7 +232,7 @@ watch(
           </div>
         </template>
         <template v-else>
-          <HomePage v-if="!wiki.content && !wiki.loading" />
+          <HomePage v-if="!wiki.content && !wiki.loading && !errorStore.currentError" />
           <WikiPage v-else />
         </template>
       </div>

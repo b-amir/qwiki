@@ -159,8 +159,11 @@ export class ContextCompressionService {
         continue;
       }
 
-      if (trimmed.length === 0 && cleaned.length > 0 && cleaned[cleaned.length - 1].trim() === "") {
-        continue;
+      if (trimmed.length === 0 && cleaned.length > 0) {
+        const lastCleaned = cleaned[cleaned.length - 1];
+        if (lastCleaned && lastCleaned.trim() === "") {
+          continue;
+        }
       }
 
       cleaned.push(line);
@@ -196,6 +199,7 @@ export class ContextCompressionService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;  // Skip if undefined
 
       if (functionSignaturePattern.test(line)) {
         preserved.push(line.trimEnd() + " { ... }");
@@ -204,11 +208,13 @@ export class ContextCompressionService {
 
         for (let j = i; j < lines.length; j++) {
           const currentLine = lines[j];
+          if (!currentLine) continue;  // Skip if undefined
+          
           for (const char of currentLine) {
             if (char === "{") {
               braceCount++;
               inFunction = true;
-            } else if (char === "}") {
+            } else if (char === "}" ) {
               braceCount--;
               if (inFunction && braceCount === 0) {
                 i = j;
@@ -254,21 +260,29 @@ export class ContextCompressionService {
       const match = imp.match(/from\s+['"]([^'"]+)['"]/);
       if (match) {
         const source = match[1];
-        if (!grouped.has(source)) {
-          grouped.set(source, []);
+        if (source) {  // Check if match group exists
+          if (!grouped.has(source)) {
+            grouped.set(source, []);
+          }
+          const group = grouped.get(source);
+          if (group) {  // Check if group exists before push
+            group.push(imp);
+          }
         }
-        grouped.get(source)!.push(imp);
       }
     }
 
     const result: string[] = [];
     for (const [source, importLines] of grouped.entries()) {
       if (importLines.length === 1) {
-        result.push(importLines[0]);
+        const firstImport = importLines[0];
+        if (firstImport) {  // Check if exists
+          result.push(firstImport);
+        }
       } else {
         const importsStr = importLines.map((imp) => {
           const match = imp.match(/import\s+(.+)\s+from/);
-          return match ? match[1] : "";
+          return match && match[1] ? match[1] : "";
         });
         result.push(`import { ${importsStr.join(", ")} } from '${source}'`);
       }
@@ -291,6 +305,8 @@ export class ContextCompressionService {
 
         for (let j = i; j < lines.length; j++) {
           const currentLine = lines[j];
+          if (!currentLine) continue;  // Skip if undefined
+          
           for (const char of currentLine) {
             if (char === "{") {
               braceCount++;
@@ -298,7 +314,10 @@ export class ContextCompressionService {
             } else if (char === "}") {
               braceCount--;
               if (inType && braceCount === 0) {
-                preserved.push(lines[j]);
+                const lineAtJ = lines[j];
+                if (lineAtJ) {  // Check before push
+                  preserved.push(lineAtJ);
+                }
                 break;
               }
             }

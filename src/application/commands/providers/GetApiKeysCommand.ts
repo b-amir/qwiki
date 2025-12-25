@@ -50,8 +50,11 @@ export class GetApiKeysCommand implements Command<void> {
 
       const apiKeys: Record<string, string> = {};
       for (let i = 0; i < providerIds.length; i++) {
+        const providerId = providerIds[i];
         const key = apiKeyResults[i];
-        if (key) apiKeys[providerIds[i]] = key;
+        if (key && providerId) {
+          apiKeys[providerId] = key;
+        }
       }
 
       const flatFields = providerConfigs.flatMap((p) => p.customFields ?? []);
@@ -68,9 +71,14 @@ export class GetApiKeysCommand implements Command<void> {
       for (let i = 0; i < fieldIds.length; i++) {
         const id = fieldIds[i];
         const value = fieldValues[i];
+        if (!id) continue;  // Skip if id is undefined
+        
         const fallback = fieldDefaults.get(id);
-        if (value !== undefined && value !== null) settings[id] = String(value);
-        else if (fallback !== undefined) settings[id] = String(fallback);
+        if (value !== undefined && value !== null) {
+          settings[id] = String(value);
+        } else if (fallback !== undefined) {
+          settings[id] = String(fallback);
+        }
       }
 
       const payload = { apiKeys, settings };

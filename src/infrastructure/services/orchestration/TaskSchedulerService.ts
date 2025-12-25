@@ -106,7 +106,11 @@ export class TaskSchedulerService {
   }
 
   private async processQueue(): Promise<void> {
-    while (this.queue.length > 0 && this.queue[0].priority === TaskPriority.HIGH) {
+    while (this.queue.length > 0) {
+      const next = this.queue[0];
+      if (!next || next.priority !== TaskPriority.HIGH) {
+        break;
+      }
       const task = this.queue.shift();
       if (task) {
         await this.executeInBackground(task);

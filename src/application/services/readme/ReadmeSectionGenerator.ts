@@ -7,7 +7,7 @@ export class ReadmeSectionGenerator {
 
     const overview = wikis
       .map((wiki) => {
-        const firstParagraph = wiki.content.split("\n\n")[0];
+        const firstParagraph = wiki.content.split("\n\n")[0] ?? "";
         return firstParagraph.substring(0, 300);
       })
       .join("\n\n");

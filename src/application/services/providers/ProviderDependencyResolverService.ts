@@ -151,6 +151,7 @@ export class ProviderDependencyResolverService {
 
     for (let i = 0; i < loadOrder.length; i++) {
       const providerId = loadOrder[i];
+      if (!providerId) continue;
       const dependencies = graph.edges.get(providerId) || [];
 
       let maxDepLevel = -1;

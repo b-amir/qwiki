@@ -34,7 +34,12 @@ export class FileRelevanceBatchService {
       throw new Error("No workspace folder found");
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const rootFolder = workspaceFolders[0];
+    if (!rootFolder) {
+      throw new Error("No workspace folder found");
+    }
+
+    const workspaceRoot = rootFolder.uri.fsPath;
 
     if (this.indexCacheService) {
       const precomputedScores = await this.indexCacheService.getRelevanceScores(targetFilePath);

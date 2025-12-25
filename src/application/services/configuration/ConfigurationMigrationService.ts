@@ -197,7 +197,8 @@ export class ConfigurationMigrationService {
       return "1.0.0";
     }
 
-    return this.migrationSteps[this.migrationSteps.length - 1].version;
+    const lastStep = this.migrationSteps[this.migrationSteps.length - 1];
+    return lastStep?.version ?? "1.0.0";
   }
 
   private compareVersions(version1: string, version2: string): number {

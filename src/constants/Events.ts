@@ -46,6 +46,7 @@ export const OutboundEvents = {
   readmeBackupState: "readmeBackupState",
   readmeUpdateProgress: "readmeUpdateProgress",
   generationCancelled: "generationCancelled",
+  readmeGenerationCancelled: "readmeGenerationCancelled",
 } as const;
 
 export { LoadingSteps } from "./loading";

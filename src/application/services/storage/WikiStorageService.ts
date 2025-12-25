@@ -30,7 +30,12 @@ export class WikiStorageService {
       throw new Error("No workspace folder found");
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const rootFolder = workspaceFolders[0];
+    if (!rootFolder) {
+      throw new Error("No workspace folder found");
+    }
+
+    const workspaceRoot = rootFolder.uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const savedFolderPath = join(qwikiFolderPath, "saved");
 
@@ -71,7 +76,10 @@ export class WikiStorageService {
       return [];
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const rootFolder = workspaceFolders[0];
+    if (!rootFolder) return [];
+
+    const workspaceRoot = rootFolder.uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const savedFolderPath = join(qwikiFolderPath, "saved");
 
@@ -131,7 +139,10 @@ export class WikiStorageService {
       return;
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const rootFolder = workspaceFolders[0];
+    if (!rootFolder) return;
+
+    const workspaceRoot = rootFolder.uri.fsPath;
     const qwikiFolderPath = join(workspaceRoot, this.qwikiFolderName);
     const savedFolderPath = join(qwikiFolderPath, "saved");
 
@@ -185,10 +196,12 @@ export class WikiStorageService {
     let source = "";
     let bodyStartIndex = 0;
 
-    if (lines[0] === "---") {
+    const firstLine = lines[0];
+    if (firstLine === "---") {
       let metadataEndIndex = -1;
       for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim().startsWith("---")) {
+        const line = lines[i] ?? "";
+        if (line.trim().startsWith("---")) {
           metadataEndIndex = i;
           break;
         }
@@ -230,7 +243,7 @@ export class WikiStorageService {
 
   private extractTitleFromBody(content: string): string | null {
     const match = content.match(/^#\s+(.+)$/m);
-    if (match) {
+    if (match && match[1]) {
       const title = match[1].trim();
       return title.length > 36 ? title.substring(0, 33) + "..." : title;
     }
@@ -238,14 +251,14 @@ export class WikiStorageService {
     const functionMatch = content.match(
       /(?:function|class|const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)/,
     );
-    if (functionMatch) {
+    if (functionMatch && functionMatch[1]) {
       return functionMatch[1];
     }
 
     const exportMatch = content.match(
       /export\s+(?:default\s+)?(?:function|class|const|let|var)?\s*([a-zA-Z_][a-zA-Z0-9_]*)/,
     );
-    if (exportMatch) {
+    if (exportMatch && exportMatch[1]) {
       return exportMatch[1];
     }
 
@@ -270,7 +283,7 @@ export class WikiStorageService {
       const extensions = new Set<string>();
       for (const match of linkMatches) {
         const pathMatch = match.match(/openfile:([^\)]+\.(\w+))/);
-        if (pathMatch) {
+        if (pathMatch && pathMatch[2]) {
           extensions.add(pathMatch[2]);
         }
       }

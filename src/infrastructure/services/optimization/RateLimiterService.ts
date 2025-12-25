@@ -76,6 +76,10 @@ class RateLimiter {
 
     if (this.requests.length >= this.maxRequests) {
       const oldestRequest = this.requests[0];
+      if (oldestRequest === undefined) {
+          // Should not happen given length check, but safe fallback
+          throw new RateLimitError(1000, "Rate limit exceeded");
+      }
       const waitTime = this.windowMs - (now - oldestRequest);
       const errorMessage = `Rate limit exceeded. Retry in ${Math.ceil(waitTime / 1000)}s`;
 
@@ -104,7 +108,7 @@ class RateLimiter {
 
     return {
       requestCount: this.requests.length,
-      oldestRequest: this.requests.length > 0 ? this.requests[0] : null,
+      oldestRequest: this.requests.length > 0 ? (this.requests[0] ?? null) : null,
     };
   }
 

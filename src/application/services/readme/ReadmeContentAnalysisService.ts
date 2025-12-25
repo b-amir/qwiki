@@ -98,8 +98,8 @@ export class ReadmeContentAnalysisService {
     let count = 0;
 
     for (const match of matches) {
-      const sectionName = match[1].toLowerCase().trim();
-      if (this.genericSections.has(sectionName)) {
+      const sectionName = match[1]?.toLowerCase().trim();
+      if (sectionName && this.genericSections.has(sectionName)) {
         count++;
       }
     }
@@ -146,9 +146,11 @@ export class ReadmeContentAnalysisService {
     const customSections: string[] = [];
 
     for (const match of matches) {
-      const sectionName = match[1].toLowerCase().trim();
-      if (!this.genericSections.has(sectionName)) {
-        customSections.push(match[1]);
+      if (match[1]) {
+        const sectionName = match[1].toLowerCase().trim();
+        if (!this.genericSections.has(sectionName)) {
+          customSections.push(match[1]);
+        }
       }
     }
 

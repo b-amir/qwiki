@@ -30,7 +30,10 @@ export async function tryOpenFile(path: string, line?: number) {
     if (isAbs) {
       targetUri = Uri.file(path);
     } else if (folders && folders.length && !isAlias) {
-      targetUri = Uri.joinPath(folders[0].uri, cleaned.replace(/^[\\/]+/, ""));
+      const rootUri = folders[0]?.uri;
+      if (rootUri) {
+        targetUri = Uri.joinPath(rootUri, cleaned.replace(/^[\\/]+/, ""));
+      }
     }
     if (!isAbs && (!targetUri || isAlias) && folders && folders.length) {
       const globs = new Set<string>();

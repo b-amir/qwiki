@@ -106,10 +106,11 @@ export class GetProvidersCommand implements Command<void> {
 
       const apiKeyMap = new Map<string, boolean>();
       apiKeyChecks.forEach((result, index) => {
+        const providerId = providerIds[index];
         if (result.status === "fulfilled") {
           apiKeyMap.set(result.value.providerId, result.value.hasKey);
-        } else {
-          apiKeyMap.set(providerIds[index], false);
+        } else if (providerId) {
+          apiKeyMap.set(providerId, false);
         }
       });
 

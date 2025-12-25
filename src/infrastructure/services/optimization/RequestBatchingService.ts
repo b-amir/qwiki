@@ -202,7 +202,9 @@ export class RequestBatchingService extends EventEmitter {
     }
 
     const now = Date.now();
-    const waitTime = now - batch[0].timestamp;
+    const firstRequest = batch[0];
+    if (!firstRequest) return;
+    const waitTime = now - firstRequest.timestamp;
     this.statistics.totalWaitTime += waitTime;
     this.statistics.totalBatches++;
 
@@ -231,7 +233,9 @@ export class RequestBatchingService extends EventEmitter {
         const groupStartTime = Date.now();
 
         try {
-          const result = await requests[0].request();
+          const firstReq = requests[0];
+          if (!firstReq) return;
+          const result = await firstReq.request();
           const duration = Date.now() - groupStartTime;
           if (duration > 1000) {
             this.logger.debug("Request executed successfully", {

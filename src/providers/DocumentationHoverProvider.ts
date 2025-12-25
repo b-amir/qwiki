@@ -113,7 +113,7 @@ export class DocumentationHoverProvider implements HoverProvider {
       }
     }
 
-    return wikisFromThisFile[0] || null;
+    return wikisFromThisFile[0] ?? null;
   }
 
   private normalizePath(path: string): string {
@@ -152,7 +152,7 @@ export class DocumentationHoverProvider implements HoverProvider {
     let whatItIsEndIndex = lines.length;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = (lines[i] ?? "").trim();
       if (/^#\s+What\s+It\s+Is\s*$/i.test(line)) {
         whatItIsStartIndex = i + 1;
         break;
@@ -164,7 +164,7 @@ export class DocumentationHoverProvider implements HoverProvider {
     }
 
     for (let i = whatItIsStartIndex; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = (lines[i] ?? "").trim();
       if (line === "#" || (line.startsWith("#") && /^#\s+\w/.test(line))) {
         if (i > whatItIsStartIndex) {
           whatItIsEndIndex = i;

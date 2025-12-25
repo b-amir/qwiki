@@ -27,7 +27,7 @@ export class PatternExtractionService {
     const lines = snippet.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       const functionRegex = this.getFunctionRegex(language);
       const matches = Array.from(line.matchAll(functionRegex) || []);
@@ -35,7 +35,7 @@ export class PatternExtractionService {
       for (const match of matches) {
         patterns.push({
           type: PatternType.FUNCTION_DECLARATION,
-          name: match[1] || "anonymous",
+          name: match[1] ?? "anonymous",
           description: `Function declaration: ${match[0]}`,
           confidence: 0.9,
           location: { line: i, column: line.indexOf(match[0]) },
@@ -51,7 +51,7 @@ export class PatternExtractionService {
     const lines = snippet.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       const classRegex = this.getClassRegex(language);
       const matches = Array.from(line.matchAll(classRegex) || []);
@@ -59,7 +59,7 @@ export class PatternExtractionService {
       for (const match of matches) {
         patterns.push({
           type: PatternType.CLASS_DECLARATION,
-          name: match[1] || "anonymous",
+          name: match[1] ?? "anonymous",
           description: `Class declaration: ${match[0]}`,
           confidence: 0.9,
           location: { line: i, column: line.indexOf(match[0]) },
@@ -75,7 +75,7 @@ export class PatternExtractionService {
     const lines = snippet.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       const interfaceRegex = this.getInterfaceRegex(language);
       const matches = Array.from(line.matchAll(interfaceRegex) || []);
@@ -83,7 +83,7 @@ export class PatternExtractionService {
       for (const match of matches) {
         patterns.push({
           type: PatternType.INTERFACE_DECLARATION,
-          name: match[1] || "unnamed",
+          name: match[1] ?? "unnamed",
           description: `Interface declaration: ${match[0]}`,
           confidence: 0.9,
           location: { line: i, column: line.indexOf(match[0]) },
@@ -99,7 +99,7 @@ export class PatternExtractionService {
     const lines = snippet.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       const importRegex = this.getImportRegex(language);
       const matches = Array.from(line.matchAll(importRegex) || []);
@@ -107,7 +107,7 @@ export class PatternExtractionService {
       for (const match of matches) {
         patterns.push({
           type: PatternType.IMPORT_STATEMENT,
-          name: match[2] || match[3] || "unknown",
+          name: match[2] ?? match[3] ?? "unknown",
           description: `Import statement: ${match[0]}`,
           confidence: 0.8,
           location: { line: i, column: line.indexOf(match[0]) },
@@ -123,7 +123,7 @@ export class PatternExtractionService {
     const lines = snippet.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       const variableRegex = this.getVariableRegex(language);
       const matches = Array.from(line.matchAll(variableRegex) || []);
@@ -131,7 +131,7 @@ export class PatternExtractionService {
       for (const match of matches) {
         patterns.push({
           type: PatternType.VARIABLE_DECLARATION,
-          name: match[1] || "unnamed",
+          name: match[1] ?? "unnamed",
           description: `Variable declaration: ${match[0]}`,
           confidence: 0.7,
           location: { line: i, column: line.indexOf(match[0]) },
@@ -147,7 +147,7 @@ export class PatternExtractionService {
     const lines = snippet.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      const line = lines[i]!.trim();
 
       if (
         line.includes("if") ||

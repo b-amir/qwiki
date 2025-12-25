@@ -40,6 +40,7 @@ import type { ProviderSelectionService } from "@/application/services/providers/
 import type { ProviderValidationService } from "@/infrastructure/services/providers/ProviderValidationService";
 import type { ProviderFallbackManagerService } from "@/application/services/providers/ProviderFallbackManagerService";
 import type { EventBus } from "@/events/EventBus";
+import type { MessageBusService } from "@/application/services/core/MessageBusService";
 import type { SecretStorage } from "vscode";
 
 export interface ServiceRegistry {
@@ -85,6 +86,7 @@ export interface ServiceRegistry {
   providerValidationService: ProviderValidationService;
   providerFallbackManager: ProviderFallbackManagerService;
   eventBus: EventBus;
+  messageBus: MessageBusService;
 }
 
 export type ServiceKey = keyof ServiceRegistry;

@@ -7,6 +7,11 @@
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
+    
+    "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "exactOptionalPropertyTypes": false,
+    
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

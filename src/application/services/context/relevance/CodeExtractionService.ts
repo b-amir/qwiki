@@ -22,13 +22,15 @@ export class CodeExtractionService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
+      
       let match: RegExpMatchArray | null = null;
       let type: KeyInfo["type"] = "variable";
       let importance = 0.5;
 
       if ((match = line.match(functionPattern))) {
         const extracted = this.extractFunction(lines, i);
-        if (extracted) {
+        if (extracted && match[1]) {
           keyInfo.push({
             type: "function",
             name: match[1],
@@ -40,7 +42,7 @@ export class CodeExtractionService {
         }
       } else if ((match = line.match(classPattern))) {
         const extracted = this.extractClass(lines, i);
-        if (extracted) {
+        if (extracted && match[1]) {
           keyInfo.push({
             type: "class",
             name: match[1],
@@ -52,7 +54,7 @@ export class CodeExtractionService {
         }
       } else if ((match = line.match(interfacePattern))) {
         const extracted = this.extractInterface(lines, i);
-        if (extracted) {
+        if (extracted && match[1]) {
           keyInfo.push({
             type: "interface",
             name: match[1],
@@ -73,7 +75,7 @@ export class CodeExtractionService {
       } else if ((match = line.match(exportPattern))) {
         keyInfo.push({
           type: "export",
-          name: match[1] || line,
+          name: (match && match[1]) || line,
           value: line,
           importance: 0.7,
           location: { line: i + 1, column: 0 },
@@ -93,6 +95,8 @@ export class CodeExtractionService {
 
     for (let j = startIndex; j < lines.length; j++) {
       const currentLine = lines[j];
+      if (!currentLine) continue;
+      
       for (const char of currentLine) {
         if (char === "{") {
           braceCount++;
@@ -122,6 +126,8 @@ export class CodeExtractionService {
 
     for (let j = startIndex; j < lines.length; j++) {
       const currentLine = lines[j];
+      if (!currentLine) continue;
+      
       for (const char of currentLine) {
         if (char === "{") {
           braceCount++;
@@ -151,6 +157,8 @@ export class CodeExtractionService {
 
     for (let j = startIndex; j < lines.length; j++) {
       const currentLine = lines[j];
+      if (!currentLine) continue;
+      
       for (const char of currentLine) {
         if (char === "{") {
           braceCount++;

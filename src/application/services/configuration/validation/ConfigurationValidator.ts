@@ -144,6 +144,9 @@ export class ConfigurationValidator {
 
     if (errors.length === 1) {
       const error = errors[0];
+      if (!error) {
+        return "Configuration validation failed";
+      }
       return error.field ? `${error.field}: ${error.message}` : error.message;
     }
 

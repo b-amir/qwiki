@@ -157,7 +157,7 @@ export class MessageBusService {
     const chunks = this.chunkBuffer.splice(0);
     this.chunkTimer = undefined;
 
-    const lastChunk = chunks[chunks.length - 1];
+    const lastChunk = chunks[chunks.length - 1]!;
     const payload = {
       chunks: chunks.map((c) => c.chunk),
       accumulatedContent: lastChunk.accumulatedContent,

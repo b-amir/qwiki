@@ -93,7 +93,12 @@ export class ProviderSelectionService {
       throw new Error("No provider found that meets the specified requirements");
     }
 
-    return suitableProviders[0].providerId;
+    const best = suitableProviders[0];
+    if (!best) {
+      throw new Error("No provider found (unexpected error)");
+    }
+
+    return best.providerId;
   }
 
   filterProvidersByCapability(capability: ProviderFeature): string[] {

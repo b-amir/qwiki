@@ -38,7 +38,7 @@ export class PathSanitizer {
 
     if (isWin) {
       const driveLetterMatch = sanitized.match(/^([A-Za-z]:)/);
-      if (driveLetterMatch) {
+      if (driveLetterMatch && driveLetterMatch[1]) {
         const driveLetter = driveLetterMatch[1];
         const pathAfterDrive = sanitized.substring(driveLetter.length);
         if (INVALID_CHARS_WINDOWS.test(pathAfterDrive)) {
@@ -124,7 +124,7 @@ export class PathSanitizer {
     const maxLength = 255;
     if (sanitized.length > maxLength) {
       const extMatch = sanitized.match(/\.([^.]+)$/);
-      const ext = extMatch ? extMatch[1] : "";
+      const ext = extMatch && extMatch[1] ? extMatch[1] : "";
       const nameWithoutExt = ext ? sanitized.slice(0, -(ext.length + 1)) : sanitized;
       const maxNameLength = maxLength - (ext ? ext.length + 1 : 0);
       sanitized = nameWithoutExt.substring(0, maxNameLength) + (ext ? `.${ext}` : "");

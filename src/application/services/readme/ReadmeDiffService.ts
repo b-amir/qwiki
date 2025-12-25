@@ -84,6 +84,7 @@ export class ReadmeDiffService {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
       const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
 
       if (headingMatch) {
@@ -91,7 +92,7 @@ export class ReadmeDiffService {
           sections.push(currentSection);
         }
         currentSection = {
-          name: headingMatch[2].trim(),
+          name: headingMatch[2]?.trim() || "Untitled",
           content: line + "\n",
         };
       } else if (currentSection) {

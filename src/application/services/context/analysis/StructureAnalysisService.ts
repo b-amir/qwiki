@@ -37,12 +37,14 @@ export class StructureAnalysisService {
     const linesArray = lines || snippet.split("\n");
 
     for (let i = 0; i < linesArray.length; i++) {
-      const line = linesArray[i].trim();
+      const line = linesArray[i];
+      if (!line) continue;
+      const trimmedLine = line.trim();
 
       const functionMatch = line.match(this.patternExtractionService.getFunctionRegex(language));
       if (functionMatch) {
         structure.functions.push({
-          name: functionMatch[1] || "anonymous",
+          name: functionMatch[1] ?? "anonymous",
           parameters: this.extractParameters(functionMatch[0]),
           returnType: "any",
           isAsync: line.includes("async"),
@@ -55,13 +57,13 @@ export class StructureAnalysisService {
       const classMatch = line.match(this.patternExtractionService.getClassRegex(language));
       if (classMatch) {
         structure.classes.push({
-          name: classMatch[1] || "anonymous",
-          extends: this.extractExtends(line),
-          implements: this.extractImplements(line),
-          properties: this.extractProperties(line),
-          methods: this.extractMethods(line),
-          constructors: this.extractConstructors(line),
-          decorators: this.extractDecorators(line),
+          name: classMatch[1] ?? "anonymous",
+          extends: this.extractExtends(trimmedLine),
+          implements: this.extractImplements(trimmedLine),
+          properties: this.extractProperties(trimmedLine),
+          methods: this.extractMethods(trimmedLine),
+          constructors: this.extractConstructors(trimmedLine),
+          decorators: this.extractDecorators(trimmedLine),
         });
         continue;
       }
@@ -69,11 +71,11 @@ export class StructureAnalysisService {
       const interfaceMatch = line.match(this.patternExtractionService.getInterfaceRegex(language));
       if (interfaceMatch) {
         structure.interfaces.push({
-          name: interfaceMatch[1] || "unnamed",
-          extends: this.extractInterfaceExtends(line),
-          properties: this.extractProperties(line),
-          methods: this.extractMethods(line),
-          decorators: this.extractDecorators(line),
+          name: interfaceMatch[1] ?? "unnamed",
+          extends: this.extractInterfaceExtends(trimmedLine),
+          properties: this.extractProperties(trimmedLine),
+          methods: this.extractMethods(trimmedLine),
+          decorators: this.extractDecorators(trimmedLine),
         });
         continue;
       }
@@ -81,30 +83,32 @@ export class StructureAnalysisService {
       const typeMatch = line.match(this.patternExtractionService.getTypeRegex(language));
       if (typeMatch) {
         structure.types.push({
-          name: typeMatch[1] || "unnamed",
-          type: this.extractTypeDefinition(line),
-          decorators: this.extractDecorators(line),
+          name: typeMatch[1] ?? "unnamed",
+          type: this.extractTypeDefinition(trimmedLine),
+          decorators: this.extractDecorators(trimmedLine),
         });
         continue;
       }
 
       const importMatch = line.match(this.patternExtractionService.getImportRegex(language));
       if (importMatch) {
+        const importName = importMatch[0] ?? "";
         structure.imports.push({
-          module: importMatch[2] || importMatch[3] || "unknown",
-          elements: this.extractImportElements(importMatch[0]),
-          isExternal: importMatch[0].startsWith("from"),
-          location: { line: i, column: line.indexOf(importMatch[0]) },
+          module: importMatch[2] ?? importMatch[3] ?? "unknown",
+          elements: this.extractImportElements(importName),
+          isExternal: importName.startsWith("from"),
+          location: { line: i, column: trimmedLine.indexOf(importName) },
         });
         continue;
       }
 
       const exportMatch = line.match(this.patternExtractionService.getExportRegex(language));
       if (exportMatch) {
+        const exportName = exportMatch[0] ?? "";
         structure.exports.push({
-          element: exportMatch[1] || "default",
-          type: this.extractExportType(exportMatch[0]),
-          location: { line: i, column: line.indexOf(exportMatch[0]) },
+          element: exportMatch[1] ?? "default",
+          type: this.extractExportType(exportName),
+          location: { line: i, column: trimmedLine.indexOf(exportName) },
         });
       }
     }
@@ -123,34 +127,34 @@ export class StructureAnalysisService {
     const paramMatch = functionSignature.match(/\(([^)]*)\)/);
     if (!paramMatch) return [];
 
-    const paramString = paramMatch[1];
+    const paramString = paramMatch[1] ?? "";
     const params = paramString.split(",").map((p) => p.trim());
 
     return params.map((param) => {
-      const [name, type] = param
-        .split(":")
-        .map((p) => p.trim())
-        .reverse();
+      const parts = param.split(":").map((p) => p.trim()).reverse();
+      const name = parts[0] ?? "";
+      const type = parts[1];
+
       const optional = type?.endsWith("?") || false;
-      const cleanType = optional ? type.slice(0, -1) : type;
+      const cleanType = optional && type ? type.slice(0, -1) : (type || "any");
 
       return {
         name,
-        type: cleanType || "any",
+        type: cleanType,
         optional,
-        description: `${type} ${name}`,
+        description: `${cleanType} ${name}`,
       };
     });
   }
 
   private extractExtends(line: string): string | undefined {
     const match = line.match(/extends\s+(\w+)/);
-    return match ? match[1] : undefined;
+    return match && match[1] ? match[1] : undefined;
   }
 
   private extractInterfaceExtends(line: string): string[] | undefined {
     const match = line.match(/extends\s+([^\{]+)/);
-    if (!match) return undefined;
+    if (!match || !match[1]) return undefined;
 
     const interfaces = match[1].split(",").map((i) => i.trim());
     return interfaces;
@@ -158,7 +162,7 @@ export class StructureAnalysisService {
 
   private extractImplements(line: string): string[] | undefined {
     const match = line.match(/implements\s+([^{]*?)\s*\{/);
-    if (!match) return undefined;
+    if (!match || !match[1]) return undefined;
 
     const interfaces = match[1].split(",").map((i) => i.trim());
     return interfaces;
@@ -172,8 +176,8 @@ export class StructureAnalysisService {
 
     for (const match of matches) {
       properties.push({
-        name: match[1],
-        type: match[2] || "any",
+        name: match[1] ?? "",
+        type: match[2] ?? "any",
         optional: !match[3],
         visibility: this.getVisibility(line),
       });
@@ -190,9 +194,9 @@ export class StructureAnalysisService {
 
     for (const match of matches) {
       methods.push({
-        name: match[1],
+        name: match[1] ?? "",
         parameters: this.extractParameters(match[0]),
-        returnType: match[3] || "void",
+        returnType: match[3] ?? "void",
         isAsync: line.includes("async"),
         visibility: this.getVisibility(line),
       });
@@ -223,7 +227,7 @@ export class StructureAnalysisService {
     const matches = Array.from(line.matchAll(decoratorRegex) || []);
 
     for (const match of matches) {
-      decorators.push(match[1]);
+      if (match[1]) decorators.push(match[1]);
     }
 
     return decorators;
@@ -244,14 +248,14 @@ export class StructureAnalysisService {
 
   private extractTypeDefinition(line: string): string {
     const match = line.match(/=\s*(.+?)(?:\s*;|\s*$)/);
-    return match ? match[1].trim() || "any" : "any";
+    return match && match[1] ? match[1].trim() || "any" : "any";
   }
 
   private extractImportElements(importStatement: string): string[] {
     const elements: string[] = [];
     const match = importStatement.match(/\{([^}]+)\}/);
 
-    if (match) {
+    if (match && match[1]) {
       const imports = match[1].split(",").map((i) => i.trim());
       elements.push(...imports);
     }

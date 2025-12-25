@@ -40,7 +40,7 @@ export class DocumentationDiagnosticsProvider {
       }
 
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i] ?? "";
         const trimmed = line.trim();
 
         if (this.isCodeDefinition(trimmed) && !this.hasDocumentation(lines, i)) {
@@ -67,7 +67,7 @@ export class DocumentationDiagnosticsProvider {
 
   private extractFilePathFromWiki(wikiFilePath: string): string {
     const sourceMatch = wikiFilePath.match(/source:\s*(.+)/);
-    return sourceMatch ? sourceMatch[1] : "";
+    return sourceMatch && sourceMatch[1] ? sourceMatch[1] : "";
   }
 
   private isCodeDefinition(line: string): boolean {
@@ -81,8 +81,8 @@ export class DocumentationDiagnosticsProvider {
       return false;
     }
 
-    const prevLine = lines[lineIndex - 1].trim();
-    const prevPrevLine = lineIndex > 1 ? lines[lineIndex - 2].trim() : "";
+    const prevLine = (lines[lineIndex - 1] ?? "").trim();
+    const prevPrevLine = lineIndex > 1 ? (lines[lineIndex - 2] ?? "").trim() : "";
 
     return (
       prevLine.startsWith("//") ||

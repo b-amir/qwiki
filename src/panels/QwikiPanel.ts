@@ -41,7 +41,7 @@ export class QwikiPanel {
     try {
       this.loggingService = this.bootstrap
         .getContainer()
-        .resolve("loggingService") as LoggingService;
+        .resolveTyped("loggingService");
     } catch {
       this.loggingService = new LoggingService();
     }
@@ -148,9 +148,9 @@ export class QwikiPanel {
       this.logger,
       this.commandRegistry,
       this.errorHandler,
-      async () => {
+      async (reason?: string) => {
         try {
-          await panelUtilities.cancelActiveGeneration();
+          await panelUtilities.cancelActiveGeneration(reason);
         } catch (error) {
           this.logger.error("Failed to cancel active generation", error);
         }
@@ -177,7 +177,7 @@ export class QwikiPanel {
 
   private setupWikiWatcherListener(): void {
     try {
-      const eventBus = this.bootstrap.getContainer().resolve("eventBus") as any;
+      const eventBus = this.bootstrap.getContainer().resolveTyped("eventBus");
       if (eventBus && typeof eventBus.subscribe === "function") {
         const unsubscribe = eventBus.subscribe("savedWikisChanged", async () => {
           this.logger.debug("savedWikisChanged event received, refreshing saved wikis");

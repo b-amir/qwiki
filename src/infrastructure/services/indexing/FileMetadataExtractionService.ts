@@ -53,8 +53,9 @@ export class FileMetadataExtractionService {
     for (let i = 0; i < Math.min(doc.lineCount, 50); i++) {
       const line = doc.lineAt(i).text;
       const match = line.match(importPattern);
-      if (match && match[1]) {
-        imports.push(match[1]);
+      const m = match ? match[1] : undefined;
+      if (m) {
+        imports.push(m);
       }
     }
 

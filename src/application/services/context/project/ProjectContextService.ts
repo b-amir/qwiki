@@ -35,8 +35,9 @@ export class ProjectContextService {
 
     const foldersStart = Date.now();
     const folders = workspace.workspaceFolders;
-    const workspaceRoot = folders && folders.length > 0 ? folders[0].uri.fsPath : "";
-    const rootName = folders && folders.length ? folders[0].name : "";
+    const firstFolder = folders?.[0];
+    const workspaceRoot = firstFolder ? firstFolder.uri.fsPath : "";
+    const rootName = firstFolder ? firstFolder.name : "";
     this.logger.debug("Workspace folders retrieved", {
       duration: Date.now() - foldersStart,
       rootName,
@@ -161,7 +162,9 @@ export class ProjectContextService {
   private relativePath(u: Uri) {
     const folders = workspace.workspaceFolders;
     if (!folders || !folders.length) return u.fsPath;
-    const root = folders[0].uri.fsPath.replace(PathPatterns.escapeCharRegex, "");
+    const folder = folders[0];
+    if (!folder) return u.fsPath;
+    const root = folder.uri.fsPath.replace(PathPatterns.escapeCharRegex, "");
     const fsPath = u.fsPath || "";
     return fsPath.startsWith(root) ? fsPath.slice(root.length + 1) : fsPath;
   }
@@ -204,7 +207,12 @@ export class ProjectContextService {
           score: (/[A-Z]/.test(t) ? 1 : 0) + t.length / 10,
         }));
         scored.sort((a, b) => b.score - a.score);
-        const result = scored[0].t;
+        const bestMatch = scored[0];
+        if (!bestMatch) {
+          this.logger.debug("extractIdentifier: sorting failed");
+          return undefined;
+        }
+        const result = bestMatch.t;
         this.logger.debug("extractIdentifier completed (fallback)", {
           duration: Date.now() - startTime,
           result,

@@ -107,8 +107,11 @@ export class WikiGenerationExecutor {
     let estimatedTotal = 0;
     if (currentIndex >= 0) {
       for (let i = 0; i <= currentIndex; i++) {
-        const stepDuration = this.defaultStepDurations.get(this.stepOrder[i]) || 1000;
-        estimatedTotal += stepDuration;
+        const step = this.stepOrder[i];
+        if (step) {
+          const stepDuration = this.defaultStepDurations.get(step) || 1000;
+          estimatedTotal += stepDuration;
+        }
       }
     }
     const estimatedRemaining = estimatedTotal > elapsed ? estimatedTotal - elapsed : undefined;
@@ -271,7 +274,7 @@ export class WikiGenerationExecutor {
     let generationContinuingInBackground = false;
 
     const generationTimeout = GENERATION_TIMEOUTS.generateWiki || GENERATION_TIMEOUTS.default;
-    const commandTimeout = COMMAND_TIMEOUTS.generateWiki || COMMAND_TIMEOUTS.default;
+    const commandTimeout = COMMAND_TIMEOUTS.generateWiki ?? COMMAND_TIMEOUTS.default ?? 30000;
 
     const warningInterval = setInterval(() => {
       const elapsed = Date.now() - generateWikiStart;

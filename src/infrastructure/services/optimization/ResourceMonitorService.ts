@@ -215,7 +215,7 @@ export class ResourceMonitorService extends EventEmitter {
       return null;
     }
 
-    return this.resourceHistory[this.resourceHistory.length - 1];
+    return this.resourceHistory[this.resourceHistory.length - 1] ?? null;
   }
 
   getAverageCpuUsage(windowSize: number = 10): number {

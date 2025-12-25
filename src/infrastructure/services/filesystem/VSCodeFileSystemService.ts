@@ -82,7 +82,7 @@ export class VSCodeFileSystemService {
         return result.value;
       } else {
         return {
-          filePath: filePaths[index],
+          filePath: filePaths[index] ?? "",
           content: "",
           error: result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
         };

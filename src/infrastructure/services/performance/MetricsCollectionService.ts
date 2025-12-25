@@ -61,7 +61,9 @@ export class MetricsCollectionService {
     tokensUsed?: number,
     error?: string,
   ): PerformanceMetric | null {
-    const [providerId, timestamp] = requestId.split("-");
+    const parts = requestId.split("-");
+    const providerId = parts[0] ?? "unknown";
+    const timestamp = parts[1] ?? "0";
     const requestTime = parseInt(timestamp);
     const requestDate = new Date(requestTime);
     const duration = Date.now() - requestTime;

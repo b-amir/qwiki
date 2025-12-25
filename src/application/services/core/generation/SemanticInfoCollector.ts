@@ -99,7 +99,7 @@ export class SemanticInfoCollector {
       const snippetStart = documentText.indexOf(snippet);
 
       if (snippetStart === -1) {
-        const firstLine = snippet.split("\n")[0];
+        const firstLine = snippet.split("\n")[0] ?? "";
         const firstLineIndex = documentText.indexOf(firstLine);
         if (firstLineIndex === -1) {
           return new Position(0, 0);

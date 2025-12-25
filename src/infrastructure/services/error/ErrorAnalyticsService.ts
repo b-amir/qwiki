@@ -190,7 +190,9 @@ export class ErrorAnalyticsService {
 
     let totalTime = 0;
     for (let i = 1; i < occurrences.length; i++) {
-      totalTime += occurrences[i] - occurrences[i - 1];
+      const current = occurrences[i] ?? 0;
+      const previous = occurrences[i - 1] ?? 0;
+      totalTime += current - previous;
     }
 
     analytics.averageTimeBetweenOccurrences = totalTime / (occurrences.length - 1);

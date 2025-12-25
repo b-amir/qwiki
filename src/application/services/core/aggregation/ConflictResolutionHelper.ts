@@ -11,7 +11,7 @@ export class ConflictResolutionHelper {
 
     for (let i = 0; i < wikis.length; i++) {
       for (let j = i + 1; j < wikis.length; j++) {
-        const conflict = this.detectConflict(wikis[i], wikis[j]);
+        const conflict = this.detectConflict(wikis[i]!, wikis[j]!);
         if (conflict) {
           conflicts.push(conflict);
         }

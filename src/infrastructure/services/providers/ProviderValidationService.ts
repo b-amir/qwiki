@@ -51,7 +51,7 @@ export class ProviderValidationService {
 
     this.logger.debug("Starting validation before generation", { providerId, model });
 
-    const provider = this.llmRegistry.getProvider(providerId as any);
+    const provider = this.llmRegistry.getProvider(providerId as ProviderId);
     if (!provider) {
       errors.push({
         code: ErrorCodes.missingProvider,
@@ -115,7 +115,7 @@ export class ProviderValidationService {
     const providers = this.llmRegistry.getAllProviders();
     this.providersRequiringKeysCache = Object.keys(providers).filter(
       (id) => providers[id]?.requiresApiKey === true,
-    );
+    ) as ProviderId[];
     return this.providersRequiringKeysCache;
   }
 
@@ -137,7 +137,7 @@ export class ProviderValidationService {
     }
 
     for (const provider of providersRequiringKeys) {
-      const providerId = (provider as any).id;
+      const providerId = provider.id as ProviderId;
       const hasSecretKey = await this.apiKeyRepository.has(providerId);
 
       if (hasSecretKey) {

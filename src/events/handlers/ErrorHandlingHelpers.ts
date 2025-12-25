@@ -15,7 +15,7 @@ export async function publishValidationError(
   logger: Logger,
 ): Promise<void> {
   const firstError = validationResult.errors[0];
-  const suggestion = getValidationSuggestion(firstError?.code);
+  const suggestion = getValidationSuggestion(firstError?.code ?? "");
 
   const errorPayload = {
     code: firstError?.code || ErrorCodes.VALIDATION_ERROR,

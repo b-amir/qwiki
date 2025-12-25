@@ -41,9 +41,12 @@ export class WikiWatcherService {
   private initializeSavedFolderPath(): void {
     const workspaceFolders = workspace.workspaceFolders;
     if (workspaceFolders?.length) {
-      const workspaceRoot = workspaceFolders[0].uri.fsPath;
-      this.savedFolderPath = join(workspaceRoot, ".qwiki", "saved");
-      this.backupFolderPath = join(workspaceRoot, ".qwiki", "backup");
+      const rootFolder = workspaceFolders[0];
+      if (rootFolder) {
+        const workspaceRoot = rootFolder.uri.fsPath;
+        this.savedFolderPath = join(workspaceRoot, ".qwiki", "saved");
+        this.backupFolderPath = join(workspaceRoot, ".qwiki", "backup");
+      }
     }
   }
 
@@ -152,7 +155,9 @@ export class WikiWatcherService {
                   files: backupFilesChanged.map((f) => ({ path: f.uri.fsPath, status: f.status })),
                 },
               );
-              this.publishBackupEvent("changed", backupFilesChanged[0].uri);
+              if (backupFilesChanged[0]) {
+                this.publishBackupEvent("changed", backupFilesChanged[0].uri);
+              }
             }
           }
         },

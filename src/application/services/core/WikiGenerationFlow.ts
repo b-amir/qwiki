@@ -149,7 +149,7 @@ export class WikiGenerationFlow {
 
       let estimatedTotal = 0;
       for (let i = 0; i <= currentIndex; i++) {
-        const step = this.stepOrder[i];
+        const step = this.stepOrder[i]!;
         const avgDuration = this.defaultStepDurations.get(step) || 1000;
         estimatedTotal += avgDuration;
       }

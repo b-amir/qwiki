@@ -49,7 +49,7 @@ export class FallbackChainBuilder {
     }
 
     return {
-      primaryProvider: healthyProviders[0],
+      primaryProvider: healthyProviders[0]!,
       fallbackProviders: healthyProviders.slice(1, 5),
       strategy: this.defaultStrategy,
       context: {} as DeepContextAnalysis,
