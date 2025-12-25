@@ -239,10 +239,138 @@
           "default": "openai-compatible",
           "description": "Google AI Studio endpoint type. Use 'openai-compatible' for OpenAI-compatible endpoint or 'native' for Google's native endpoint."
         },
+        "qwiki.defaultProviderId": {
+          "type": "string",
+          "default": "",
+          "description": "Default LLM provider to use for wiki generation (e.g., 'google-ai-studio', 'openrouter', 'zai').",
+          "enum": [
+            "",
+            "google-ai-studio",
+            "zai",
+            "openrouter",
+            "cohere",
+            "huggingface"
+          ]
+        },
+        "qwiki.autoGenerateWiki": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically generate wiki when a file is opened or saved."
+        },
+        "qwiki.wikiOutputFormat": {
+          "type": "string",
+          "default": "markdown",
+          "description": "Default output format for generated wikis.",
+          "enum": [
+            "markdown",
+            "html",
+            "pdf"
+          ]
+        },
+        "qwiki.maxContextLength": {
+          "type": "integer",
+          "default": 8000,
+          "minimum": 1000,
+          "maximum": 128000,
+          "description": "Maximum context length (in tokens) to send to the LLM."
+        },
+        "qwiki.enableCaching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching for generated wikis and project context."
+        },
+        "qwiki.cacheExpirationHours": {
+          "type": "integer",
+          "default": 24,
+          "minimum": 1,
+          "maximum": 168,
+          "description": "Number of hours before cached entries expire (1-168 hours)."
+        },
+        "qwiki.enablePerformanceMonitoring": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable performance monitoring and metrics collection."
+        },
+        "qwiki.enableErrorReporting": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable error reporting and analytics."
+        },
+        "qwiki.logLevel": {
+          "type": "string",
+          "default": "info",
+          "description": "Logging level for the extension.",
+          "enum": [
+            "error",
+            "warn",
+            "info",
+            "debug"
+          ]
+        },
+        "qwiki.uiTheme": {
+          "type": "string",
+          "default": "auto",
+          "description": "UI theme for the Qwiki webview panel.",
+          "enum": [
+            "light",
+            "dark",
+            "auto"
+          ]
+        },
+        "qwiki.language": {
+          "type": "string",
+          "default": "en",
+          "description": "Language for generated documentation.",
+          "enum": [
+            "en",
+            "es",
+            "fr",
+            "de",
+            "zh",
+            "ja",
+            "ko"
+          ]
+        },
+        "qwiki.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically save generated wikis to the .qwiki folder."
+        },
+        "qwiki.backupEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic backups of configuration and wikis."
+        },
+        "qwiki.backupRetentionDays": {
+          "type": "integer",
+          "default": 7,
+          "minimum": 1,
+          "maximum": 90,
+          "description": "Number of days to retain backups (1-90 days)."
+        },
         "qwiki.global": {
           "type": "object",
           "default": {},
-          "description": "Global Qwiki configuration settings."
+          "description": "Global Qwiki configuration settings (internal use)."
+        },
+        "qwiki.enableSemanticCaching": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable semantic caching for wiki generation, file relevance analysis, and context suggestions. Uses embeddings to find similar cached results."
+        },
+        "qwiki.semanticSimilarityThreshold": {
+          "type": "number",
+          "default": 0.8,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Similarity threshold for semantic cache matching (0.0-1.0). Higher values require closer matches."
+        },
+        "qwiki.semanticCacheMaxEntries": {
+          "type": "integer",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum number of entries in the semantic cache. Older entries are evicted when the limit is reached."
         },
         "qwiki.migration.version": {
           "type": "string",
