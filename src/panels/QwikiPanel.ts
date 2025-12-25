@@ -35,9 +35,10 @@ export class QwikiPanel {
   constructor(
     extensionUri: Uri,
     private ctx: ExtensionContext,
+    bootstrap?: AppBootstrap,
   ) {
     this._extensionUri = extensionUri;
-    this.bootstrap = new AppBootstrap(ctx);
+    this.bootstrap = bootstrap || new AppBootstrap(ctx);
     try {
       this.loggingService = this.bootstrap
         .getContainer()

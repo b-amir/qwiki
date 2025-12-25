@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import LoadingState from "@/components/features/LoadingState.vue";
 import MarkdownRenderer from "@/components/MarkdownRenderer.vue";
-import Button from "@/components/ui/button.vue";
+import Button from "@/components/ui/Button.vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useVscode } from "@/composables/useVscode";
 import { useLoading } from "@/loading/useLoading";

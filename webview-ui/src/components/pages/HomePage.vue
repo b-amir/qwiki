@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useWikiStore } from "@/stores/wiki";
 import { useNavigation } from "@/composables/useNavigation";
-import Button from "@/components/ui/button.vue";
+import Button from "@/components/ui/Button.vue";
 import { stepCatalog } from "@/loading/stepCatalog";
 import { useEnvironmentStore } from "@/stores/environment";
 import StepSpinner from "@/components/StepSpinner.vue";

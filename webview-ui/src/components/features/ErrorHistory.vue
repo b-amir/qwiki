@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useErrorHistoryStore, type ErrorHistoryEntry } from "@/stores/errorHistory";
 import { useLoading } from "@/loading/useLoading";
-import Button from "@/components/ui/button.vue";
+import Button from "@/components/ui/Button.vue";
 import { createLogger } from "@/utilities/logging";
 import { LoadingViewAnimations } from "@/constants/loadingViewAnimations";
 

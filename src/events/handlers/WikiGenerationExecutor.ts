@@ -16,7 +16,7 @@ import {
 import { ProviderError, ErrorCodes } from "@/errors";
 import { publishValidationError } from "@/events/handlers/ErrorHandlingHelpers";
 import { getProgressMessageForStep } from "@/constants/loading";
-import { qwikiStatusBarItem } from "@//extension";
+import { getStatusBarItem } from "@/constants/GlobalState";
 import { VSCodeCommandIds } from "@/constants/Commands";
 import type { WikiService } from "@/application/services/core/WikiService";
 import type { CachedWikiService } from "@/application/services/core/CachedWikiService";

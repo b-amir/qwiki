@@ -1,328 +1,52 @@
-import {
-  ExtensionContext,
-  window,
-  commands,
-  StatusBarAlignment,
-  TreeView,
-  StatusBarItem,
-  languages,
-  workspace,
-} from "vscode";
+import { ExtensionContext, StatusBarAlignment, window } from "vscode";
+import { AppBootstrap } from "@/application/AppBootstrap";
+import { VSCodeCommandIds, ServiceLimits } from "@/constants";
 import { QwikiPanel } from "@/panels/QwikiPanel";
-import { VSCodeCommandIds, Pages, ServiceLimits } from "@/constants";
-import { SelectProviderCommand } from "@/application/commands/providers/SelectProviderCommand";
-import { SavedWikisTreeDataProvider } from "@/views/SavedWikisTreeView";
-import { WikiEventHandler } from "@/events/handlers/WikiEventHandler";
-import { createLogger, LoggingService } from "@/infrastructure/services";
-import type { LogMode } from "@/infrastructure/services/logging/LoggingService";
-import {
-  QwikiWorkspaceSymbolProvider,
-  DocumentationHoverProvider,
-  DocumentationCodeActionProvider,
-  DocumentationDiagnosticsProvider,
-  DocumentationCompletionProvider,
-  WikiDocumentLinkProvider,
-  WikiContentProvider,
-  WikiCustomEditorProvider,
-  QwikiDocumentSymbolProvider,
-} from "./providers";
-import { registerShowCommandsCommand } from "@/presentation/commands/registerShowCommandsCommand";
 
-let qwikiProvider: QwikiPanel | undefined;
-let savedWikisTreeProvider: SavedWikisTreeDataProvider | undefined;
-let savedWikisTreeView: TreeView<any> | undefined;
-let diagnosticsProvider: DocumentationDiagnosticsProvider | undefined;
-let contentProvider: WikiContentProvider | undefined;
-let customEditorProvider: WikiCustomEditorProvider | undefined;
+let appBootstrap: AppBootstrap | undefined;
 
-export let qwikiStatusBarItem: StatusBarItem | null = null;
+export async function activate(context: ExtensionContext) {
+  appBootstrap = new AppBootstrap(context);
 
-export const HAS_ACTIVE_GENERATION_CONTEXT = "qwiki.hasActiveGeneration";
+  try {
+    // Initialize critical services
+    await appBootstrap.initialize();
 
-const logger = createLogger("Extension");
+    const qwikiPanel = new QwikiPanel(context.extensionUri, context, appBootstrap);
 
-export function activate(context: ExtensionContext) {
-  commands.executeCommand("setContext", HAS_ACTIVE_GENERATION_CONTEXT, false);
+    // Register webview provider
+    context.subscriptions.push(
+      window.registerWebviewViewProvider(VSCodeCommandIds.wikiViewId, qwikiPanel)
+    );
 
-  qwikiProvider = new QwikiPanel(context.extensionUri, context);
+    // Initialize event handlers
+    await appBootstrap.initializeEventHandlers();
 
-  context.subscriptions.push(
-    window.registerWebviewViewProvider(VSCodeCommandIds.wikiViewId, qwikiProvider),
-  );
+    const statusBarItem = window.createStatusBarItem(
+      StatusBarAlignment.Right,
+      ServiceLimits.statusBarItemPriority
+    );
+    statusBarItem.command = VSCodeCommandIds.showCommands;
+    statusBarItem.text = "Qwiki";
+    statusBarItem.tooltip = "Click to open Qwiki commands";
+    statusBarItem.show();
+    
+    // Set global access for event handlers
+    const { setStatusBarItem } = await import("@/constants/GlobalState");
+    setStatusBarItem(statusBarItem);
+    
+    context.subscriptions.push(statusBarItem);
 
-  const initializeTreeView = async () => {
-    try {
-      const container = qwikiProvider?.getContainer?.();
-      if (container) {
-        const wikiStorage = container.resolveTyped("wikiStorageService");
-        const eventBus = container.resolveTyped("eventBus");
-        const loggingService = container.resolveTyped("loggingService");
-
-        savedWikisTreeProvider = new SavedWikisTreeDataProvider(
-          wikiStorage,
-          eventBus,
-          loggingService,
-        );
-        savedWikisTreeView = window.createTreeView("qwiki.savedWikis", {
-          treeDataProvider: savedWikisTreeProvider,
-        });
-        context.subscriptions.push(savedWikisTreeView);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to initialize tree view", { error: errorMessage });
-    }
-  };
-
-  // Initialize tree view immediately - no delay needed
-  initializeTreeView().catch((error) => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("Failed to initialize tree view", { error: errorMessage });
-  });
-
-  const initializeProviders = async () => {
-    try {
-      const container = qwikiProvider?.getContainer?.();
-      if (!container) {
-        return;
-      }
-
-      const wikiStorage = container.resolveTyped("wikiStorageService");
-      const loggingService = container.resolveTyped("loggingService");
-
-      const workspaceSymbolProvider = new QwikiWorkspaceSymbolProvider(wikiStorage, loggingService);
-      const hoverProvider = new DocumentationHoverProvider(
-        wikiStorage,
-        loggingService,
-        context.extensionUri,
-      );
-      const codeActionProvider = new DocumentationCodeActionProvider(loggingService);
-      diagnosticsProvider = new DocumentationDiagnosticsProvider(wikiStorage, loggingService);
-      const completionProvider = new DocumentationCompletionProvider(loggingService);
-      const documentLinkProvider = new WikiDocumentLinkProvider(loggingService);
-      const documentSymbolProvider = new QwikiDocumentSymbolProvider(loggingService);
-      contentProvider = new WikiContentProvider(wikiStorage, loggingService);
-      customEditorProvider = new WikiCustomEditorProvider(wikiStorage, loggingService);
-
-      context.subscriptions.push(
-        languages.registerWorkspaceSymbolProvider(workspaceSymbolProvider),
-        languages.registerHoverProvider("*", hoverProvider),
-        languages.registerCodeActionsProvider("*", codeActionProvider),
-        languages.registerCompletionItemProvider("*", completionProvider),
-        languages.registerDocumentSymbolProvider("*", documentSymbolProvider),
-        languages.registerDocumentLinkProvider({ pattern: "**/*.md" }, documentLinkProvider),
-        languages.registerDocumentLinkProvider(
-          { pattern: "**/.qwiki/**/*.md" },
-          documentLinkProvider,
-        ),
-        workspace.registerTextDocumentContentProvider("qwiki", contentProvider),
-        window.registerCustomEditorProvider("qwiki.wikiEditor", customEditorProvider),
-      );
-
-      workspace.onDidOpenTextDocument(async (document) => {
-        if (document.fileName.endsWith(".qwiki.md") || document.uri.fsPath.includes(".qwiki")) {
-          await diagnosticsProvider?.analyzeDocumentation(document);
-        }
-      });
-
-      workspace.onDidSaveTextDocument(async (document) => {
-        if (document.fileName.endsWith(".qwiki.md") || document.uri.fsPath.includes(".qwiki")) {
-          await diagnosticsProvider?.analyzeDocumentation(document);
-        }
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error("Failed to initialize providers", { error: errorMessage });
-    }
-  };
-
-  // Initialize providers immediately - no delay needed
-  initializeProviders().catch((error) => {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("Failed to initialize providers", { error: errorMessage });
-  });
-
-  const showQwikiCommand = commands.registerCommand(VSCodeCommandIds.showPanel, () => {
-    commands.executeCommand(VSCodeCommandIds.openPanelView);
-  });
-
-  const showSettingsCommand = commands.registerCommand(VSCodeCommandIds.viewSettings, () => {
-    qwikiProvider?.showPage(Pages.settings);
-  });
-
-  const showSavedWikisCommand = commands.registerCommand(VSCodeCommandIds.viewSavedWikis, () => {
-    qwikiProvider?.showPage(Pages.savedWikis);
-  });
-
-  const showErrorHistoryCommand = commands.registerCommand(
-    VSCodeCommandIds.viewErrorHistory,
-    () => {
-      qwikiProvider?.showPage(Pages.errorHistory);
-    },
-  );
-
-  const createQuickWikiCommand = commands.registerCommand(VSCodeCommandIds.createQuickWiki, () => {
-    qwikiProvider?.createWikiFromEditorSelection();
-  });
-
-  const selectProviderCommand = commands.registerCommand(
-    VSCodeCommandIds.selectProvider,
-    async () => {
-      try {
-        const container = qwikiProvider?.getContainer?.();
-        if (!container) {
-          window.showErrorMessage(
-            "Qwiki is not initialized yet. Please wait a moment and try again.",
-          );
-          return;
-        }
-
-        const llmRegistry = await container.resolveLazyTyped("llmRegistry");
-        const apiKeyRepository = container.resolveTyped("apiKeyRepository");
-        const configurationManager = container.resolveTyped("configurationManager");
-        const loggingService = container.resolveTyped("loggingService");
-
-        const command = new SelectProviderCommand(
-          llmRegistry,
-          apiKeyRepository,
-          configurationManager,
-          loggingService,
-        );
-
-        const selectedProviderId = await command.execute();
-        if (selectedProviderId) {
-          window.showInformationMessage(`Selected provider: ${selectedProviderId}`);
-        }
-      } catch (error) {
-        window.showErrorMessage(
-          `Failed to select provider: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-    },
-  );
-
-  qwikiStatusBarItem = window.createStatusBarItem(
-    StatusBarAlignment.Right,
-    ServiceLimits.statusBarItemPriority,
-  );
-  qwikiStatusBarItem.command = VSCodeCommandIds.showCommands;
-  qwikiStatusBarItem.text = "Qwiki";
-  qwikiStatusBarItem.tooltip = "Click to open Qwiki commands";
-  qwikiStatusBarItem.show();
-  context.subscriptions.push(qwikiStatusBarItem);
-
-  const showCommandsCommand = registerShowCommandsCommand(() => qwikiProvider?.getContainer?.());
-
-  const cancelGenerationCommand = commands.registerCommand(
-    VSCodeCommandIds.cancelGeneration,
-    () => {
-      if (WikiEventHandler.instance) {
-        WikiEventHandler.instance.cancelActiveGeneration();
-      }
-    },
-  );
-
-  const cancelActiveRequestCommand = commands.registerCommand(
-    VSCodeCommandIds.cancelActiveRequest,
-    () => {
-      if (WikiEventHandler.instance) {
-        if (WikiEventHandler.instance.hasActiveGeneration()) {
-          WikiEventHandler.instance.cancelActiveGeneration();
-        } else {
-          window.showInformationMessage("Qwiki: No active generation to cancel");
-        }
-      } else {
-        window.showInformationMessage("Qwiki: No active generation to cancel");
-      }
-    },
-  );
-
-  const toggleOutputChannelCommand = commands.registerCommand(
-    VSCodeCommandIds.toggleOutputChannel,
-    () => {
-      try {
-        const container = qwikiProvider?.getContainer?.();
-        if (!container) {
-          window.showErrorMessage(
-            "Qwiki is not initialized yet. Please wait a moment and try again.",
-          );
-          return;
-        }
-
-        const loggingService = container.resolveTyped("loggingService");
-        loggingService.toggleOutputChannel();
-      } catch (error) {
-        window.showErrorMessage(
-          `Failed to toggle output channel: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-    },
-  );
-
-  const toggleLoggingModeCommand = commands.registerCommand(
-    VSCodeCommandIds.toggleLoggingMode,
-    async () => {
-      try {
-        const loggingService = LoggingService.getInstance();
-        const currentMode = loggingService.getMode();
-        const modes: LogMode[] = ["normal", "verbose"];
-        const currentIndex = modes.indexOf(currentMode);
-        const nextIndex = (currentIndex + 1) % modes.length;
-        const nextMode = modes[nextIndex] ?? "normal";  // Fallback to "normal" if undefined
-
-        loggingService.setMode(nextMode);
-
-        const modeLabels: Record<LogMode, string> = {
-          normal: "Normal Logs (Warnings & Errors)",
-          verbose: "Verbose Logs (All Levels)",
-        };
-
-        const modeLabel = modeLabels[nextMode] ?? "Unknown Mode";
-        window.showInformationMessage(`Qwiki: Logging mode set to "${modeLabel}"` );
-
-        if (qwikiProvider) {
-          try {
-            const container = qwikiProvider.getContainer();
-            const messageBus = container.resolveTyped("messageBus");
-            if (messageBus && typeof messageBus.postImmediate === "function") {
-              messageBus.postImmediate("setLoggingMode", { mode: nextMode });
-            }
-          } catch {}
-        }
-      } catch (error) {
-        window.showErrorMessage(
-          `Failed to toggle logging mode: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-      }
-    },
-  );
-
-  context.subscriptions.push(
-    showQwikiCommand,
-    showSettingsCommand,
-    showSavedWikisCommand,
-    showErrorHistoryCommand,
-    createQuickWikiCommand,
-    selectProviderCommand,
-    showCommandsCommand,
-    cancelGenerationCommand,
-    cancelActiveRequestCommand,
-    toggleOutputChannelCommand,
-    toggleLoggingModeCommand,
-  );
+  } catch (error) {
+    console.error("Failed to activate Qwiki extension:", error);
+    window.showErrorMessage("Qwiki failed to activate. Check console for details.");
+  }
 }
 
 export async function deactivate(): Promise<void> {
-  if (savedWikisTreeProvider) {
-    savedWikisTreeProvider.dispose();
-    savedWikisTreeProvider = undefined;
-  }
-  if (diagnosticsProvider) {
-    diagnosticsProvider.dispose();
-    diagnosticsProvider = undefined;
-  }
-  if (qwikiProvider) {
-    await qwikiProvider.dispose();
-    qwikiProvider = undefined;
+  if (appBootstrap) {
+    await appBootstrap.dispose();
+    appBootstrap = undefined;
   }
 }
+

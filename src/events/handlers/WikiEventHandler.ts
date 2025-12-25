@@ -13,7 +13,7 @@ import {
   type ProviderValidationService,
 } from "@/infrastructure/services";
 import { ProviderError, ErrorCodes } from "@/errors";
-import { qwikiStatusBarItem, HAS_ACTIVE_GENERATION_CONTEXT } from "@//extension";
+import { getStatusBarItem, HAS_ACTIVE_GENERATION_CONTEXT } from "@/constants/GlobalState";
 import { VSCodeCommandIds } from "@/constants/Commands";
 import { commands } from "vscode";
 import { WikiGenerationExecutor } from "@/events/handlers/WikiGenerationExecutor";
@@ -108,19 +108,21 @@ export class WikiEventHandler {
   }
 
   private updateStatusBar(message: string): void {
-    if (qwikiStatusBarItem) {
-      qwikiStatusBarItem.text = `$(sync~spin) ${message}`;
-      qwikiStatusBarItem.tooltip = `Qwiki: ${message}\n\nClick to open Qwiki commands.`;
-      qwikiStatusBarItem.command = VSCodeCommandIds.showCommands;
-      qwikiStatusBarItem.show();
+    const sb = getStatusBarItem();
+    if (sb) {
+      sb.text = `$(sync~spin) ${message}`;
+      sb.tooltip = `Qwiki: ${message}\n\nClick to open Qwiki commands.`;
+      sb.command = VSCodeCommandIds.showCommands;
+      sb.show();
     }
   }
 
   private resetStatusBar(): void {
-    if (qwikiStatusBarItem) {
-      qwikiStatusBarItem.text = "Qwiki";
-      qwikiStatusBarItem.tooltip = "Click to open Qwiki commands";
-      qwikiStatusBarItem.command = VSCodeCommandIds.showCommands;
+    const sb = getStatusBarItem();
+    if (sb) {
+      sb.text = "Qwiki";
+      sb.tooltip = "Click to open Qwiki commands";
+      sb.command = VSCodeCommandIds.showCommands;
     }
   }
 

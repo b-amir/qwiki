@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import Button from "@/components/ui/button.vue";
+import Button from "@/components/ui/Button.vue";
 import type { ReadmeUpdateState, UndoReadmeState } from "./useSavedWikisPage";
 
 interface Props {
