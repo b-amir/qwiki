@@ -292,6 +292,22 @@
       {
         "command": "qwiki.toggleLoggingMode",
         "title": "Qwiki: Toggle Logging Mode"
+      },
+      {
+        "command": "qwiki.toggleSemanticCaching",
+        "title": "Qwiki: Toggle Semantic Caching"
+      },
+      {
+        "command": "qwiki.viewCacheStatistics",
+        "title": "Qwiki: View Cache Statistics"
+      },
+      {
+        "command": "qwiki.viewMetricsDashboard",
+        "title": "Qwiki: View Metrics Dashboard"
+      },
+      {
+        "command": "qwiki.semanticSearch",
+        "title": "Qwiki: Semantic Search"
       }
     ],
     "menus": {

@@ -97,6 +97,16 @@ export class AppBootstrap {
 
     const errorHandler = this.container.resolve("errorHandler") as ErrorHandlerImpl;
     errorHandler.registerGlobalHandlers();
+
+    const { registerShowCommandsCommand } = await import(
+      "@/presentation/commands/registerShowCommandsCommand"
+    );
+    registerShowCommandsCommand(() => this.container);
+
+    const { registerSemanticCommands } = await import(
+      "@/presentation/commands/registerSemanticCommands"
+    );
+    registerSemanticCommands(this);
   }
 
   async createCommandRegistry(webview: Webview): Promise<CommandRegistry> {

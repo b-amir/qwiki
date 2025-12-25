@@ -50,4 +50,8 @@ export const VSCodeCommandIds = {
   toggleLoggingMode: "qwiki.toggleLoggingMode",
   openPanelView: "workbench.view.extension.qwiki",
   wikiViewId: "qwiki.wikiView",
+  toggleSemanticCaching: "qwiki.toggleSemanticCaching",
+  viewCacheStatistics: "qwiki.viewCacheStatistics",
+  viewMetricsDashboard: "qwiki.viewMetricsDashboard",
+  semanticSearch: "qwiki.semanticSearch",
 } as const;
