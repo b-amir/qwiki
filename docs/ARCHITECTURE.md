@@ -70,7 +70,7 @@ The application layer contains services, commands, and application-specific busi
   - `ContextIntelligenceService.ts`: Orchestrates optimal context selection with token budget management
   - `ContextAnalysisService.ts`: Deep code analysis orchestrator
   - `ContextCompressionService.ts`: Compresses context to fit token budgets
-  - `ContextSuggestionService.ts`: Highlights missing context inputs and remediation steps
+  - `ContextSuggestionService.ts`: Highlights missing context inputs and remediation steps; discovers semantically related files when semantic caching is enabled
   - `ProjectContextService.ts`: Project context building with file discovery
   - `CachedProjectContextService.ts`: Cached project context for performance
   - `analysis/`: Analysis services (PatternExtractionService, StructureAnalysisService, RelationshipAnalysisService, ComplexityCalculationService)
@@ -183,6 +183,8 @@ The application layer contains services, commands, and application-specific busi
   - `GetConfigurationTemplatesCommand.ts`: List available templates
   - `CreateConfigurationBackupCommand.ts`: Backup configuration
   - `GetConfigurationBackupsCommand.ts`: List configuration backups
+  - `ToggleSemanticCachingCommand.ts`: Toggle semantic caching on/off
+  - `GetCacheStatisticsCommand.ts`: Get cache performance statistics
 
   **Wiki Commands** (`commands/wikis/`):
   - `SaveWikiCommand.ts`: Save generated wiki
@@ -200,6 +202,7 @@ The application layer contains services, commands, and application-specific busi
   - `OpenExternalCommand.ts`: Open external links
   - `SaveSettingCommand.ts`: Save extension settings
   - `ToggleOutputChannelCommand.ts`: Toggle the Qwiki output channel visibility
+  - `GetAllMetricsCommand.ts`: Get unified performance, quality, and UX metrics dashboard
 
   **Command Metadata** (`commands/CommandMetadata.ts`):
   - Defines command metadata including grouping, readiness requirements, timeouts, and descriptions
@@ -314,7 +317,7 @@ The infrastructure layer contains implementations of domain interfaces and exter
   - `TaskSchedulerService.ts`: Task scheduling and prioritization
 
   **Embedding Services**:
-  - `EmbeddingService.ts`: Text embedding generation and similarity calculation
+  - `EmbeddingService.ts`: Text embedding generation (128-dimensional vectors) and cosine similarity calculation for semantic matching across wiki caching, file relevance analysis, and context suggestions
 
 **Purpose:**
 
@@ -419,7 +422,7 @@ The Context Intelligence Pipeline is a sophisticated system that optimizes conte
 
 - **ContextIntelligenceService**: Orchestrates the entire pipeline
 - **ProjectIndexService**: Maintains fast-access index of project files
-- **FileRelevanceAnalysisService**: Ranks files by relevance to target
+- **FileRelevanceAnalysisService**: Ranks files by relevance to target using dependency analysis, import relationships, and optional embedding-based semantic similarity (when enabled)
 - **FileRelevanceBatchService**: Batch-processes relevance scoring for performance
 - **FileSelectionService**: Selects optimal files within token budget
 - **ContextCompressionService**: Compresses context to fit provider limits
@@ -573,6 +576,56 @@ Real-time environment health tracking:
 - Cache performance
 
 **Usage**: The webview displays warnings if environment is not ready before wiki generation.
+
+### Semantic Search Integration
+
+The semantic search system uses vector embeddings to enhance three core capabilities with intelligent similarity matching:
+
+**Components**:
+
+- **EmbeddingService**: Generates 128-dimensional vector embeddings from text using a hash-based algorithm (placeholder for future external API integration). Provides cosine similarity calculation and maintains a self-managing embedding cache for performance.
+
+- **SemanticCacheService**: Wraps EmbeddingService to provide intelligent caching that finds semantically similar entries (not just exact matches). Configurable similarity threshold with access count tracking for eviction strategy.
+
+- **GenerationCacheService**: Enhanced with two-tier caching approach:
+  1. Primary: Exact match lookup (fast)
+  2. Fallback: Semantic similarity search (when `enableSemanticCaching` is enabled)
+- **FileRelevanceAnalysisService**: Enhanced with embedding-based semantic similarity (70% weight) combined with pattern matching (30% weight). Provides better file discovery for conceptually related code.
+
+- **ContextSuggestionService**: Discovers semantically related files by analyzing up to 50 candidates and returning the top 5 files with >70% similarity. Example: documenting "UserAuth.ts" suggests "AuthService.ts" and "LoginHandler.ts".
+
+**Configuration**:
+
+Three global configuration options control semantic features:
+
+```json
+{
+  "enableSemanticCaching": false, // Master toggle (default: disabled)
+  "semanticSimilarityThreshold": 0.8, // Similarity threshold 0.0-1.0
+  "semanticCacheMaxEntries": 100 // Maximum cache entries
+}
+```
+
+**Commands**:
+
+- `toggleSemanticCaching`: Enable/disable semantic features and get current status
+- `getCacheStatistics`: Monitor cache performance and hit rates
+- `getAllMetrics`: Unified dashboard for performance, quality, and UX metrics
+
+**Benefits**:
+
+- Higher cache hit rates for code with minor variations
+- Better file discovery through conceptual similarity
+- Improved context selection with semantic file suggestions
+- Reduced LLM API calls through intelligent caching
+- Opt-in design with zero performance impact when disabled
+
+**Performance Optimizations**:
+
+- Embedding generation limited to first 1000 characters
+- Lazy service loading (only resolved when enabled)
+- Graceful fallback if embedding service unavailable
+- File discovery limited to 50 candidates for performance
 
 ## Design Patterns
 
