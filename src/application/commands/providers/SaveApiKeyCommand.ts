@@ -39,7 +39,7 @@ export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
       return;
     }
 
-    const provider = this.llmRegistry.getProvider(payload.providerId as any);
+    const provider = this.llmRegistry.getProvider(payload.providerId);
     if (!provider) {
       this.logger.error(`Provider not found: ${payload.providerId}`);
       this.messageBus.postError(

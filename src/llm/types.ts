@@ -48,6 +48,7 @@ export interface LLMProvider {
   initialize(): Promise<void>;
   dispose(): Promise<void>;
   healthCheck(): Promise<HealthCheckResult>;
+  healthCheckWithKey?(apiKey?: string): Promise<HealthCheckResult>;
   getModelCapabilities?(model?: string): ProviderCapabilities;
 }
 

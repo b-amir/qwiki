@@ -103,7 +103,7 @@ export type ProviderConfigurationMap = Record<string, ProviderConfiguration>;
 export interface ExportedConfiguration {
   version: string;
   exportedAt: string;
-  global: GlobalConfiguration;
+  global: Partial<GlobalConfiguration>;
   providers: ProviderConfigurationMap;
   templates?: Record<string, ConfigurationTemplate>;
   metadata: {

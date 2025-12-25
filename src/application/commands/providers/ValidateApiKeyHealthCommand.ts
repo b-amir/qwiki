@@ -67,7 +67,7 @@ export class ValidateApiKeyHealthCommand implements Command<ValidateApiKeyHealth
     const startTime = Date.now();
 
     try {
-      const provider = this.llmRegistry.getProvider(providerId as any);
+      const provider = this.llmRegistry.getProvider(providerId);
       if (!provider) {
         this.logger.warn("Provider not found", { providerId });
         this.messageBus.postSuccess("apiKeyHealthValidated", {
@@ -79,9 +79,7 @@ export class ValidateApiKeyHealthCommand implements Command<ValidateApiKeyHealth
         return;
       }
 
-      const maybeWithKey = (provider as any).healthCheckWithKey as
-        | ((apiKey?: string) => Promise<HealthCheckResult>)
-        | undefined;
+      const maybeWithKey = provider.healthCheckWithKey;
 
       if (!maybeWithKey) {
         this.logger.debug("Provider does not support healthCheckWithKey", { providerId });
@@ -102,7 +100,7 @@ export class ValidateApiKeyHealthCommand implements Command<ValidateApiKeyHealth
       });
 
       const healthCheckPromise = this.llmRegistry.healthCheckProviderWithKey(
-        providerId as any,
+        providerId,
         apiKey,
       );
 

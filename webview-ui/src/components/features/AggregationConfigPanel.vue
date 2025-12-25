@@ -55,7 +55,7 @@ const preview = () => {
           :value="config.mergeStrategy"
           class="border-input bg-muted text-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
           @change="
-            updateConfig({ mergeStrategy: ($event.target as HTMLSelectElement).value as any })
+            updateConfig({ mergeStrategy: ($event.target as HTMLSelectElement).value as AggregationConfig['mergeStrategy'] })
           "
         >
           <option value="sequential">Sequential</option>
@@ -71,7 +71,7 @@ const preview = () => {
           :value="config.outputFormat"
           class="border-input bg-muted text-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
           @change="
-            updateConfig({ outputFormat: ($event.target as HTMLSelectElement).value as any })
+            updateConfig({ outputFormat: ($event.target as HTMLSelectElement).value as AggregationConfig['outputFormat'] })
           "
         >
           <option value="markdown">Markdown</option>

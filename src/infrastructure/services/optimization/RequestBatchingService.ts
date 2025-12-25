@@ -43,8 +43,8 @@ export class RequestBatchingService extends EventEmitter {
     deduplicatedRequests: 0,
     priorityBatches: 0,
   };
-  private readonly defaultMaxBatchSize = 10;
-  private readonly defaultMaxWaitTime = 50;
+  private defaultMaxBatchSize = 10;
+  private defaultMaxWaitTime = 50;
   private logger: Logger;
 
   constructor(loggingService?: LoggingService) {
@@ -173,10 +173,10 @@ export class RequestBatchingService extends EventEmitter {
 
   configureBatching(options: { defaultMaxBatchSize?: number; defaultMaxWaitTime?: number }): void {
     if (options.defaultMaxBatchSize !== undefined) {
-      (this as any).defaultMaxBatchSize = options.defaultMaxBatchSize;
+      this.defaultMaxBatchSize = options.defaultMaxBatchSize;
     }
     if (options.defaultMaxWaitTime !== undefined) {
-      (this as any).defaultMaxWaitTime = options.defaultMaxWaitTime;
+      this.defaultMaxWaitTime = options.defaultMaxWaitTime;
     }
   }
 

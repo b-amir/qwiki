@@ -109,7 +109,7 @@ export class ConfigurationBackupService {
       throw new Error(`Backup with id '${backupId}' not found`);
     }
 
-    await this.configurationRepository.set(backupKey, undefined as any);
+    await this.configurationRepository.delete(backupKey);
     await this.removeFromBackupIndex(backupId);
 
     await this.eventBus.publish("backupDeleted", { backupId });
@@ -180,7 +180,7 @@ export class ConfigurationBackupService {
 
     for (const backupId of backupsToDelete) {
       const backupKey = `${this.BACKUP_PREFIX}${backupId}`;
-      await this.configurationRepository.set(backupKey, undefined as any);
+      await this.configurationRepository.delete(backupKey);
     }
 
     const updatedIndex = index.slice(0, this.MAX_BACKUPS);

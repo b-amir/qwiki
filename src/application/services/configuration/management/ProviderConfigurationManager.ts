@@ -55,7 +55,7 @@ export class ProviderConfigurationManager {
 
     if (this.llmRegistry) {
       try {
-        const provider = this.llmRegistry.getProvider(providerId as any);
+        const provider = this.llmRegistry.getProvider(providerId);
         if (provider) {
           availableModels = provider.listModels();
         }

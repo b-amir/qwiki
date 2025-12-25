@@ -12,6 +12,11 @@ export class VSCodeConfigurationRepository implements ConfigurationRepository {
     await config.update(key, value, true);
   }
 
+  async delete(key: string): Promise<void> {
+    const config = workspace.getConfiguration(Extension.configurationSection);
+    await config.update(key, undefined, true);
+  }
+
   async getAll(): Promise<Record<string, any>> {
     const config = workspace.getConfiguration(Extension.configurationSection);
     const result: Record<string, any> = {};

@@ -27,7 +27,7 @@ export class SelectProviderCommand {
 
       const items: ProviderQuickPickItem[] = await Promise.all(
         providers.map(async (p) => {
-          const hasSecretKey = await this.apiKeyRepository.has(p.id as any);
+          const hasSecretKey = await this.apiKeyRepository.has(p.id);
           const providerConfig = await this.configurationManager.getProviderConfig(p.id);
           const hasConfigKey = Boolean(providerConfig?.apiKey);
           const hasKey = hasSecretKey || hasConfigKey;

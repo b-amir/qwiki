@@ -116,7 +116,7 @@ export class LLMRegistry {
     };
   }
 
-  getProvider(providerId: ProviderId) {
+  getProvider(providerId: string) {
     return this.providers.get(providerId);
   }
 
@@ -150,7 +150,7 @@ export class LLMRegistry {
             providerId,
             error,
           );
-          (rateLimitError as any).waitTimeMs = error.waitTimeMs;
+          rateLimitError.waitTimeMs = error.waitTimeMs;
           throw rateLimitError;
         }
         throw error;
@@ -219,7 +219,7 @@ export class LLMRegistry {
             providerId,
             error,
           );
-          (rateLimitError as any).waitTimeMs = error.waitTimeMs;
+          rateLimitError.waitTimeMs = error.waitTimeMs;
           throw rateLimitError;
         }
         throw error;
@@ -253,20 +253,20 @@ export class LLMRegistry {
     await this.secrets.delete(this.keyName(providerId));
   }
 
-  async hasApiKey(providerId: ProviderId) {
+  async hasApiKey(providerId: string) {
     const key = await this.secrets.get(this.keyName(providerId));
     return Boolean(key);
   }
 
-  async getApiKey(providerId: ProviderId) {
+  async getApiKey(providerId: string) {
     return await this.secrets.get(this.keyName(providerId));
   }
 
-  private keyName(id: ProviderId) {
+  private keyName(id: string) {
     return `qwiki:apikey:${id}`;
   }
 
-  async healthCheckProvider(providerId: ProviderId): Promise<HealthCheckResult> {
+  async healthCheckProvider(providerId: string): Promise<HealthCheckResult> {
     const provider = this.providers.get(providerId);
     if (!provider) {
       const now = Date.now();
@@ -299,7 +299,7 @@ export class LLMRegistry {
   }
 
   async healthCheckProviderWithKey(
-    providerId: ProviderId,
+    providerId: string,
     apiKey?: string,
   ): Promise<HealthCheckResult> {
     const provider = this.providers.get(providerId);
@@ -314,10 +314,7 @@ export class LLMRegistry {
 
     const start = Date.now();
     try {
-      const providerWithKey = provider as LLMProvider & {
-        healthCheckWithKey?: (apiKey?: string) => Promise<HealthCheckResult>;
-      };
-      const maybeWithKey = providerWithKey.healthCheckWithKey;
+      const maybeWithKey = provider.healthCheckWithKey;
 
       if (maybeWithKey) {
         const res = await maybeWithKey.call(provider, apiKey);

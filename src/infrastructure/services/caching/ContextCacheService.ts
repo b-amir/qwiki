@@ -16,6 +16,8 @@ export interface FileContextCache {
   symbols: string[];
   imports: string[];
   lastAnalyzed: number;
+  documentSymbols?: DocumentSymbol[];
+  cachedAt?: number;
 }
 
 export interface ProjectCache {
@@ -293,15 +295,21 @@ export class ContextCacheService {
     try {
       const currentHash = await this.getFileHash(filePath);
       const cacheKey = `symbols:${filePath}`;
+      const existing = this.cache.files[filePath];
+      if (!existing) {
+        this.logger.warn(`Cannot cache symbols for ${filePath}: file not in context cache`);
+        return;
+      }
+
       const symbolCache = {
         hash: currentHash,
-        symbols: symbols,
+        documentSymbols: symbols,
         cachedAt: Date.now(),
       };
       this.cache.files[filePath] = {
-        ...this.cache.files[filePath],
+        ...existing,
         ...symbolCache,
-      } as any;
+      };
       this.saveCache();
       this.logger.debug("Symbols cached", { filePath, symbolCount: symbols.length });
     } catch (error) {
@@ -312,8 +320,8 @@ export class ContextCacheService {
   async getCachedSymbols(filePath: string): Promise<DocumentSymbol[] | null> {
     try {
       const currentHash = await this.getFileHash(filePath);
-      const fileCache = this.cache.files[filePath] as any;
-      if (!fileCache || !fileCache.symbols) {
+      const fileCache = this.cache.files[filePath];
+      if (!fileCache || !fileCache.documentSymbols) {
         return null;
       }
 
@@ -329,7 +337,7 @@ export class ContextCacheService {
         return null;
       }
 
-      return fileCache.symbols as DocumentSymbol[];
+      return fileCache.documentSymbols;
     } catch (error) {
       this.logger.debug(`Failed to get cached symbols for ${filePath}`, error);
       return null;

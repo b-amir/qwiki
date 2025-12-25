@@ -50,7 +50,7 @@ export class ProviderHealthService {
     const healthCheckStartTime = Date.now();
     this.logDebug(`Starting health check for provider ${providerId}`);
 
-    const provider = this.llmRegistry.getProvider(providerId as any);
+    const provider = this.llmRegistry.getProvider(providerId);
     if (!provider) {
       const error = "Provider not found";
       this.logError(`Health check failed for ${providerId} - ${error}`);

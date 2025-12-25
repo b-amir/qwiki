@@ -2,6 +2,7 @@ export class ProviderError extends Error {
   public readonly code: string;
   public readonly providerId?: string;
   public readonly originalError?: unknown;
+  public waitTimeMs?: number;
 
   constructor(code: string, message: string, providerId?: string, originalError?: unknown) {
     super(message);

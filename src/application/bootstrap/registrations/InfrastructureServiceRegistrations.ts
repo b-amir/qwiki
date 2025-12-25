@@ -73,7 +73,7 @@ export function registerInfrastructureServices(
 
   container.register(
     "apiKeyRepository",
-    () => new VSCodeApiKeyRepository(container.resolve("secrets") as any, loggingService),
+    () => new VSCodeApiKeyRepository(container.resolve("secrets") as import("vscode").SecretStorage, loggingService),
   );
 
   container.register("configurationRepository", () => new VSCodeConfigurationRepository());

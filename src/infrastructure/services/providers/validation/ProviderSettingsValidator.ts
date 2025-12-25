@@ -13,7 +13,7 @@ export class ProviderSettingsValidator {
     const errors: Array<{ code: string; message: string; field?: string }> = [];
     const warnings: Array<{ code: string; message: string; field?: string }> = [];
 
-    const provider = this.llmRegistry.getProvider(providerId as any);
+    const provider = this.llmRegistry.getProvider(providerId);
     if (!provider) {
       errors.push({
         code: ErrorCodes.missingProvider,

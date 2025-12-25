@@ -38,12 +38,12 @@ export class ConfigurationImportPreview {
         if (existingProviders[providerId]) {
           for (const [key, value] of Object.entries(providerConfig as Record<string, any>)) {
             const existingConfig = existingProviders[providerId];
-            if (existingConfig && (existingConfig as any)[key] !== undefined) {
+            if (existingConfig && (existingConfig as Record<string, any>)[key] !== undefined) {
               conflicts.push({
                 type: "provider",
                 id: providerId,
                 field: key,
-                existingValue: (existingConfig as any)[key],
+                existingValue: (existingConfig as Record<string, any>)[key],
                 incomingValue: value,
               });
             }

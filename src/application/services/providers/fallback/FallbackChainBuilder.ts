@@ -71,9 +71,7 @@ export class FallbackChainBuilder {
 
     const scoredProviders = [];
     for (const providerId of healthyProviders) {
-      const requirements = (
-        this.smartProviderSelectionService as any
-      ).requirementsAnalyzer.determineRequirements(context);
+      const requirements = this.smartProviderSelectionService.determineRequirements(context);
       const score = await this.smartProviderSelectionService.scoreProvider(
         providerId,
         requirements,

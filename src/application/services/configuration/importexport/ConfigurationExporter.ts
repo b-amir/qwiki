@@ -52,14 +52,13 @@ export class ConfigurationExporter {
   private sanitizeConfiguration(
     config: GlobalConfiguration,
     options: ExportOptions,
-  ): GlobalConfiguration {
+  ): Partial<GlobalConfiguration> {
     const sanitized = { ...config };
 
     if (!options.includeSecrets) {
-      const sanitizedAny = sanitized as any;
-      delete sanitizedAny.backupEnabled;
-      delete sanitizedAny.backupRetentionDays;
-      return sanitizedAny as GlobalConfiguration;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { backupEnabled, backupRetentionDays, ...rest } = sanitized;
+      return rest;
     }
 
     return sanitized;
@@ -79,7 +78,9 @@ export class ConfigurationExporter {
       }
 
       if (!options.includeSecrets) {
-        delete sanitized[providerId].customFields;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { customFields, ...rest } = sanitized[providerId];
+        sanitized[providerId] = rest;
       }
     }
 

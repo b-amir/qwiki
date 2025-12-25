@@ -109,6 +109,10 @@ export class SmartProviderSelectionService {
     return this.scoringService.scoreProvider(providerId, requirements, context, performanceHistory);
   }
 
+  determineRequirements(context: DeepContextAnalysis): ContextualRequirements {
+    return this.requirementsAnalyzer.determineRequirements(context);
+  }
+
   async getProviderPerformance(
     providerId: string,
   ): Promise<{ averageResponseTime: number; successRate: number } | null> {

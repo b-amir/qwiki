@@ -46,7 +46,7 @@ const collectContextData = async (
             const registry = (await container.resolveLazy("llmRegistry")) as
               | LLMRegistry
               | undefined;
-            const provider = registry?.getProvider(providerId as any);
+            const provider = registry?.getProvider(providerId);
             context.providerName = provider?.name ?? providerId;
           } catch {
             context.providerName = providerId;

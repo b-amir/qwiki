@@ -48,7 +48,7 @@ export class ConfigurationRepositoryWrapper {
 
   async reset(key?: string): Promise<void> {
     if (key) {
-      await this.configurationRepository.set(key, undefined as any);
+      await this.configurationRepository.delete(key);
       this.cacheManager.delete(key);
     } else {
       this.cacheManager.clear();

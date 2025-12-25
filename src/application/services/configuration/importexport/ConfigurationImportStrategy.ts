@@ -15,7 +15,7 @@ export class ConfigurationImportStrategy {
       case "skip-existing":
         const filtered = Object.entries(global).reduce((acc, [key, value]) => {
           if (existing[key as keyof GlobalConfiguration] === undefined) {
-            (acc as any)[key] = value;
+            (acc as Record<string, any>)[key] = value;
           }
           return acc;
         }, {} as Partial<GlobalConfiguration>);
