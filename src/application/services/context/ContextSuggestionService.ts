@@ -1,12 +1,21 @@
 import type { ProjectContext } from "@/domain/entities/Selection";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
+import { EmbeddingService } from "@/infrastructure/services/embeddings/EmbeddingService";
+import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
 
 export interface ContextSuggestion {
-  type: "filePath" | "relatedFiles" | "overview" | "projectStructure" | "examples";
+  type:
+    | "filePath"
+    | "relatedFiles"
+    | "overview"
+    | "projectStructure"
+    | "examples"
+    | "semanticRelated";
   priority: "high" | "medium" | "low";
   message: string;
   actionable: string;
+  relatedFiles?: string[];
 }
 
 export interface ContextAnalysis {
@@ -17,16 +26,25 @@ export interface ContextAnalysis {
   hasExamples: boolean;
   suggestions: ContextSuggestion[];
   contextCompleteness: number;
+  semanticRelatedFiles?: string[];
 }
 
 export class ContextSuggestionService {
   private logger: Logger;
 
-  constructor(private loggingService: LoggingService) {
+  constructor(
+    private loggingService: LoggingService,
+    private embeddingService?: EmbeddingService,
+    private fileSystemService?: VSCodeFileSystemService,
+    private enableSemanticSuggestions: boolean = false,
+  ) {
     this.logger = createLogger("ContextSuggestionService");
   }
 
-  analyzeContext(request: WikiGenerationRequest, projectContext: ProjectContext): ContextAnalysis {
+  async analyzeContext(
+    request: WikiGenerationRequest,
+    projectContext: ProjectContext,
+  ): Promise<ContextAnalysis> {
     const hasFilePath = Boolean(request.filePath);
     const hasRelatedFiles = Boolean(projectContext.related && projectContext.related.length > 0);
     const hasOverview = Boolean(
@@ -37,7 +55,16 @@ export class ContextSuggestionService {
     );
     const hasExamples = this.detectExamplesInSnippet(request.snippet);
 
-    const suggestions = this.generateSuggestions(
+    let semanticRelatedFiles: string[] | undefined;
+    if (this.enableSemanticSuggestions && request.filePath && projectContext.filesSample) {
+      semanticRelatedFiles = await this.findSemanticallySimilarFiles(
+        request.filePath,
+        request.snippet,
+        projectContext.filesSample,
+      );
+    }
+
+    const suggestions = await this.generateSuggestions(
       hasFilePath,
       hasRelatedFiles,
       hasOverview,
@@ -45,6 +72,7 @@ export class ContextSuggestionService {
       hasExamples,
       request,
       projectContext,
+      semanticRelatedFiles,
     );
 
     const contextCompleteness = this.calculateCompleteness(
@@ -62,6 +90,7 @@ export class ContextSuggestionService {
       hasRelatedFiles,
       hasOverview,
       hasProjectStructure,
+      semanticRelatedCount: semanticRelatedFiles?.length || 0,
     });
 
     return {
@@ -72,10 +101,11 @@ export class ContextSuggestionService {
       hasExamples,
       suggestions,
       contextCompleteness,
+      semanticRelatedFiles,
     };
   }
 
-  private generateSuggestions(
+  private async generateSuggestions(
     hasFilePath: boolean,
     hasRelatedFiles: boolean,
     hasOverview: boolean,
@@ -83,7 +113,8 @@ export class ContextSuggestionService {
     hasExamples: boolean,
     request: WikiGenerationRequest,
     projectContext: ProjectContext,
-  ): ContextSuggestion[] {
+    semanticRelatedFiles?: string[],
+  ): Promise<ContextSuggestion[]> {
     const suggestions: ContextSuggestion[] = [];
 
     if (!hasFilePath) {
@@ -132,6 +163,16 @@ export class ContextSuggestionService {
         message:
           "Code snippet may benefit from example usage. Examples improve documentation quality.",
         actionable: "Consider including example usage or test cases for better documentation.",
+      });
+    }
+
+    if (semanticRelatedFiles && semanticRelatedFiles.length > 0) {
+      suggestions.push({
+        type: "semanticRelated",
+        priority: "medium",
+        message: `Found ${semanticRelatedFiles.length} semantically related files that may enhance context.`,
+        actionable: "Consider including these related files for better documentation context.",
+        relatedFiles: semanticRelatedFiles,
       });
     }
 
@@ -191,5 +232,49 @@ export class ContextSuggestionService {
 
     const matchCount = complexityIndicators.filter((pattern) => pattern.test(snippet)).length;
     return matchCount >= 2;
+  }
+
+  private async findSemanticallySimilarFiles(
+    targetPath: string,
+    targetContent: string,
+    candidateFiles: string[],
+  ): Promise<string[]> {
+    if (!this.embeddingService || !this.fileSystemService) {
+      return [];
+    }
+
+    try {
+      const candidates = [...new Set(candidateFiles)]
+        .filter((file) => file !== targetPath)
+        .slice(0, 50); // Limit to 50 files for performance
+
+      const similarityResults = await Promise.all(
+        candidates.map(async (candidatePath) => {
+          try {
+            const candidateContent = await this.fileSystemService!.readFile(candidatePath, true);
+            const result = await this.embeddingService!.computeSimilarity(
+              targetContent.substring(0, 1000),
+              candidateContent.substring(0, 1000),
+            );
+
+            return {
+              path: candidatePath,
+              similarity: result.similarity,
+            };
+          } catch {
+            return { path: candidatePath, similarity: 0 };
+          }
+        }),
+      );
+
+      return similarityResults
+        .filter((result) => result.similarity > 0.7)
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 5)
+        .map((result) => result.path);
+    } catch (error) {
+      this.logger.warn("Failed to find semantically similar files", error);
+      return [];
+    }
   }
 }

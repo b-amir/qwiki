@@ -198,10 +198,20 @@ export function registerContextServices(
 
   container.register("codeExtractionService", () => new CodeExtractionService(loggingService));
 
-  container.register(
-    "contextSuggestionService",
-    () => new ContextSuggestionService(loggingService),
-  );
+  container.registerLazy("contextSuggestionService", async () => {
+    const configRepo = container.resolve(
+      "configurationRepository",
+    ) as import("@/domain/repositories/ConfigurationRepository").ConfigurationRepository;
+    const enableSemanticSuggestions =
+      (await configRepo.get<boolean>("enableSemanticCaching")) ?? false;
+
+    return new ContextSuggestionService(
+      loggingService,
+      enableSemanticSuggestions ? container.resolve("embeddingService") : undefined,
+      enableSemanticSuggestions ? container.resolve("vscodeFileSystemService") : undefined,
+      enableSemanticSuggestions,
+    );
+  });
 
   container.register(
     "contextCompressionService",

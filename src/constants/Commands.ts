@@ -33,6 +33,7 @@ export const CommandIds = {
   setActiveProvider: "setActiveProvider",
   toggleSemanticCaching: "toggleSemanticCaching",
   getCacheStatistics: "getCacheStatistics",
+  getAllMetrics: "getAllMetrics",
 } as const;
 
 export const VSCodeCommandIds = {
