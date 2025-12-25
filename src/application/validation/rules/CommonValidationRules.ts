@@ -3,6 +3,7 @@ import type {
   ValidationContext,
 } from "../../services/configuration/ConfigurationValidationEngineService";
 import type { ValidationError, ValidationWarning } from "@/domain/configuration";
+import { ValidationConstants } from "@/constants/ValidationConstants";
 
 export function createCommonValidationRules(): ValidationRule[] {
   return [
@@ -24,14 +25,14 @@ export function createCommonValidationRules(): ValidationRule[] {
             message: "Temperature must be a number",
             severity: "error",
           });
-        } else if (value < 0 || value > 2) {
+        } else if (value < ValidationConstants.TEMPERATURE.MIN || value > ValidationConstants.TEMPERATURE.MAX) {
           errors.push({
             field: "temperature",
             code: "TEMPERATURE_OUT_OF_RANGE",
-            message: "Temperature must be between 0 and 2",
+            message: `Temperature must be between ${ValidationConstants.TEMPERATURE.MIN} and ${ValidationConstants.TEMPERATURE.MAX}`,
             severity: "error",
           });
-        } else if (value > 1.5) {
+        } else if (value > ValidationConstants.TEMPERATURE.WARNING_THRESHOLD) {
           warnings.push({
             field: "temperature",
             code: "TEMPERATURE_HIGH",
@@ -61,21 +62,21 @@ export function createCommonValidationRules(): ValidationRule[] {
             message: "Max tokens must be a number",
             severity: "error",
           });
-        } else if (value < 1) {
+        } else if (value < ValidationConstants.MAX_TOKENS.MIN) {
           errors.push({
             field: "maxTokens",
             code: "MAX_TOKENS_TOO_SMALL",
-            message: "Max tokens must be at least 1",
+            message: `Max tokens must be at least ${ValidationConstants.MAX_TOKENS.MIN}`,
             severity: "error",
           });
-        } else if (value > 32000) {
+        } else if (value > ValidationConstants.MAX_TOKENS.ABSOLUTE_MAX) {
           errors.push({
             field: "maxTokens",
             code: "MAX_TOKENS_TOO_LARGE",
-            message: "Max tokens cannot exceed 32000",
+            message: `Max tokens cannot exceed ${ValidationConstants.MAX_TOKENS.ABSOLUTE_MAX}`,
             severity: "error",
           });
-        } else if (value > 8000) {
+        } else if (value > ValidationConstants.MAX_TOKENS.WARNING_THRESHOLD) {
           warnings.push({
             field: "maxTokens",
             code: "MAX_TOKENS_HIGH",
@@ -105,14 +106,14 @@ export function createCommonValidationRules(): ValidationRule[] {
             message: "Rate limit must be a number",
             severity: "error",
           });
-        } else if (value < 1) {
+        } else if (value < ValidationConstants.RATE_LIMIT.MIN) {
           errors.push({
             field: "rateLimitPerMinute",
             code: "RATE_LIMIT_TOO_SMALL",
-            message: "Rate limit must be at least 1 request per minute",
+            message: `Rate limit must be at least ${ValidationConstants.RATE_LIMIT.MIN} request per minute`,
             severity: "error",
           });
-        } else if (value > 1000) {
+        } else if (value > ValidationConstants.RATE_LIMIT.WARNING_THRESHOLD) {
           warnings.push({
             field: "rateLimitPerMinute",
             code: "RATE_LIMIT_HIGH",

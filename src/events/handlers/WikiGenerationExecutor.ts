@@ -25,48 +25,16 @@ import type { CachedProjectContextService } from "@/application/services/context
 import { COMMAND_TIMEOUTS, GENERATION_TIMEOUTS } from "@/constants/ServiceTiers";
 import type { LoadingStepProgress } from "@/application/services/core/WikiGenerationFlow";
 
-interface LoadingStepProgressPayload {
-  step: LoadingStep;
-  percentage?: number;
-  message?: string;
-  elapsed?: number;
-  estimatedRemaining?: number;
-  sequence?: number;
-  timestamp?: number;
-}
+import {
+  ProgressManager,
+  type LoadingStepProgressPayload,
+} from "@/events/handlers/generation/ProgressManager";
 
 export class WikiGenerationExecutor {
   private logger: Logger;
 
   private firstChunkTime?: number;
-  private readonly stepOrder: LoadingStep[] = [
-    LoadingSteps.validatingProvider,
-    LoadingSteps.initializingContext,
-    LoadingSteps.analyzingSnippet,
-    LoadingSteps.buildingContextSummary,
-    LoadingSteps.preparingGenerationInput,
-    LoadingSteps.buildingPrompt,
-    LoadingSteps.validatingPromptQuality,
-    LoadingSteps.collectingSemanticInfo,
-    LoadingSteps.sendingLLMRequest,
-    LoadingSteps.waitingForLLMResponse,
-    LoadingSteps.processingLLMOutput,
-    LoadingSteps.finalizingDocumentation,
-  ];
-  private readonly defaultStepDurations: Map<LoadingStep, number> = new Map([
-    [LoadingSteps.validatingProvider, 500],
-    [LoadingSteps.initializingContext, 3000],
-    [LoadingSteps.analyzingSnippet, 500],
-    [LoadingSteps.buildingContextSummary, 1000],
-    [LoadingSteps.preparingGenerationInput, 500],
-    [LoadingSteps.buildingPrompt, 1000],
-    [LoadingSteps.validatingPromptQuality, 2000],
-    [LoadingSteps.collectingSemanticInfo, 1500],
-    [LoadingSteps.sendingLLMRequest, 500],
-    [LoadingSteps.waitingForLLMResponse, 30000],
-    [LoadingSteps.processingLLMOutput, 1000],
-    [LoadingSteps.finalizingDocumentation, 500],
-  ]);
+  private progressManager: ProgressManager;
 
   constructor(
     private eventBus: EventBus,
@@ -83,6 +51,7 @@ export class WikiGenerationExecutor {
     private uxMetricsService?: UXMetricsService,
   ) {
     this.logger = createLogger("WikiGenerationExecutor");
+    this.progressManager = new ProgressManager(eventBus, updateStatusBar);
   }
 
   private getWikiService(): WikiService | CachedWikiService {
@@ -98,34 +67,7 @@ export class WikiGenerationExecutor {
     return this.wikiService;
   }
 
-  private calculateProgress(step: LoadingStep, startTime: number): LoadingStepProgressPayload {
-    const currentIndex = this.stepOrder.indexOf(step);
-    const percentage =
-      currentIndex >= 0 ? Math.round(((currentIndex + 1) / this.stepOrder.length) * 100) : 0;
-    const elapsed = Date.now() - startTime;
 
-    let estimatedTotal = 0;
-    if (currentIndex >= 0) {
-      for (let i = 0; i <= currentIndex; i++) {
-        const step = this.stepOrder[i];
-        if (step) {
-          const stepDuration = this.defaultStepDurations.get(step) || 1000;
-          estimatedTotal += stepDuration;
-        }
-      }
-    }
-    const estimatedRemaining = estimatedTotal > elapsed ? estimatedTotal - elapsed : undefined;
-
-    const message = getProgressMessageForStep(step);
-
-    return {
-      step,
-      percentage,
-      message,
-      elapsed,
-      estimatedRemaining,
-    };
-  }
 
   async execute(
     payload: WikiGenerationRequest,
@@ -150,8 +92,7 @@ export class WikiGenerationExecutor {
 
     try {
       const validatingMessage = getProgressMessageForStep(LoadingSteps.validatingProvider);
-      this.updateStatusBar(validatingMessage);
-      this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.validatingProvider });
+      this.progressManager.reportProgress({ step: LoadingSteps.validatingProvider, message: validatingMessage });
 
       if (cancellationToken.isCancellationRequested) {
         throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
@@ -220,8 +161,7 @@ export class WikiGenerationExecutor {
       languageId: payload?.languageId,
     });
     const buildingContextMessage = getProgressMessageForStep(LoadingSteps.initializingContext);
-    this.updateStatusBar(buildingContextMessage);
-    this.eventBus.publish(OutboundEvents.loadingStep, { step: LoadingSteps.initializingContext });
+    this.progressManager.reportProgress({ step: LoadingSteps.initializingContext, message: buildingContextMessage });
 
     if (this.contextCacheService && payload.filePath) {
       const cacheStart = Date.now();
@@ -280,12 +220,12 @@ export class WikiGenerationExecutor {
       const elapsed = Date.now() - generateWikiStart;
 
       if (elapsed >= 90000) {
-        this.eventBus.publish(OutboundEvents.loadingStep, {
+        this.progressManager.reportProgress({
           step: LoadingSteps.waitingForLLMResponse,
           message: `Generation taking longer than expected (${Math.round(elapsed / 1000)}s)...`,
         });
       } else if (elapsed >= 60000) {
-        this.eventBus.publish(OutboundEvents.loadingStep, {
+        this.progressManager.reportProgress({
           step: LoadingSteps.waitingForLLMResponse,
           message: `Still generating... (${Math.round(elapsed / 1000)}s)`,
         });
@@ -299,14 +239,13 @@ export class WikiGenerationExecutor {
         if (cancellationToken.isCancellationRequested) {
           return;
         }
-        const progress = this.calculateProgress(step, generateWikiStart);
-        this.updateStatusBar(progress.message || "");
+        const progress = this.progressManager.calculateProgress(step, generateWikiStart);
+        this.progressManager.reportProgress(progress);
       },
       (progress: LoadingStepProgress) => {
         if (cancellationToken.isCancellationRequested) {
           return;
         }
-        this.updateStatusBar(progress.message || "");
         const progressPayload: LoadingStepProgressPayload = {
           step: progress.step,
           percentage: progress.percentage,
@@ -316,7 +255,7 @@ export class WikiGenerationExecutor {
           sequence: progress.sequence,
           timestamp: progress.timestamp,
         };
-        this.eventBus.publish(OutboundEvents.loadingStep, progressPayload);
+        this.progressManager.reportProgress(progressPayload);
       },
       cancellationToken,
       (chunk: string, accumulated: string) => {
@@ -352,7 +291,7 @@ export class WikiGenerationExecutor {
             commandTimeout,
             generationTimeout,
           });
-          this.eventBus.publish(OutboundEvents.loadingStep, {
+          this.progressManager.reportProgress({
             step: LoadingSteps.waitingForLLMResponse,
             message: "Generation taking longer than expected, continuing in background...",
           });
