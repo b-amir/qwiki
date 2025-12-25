@@ -1,18 +1,60 @@
 import { CachingService, CacheOptions } from "@/infrastructure/services/caching/CachingService";
+import { SemanticCacheService } from "@/infrastructure/services/caching/SemanticCacheService";
 import { GenerateParams, GenerateResult } from "@/llm/types";
 import { createHash } from "crypto";
 import { ServiceLimits } from "@/constants";
+import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
 export class GenerationCacheService {
   private readonly cacheKeyPrefix = "generation:";
   private readonly defaultCacheTtl = 3600000; // 1 hour
+  private logger: Logger;
 
-  constructor(private cachingService: CachingService) {}
+  constructor(
+    private cachingService: CachingService,
+    private semanticCacheService?: SemanticCacheService,
+    private loggingService?: LoggingService,
+    private enableSemanticCaching: boolean = false,
+    private semanticSimilarityThreshold: number = 0.8,
+  ) {
+    this.logger = loggingService 
+      ? createLogger("GenerationCacheService")
+      : { debug: () => {}, info: () => {}, warn: () => {}, error: () => {} } as Logger;
+  }
+
 
   async getCachedGeneration(params: GenerateParams): Promise<GenerateResult | null> {
     const cacheKey = this.generateCacheKey(params);
-    return this.cachingService.get<GenerateResult>(cacheKey);
+    
+    const exactMatch = await this.cachingService.get<GenerateResult>(cacheKey);
+    if (exactMatch) {
+      this.logger.debug("Exact cache hit", { cacheKey });
+      return exactMatch;
+    }
+
+    if (this.enableSemanticCaching && this.semanticCacheService) {
+      const snippetText = this.getSnippetForSemanticSearch(params);
+      const semanticResult = await this.semanticCacheService.get<GenerateResult>(
+        snippetText,
+        {
+          similarityThreshold: this.semanticSimilarityThreshold,
+          ttl: this.defaultCacheTtl,
+        }
+      );
+
+      if (semanticResult.found) {
+        this.logger.info("Semantic cache hit", { 
+          similarity: semanticResult.similarity,
+          exactMatch: semanticResult.exactMatch 
+        });
+        return semanticResult.value || null;
+      }
+    }
+
+    this.logger.debug("Cache miss", { cacheKey });
+    return null;
   }
+
 
   async cacheGeneration(params: GenerateParams, result: GenerateResult): Promise<void> {
     const cacheKey = this.generateCacheKey(params);
@@ -21,7 +63,17 @@ export class GenerationCacheService {
       maxSize: 10,
       tags: this.generateCacheTags(params),
     };
+    
     await this.cachingService.set(cacheKey, result, options);
+    
+    if (this.enableSemanticCaching && this.semanticCacheService) {
+      const snippetText = this.getSnippetForSemanticSearch(params);
+      await this.semanticCacheService.set(snippetText, result, {
+        similarityThreshold: this.semanticSimilarityThreshold,
+        ttl: this.defaultCacheTtl,
+      });
+      this.logger.debug("Stored in semantic cache", { snippetLength: snippetText.length });
+    }
   }
 
   generateCacheKey(params: GenerateParams): string {
@@ -112,5 +164,19 @@ export class GenerationCacheService {
     }
 
     return tags;
+  }
+
+  private getSnippetForSemanticSearch(params: GenerateParams): string {
+    const parts = [params.snippet];
+    
+    if (params.languageId) {
+      parts.push(`Language: ${params.languageId}`);
+    }
+    
+    if (params.filePath) {
+      parts.push(`File: ${params.filePath}`);
+    }
+    
+    return parts.join("\n").trim();
   }
 }

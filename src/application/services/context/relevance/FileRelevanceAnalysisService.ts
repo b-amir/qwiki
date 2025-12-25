@@ -3,6 +3,7 @@ import { LoggingService, createLogger, type Logger } from "@/infrastructure/serv
 import { CachingService } from "@/infrastructure/services";
 import { WorkspaceStructureCacheService } from "@/infrastructure/services/caching/WorkspaceStructureCacheService";
 import { DependencyAnalysisService } from "@/application/services/context/project/DependencyAnalysisService";
+import { EmbeddingService } from "@/infrastructure/services/embeddings/EmbeddingService";
 import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
 import { ServiceLimits, FilePatterns } from "@/constants";
 import type {
@@ -22,6 +23,8 @@ export class FileRelevanceAnalysisService {
     private workspaceStructureCache: WorkspaceStructureCacheService,
     private dependencyAnalysisService: DependencyAnalysisService,
     private loggingService: LoggingService,
+    private embeddingService?: EmbeddingService,
+    private enableSemanticMatching: boolean = false,
   ) {
     this.logger = createLogger("FileRelevanceAnalysisService");
   }
@@ -233,6 +236,37 @@ export class FileRelevanceAnalysisService {
       return 0;
     }
 
+    // Use embedding-based similarity if enabled and service is available
+    if (this.enableSemanticMatching && this.embeddingService) {
+      try {
+        const embeddingResult = await this.embeddingService.computeSimilarity(
+          content1.substring(0, 1000), // Limit to first 1000 chars for performance
+          content2.substring(0, 1000),
+        );
+
+        // Combine embedding similarity with pattern-based similarity
+        const patternSimilarity = await this.calculatePatternSimilarity(content1, content2);
+
+        // Weight: 70% embeddings, 30% patterns
+        const combinedSimilarity = embeddingResult.similarity * 0.7 + patternSimilarity * 0.3;
+
+        this.logger.debug("Semantic similarity calculated", {
+          embeddingSimilarity: embeddingResult.similarity,
+          patternSimilarity,
+          combined: combinedSimilarity,
+        });
+
+        return combinedSimilarity;
+      } catch (error) {
+        this.logger.warn("Failed to compute embedding similarity, falling back to patterns", error);
+      }
+    }
+
+    // Fallback to pattern-based similarity
+    return this.calculatePatternSimilarity(content1, content2);
+  }
+
+  private async calculatePatternSimilarity(content1: string, content2: string): Promise<number> {
     const patterns1 = this.analyzeNamingPatterns(content1);
     const patterns2 = this.analyzeNamingPatterns(content2);
     const patterns1Set = new Set(patterns1);

@@ -31,6 +31,8 @@ export const CommandIds = {
   toggleOutputChannel: "toggleOutputChannel",
   validateApiKeyHealth: "validateApiKeyHealth",
   setActiveProvider: "setActiveProvider",
+  toggleSemanticCaching: "toggleSemanticCaching",
+  getCacheStatistics: "getCacheStatistics",
 } as const;
 
 export const VSCodeCommandIds = {

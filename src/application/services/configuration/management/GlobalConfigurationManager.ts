@@ -53,6 +53,9 @@ export class GlobalConfigurationManager {
       autoSave: true,
       backupEnabled: true,
       backupRetentionDays: 30,
+      enableSemanticCaching: false,
+      semanticSimilarityThreshold: 0.8,
+      semanticCacheMaxEntries: 100,
     };
 
     const finalConfig = config || defaultConfig;

@@ -31,6 +31,9 @@ export interface GlobalConfiguration {
   autoSave: boolean;
   backupEnabled: boolean;
   backupRetentionDays: number;
+  enableSemanticCaching: boolean;
+  semanticSimilarityThreshold: number;
+  semanticCacheMaxEntries: number;
 }
 
 export interface ValidationResult {
@@ -96,7 +99,10 @@ export type ConfigurationKey =
   | "language"
   | "autoSave"
   | "backupEnabled"
-  | "backupRetentionDays";
+  | "backupRetentionDays"
+  | "enableSemanticCaching"
+  | "semanticSimilarityThreshold"
+  | "semanticCacheMaxEntries";
 
 export type ProviderConfigurationMap = Record<string, ProviderConfiguration>;
 

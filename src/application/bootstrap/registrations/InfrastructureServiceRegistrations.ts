@@ -56,10 +56,22 @@ export function registerInfrastructureServices(
     "performanceBudgetService",
     new PerformanceBudgetService(loggingService),
   );
-  container.registerInstance(
-    "generationCacheService",
-    new GenerationCacheService(container.resolve("cachingService") as CachingService),
-  );
+  
+  container.registerLazy("generationCacheService", async () => {
+    const configRepo = container.resolve("configurationRepository") as import("@/domain/repositories/ConfigurationRepository").ConfigurationRepository;
+    
+    const enableSemanticCaching = await configRepo.get<boolean>("enableSemanticCaching") ?? false;
+    const semanticThreshold = await configRepo.get<number>("semanticSimilarityThreshold") ?? 0.8;
+    const semanticMaxEntries = await configRepo.get<number>("semanticCacheMaxEntries") ?? 100;
+    
+    return new GenerationCacheService(
+      container.resolve("cachingService") as CachingService,
+      enableSemanticCaching ? container.resolve("semanticCacheService") : undefined,
+      loggingService,
+      enableSemanticCaching,
+      semanticThreshold,
+    );
+  });
   container.registerInstance("requestBatchingService", new RequestBatchingService(loggingService));
   container.registerInstance("debouncingService", new DebouncingService());
   container.registerInstance("rateLimiterService", new RateLimiterService(loggingService));

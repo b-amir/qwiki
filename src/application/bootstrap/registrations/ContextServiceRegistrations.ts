@@ -164,12 +164,20 @@ export function registerContextServices(
   });
 
   container.registerLazy("fileRelevanceAnalysisService", async () => {
+    const configRepo = container.resolve(
+      "configurationRepository",
+    ) as import("@/domain/repositories/ConfigurationRepository").ConfigurationRepository;
+    const enableSemanticMatching =
+      (await configRepo.get<boolean>("enableSemanticCaching")) ?? false;
+
     return new FileRelevanceAnalysisService(
       container.resolve("vscodeFileSystemService") as VSCodeFileSystemService,
       container.resolve("cachingService") as CachingService,
       container.resolve("workspaceStructureCacheService") as WorkspaceStructureCacheService,
       (await container.resolveLazy("dependencyAnalysisService")) as DependencyAnalysisService,
       loggingService,
+      enableSemanticMatching ? container.resolve("embeddingService") : undefined,
+      enableSemanticMatching,
     );
   });
 
