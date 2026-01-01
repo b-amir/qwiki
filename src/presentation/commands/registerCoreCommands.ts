@@ -1,8 +1,9 @@
 import { commands, window } from "vscode";
-import { VSCodeCommandIds, CommandIds } from "@/constants";
+import { VSCodeCommandIds } from "@/constants";
+import { InboundEvents } from "@/constants/Events";
 import type { AppBootstrap } from "@/application/AppBootstrap";
-import type { CommandRegistry } from "@/application/CommandRegistry";
 import type { ConfigurationManagerService } from "@/application/services/configuration/ConfigurationManagerService";
+import type { EventBus } from "@/events";
 import type { WikiGenerationRequest } from "@/domain/entities/Wiki";
 
 export function registerCoreCommands(appBootstrap: AppBootstrap): void {
@@ -14,7 +15,7 @@ export function registerCoreCommands(appBootstrap: AppBootstrap): void {
         return;
       }
 
-      await commands.executeCommand(VSCodeCommandIds.showPanel);
+      await commands.executeCommand(`${VSCodeCommandIds.wikiViewId}.focus`);
 
       const document = editor.document;
       const selection = editor.selection;
@@ -40,8 +41,8 @@ export function registerCoreCommands(appBootstrap: AppBootstrap): void {
         model,
       };
 
-      const commandRegistry = container.resolve("commandRegistry") as CommandRegistry;
-      await commandRegistry.execute(CommandIds.generateWiki, payload);
+      const eventBus = container.resolve("eventBus") as EventBus;
+      await eventBus.publish(InboundEvents.generateWiki, payload);
     } catch (error) {
       window.showErrorMessage(`Failed to create quick wiki: ${error}`);
     }
