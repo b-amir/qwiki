@@ -7,6 +7,7 @@ import { ConfigurationMigrationService } from "@/application/services/configurat
 import { CachingService } from "@/infrastructure/services";
 import { GenerationCacheService } from "@/infrastructure/services/caching/GenerationCacheService";
 import { ProjectContextCacheInvalidationService } from "@/infrastructure/services/caching/ProjectContextCacheInvalidationService";
+import { QwikiDirectoryService } from "@/infrastructure/services/filesystem/QwikiDirectoryService";
 
 export class CriticalServicesInitializer {
   private logger: Logger;
@@ -24,6 +25,11 @@ export class CriticalServicesInitializer {
     this.logger.info("Starting critical services initialization");
 
     try {
+      const directoryService = this.container.resolve(
+        "qwikiDirectoryService",
+      ) as QwikiDirectoryService;
+      await directoryService.ensureDirectoriesExist();
+
       this.readinessManager.markReady("loggingService");
       this.readinessManager.markReady("eventBus");
 

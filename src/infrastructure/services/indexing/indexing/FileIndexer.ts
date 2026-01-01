@@ -105,8 +105,26 @@ export class FileIndexer {
         this.filesPendingSymbolPrefetch.push(uri);
       }
     } catch (error) {
+      if (this.isFileNotFoundError(error)) {
+        this.cacheService.removeFromIndex(uri.fsPath);
+        this.logger.debug(`Removed deleted file from index: ${uri.fsPath}`);
+        return;
+      }
       this.logger.debug(`Failed to index file ${uri.fsPath}`, error);
     }
+  }
+
+  private isFileNotFoundError(error: unknown): boolean {
+    if (error instanceof Error) {
+      const message = error.message.toLowerCase();
+      return (
+        message.includes("enoent") ||
+        message.includes("filenotfound") ||
+        message.includes("does not exist") ||
+        message.includes("no such file")
+      );
+    }
+    return false;
   }
 
   private scheduleBackgroundSymbolPrefetch(): void {
@@ -126,7 +144,7 @@ export class FileIndexer {
       fileCount: filesToPrefetch.length,
     });
 
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = ServiceLimits.symbolPrefetchConcurrency;
     for (let i = 0; i < filesToPrefetch.length; i += BATCH_SIZE) {
       const batch = filesToPrefetch.slice(i, i + BATCH_SIZE);
       this.taskScheduler.schedule({

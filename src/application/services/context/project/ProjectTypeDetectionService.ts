@@ -1,3 +1,4 @@
+import * as path from "path";
 import { workspace } from "vscode";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 import { CachingService } from "@/infrastructure/services";
@@ -50,72 +51,97 @@ export class ProjectTypeDetectionService {
       return cached;
     }
 
-    let primaryLanguage = "unknown";
-    let framework: string | undefined;
-    let buildSystem: string | undefined;
-    let packageManager: string | undefined;
-    let confidence = 0;
+    // Use weighted scoring to determine project type
+    const scores = new Map<
+      string,
+      { score: number; framework?: string; buildSystem?: string; pm?: string }
+    >();
 
-    const indicatorFiles = [
-      { pattern: "package.json", language: "javascript", pm: "npm" },
-      { pattern: "requirements.txt", language: "python", pm: "pip" },
-      { pattern: "pyproject.toml", language: "python", pm: "pip" },
-      { pattern: "pom.xml", language: "java", pm: "maven" },
-      { pattern: "build.gradle", language: "java", pm: "gradle" },
-      { pattern: "Cargo.toml", language: "rust", pm: "cargo" },
-      { pattern: "go.mod", language: "go", pm: "go" },
-      { pattern: "composer.json", language: "php", pm: "composer" },
-      { pattern: "*.csproj", language: "csharp", pm: "dotnet" },
+    // Phase 1: Check ROOT config files only (highest priority)
+    const rootConfigs = [
+      { file: "package.json", language: "javascript", pm: "npm" },
+      { file: "tsconfig.json", language: "typescript", pm: "npm" },
+      { file: "pyproject.toml", language: "python", pm: "pip" },
+      { file: "requirements.txt", language: "python", pm: "pip" },
+      { file: "Cargo.toml", language: "rust", pm: "cargo" },
+      { file: "go.mod", language: "go", pm: "go" },
+      { file: "pom.xml", language: "java", pm: "maven" },
+      { file: "build.gradle", language: "java", pm: "gradle" },
+      { file: "composer.json", language: "php", pm: "composer" },
     ];
 
-    for (const indicator of indicatorFiles) {
-      try {
-        const files = await workspace.findFiles(`**/${indicator.pattern}`, FilePatterns.exclude, 1);
-        if (files.length > 0) {
-          primaryLanguage = indicator.language;
-          packageManager = indicator.pm;
-          confidence += 30;
+    for (const config of rootConfigs) {
+      const exists = await this.fileExistsAtRoot(workspaceRoot, config.file);
+      this.logger.debug(`Root config check: ${config.file}`, { exists, workspaceRoot });
 
-          if (indicator.pattern === "package.json") {
-            try {
-              const fileUri = files[0];
-              if (!fileUri) continue;
-              const contentStr = await this.vscodeFileSystem.readFile(fileUri.fsPath, true);
-              const packageJson = JSON.parse(contentStr);
+      if (exists) {
+        const existing = scores.get(config.language) || { score: 0, pm: config.pm };
+        existing.score += 50; // Root config = 50 points
+        existing.pm = config.pm;
+        scores.set(config.language, existing);
 
-              if (packageJson.dependencies) {
-                const deps = Object.keys(packageJson.dependencies);
-                if (deps.includes("react")) framework = "react";
-                else if (deps.includes("vue")) framework = "vue";
-                else if (deps.includes("@angular/core")) framework = "angular";
-                else if (deps.includes("next")) framework = "nextjs";
-                if (framework) confidence += 20;
-              }
-
-              if (packageJson.devDependencies) {
-                if (packageJson.devDependencies.webpack) buildSystem = "webpack";
-                else if (packageJson.devDependencies.vite) buildSystem = "vite";
-                else if (packageJson.devDependencies.rollup) buildSystem = "rollup";
-              }
-            } catch (error) {
-              this.logDebug("Failed to parse package.json", error);
-            }
-          }
+        // Special handling for package.json to detect framework and TypeScript
+        if (config.file === "package.json") {
+          await this.analyzePackageJson(workspaceRoot, scores);
         }
-      } catch (error) {
-        this.logDebug(`Failed to check for ${indicator.pattern}`, error);
       }
     }
 
-    confidence = Math.min(100, confidence);
+    // Phase 2: If no root config found, scan for files in subdirectories (lower weight)
+    if (scores.size === 0) {
+      const fallbackIndicators = [
+        { pattern: "package.json", language: "javascript", pm: "npm" },
+        { pattern: "requirements.txt", language: "python", pm: "pip" },
+        { pattern: "Cargo.toml", language: "rust", pm: "cargo" },
+      ];
+
+      for (const indicator of fallbackIndicators) {
+        try {
+          const files = await workspace.findFiles(
+            `**/${indicator.pattern}`,
+            FilePatterns.exclude,
+            1,
+          );
+          if (files.length > 0) {
+            const existing = scores.get(indicator.language) || { score: 0, pm: indicator.pm };
+            existing.score += 20; // Subdirectory config = only 20 points
+            existing.pm = indicator.pm;
+            scores.set(indicator.language, existing);
+          }
+        } catch (error) {
+          this.logDebug(`Failed to check for ${indicator.pattern}`, error);
+        }
+      }
+    }
+
+    // Select winner with highest score
+    let winner: {
+      language: string;
+      score: number;
+      framework?: string;
+      buildSystem?: string;
+      pm?: string;
+    } | null = null;
+    for (const [language, data] of scores) {
+      if (!winner || data.score > winner.score) {
+        winner = { language, ...data };
+      }
+    }
 
     const detection: ProjectTypeDetection = {
-      primaryLanguage,
-      framework,
-      buildSystem,
-      packageManager,
-      confidence,
+      primaryLanguage: winner?.language ?? "unknown",
+      framework: winner?.framework,
+      buildSystem: winner?.buildSystem,
+      packageManager: winner?.pm,
+      confidence: Math.min(winner?.score ?? 0, 100),
     };
+
+    this.logger.debug("Project type detected with weighted scoring", {
+      primaryLanguage: detection.primaryLanguage,
+      framework: detection.framework,
+      confidence: detection.confidence,
+      allScores: Object.fromEntries(scores),
+    });
 
     await this.workspaceStructureCache.setProjectType(
       workspaceRoot,
@@ -124,6 +150,80 @@ export class ProjectTypeDetectionService {
     );
 
     return detection;
+  }
+
+  private async fileExistsAtRoot(rootPath: string, filename: string): Promise<boolean> {
+    try {
+      const filePath = path.join(rootPath, filename);
+      await this.vscodeFileSystem.stat(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async analyzePackageJson(
+    rootPath: string,
+    scores: Map<string, { score: number; framework?: string; buildSystem?: string; pm?: string }>,
+  ): Promise<void> {
+    try {
+      const pkgPath = path.join(rootPath, "package.json");
+      const contentStr = await this.vscodeFileSystem.readFile(pkgPath, true);
+      const pkg = JSON.parse(contentStr);
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+      // Check for TypeScript - upgrades JavaScript to TypeScript
+      const hasTypeScript =
+        allDeps.typescript || (await this.fileExistsAtRoot(rootPath, "tsconfig.json"));
+      if (hasTypeScript) {
+        const tsScore = scores.get("typescript") || { score: 0, pm: "npm" };
+        tsScore.score += 40; // TypeScript bonus
+
+        // Merge JavaScript score into TypeScript
+        const jsScore = scores.get("javascript");
+        if (jsScore) {
+          tsScore.score += jsScore.score;
+          tsScore.framework = jsScore.framework;
+          tsScore.buildSystem = jsScore.buildSystem;
+          scores.delete("javascript");
+        }
+        scores.set("typescript", tsScore);
+      }
+
+      // Detect framework
+      let framework: string | undefined;
+      if (allDeps.react || allDeps["react-dom"]) framework = "react";
+      else if (allDeps.vue || allDeps["@vue/core"]) framework = "vue";
+      else if (allDeps["@angular/core"]) framework = "angular";
+      else if (allDeps.next) framework = "nextjs";
+      else if (allDeps.svelte) framework = "svelte";
+
+      if (framework) {
+        const lang = hasTypeScript ? "typescript" : "javascript";
+        const entry = scores.get(lang);
+        if (entry) {
+          entry.framework = framework;
+          entry.score += 30; // Framework bonus
+        }
+      }
+
+      // Detect build system
+      let buildSystem: string | undefined;
+      if (allDeps.vite) buildSystem = "vite";
+      else if (allDeps.webpack) buildSystem = "webpack";
+      else if (allDeps.rollup) buildSystem = "rollup";
+      else if (allDeps.esbuild) buildSystem = "esbuild";
+
+      if (buildSystem) {
+        const lang = hasTypeScript ? "typescript" : "javascript";
+        const entry = scores.get(lang);
+        if (entry) {
+          entry.buildSystem = buildSystem;
+        }
+      }
+    } catch (error) {
+      this.logDebug("Failed to analyze package.json", error);
+    }
   }
 
   async getLanguageSpecificEssentials(
@@ -136,7 +236,7 @@ export class ProjectTypeDetectionService {
 
     const rootFolder = workspaceFolders[0];
     if (!rootFolder) return [];
-    
+
     const workspaceRoot = rootFolder.uri.fsPath;
     const cached = await this.workspaceStructureCache.getEssentialFiles(workspaceRoot);
     if (cached) {

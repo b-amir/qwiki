@@ -15,6 +15,9 @@ import type {
   CachedEssentialFiles,
 } from "../WorkspaceStructureCacheService";
 
+// Increment this when the project type detection algorithm changes
+const PROJECT_TYPE_ALGORITHM_VERSION = 2; // v2 = weighted scoring
+
 export class WorkspaceLevelCacheHandler {
   private logger: Logger;
   private readonly WORKSPACE_STRUCTURE_KEY = "qwiki:workspaceStructure:";
@@ -110,6 +113,16 @@ export class WorkspaceLevelCacheHandler {
         return null;
       }
 
+      // Invalidate cache if algorithm version changed
+      if (cached.algorithmVersion !== PROJECT_TYPE_ALGORITHM_VERSION) {
+        this.logger.debug("Project type cache invalidated due to algorithm version change", {
+          cachedVersion: cached.algorithmVersion,
+          currentVersion: PROJECT_TYPE_ALGORITHM_VERSION,
+        });
+        await this.deleteProjectType(workspaceRoot);
+        return null;
+      }
+
       this.logger.debug("Project type cache hit", {
         language: cached.detection.primaryLanguage,
         confidence: cached.detection.confidence,
@@ -133,6 +146,7 @@ export class WorkspaceLevelCacheHandler {
         detection,
         cachedAt: now,
         expiresAt: now + ttl,
+        algorithmVersion: PROJECT_TYPE_ALGORITHM_VERSION,
       };
 
       const key = `${this.PROJECT_TYPE_KEY}${workspaceRoot}`;

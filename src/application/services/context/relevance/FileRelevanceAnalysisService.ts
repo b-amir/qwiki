@@ -73,6 +73,11 @@ export class FileRelevanceAnalysisService {
       return skipScore;
     }
 
+    if (!(await this.fileExists(candidatePath))) {
+      this.logger.debug(`File no longer exists, skipping: ${candidatePath}`);
+      return null;
+    }
+
     const quickScore = await this.quickRelevanceCheck(targetPath, candidatePath);
     if (quickScore !== null && quickScore < minRelevanceThreshold) {
       const lowScore: FileRelevanceScore = {
@@ -100,38 +105,17 @@ export class FileRelevanceAnalysisService {
     let fileContent = "";
     let lastModified = new Date();
     try {
-      const readFilePromise = this.vscodeFileSystem.readFile(candidatePath, true);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("File read timeout")), 1000);
-      });
+      const content = await this.readFileWithAdaptiveTimeout(candidatePath);
+      if (content === null) {
+        return this.createFailedReadScore(candidatePath, cacheKey);
+      }
+      fileContent = content;
 
-      fileContent = await Promise.race([readFilePromise, timeoutPromise]);
       const stat = await this.vscodeFileSystem.stat(candidatePath);
       lastModified = stat.mtime ? new Date(stat.mtime) : new Date();
     } catch (error) {
       this.logDebug(`Failed to read file ${candidatePath}`, error);
-      const errorScore: FileRelevanceScore = {
-        filePath: candidatePath,
-        score: 0,
-        relevanceType: "structural",
-        tokenCost: 0,
-        compressionRatio: 0,
-        metadata: {
-          isDependency: false,
-          isImportedBy: [],
-          importsFrom: [],
-          semanticSimilarity: 0,
-          lastModified: new Date(),
-          complexity: 0,
-          fileCategory: "source",
-        },
-      };
-
-      await this.cachingService.set(cacheKey, errorScore, {
-        ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
-      });
-
-      return errorScore;
+      return this.createFailedReadScore(candidatePath, cacheKey);
     }
 
     const tokenCost = this.estimateTokenCount(fileContent);
@@ -753,5 +737,89 @@ export class FileRelevanceAnalysisService {
     ];
 
     return testPatterns.some((pattern) => pattern.test(filePath));
+  }
+
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await this.vscodeFileSystem.stat(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async readFileWithAdaptiveTimeout(
+    filePath: string,
+    expectedSizeBytes?: number,
+  ): Promise<string | null> {
+    const baseTimeout = ServiceLimits.fileReadTimeoutMs;
+    const sizeBasedTimeout = expectedSizeBytes
+      ? Math.ceil(expectedSizeBytes / 1024) * ServiceLimits.fileReadTimeoutPerKb
+      : 0;
+    const timeout = Math.min(baseTimeout + sizeBasedTimeout, ServiceLimits.fileReadMaxTimeoutMs);
+
+    for (let attempt = 0; attempt <= ServiceLimits.fileReadRetryCount; attempt++) {
+      try {
+        const readFilePromise = this.vscodeFileSystem.readFile(filePath, true);
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("File read timeout")), timeout);
+        });
+
+        const content = await Promise.race([readFilePromise, timeoutPromise]);
+        return content;
+      } catch (error) {
+        const isTimeout = error instanceof Error && error.message.includes("timeout");
+
+        if (isTimeout && attempt < ServiceLimits.fileReadRetryCount) {
+          this.logger.debug(
+            `File read timeout, retrying (${attempt + 1}/${ServiceLimits.fileReadRetryCount})`,
+            { filePath, timeout },
+          );
+          await this.delay(ServiceLimits.fileReadRetryDelayMs);
+          continue;
+        }
+
+        this.logger.warn(`File read failed after ${attempt + 1} attempts`, {
+          filePath,
+          timeout,
+          isTimeout,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async createFailedReadScore(
+    filePath: string,
+    cacheKey: string,
+  ): Promise<FileRelevanceScore> {
+    const errorScore: FileRelevanceScore = {
+      filePath,
+      score: 0,
+      relevanceType: "structural",
+      tokenCost: 0,
+      compressionRatio: 0,
+      metadata: {
+        isDependency: false,
+        isImportedBy: [],
+        importsFrom: [],
+        semanticSimilarity: 0,
+        lastModified: new Date(),
+        complexity: 0,
+        fileCategory: "source",
+      },
+    };
+
+    const shortTTL = 5 * 60 * 1000;
+    await this.cachingService.set(cacheKey, errorScore, { ttl: shortTTL });
+
+    return errorScore;
   }
 }

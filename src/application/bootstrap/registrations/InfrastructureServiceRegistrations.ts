@@ -2,6 +2,7 @@ import { Container } from "@/container/Container";
 import type { ExtensionContext } from "vscode";
 import { LoggingService } from "@/infrastructure/services";
 import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
+import { QwikiDirectoryService } from "@/infrastructure/services/filesystem/QwikiDirectoryService";
 import { ExtensionContextStorageService } from "@/infrastructure/services/storage/ExtensionContextStorageService";
 import { CachingService } from "@/infrastructure/services";
 import { PerformanceMonitorService } from "@/infrastructure/services/performance/PerformanceMonitorService";
@@ -43,6 +44,7 @@ export function registerInfrastructureServices(
     "vscodeFileSystemService",
     new VSCodeFileSystemService(loggingService),
   );
+  container.registerInstance("qwikiDirectoryService", new QwikiDirectoryService(loggingService));
   container.registerInstance("context", context);
   container.registerInstance("secrets", context.secrets);
 
@@ -56,14 +58,16 @@ export function registerInfrastructureServices(
     "performanceBudgetService",
     new PerformanceBudgetService(loggingService),
   );
-  
+
   container.registerLazy("generationCacheService", async () => {
-    const configRepo = container.resolve("configurationRepository") as import("@/domain/repositories/ConfigurationRepository").ConfigurationRepository;
-    
-    const enableSemanticCaching = await configRepo.get<boolean>("enableSemanticCaching") ?? false;
-    const semanticThreshold = await configRepo.get<number>("semanticSimilarityThreshold") ?? 0.8;
-    const semanticMaxEntries = await configRepo.get<number>("semanticCacheMaxEntries") ?? 100;
-    
+    const configRepo = container.resolve(
+      "configurationRepository",
+    ) as import("@/domain/repositories/ConfigurationRepository").ConfigurationRepository;
+
+    const enableSemanticCaching = (await configRepo.get<boolean>("enableSemanticCaching")) ?? false;
+    const semanticThreshold = (await configRepo.get<number>("semanticSimilarityThreshold")) ?? 0.8;
+    const semanticMaxEntries = (await configRepo.get<number>("semanticCacheMaxEntries")) ?? 100;
+
     return new GenerationCacheService(
       container.resolve("cachingService") as CachingService,
       enableSemanticCaching ? container.resolve("semanticCacheService") : undefined,
@@ -85,7 +89,11 @@ export function registerInfrastructureServices(
 
   container.register(
     "apiKeyRepository",
-    () => new VSCodeApiKeyRepository(container.resolve("secrets") as import("vscode").SecretStorage, loggingService),
+    () =>
+      new VSCodeApiKeyRepository(
+        container.resolve("secrets") as import("vscode").SecretStorage,
+        loggingService,
+      ),
   );
 
   container.register("configurationRepository", () => new VSCodeConfigurationRepository());

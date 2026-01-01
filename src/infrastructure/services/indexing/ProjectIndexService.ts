@@ -9,7 +9,10 @@ import { GitChangeDetectionService } from "@/infrastructure/services/integration
 import type { Disposable as IDisposable } from "vscode";
 import { FileMetadataExtractionService } from "@/infrastructure/services/indexing/FileMetadataExtractionService";
 import { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
-import { IndexInitializer } from "@/infrastructure/services/indexing/initialization/IndexInitializer";
+import {
+  IndexInitializer,
+  type QuickInitResult,
+} from "@/infrastructure/services/indexing/initialization/IndexInitializer";
 import { FileIndexer } from "@/infrastructure/services/indexing/indexing/FileIndexer";
 import { FileWatcherManager } from "@/infrastructure/services/indexing/watchers/FileWatcherManager";
 import { IndexingExclusionService } from "@/infrastructure/services/indexing/IndexingExclusionService";
@@ -45,6 +48,8 @@ export class ProjectIndexService {
   private disposables: IDisposable[] = [];
   private isInitialized = false;
   private quickIndexComplete = false;
+  private quickInitPromise: Promise<QuickInitResult> | null = null;
+  private initPromise: Promise<void> | null = null;
   private metadataExtractor: FileMetadataExtractionService;
   private cacheService: IndexCacheService;
   private indexInitializer: IndexInitializer;
@@ -85,33 +90,61 @@ export class ProjectIndexService {
     );
   }
 
-  /**
-   * Quick initialization: Load from cache only (< 100ms)
-   * This allows immediate use of cached index data without blocking
-   */
   async quickInit(): Promise<void> {
     if (this.quickIndexComplete) {
       this.logger.debug("Quick index already complete");
       return;
     }
 
-    this.quickIndexComplete = await this.indexInitializer.quickInit();
+    if (this.quickInitPromise) {
+      this.logger.debug("Quick init already in progress, waiting");
+      await this.quickInitPromise;
+      return;
+    }
+
+    this.quickInitPromise = this.indexInitializer.quickInit();
+    const result = await this.quickInitPromise;
+    this.quickIndexComplete = result.success || result.cacheStatus !== "expired";
+
+    if (result.needsBackgroundRefresh && !this.isInitialized) {
+      this.scheduleBackgroundRefresh();
+    }
   }
 
-  /**
-   * Full initialization: Scan workspace (20-30s, runs in background)
-   */
+  private scheduleBackgroundRefresh(): void {
+    setImmediate(() => {
+      this.initialize().catch((error) => {
+        this.logger.error("Background refresh failed", error);
+      });
+    });
+  }
+
   async initialize(): Promise<void> {
     if (this.isInitialized) {
       this.logger.debug("ProjectIndexService already initialized");
       return;
     }
 
+    if (this.initPromise) {
+      this.logger.debug("ProjectIndexService initialization in progress, waiting");
+      return this.initPromise;
+    }
+
+    this.initPromise = this.doInitialize();
+
+    try {
+      await this.initPromise;
+    } catch (error) {
+      this.initPromise = null;
+      throw error;
+    }
+  }
+
+  private async doInitialize(): Promise<void> {
     this.logger.info("Initializing ProjectIndexService (full scan)");
     const startTime = Date.now();
 
     try {
-      // Quick init first if not already done
       if (!this.quickIndexComplete) {
         await this.quickInit();
       }
@@ -120,6 +153,8 @@ export class ProjectIndexService {
       this.fileWatcherManager.setupFileWatchers();
       this.fileWatcherManager.setupGitBasedWatchers();
       this.isInitialized = true;
+
+      this.schedulePeriodicCleanup();
 
       const duration = Date.now() - startTime;
       this.logger.info("ProjectIndexService fully initialized", {
@@ -187,6 +222,23 @@ export class ProjectIndexService {
 
   getIndexCacheService(): IndexCacheService {
     return this.cacheService;
+  }
+
+  private schedulePeriodicCleanup(): void {
+    const CLEANUP_INTERVAL = 30 * 60 * 1000;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const result = await this.cacheService.removeStaleEntries();
+        if (result.removed > 0) {
+          this.logger.info(`Periodic cleanup removed ${result.removed} stale entries`);
+        }
+      } catch (error) {
+        this.logger.warn("Periodic cleanup failed", error);
+      }
+    }, CLEANUP_INTERVAL);
+
+    this.disposables.push({ dispose: () => clearInterval(intervalId) });
   }
 
   dispose(): void {

@@ -118,6 +118,11 @@ export class FileRelevanceBatchService {
     const prioritizedFiles = FilePriorityCalculator.prioritizeFiles(filesToAnalyze, targetFilePath);
     const minRelevanceThreshold = 0.1;
 
+    const timeBudgetMs = ServiceLimits.contextAnalysisTimeBudgetMs;
+    const minHighQuality = ServiceLimits.contextAnalysisMinHighQuality;
+    const highQualityThreshold = ServiceLimits.contextAnalysisHighQualityThreshold;
+    let earlyTerminated = false;
+
     const processBatch = async (batch: Uri[]): Promise<void> => {
       const batchPromises = batch.map(async (fileUri) => {
         const filePath = fileUri.fsPath;
@@ -189,11 +194,40 @@ export class FileRelevanceBatchService {
     };
 
     for (let i = 0; i < prioritizedFiles.length; i += concurrencyLimit) {
+      const elapsed = Date.now() - analyzeStart;
+      if (elapsed > timeBudgetMs) {
+        earlyTerminated = true;
+        this.logger.info("Analysis time budget exceeded, terminating early", {
+          elapsed,
+          budgetMs: timeBudgetMs,
+          analyzedSoFar: analyzedCount,
+          remainingFiles: prioritizedFiles.length - i,
+        });
+        break;
+      }
+
+      // Check if we have enough high-quality files
+      const highQualityCount = fileRelevanceScores.filter(
+        (s) => s.score >= highQualityThreshold,
+      ).length;
+      if (highQualityCount >= minHighQuality && analyzedCount >= concurrencyLimit * 2) {
+        earlyTerminated = true;
+        this.logger.info("Enough high-quality files found, terminating early", {
+          highQualityCount,
+          minRequired: minHighQuality,
+          analyzedSoFar: analyzedCount,
+        });
+        break;
+      }
+
       const batch = prioritizedFiles.slice(i, i + concurrencyLimit);
       await processBatch(batch);
     }
 
     const analysisDuration = Date.now() - analyzeStart;
+    const highQualityFinal = fileRelevanceScores.filter(
+      (s) => s.score >= highQualityThreshold,
+    ).length;
     this.logger.info("File relevance analysis COMPLETED", {
       duration: analysisDuration,
       durationSeconds: Math.round(analysisDuration / 1000),
@@ -201,6 +235,8 @@ export class FileRelevanceBatchService {
       skipped: skippedCount,
       errors: errorCount,
       scoresFound: fileRelevanceScores.length,
+      highQualityFiles: highQualityFinal,
+      earlyTerminated,
       averageTimePerFile: Math.round(analysisDuration / Math.max(analyzedCount, 1)),
     });
 

@@ -26,6 +26,7 @@ export interface CachedProjectType {
   detection: ProjectTypeDetection;
   cachedAt: number;
   expiresAt: number;
+  algorithmVersion?: number;
 }
 
 export interface CachedEssentialFiles {

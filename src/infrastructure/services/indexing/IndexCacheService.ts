@@ -35,6 +35,66 @@ export class IndexCacheService {
     this.fileSystemService = new VSCodeFileSystemService(loggingService);
   }
 
+  getCacheStatus(): "fresh" | "stale" | "expired" {
+    try {
+      const cached = this.extensionContext.workspaceState.get("projectIndexCache") as
+        | ProjectIndexCache
+        | undefined;
+
+      if (!cached || cached.version !== ServiceLimits.indexCacheVersion) {
+        return "expired";
+      }
+
+      const age = Date.now() - cached.indexedAt;
+
+      if (age < ServiceLimits.indexCacheFreshTTL) {
+        return "fresh";
+      }
+      if (age < ServiceLimits.indexCacheStaleTTL) {
+        return "stale";
+      }
+      return "expired";
+    } catch {
+      return "expired";
+    }
+  }
+
+  async loadIndexWithRevalidation(): Promise<{
+    cache: ProjectIndexCache | null;
+    status: "fresh" | "stale" | "expired";
+    needsRefresh: boolean;
+  }> {
+    const status = this.getCacheStatus();
+    const cached = await this.loadIndexFromCacheRaw();
+
+    if (status === "expired") {
+      return { cache: null, status, needsRefresh: true };
+    }
+
+    if (status === "stale") {
+      return { cache: cached, status, needsRefresh: true };
+    }
+
+    return { cache: cached, status, needsRefresh: false };
+  }
+
+  private async loadIndexFromCacheRaw(): Promise<ProjectIndexCache | null> {
+    try {
+      const cached = this.extensionContext.workspaceState.get("projectIndexCache") as
+        | ProjectIndexCache
+        | undefined;
+
+      if (!cached || cached.version !== ServiceLimits.indexCacheVersion) {
+        return null;
+      }
+
+      return cached;
+    } catch (error) {
+      this.logger.debug("Failed to load index from cache", error);
+      return null;
+    }
+  }
+
   async loadIndexFromCache(): Promise<ProjectIndexCache | null> {
     try {
       const cached = this.extensionContext.workspaceState.get("projectIndexCache") as
@@ -326,6 +386,40 @@ export class IndexCacheService {
     } catch (error) {
       this.logger.error("Failed to get symbols from index cache", { error, filePath });
       return null;
+    }
+  }
+
+  async removeStaleEntries(): Promise<{ removed: number; checked: number }> {
+    const toRemove: string[] = [];
+    let checked = 0;
+
+    for (const [filePath] of this.index.entries()) {
+      checked++;
+      try {
+        await this.fileSystemService.stat(filePath);
+      } catch {
+        toRemove.push(filePath);
+      }
+    }
+
+    for (const filePath of toRemove) {
+      this.index.delete(filePath);
+      this.updateLanguageIndexForFile(filePath, undefined);
+    }
+
+    if (toRemove.length > 0) {
+      await this.persistIndex();
+      this.logger.info(`Cleaned ${toRemove.length} stale entries from ${checked} checked`);
+    }
+
+    return { removed: toRemove.length, checked };
+  }
+
+  removeFromIndex(filePath: string): void {
+    if (this.index.has(filePath)) {
+      this.index.delete(filePath);
+      this.updateLanguageIndexForFile(filePath, undefined);
+      this.logger.debug(`Removed file from index: ${filePath}`);
     }
   }
 }
