@@ -47,7 +47,12 @@ export function createGoogleAIStudioValidationRules(): ValidationRule[] {
       validator: (value: unknown, context: ValidationContext) => {
         const errors: ValidationError[] = [];
         const warnings: ValidationWarning[] = [];
-        const validModels = ["gemini-2.5-pro", "gemini-2.5-flash"];
+        const validModels = [
+          "gemini-2.5-pro",
+          "gemini-2.5-flash",
+          "gemini-3-pro",
+          "gemini-3-flash",
+        ];
 
         if (typeof value !== "string") {
           errors.push({

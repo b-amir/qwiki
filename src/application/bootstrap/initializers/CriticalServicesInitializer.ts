@@ -54,9 +54,9 @@ export class CriticalServicesInitializer {
     await configManager.loadCachedProvider();
 
     const cachingService = this.container.resolve("cachingService") as CachingService;
-    const generationCacheService = this.container.resolve(
+    const generationCacheService = (await this.container.resolveLazy(
       "generationCacheService",
-    ) as GenerationCacheService;
+    )) as GenerationCacheService;
     const cacheInvalidationService = this.container.resolve(
       "projectContextCacheInvalidationService",
     ) as ProjectContextCacheInvalidationService;
@@ -73,15 +73,18 @@ export class CriticalServicesInitializer {
       "configurationMigrationService",
     ) as ConfigurationMigrationService;
 
-    migrationService.needsMigration().then((needsMigration) => {
-      if (needsMigration) {
-        migrationService.migrateToVersion("1.4.0").catch((error) => {
-          this.logger.warn("Background migration failed", { error });
-        });
-      }
-    }).catch((error) => {
-      this.logger.warn("Background migration check failed", { error });
-    });
+    migrationService
+      .needsMigration()
+      .then((needsMigration) => {
+        if (needsMigration) {
+          migrationService.migrateToVersion("1.4.0").catch((error) => {
+            this.logger.warn("Background migration failed", { error });
+          });
+        }
+      })
+      .catch((error) => {
+        this.logger.warn("Background migration check failed", { error });
+      });
 
     this.readinessManager.markReady("configurationManager");
   }

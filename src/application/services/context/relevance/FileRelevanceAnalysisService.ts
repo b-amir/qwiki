@@ -100,11 +100,38 @@ export class FileRelevanceAnalysisService {
     let fileContent = "";
     let lastModified = new Date();
     try {
-      fileContent = await this.vscodeFileSystem.readFile(candidatePath, true);
+      const readFilePromise = this.vscodeFileSystem.readFile(candidatePath, true);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("File read timeout")), 1000);
+      });
+
+      fileContent = await Promise.race([readFilePromise, timeoutPromise]);
       const stat = await this.vscodeFileSystem.stat(candidatePath);
       lastModified = stat.mtime ? new Date(stat.mtime) : new Date();
     } catch (error) {
       this.logDebug(`Failed to read file ${candidatePath}`, error);
+      const errorScore: FileRelevanceScore = {
+        filePath: candidatePath,
+        score: 0,
+        relevanceType: "structural",
+        tokenCost: 0,
+        compressionRatio: 0,
+        metadata: {
+          isDependency: false,
+          isImportedBy: [],
+          importsFrom: [],
+          semanticSimilarity: 0,
+          lastModified: new Date(),
+          complexity: 0,
+          fileCategory: "source",
+        },
+      };
+
+      await this.cachingService.set(cacheKey, errorScore, {
+        ttl: ServiceLimits.contextIntelligenceFileRelevanceTTL,
+      });
+
+      return errorScore;
     }
 
     const tokenCost = this.estimateTokenCount(fileContent);

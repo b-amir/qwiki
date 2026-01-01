@@ -238,7 +238,7 @@ export function registerContextServices(
       loggingService,
       await container.resolveLazy("llmRegistry"),
       (await container.resolveLazy("projectIndexService")) as ProjectIndexService,
-      container.resolve("contextSuggestionService") as ContextSuggestionService,
+      (await container.resolveLazy("contextSuggestionService")) as ContextSuggestionService,
     );
   });
 

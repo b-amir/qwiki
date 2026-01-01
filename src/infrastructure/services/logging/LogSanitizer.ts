@@ -76,6 +76,20 @@ export class LogSanitizer {
     }
 
     const sanitized: Record<string, unknown> = {};
+
+    if (
+      data instanceof Error ||
+      (typeof data === "object" && data !== null && "name" in data && "message" in data)
+    ) {
+      const err = data as any;
+      return {
+        name: err.name,
+        message: err.message,
+        stack: err.stack ? this.sanitizeString(err.stack, 200) : undefined,
+        code: err.code,
+      };
+    }
+
     for (const [key, value] of Object.entries(data)) {
       if (
         key === "path" ||

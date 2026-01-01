@@ -85,7 +85,15 @@ export class AppBootstrap {
     return this.readinessManager;
   }
 
+  private eventHandlersInitialized = false;
+
   async initializeEventHandlers(): Promise<void> {
+    if (this.eventHandlersInitialized) {
+      this.logger.info("Event handlers already initialized, skipping");
+      return;
+    }
+    this.eventHandlersInitialized = true;
+
     this.container.resolve<SelectionEventHandler>("selectionEventHandler").register();
     const wikiEventHandler = await this.container.resolveLazy<WikiEventHandler>("wikiEventHandler");
     wikiEventHandler.register();

@@ -13,7 +13,12 @@ import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/htt
 import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
 import { ServiceLimits } from "@/constants";
 
-const GOOGLE_AI_STUDIO_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"];
+const GOOGLE_AI_STUDIO_MODELS = [
+  "gemini-2.5-pro",
+  "gemini-2.5-flash",
+  "gemini-3-pro",
+  "gemini-3-flash",
+];
 
 export class GoogleAIStudioProvider implements LLMProvider {
   id = "google-ai-studio" as const;
@@ -58,7 +63,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
 
   getModelCapabilities(model?: string): ProviderCapabilities {
     const baseCapabilities = { ...this.capabilities };
-    if (model === "gemini-2.5-pro") {
+    if (model === "gemini-2.5-pro" || model === "gemini-3-pro") {
       return {
         ...baseCapabilities,
         maxTokens: 8192,
@@ -66,7 +71,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
         streaming: true,
         functionCalling: true,
       };
-    } else if (model === "gemini-2.5-flash") {
+    } else if (model === "gemini-2.5-flash" || model === "gemini-3-flash") {
       return {
         ...baseCapabilities,
         maxTokens: 8192,
