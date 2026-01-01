@@ -30,7 +30,7 @@ const buttonText = computed(() => {
     <div class="flex flex-1 flex-col items-center justify-center space-y-4 sm:space-y-6">
       <div class="flex items-center justify-center">
         <svg
-          class="h-20 w-20 sm:h-[120px] sm:w-[120px]"
+          class="h-16 w-16 min-[240px]:h-20 min-[240px]:w-20 sm:h-[120px] sm:w-[120px]"
           viewBox="0 0 512 512"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -51,22 +51,24 @@ const buttonText = computed(() => {
         </svg>
       </div>
 
-      <h1 class="px-2 text-center text-lg font-semibold sm:text-xl">
+      <h1 class="px-2 text-center text-base font-semibold min-[240px]:text-lg sm:text-xl">
         One <span class="qwiki-gradient-text">Qwiki</span> and you'll know.
       </h1>
 
-      <div class="bg-muted/20 border-border/50 w-70 rounded-lg border px-2 py-2 sm:w-96 sm:px-3">
+      <div
+        class="min-[264px]:bg-muted/20 min-[264px]:border-border/50 w-full max-w-[280px] rounded-lg px-2 py-2 min-[264px]:border sm:max-w-md sm:px-3"
+      >
         <div class="flex flex-col items-center space-y-2 opacity-70">
           <div class="flex flex-col items-center gap-1 text-center">
             <p class="text-muted-foreground break-words text-xs">
-              Select code, then press:
+              <span class="hidden min-[264px]:inline">Select code, then press:</span>
               <kbd
                 class="bg-background border-border/80 text-foreground ml-1 inline-flex h-5 shrink-0 items-center justify-center rounded border px-1.5 text-xs font-medium shadow-sm"
                 >Ctrl+Shift+Q</kbd
               >
             </p>
 
-            <span class="text-muted-foreground break-words text-xs"
+            <span class="text-muted-foreground hidden break-words text-xs min-[264px]:inline"
               >or right-click:
               <span
                 class="bg-background text-foreground shadow-xs inline-flex shrink-0 items-center justify-center rounded px-1.5 py-0.5 text-[10.8px] font-medium"
