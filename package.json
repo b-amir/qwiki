@@ -381,6 +381,19 @@
           "type": "object",
           "default": {},
           "description": "Global backup storage for configuration migrations."
+        },
+        "qwiki.indexing.useGitignore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use .gitignore patterns when indexing files. This helps exclude files that are not relevant to the project."
+        },
+        "qwiki.indexing.excludePatterns": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional glob patterns to exclude from indexing (e.g., '**/vendor/**', '*.generated.ts')."
         }
       }
     },

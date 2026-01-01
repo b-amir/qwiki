@@ -115,6 +115,9 @@ export class AppBootstrap {
       "@/presentation/commands/registerSemanticCommands"
     );
     registerSemanticCommands(this);
+
+    const { registerCoreCommands } = await import("@/presentation/commands/registerCoreCommands");
+    registerCoreCommands(this);
   }
 
   async createCommandRegistry(webview: Webview): Promise<CommandRegistry> {

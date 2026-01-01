@@ -4,6 +4,7 @@ import { FilePatterns } from "@/constants";
 import type { Logger } from "@/infrastructure/services";
 import type { FileMetadataExtractionService } from "@/infrastructure/services/indexing/FileMetadataExtractionService";
 import type { IndexCacheService } from "@/infrastructure/services/indexing/IndexCacheService";
+import type { IndexingExclusionService } from "@/infrastructure/services/indexing/IndexingExclusionService";
 import type { IndexedFile } from "@/infrastructure/services/indexing/ProjectIndexService";
 import type { DocumentSymbol } from "vscode";
 import type { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
@@ -18,6 +19,7 @@ export class FileIndexer {
     private cacheService: IndexCacheService,
     private logger: Logger,
     private taskScheduler?: TaskSchedulerService,
+    private exclusionService?: IndexingExclusionService,
   ) {
     this.binaryPatterns = [
       FilePatterns.excludeBinary,
@@ -36,21 +38,36 @@ export class FileIndexer {
     this.logger.debug("Starting initial index", { folderCount: workspaceFolders.length });
 
     try {
-      const files = await workspace.findFiles(FilePatterns.allFiles, FilePatterns.exclude);
+      if (this.exclusionService) {
+        await this.exclusionService.initialize();
+        const stats = this.exclusionService.getPatternStats();
+        this.logger.info("Exclusion service initialized", stats);
+      }
 
-      this.logger.debug("Found files for indexing", { fileCount: files.length });
+      const exclusionPattern = this.buildExclusionPattern();
+      const files = await workspace.findFiles(FilePatterns.allFiles, exclusionPattern);
+
+      const filteredFiles = this.exclusionService
+        ? files.filter((uri) => !this.exclusionService!.shouldExclude(uri.fsPath))
+        : files;
+
+      this.logger.info("Found files for indexing", {
+        rawCount: files.length,
+        filteredCount: filteredFiles.length,
+        excludedByService: files.length - filteredFiles.length,
+      });
 
       this.filesPendingSymbolPrefetch = [];
 
       const batchSize = ServiceLimits.indexBatchSize;
-      for (let i = 0; i < files.length; i += batchSize) {
-        const batch = files.slice(i, i + batchSize);
+      for (let i = 0; i < filteredFiles.length; i += batchSize) {
+        const batch = filteredFiles.slice(i, i + batchSize);
         await Promise.all(batch.map((uri) => this.indexFile(uri, false)));
 
         if (i % (batchSize * 5) === 0) {
           this.logger.debug("Indexing progress", {
-            processed: Math.min(i + batchSize, files.length),
-            total: files.length,
+            processed: Math.min(i + batchSize, filteredFiles.length),
+            total: filteredFiles.length,
           });
         }
       }
@@ -63,6 +80,12 @@ export class FileIndexer {
       this.logger.error("Failed during initial index", error);
       throw error;
     }
+  }
+
+  private buildExclusionPattern(): string {
+    const dirPatterns = FilePatterns.excludeDirectories.filter((p) => !p.includes("*")).join(",");
+
+    return `**/{${dirPatterns}}/**`;
   }
 
   async indexFile(uri: Uri, prefetchSymbols = true): Promise<void> {
@@ -172,6 +195,10 @@ export class FileIndexer {
       if (pattern.test(filePath)) {
         return false;
       }
+    }
+
+    if (this.exclusionService?.shouldExclude(filePath)) {
+      return false;
     }
 
     return true;

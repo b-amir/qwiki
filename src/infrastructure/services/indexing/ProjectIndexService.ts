@@ -12,6 +12,8 @@ import { IndexCacheService } from "@/infrastructure/services/indexing/IndexCache
 import { IndexInitializer } from "@/infrastructure/services/indexing/initialization/IndexInitializer";
 import { FileIndexer } from "@/infrastructure/services/indexing/indexing/FileIndexer";
 import { FileWatcherManager } from "@/infrastructure/services/indexing/watchers/FileWatcherManager";
+import { IndexingExclusionService } from "@/infrastructure/services/indexing/IndexingExclusionService";
+import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
 import type { TaskSchedulerService } from "@/infrastructure/services/orchestration/TaskSchedulerService";
 
 export interface IndexedFile {
@@ -48,6 +50,7 @@ export class ProjectIndexService {
   private indexInitializer: IndexInitializer;
   private fileIndexer: FileIndexer;
   private fileWatcherManager: FileWatcherManager;
+  private exclusionService: IndexingExclusionService;
 
   constructor(
     private extensionContext: ExtensionContext,
@@ -60,11 +63,16 @@ export class ProjectIndexService {
     this.metadataExtractor = new FileMetadataExtractionService(loggingService);
     this.cacheService = new IndexCacheService(extensionContext, loggingService);
     this.indexInitializer = new IndexInitializer(this.cacheService, this.logger);
+
+    const fileSystemService = new VSCodeFileSystemService(loggingService);
+    this.exclusionService = new IndexingExclusionService(loggingService, fileSystemService);
+
     this.fileIndexer = new FileIndexer(
       this.metadataExtractor,
       this.cacheService,
       this.logger,
       taskScheduler,
+      this.exclusionService,
     );
     this.fileWatcherManager = new FileWatcherManager(
       this.debouncingService,
