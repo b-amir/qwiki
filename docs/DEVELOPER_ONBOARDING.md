@@ -306,7 +306,7 @@ The system includes comprehensive performance optimizations:
 
 - Pre-computed relevance scores stored during indexing
 - Analysis time reduced from 20-30s to <1s for cached results
-- Batch processing with configurable concurrency (default: 16 files in parallel)
+- Batch processing with configurable concurrency (default: 10 files in parallel)
 - Multi-factor scoring combining semantic similarity, imports, dependencies, and recency
 
 **Webview Communication**:
