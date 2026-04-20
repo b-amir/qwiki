@@ -1,6 +1,12 @@
 # Qwiki
 
-<img src="./resources/infographic.png" alt="Qwiki Infographic" width="100%" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/b-amir/qwiki/main/resources/preview-icon.png" alt="Qwiki Icon" width="120" />
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/b-amir/qwiki/main/resources/infographic.png" alt="Qwiki Infographic" width="100%" />
+</p>
 
 Qwiki is a local-only VS Code extension that turns code selections into living project documentation. It combines deep project indexing, context-aware provider orchestration, adaptive prompt engineering, and a Vue-powered dashboard so teams can document code without leaving the editor.
 
@@ -53,13 +59,14 @@ webview-ui/
 
 ## Learn More
 
-- `docs/ARCHITECTURE.md` — clean architecture overview, service catalog, and data flow diagrams
-- `docs/API_REFERENCE.md` — command surface, message payloads, and provider contracts
-- `docs/DEVELOPER_ONBOARDING.md` — workstation setup, debugging tips, and contribution workflow
-- `docs/BACKEND.md` — extension-host operational guidance and VS Code best practices
-- `docs/FRONTEND.md` — Vue webview performance guidance and batching protocol
-- `docs/DESIGN_SYSTEM.md` — Tailwind theme tokens, accessibility, and UI conventions
-- `docs/CHECKLIST.md` — active backlog and future development plans
+- [Architecture](./docs/ARCHITECTURE.md) — clean architecture overview, service catalog, and data flow diagrams
+- [API Reference](./docs/API_REFERENCE.md) — command surface, message payloads, and provider contracts
+- [Developer Onboarding](./docs/DEVELOPER_ONBOARDING.md) — workstation setup, debugging tips, and contribution workflow
+- [Backend Guide](./docs/BACKEND.md) — extension-host operational guidance and VS Code best practices
+- [Frontend Guide](./docs/FRONTEND.md) — Vue webview performance guidance and batching protocol
+- [Design System](./docs/DESIGN_SYSTEM.md) — Tailwind theme tokens, accessibility, and UI conventions
+- [System Workflows](./docs/SYSTEM_WORKFLOWS.md) — end-to-end operational flows and lifecycle behavior
+- [SOLID Principles](./docs/SOLID_PRINCIPLES.md) — architecture constraints and maintainability guidelines
 
 ---
 
