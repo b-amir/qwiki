@@ -8,6 +8,7 @@ import { CachingService } from "@/infrastructure/services";
 import { GenerationCacheService } from "@/infrastructure/services/caching/GenerationCacheService";
 import { ProjectContextCacheInvalidationService } from "@/infrastructure/services/caching/ProjectContextCacheInvalidationService";
 import { QwikiDirectoryService } from "@/infrastructure/services/filesystem/QwikiDirectoryService";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 
 export class CriticalServicesInitializer {
   private logger: Logger;
@@ -74,6 +75,11 @@ export class CriticalServicesInitializer {
     );
 
     await configManager.initialize();
+
+    const providerModelCatalog = (await this.container.resolveLazy(
+      "providerModelCatalogService",
+    )) as ProviderModelCatalogService;
+    configManager.setProviderModelCatalog(providerModelCatalog);
 
     const migrationService = this.container.resolve(
       "configurationMigrationService",

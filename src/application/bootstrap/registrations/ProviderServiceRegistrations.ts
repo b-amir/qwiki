@@ -3,6 +3,7 @@ import { LoggingService } from "@/infrastructure/services";
 import { ProviderSelectionService } from "@/application/services/providers/ProviderSelectionService";
 import { ProviderHealthService } from "@/infrastructure/services/providers/ProviderHealthService";
 import { ProviderValidationService } from "@/infrastructure/services/providers/ProviderValidationService";
+import { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { ProviderPerformanceService } from "@/infrastructure/services/providers/ProviderPerformanceService";
 import { MetricsCollectionService } from "@/infrastructure/services/performance/MetricsCollectionService";
 import { StatisticsCalculationService } from "@/infrastructure/services/performance/StatisticsCalculationService";
@@ -14,6 +15,17 @@ export function registerProviderServices(
   container: Container,
   loggingService: LoggingService,
 ): void {
+  container.registerLazy(
+    "providerModelCatalogService",
+    async () =>
+      new ProviderModelCatalogService(
+        await container.resolveLazy("llmRegistry"),
+        container.resolve("apiKeyRepository"),
+        container.resolve("configurationManager"),
+        loggingService,
+      ),
+  );
+
   container.registerLazy(
     "providerSelectionService",
     async () =>
@@ -43,6 +55,7 @@ export function registerProviderServices(
         await container.resolveLazy("llmRegistry"),
         container.resolve("configurationManager"),
         container.resolve("apiKeyRepository"),
+        await container.resolveLazy("providerModelCatalogService"),
         loggingService,
       ),
   );
