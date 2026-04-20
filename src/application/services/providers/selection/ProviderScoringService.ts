@@ -36,7 +36,7 @@ export class ProviderScoringService {
       }
     }
 
-    if (requirements.minTokens && capabilities.maxTokens >= requirements.minTokens) {
+    if (requirements.minTokens && (capabilities.maxTokens ?? 0) >= requirements.minTokens) {
       score += 15;
     }
 
@@ -61,7 +61,7 @@ export class ProviderScoringService {
 
     if (
       requirements.minContextWindow &&
-      capabilities.contextWindowSize >= requirements.minContextWindow
+      (capabilities.contextWindowSize ?? 0) >= requirements.minContextWindow
     ) {
       score += 10;
     }
@@ -143,7 +143,7 @@ export class ProviderScoringService {
       reasons.push("Handles complex code structure");
     }
 
-    if (requirements.minTokens && capabilities.maxTokens >= requirements.minTokens) {
+    if (requirements.minTokens && (capabilities.maxTokens ?? 0) >= requirements.minTokens) {
       reasons.push("Sufficient token limit");
     }
 

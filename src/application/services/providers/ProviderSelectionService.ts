@@ -188,18 +188,18 @@ export class ProviderSelectionService {
       }
     }
 
-    if (requirements.minTokens && capabilities.maxTokens < requirements.minTokens) {
+    if (requirements.minTokens && (capabilities.maxTokens ?? 0) < requirements.minTokens) {
       reasons.push(
-        `Insufficient max tokens: ${capabilities.maxTokens} < ${requirements.minTokens}`,
+        `Insufficient max tokens: ${capabilities.maxTokens ?? 0} < ${requirements.minTokens}`,
       );
     }
 
     if (
       requirements.minContextWindow &&
-      capabilities.contextWindowSize < requirements.minContextWindow
+      (capabilities.contextWindowSize ?? 0) < requirements.minContextWindow
     ) {
       reasons.push(
-        `Insufficient context window: ${capabilities.contextWindowSize} < ${requirements.minContextWindow}`,
+        `Insufficient context window: ${capabilities.contextWindowSize ?? 0} < ${requirements.minContextWindow}`,
       );
     }
 
@@ -242,17 +242,17 @@ export class ProviderSelectionService {
       }
     }
 
-    if (requirements.minTokens && capabilities.maxTokens >= requirements.minTokens) {
-      score += Math.min(10, (capabilities.maxTokens - requirements.minTokens) / 100);
+    if (requirements.minTokens && (capabilities.maxTokens ?? 0) >= requirements.minTokens) {
+      score += Math.min(10, ((capabilities.maxTokens ?? 0) - requirements.minTokens) / 100);
     }
 
     if (
       requirements.minContextWindow &&
-      capabilities.contextWindowSize >= requirements.minContextWindow
+      (capabilities.contextWindowSize ?? 0) >= requirements.minContextWindow
     ) {
       score += Math.min(
         10,
-        (capabilities.contextWindowSize - requirements.minContextWindow) / 1000,
+        ((capabilities.contextWindowSize ?? 0) - requirements.minContextWindow) / 1000,
       );
     }
 
@@ -267,7 +267,7 @@ export class ProviderSelectionService {
       score += (supportedPreferredCount / requirements.preferredLanguages.length) * 15;
     }
 
-    score += capabilities.rateLimitPerMinute / 10;
+    score += (capabilities.rateLimitPerMinute ?? 0) / 10;
 
     return score;
   }
@@ -277,9 +277,9 @@ export class ProviderSelectionService {
     let score = 0;
 
     score += capabilities.features.length * 5;
-    score += capabilities.maxTokens / 100;
-    score += capabilities.contextWindowSize / 1000;
-    score += capabilities.rateLimitPerMinute / 10;
+    score += (capabilities.maxTokens ?? 0) / 100;
+    score += (capabilities.contextWindowSize ?? 0) / 1000;
+    score += (capabilities.rateLimitPerMinute ?? 0) / 10;
 
     if (capabilities.streaming) score += 10;
     if (capabilities.functionCalling) score += 10;
@@ -307,13 +307,13 @@ export class ProviderSelectionService {
     }
 
     if (context.project && context.project.related && context.project.related.length > 10) {
-      if (provider.capabilities.contextWindowSize > 16000) {
+      if ((provider.capabilities.contextWindowSize ?? 0) > 16000) {
         score += 15;
       }
     }
 
     if (context.snippet && context.snippet.length > 5000) {
-      if (provider.capabilities.maxTokens > 8000) {
+      if ((provider.capabilities.maxTokens ?? 0) > 8000) {
         score += 10;
       }
     }
