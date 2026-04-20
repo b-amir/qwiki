@@ -26,6 +26,7 @@ import type { CachingService } from "@/infrastructure/services";
 import type { GenerationCacheService } from "@/infrastructure/services";
 import type { ProjectIndexService } from "@/infrastructure/services";
 import type { LLMRegistry } from "@/llm";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { ConfigurationCacheManager } from "@/application/services/configuration/caching/ConfigurationCacheManager";
 import { ConfigurationValidator } from "@/application/services/configuration/validation/ConfigurationValidator";
 import { AdvancedConfigurationManager } from "@/application/services/configuration/management/AdvancedConfigurationManager";
@@ -79,6 +80,7 @@ export class ConfigurationManagerService {
       this.validator,
       this.cacheManager,
       undefined,
+      undefined,
       loggingService,
     );
     this.globalManager = new GlobalConfigurationManager(
@@ -125,6 +127,10 @@ export class ConfigurationManagerService {
 
   setLlmRegistry(llmRegistry: LLMRegistry): void {
     this.providerManager.setLlmRegistry(llmRegistry);
+  }
+
+  setProviderModelCatalog(service: ProviderModelCatalogService): void {
+    this.providerManager.setProviderModelCatalog(service);
   }
 
   async loadCachedProvider(): Promise<void> {

@@ -5,6 +5,7 @@ import type { ConfigurationRepository } from "@/domain/repositories/Configuratio
 import type { ProviderConfiguration } from "@/domain/configuration";
 import type { ConfigurationValidationEngineService } from "@/application/services/configuration/ConfigurationValidationEngineService";
 import type { LLMRegistry } from "@/llm";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { ConfigurationValidator } from "@/application/services/configuration/validation/ConfigurationValidator";
 
 export class ProviderConfigurationManager {
@@ -21,6 +22,7 @@ export class ProviderConfigurationManager {
       set: <T>(key: string, value: T) => void;
     },
     private llmRegistry?: LLMRegistry,
+    private providerModelCatalog?: ProviderModelCatalogService,
     loggingService?: LoggingService,
   ) {
     this.logger = loggingService
@@ -35,6 +37,10 @@ export class ProviderConfigurationManager {
 
   setLlmRegistry(llmRegistry: LLMRegistry): void {
     this.llmRegistry = llmRegistry;
+  }
+
+  setProviderModelCatalog(service: ProviderModelCatalogService): void {
+    this.providerModelCatalog = service;
   }
 
   async getProviderConfig(providerId: string): Promise<ProviderConfiguration | undefined> {
@@ -53,7 +59,15 @@ export class ProviderConfigurationManager {
   async setProviderConfig(providerId: string, config: ProviderConfiguration): Promise<void> {
     let availableModels: string[] | undefined;
 
-    if (this.llmRegistry) {
+    if (this.providerModelCatalog) {
+      try {
+        availableModels = await this.providerModelCatalog.resolveModelsForProvider(providerId);
+      } catch (error) {
+        this.logger.warn(`Could not resolve models for provider ${providerId}`, error);
+      }
+    }
+
+    if ((!availableModels || availableModels.length === 0) && this.llmRegistry) {
       try {
         const provider = this.llmRegistry.getProvider(providerId);
         if (provider) {
