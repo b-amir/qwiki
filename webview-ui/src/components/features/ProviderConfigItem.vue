@@ -21,6 +21,16 @@ interface ProviderConfig {
   models?: string[];
 }
 
+// Provider-specific API key patterns
+const PROVIDER_KEY_PATTERNS: Record<string, string> = {
+  cohere: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "google-ai-studio": "AIza...",
+  huggingface: "hf_...",
+  openrouter: "sk-or-...",
+  zai: "your-api-key-here",
+  custom: "your-api-key-here",
+};
+
 interface Props {
   provider: ProviderConfig;
   isSelected: boolean;
@@ -42,6 +52,11 @@ const emit = defineEmits<{
 
 const wiki = useWikiStore();
 const settings = useSettingsStore();
+
+// Get provider-specific API key placeholder
+const getApiKeyPlaceholder = () => {
+  return PROVIDER_KEY_PATTERNS[props.provider.id] || "your-api-key-here";
+};
 
 const getModelsForProvider = (providerId: string, fallbackIds?: string[]) => {
   if (props.provider?.models?.length) {
@@ -119,18 +134,16 @@ const getCustomFieldValue = (fieldId: string) => {
 
 <template>
   <div
-    class="hover:border-primary hover:bg-muted/90 focus-within:border-primary group overflow-clip rounded-xl border border-transparent"
+    class="border-border/60 bg-background/50 hover:border-primary/50 hover:bg-muted/30 group overflow-clip rounded-lg border transition-all duration-200 ease-out"
     :class="{
-      'bg-foreground border-transparent shadow-sm focus-within:border-transparent': isSelected,
-      'bg-muted': !isSelected,
-    }"
-    :style="{
-      transition: 'background-color 0.08s ease-out, border-color 0.08s ease-out',
-      willChange: 'background-color, border-color',
+      'border-primary shadow-primary/5 shadow-sm': isSelected,
     }"
   >
     <div
-      class="flex min-w-0 cursor-pointer select-none items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 md:gap-4 md:px-5 md:py-3.5"
+      class="flex min-w-0 cursor-pointer select-none items-center gap-2 px-3 py-2 transition-colors duration-200"
+      :class="{
+        'bg-primary': isSelected,
+      }"
       @click="emit('provider-change', provider.id)"
     >
       <div class="relative flex flex-shrink-0 items-center">
@@ -142,20 +155,24 @@ const getCustomFieldValue = (fieldId: string) => {
           class="sr-only"
           @change="emit('provider-change', provider.id)"
         />
-        <div
-          class="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full border-2 sm:h-4 sm:w-4"
-          :class="
-            isSelected
-              ? 'border-primary bg-primary ring-primary/20 ring-2'
-              : 'border-muted-foreground group-hover:border-primary'
-          "
-        >
-          <div v-if="isSelected" class="bg-background h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2" />
+        <div class="relative flex h-4 w-4 flex-shrink-0 items-center justify-center">
+          <div
+            class="absolute inset-0 rounded-full border-2 transition-all duration-200"
+            :class="
+              isSelected
+                ? 'border-background'
+                : 'border-muted-foreground/40 group-hover:border-primary/60'
+            "
+          />
+          <div
+            v-if="isSelected"
+            class="bg-background h-2 w-2 scale-100 rounded-full transition-transform duration-200"
+          />
         </div>
       </div>
       <label
         :for="`${provider.id}-provider`"
-        class="min-w-0 flex-1 cursor-pointer truncate text-sm font-medium leading-snug sm:text-sm md:text-base"
+        class="min-w-0 flex-1 cursor-pointer truncate text-xs font-medium tracking-tight"
         :class="isSelected ? 'text-background' : 'text-foreground'"
       >
         {{ provider.name }}
@@ -172,23 +189,25 @@ const getCustomFieldValue = (fieldId: string) => {
       <div
         v-show="isSelected"
         :id="`provider-content-${provider.id}`"
-        class="border-border bg-background min-w-0 border-t px-3 py-2.5 text-sm transition-[opacity,transform] delay-75 duration-150 ease-out will-change-[opacity,transform] sm:px-4 sm:py-3 md:px-5 md:py-4"
+        class="border-border/40 bg-background/80 min-w-0 border-t px-3 py-3 text-xs transition-all duration-200 ease-out"
         :style="{
           opacity: isSelected ? 1 : 0,
           transform: isSelected ? 'translateY(0)' : 'translateY(-8px)',
         }"
         @vue:mounted="emit('calculate-height', provider.id)"
       >
-        <div class="min-w-0 space-y-3 sm:space-y-4 md:space-y-5">
-          <div class="min-w-0 space-y-1.5 sm:space-y-2 md:space-y-2.5">
-            <label
-              class="text-muted-foreground block text-xs font-medium leading-snug tracking-wide sm:text-xs"
+        <div class="min-w-0 space-y-3">
+          <!-- Model Select - Only show if models are available -->
+          <div
+            v-if="getModelsForProvider(provider.id, provider.modelFallbackIds).length > 0"
+            class="w-full space-y-1.5"
+          >
+            <label class="text-muted-foreground block text-[10px] font-medium tracking-wide"
+              >Model</label
             >
-              Model
-            </label>
             <select
               v-model="wiki.model"
-              class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 rounded-lg border px-2.5 py-2 text-sm leading-normal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2.5 md:px-3.5 md:py-3"
+              class="border-input bg-background placeholder:text-muted-foreground focus:border-foreground focus:ring-foreground/10 w-full rounded-md border px-2.5 py-2 text-xs shadow-sm transition-shadow duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option
                 v-for="m in getModelsForProvider(provider.id, provider.modelFallbackIds)"
@@ -200,23 +219,22 @@ const getCustomFieldValue = (fieldId: string) => {
             </select>
           </div>
 
-          <div class="min-w-0 space-y-1.5 sm:space-y-2 md:space-y-2.5">
-            <label
-              class="text-muted-foreground block text-xs font-medium leading-snug tracking-wide sm:text-xs"
+          <!-- API Key Input -->
+          <div class="w-full space-y-1.5">
+            <label class="text-muted-foreground block text-[10px] font-medium tracking-wide"
+              >API Key</label
             >
-              API Key
-            </label>
-            <div class="relative">
+            <div class="relative w-full">
               <input
                 :value="getApiKeyInput(provider.id)"
                 type="password"
-                placeholder="Enter your API key"
+                :placeholder="getApiKeyPlaceholder()"
                 :class="[
-                  'border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 rounded-lg border px-2.5 py-2 pr-8 text-sm leading-normal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2.5 sm:pr-9 md:px-3.5 md:py-3 md:pr-10',
+                  'border-input bg-background placeholder:text-muted-foreground focus:border-foreground focus:ring-foreground/10 w-full rounded-md border px-2.5 py-2 pr-7 text-xs shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50',
                   settings.providerValidationErrors[provider.id]?.some(
                     (e) => e.field === 'apiKey' && e.severity === 'error',
                   )
-                    ? 'border-destructive focus-visible:ring-destructive'
+                    ? 'border-destructive focus:border-destructive focus:ring-destructive/10'
                     : '',
                 ]"
                 @focus="emit('api-key-focus', provider.id)"
@@ -231,7 +249,7 @@ const getCustomFieldValue = (fieldId: string) => {
               >
                 <svg
                   v-if="settings.savingStates[provider.id] === 'saving'"
-                  class="text-primary h-4 w-4 animate-spin sm:h-5 sm:w-5"
+                  class="text-primary h-3 w-3 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
                   aria-hidden="true"
@@ -252,25 +270,29 @@ const getCustomFieldValue = (fieldId: string) => {
                 </svg>
                 <svg
                   v-else-if="settings.savingStates[provider.id] === 'saved'"
-                  class="h-4 w-4 text-green-500 sm:h-5 sm:w-5"
+                  class="h-3 w-3 text-emerald-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                   aria-hidden="true"
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  <path d="M5 13l4 4L19 7" />
                 </svg>
                 <svg
                   v-else-if="settings.savingStates[provider.id] === 'error'"
-                  class="text-destructive h-4 w-4 sm:h-5 sm:w-5"
+                  class="text-destructive h-3 w-3"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
-                  stroke-width="2"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
                   aria-hidden="true"
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  <path d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
             </div>
@@ -280,7 +302,7 @@ const getCustomFieldValue = (fieldId: string) => {
                   (e) => e.field === 'apiKey' && e.severity === 'error',
                 )
               "
-              class="text-destructive text-xs"
+              class="text-destructive mt-1 text-[10px] leading-tight"
             >
               {{
                 settings.providerValidationErrors[provider.id].find(
@@ -290,14 +312,9 @@ const getCustomFieldValue = (fieldId: string) => {
             </p>
           </div>
 
-          <div
-            v-for="field in provider.customFields"
-            :key="field.id"
-            class="min-w-0 space-y-1.5 sm:space-y-2 md:space-y-2.5"
-          >
-            <label
-              class="text-muted-foreground block text-xs font-medium leading-snug tracking-wide sm:text-xs"
-            >
+          <!-- Custom Fields -->
+          <div v-for="field in provider.customFields" :key="field.id" class="w-full space-y-1.5">
+            <label class="text-muted-foreground block text-[10px] font-medium tracking-wide">
               {{ field.label }}
             </label>
             <input
@@ -305,7 +322,7 @@ const getCustomFieldValue = (fieldId: string) => {
               :value="getCustomFieldValue(field.id)"
               type="text"
               :placeholder="field.placeholder"
-              class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 rounded-lg border px-2.5 py-2 text-sm leading-normal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2.5 md:px-3.5 md:py-3"
+              class="border-input bg-background placeholder:text-muted-foreground focus:border-foreground focus:ring-foreground/10 w-full rounded-md border px-2.5 py-2 text-xs shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
               @input="
                 emit('custom-field-change', field.id, ($event.target as HTMLInputElement).value)
               "
@@ -313,7 +330,7 @@ const getCustomFieldValue = (fieldId: string) => {
             <select
               v-else-if="field.type === 'select'"
               :value="getCustomFieldValue(field.id)"
-              class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-w-0 rounded-lg border px-2.5 py-2 text-sm leading-normal shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-2.5 md:px-3.5 md:py-3"
+              class="border-input bg-background placeholder:text-muted-foreground focus:border-foreground focus:ring-foreground/10 w-full rounded-md border px-2.5 py-2 text-xs shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
               @change="
                 emit('custom-field-change', field.id, ($event.target as HTMLSelectElement).value)
               "
@@ -324,95 +341,113 @@ const getCustomFieldValue = (fieldId: string) => {
             </select>
           </div>
 
-          <div class="pt-1 sm:pt-1.5 md:pt-2">
+          <!-- Divider - Only show if there's an API key URL -->
+          <div v-if="provider.apiKeyUrl" class="bg-border/40 h-px" />
+
+          <!-- Action Row: Get API Key + Capabilities -->
+          <div
+            v-if="
+              provider.apiKeyUrl ||
+              (providerCapabilities &&
+                (getProviderCapability('streaming') !== undefined ||
+                  getProviderCapability('functionCalling') !== undefined ||
+                  getProviderCapability('maxTokens') !== undefined))
+            "
+            class="flex items-center justify-between gap-2"
+          >
             <button
-              class="text-primary hover:text-primary/80 text-xs font-medium underline underline-offset-2 transition-colors sm:text-xs sm:underline-offset-4 md:text-sm"
+              v-if="provider.apiKeyUrl"
+              class="text-primary hover:text-primary/70 active:text-primary/50 text-[10px] font-medium underline underline-offset-2 transition-all duration-150"
               @click="emit('open-url', provider.apiKeyUrl)"
             >
-              Get API key ->
+              Get API key →
             </button>
-          </div>
 
-          <div
-            v-if="providerCapabilities"
-            class="border-border min-w-0 space-y-1.5 border-t pt-2 sm:space-y-2 md:space-y-2.5 md:pt-3"
-          >
-            <p class="text-muted-foreground text-xs font-medium leading-snug sm:text-xs md:text-sm">
-              Provider Capabilities:
-            </p>
+            <!-- Compact Capabilities - Only show if available -->
             <div
-              class="grid grid-cols-1 gap-x-3 gap-y-1.5 text-xs leading-normal sm:grid-cols-2 sm:gap-x-4 sm:gap-y-2 sm:text-xs md:grid-cols-2 md:gap-x-6 md:gap-y-2.5 lg:grid-cols-4"
+              v-if="
+                providerCapabilities &&
+                (getProviderCapability('streaming') !== undefined ||
+                  getProviderCapability('functionCalling') !== undefined ||
+                  getProviderCapability('maxTokens') !== undefined)
+              "
+              class="flex items-center gap-2.5 text-[10px]"
             >
-              <div class="flex items-center gap-1.5 sm:gap-2">
+              <span
+                v-if="getProviderCapability('streaming') !== undefined"
+                class="flex items-center gap-1"
+                :class="
+                  getProviderCapability('streaming')
+                    ? 'text-emerald-400'
+                    : 'text-muted-foreground/50'
+                "
+              >
                 <svg
-                  class="h-3 w-3 flex-shrink-0 sm:h-[14px] sm:w-[14px]"
-                  :class="
-                    getProviderCapability('streaming') ? 'text-green-500' : 'text-muted-foreground'
-                  "
+                  class="h-2.5 w-2.5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path v-if="getProviderCapability('streaming')" d="M5 13l4 4L19 7" />
+                  <path v-else d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Stream
+              </span>
+              <span
+                v-if="getProviderCapability('functionCalling') !== undefined"
+                class="flex items-center gap-1"
+                :class="
+                  getProviderCapability('functionCalling')
+                    ? 'text-emerald-400'
+                    : 'text-muted-foreground/50'
+                "
+              >
+                <svg
+                  class="h-2.5 w-2.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path v-if="getProviderCapability('functionCalling')" d="M5 13l4 4L19 7" />
+                  <path v-else d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Functions
+              </span>
+              <span
+                v-if="getProviderCapability('maxTokens') !== undefined"
+                class="text-muted-foreground/70 flex items-center gap-1"
+              >
+                <svg
+                  class="h-2.5 w-2.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
                 >
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
                   />
                 </svg>
-                <span class="break-words">Streaming</span>
-              </div>
-              <div class="flex items-center gap-1.5 sm:gap-2">
-                <svg
-                  class="h-3 w-3 flex-shrink-0 sm:h-[14px] sm:w-[14px]"
-                  :class="
-                    getProviderCapability('functionCalling')
-                      ? 'text-green-500'
-                      : 'text-muted-foreground'
-                  "
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <span class="break-words">Function Calling</span>
-              </div>
-              <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                <span class="text-muted-foreground shrink-0">Max Tokens:</span>
-                <span class="min-w-0 break-all">
-                  {{
-                    getProviderCapability("maxTokens")
-                      ? typeof getProviderCapability("maxTokens") === "number"
-                        ? getProviderCapability("maxTokens").toLocaleString()
-                        : getProviderCapability("maxTokens")
-                      : "N/A"
-                  }}
-                </span>
-              </div>
-              <div class="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                <span class="text-muted-foreground shrink-0">Context:</span>
-                <span class="min-w-0 break-all">
-                  {{
-                    getProviderCapability("contextWindowSize")
-                      ? typeof getProviderCapability("contextWindowSize") === "number"
-                        ? getProviderCapability("contextWindowSize").toLocaleString()
-                        : getProviderCapability("contextWindowSize")
-                      : "N/A"
-                  }}
-                </span>
-              </div>
+                {{
+                  typeof getProviderCapability("maxTokens") === "number"
+                    ? (getProviderCapability("maxTokens") / 1000).toFixed(0) + "k"
+                    : getProviderCapability("maxTokens")
+                }}
+              </span>
             </div>
           </div>
 
           <p
             v-if="provider.additionalInfo"
-            class="text-muted-foreground break-words text-xs leading-relaxed"
+            class="text-muted-foreground mt-0 break-words text-[10px] leading-snug"
           >
             {{ provider.additionalInfo }}
           </p>

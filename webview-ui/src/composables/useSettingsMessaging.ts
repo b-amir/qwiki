@@ -66,7 +66,7 @@ export function useSettingsMessaging(
       try {
         switch (message.command) {
           case "providerConfigs": {
-            const payload = message.payload || [];
+            const payload = message.payload?.configs || [];
             logger.debug(`Received ${payload.length} provider configs`);
             if (payload.length > 0 || centralizedProviderConfigs.value.length > 0) {
               centralizedProviderConfigs.value = payload;
