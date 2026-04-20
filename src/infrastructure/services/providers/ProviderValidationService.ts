@@ -2,6 +2,7 @@ import type { LLMProvider } from "@/llm/types";
 import type { LLMRegistry } from "@/llm";
 import type { ApiKeyRepository } from "@/domain/repositories/ApiKeyRepository";
 import type { ProviderId } from "@/llm/types";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { ErrorCodes, ErrorMessages } from "@/constants/ErrorCodes";
 import {
   LoggingService,
@@ -30,6 +31,7 @@ export class ProviderValidationService {
     private llmRegistry: LLMRegistry,
     private configurationManager: ConfigurationManagerService,
     private apiKeyRepository: ApiKeyRepository,
+    private providerModelCatalog: ProviderModelCatalogService,
     private loggingService: LoggingService,
   ) {
     this.logger = createLogger("ProviderValidationService");
@@ -78,7 +80,7 @@ export class ProviderValidationService {
     }
 
     if (model) {
-      const modelValid = await this.validateModel(provider, model);
+      const modelValid = await this.validateModel(provider, providerId, model);
       if (!modelValid) {
         errors.push({
           code: ErrorCodes.invalidModel,
@@ -175,8 +177,12 @@ export class ProviderValidationService {
     this.providersRequiringKeysCache = null;
   }
 
-  private async validateModel(provider: LLMProvider, model: string): Promise<boolean> {
-    const models = provider.listModels();
+  private async validateModel(
+    provider: LLMProvider,
+    providerId: string,
+    model: string,
+  ): Promise<boolean> {
+    const models = await this.providerModelCatalog.resolveModelsForProvider(providerId);
     return models.includes(model);
   }
 }
