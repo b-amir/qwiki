@@ -37,40 +37,5 @@ export function createOpenRouterValidationRules(): ValidationRule[] {
       },
       enabled: true,
     },
-    {
-      id: "openrouter-model-validation",
-      name: "Model Validation",
-      description: "Validates that the model is supported",
-      priority: 2,
-      field: "model",
-      condition: (value: unknown, context: ValidationContext) => value !== undefined,
-      validator: (value: unknown, context: ValidationContext) => {
-        const errors: ValidationError[] = [];
-        const warnings: ValidationWarning[] = [];
-        const validModels = [
-          "openai/gpt-oss-20b",
-          "meta-llama/llama-3-8b-instruct",
-          "microsoft/wizardlm-2-8x22b",
-        ];
-
-        if (typeof value !== "string") {
-          errors.push({
-            field: "model",
-            code: "MODEL_INVALID_TYPE",
-            message: "Model must be a string",
-            severity: "error",
-          });
-        } else if (!validModels.includes(value)) {
-          warnings.push({
-            field: "model",
-            code: "MODEL_UNKNOWN",
-            message: `Unknown model "${value}". Valid models: ${validModels.join(", ")}`,
-          });
-        }
-
-        return { isValid: errors.length === 0, errors, warnings };
-      },
-      enabled: true,
-    },
   ];
 }

@@ -5,6 +5,7 @@ import { createOpenRouterValidationRules as createOpenRouterRules } from "@/appl
 import { createCohereValidationRules as createCohereRules } from "@/application/validation/rules/CohereValidationRules";
 import { createHuggingFaceValidationRules as createHuggingFaceRules } from "@/application/validation/rules/HuggingFaceValidationRules";
 import { createCommonValidationRules as createCommonRules } from "@/application/validation/rules/CommonValidationRules";
+import { createCustomValidationRules as createCustomRules } from "@/application/validation/rules/CustomValidationRules";
 
 export function createGoogleAIStudioValidationRules(): ValidationRule[] {
   return createGoogleRules();
@@ -24,6 +25,10 @@ export function createCohereValidationRules(): ValidationRule[] {
 
 export function createHuggingFaceValidationRules(): ValidationRule[] {
   return createHuggingFaceRules();
+}
+
+export function createCustomValidationRules(): ValidationRule[] {
+  return createCustomRules();
 }
 
 export function createCommonValidationRules(): ValidationRule[] {
