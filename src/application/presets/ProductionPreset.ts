@@ -27,7 +27,7 @@ export function createProductionPreset(): ConfigurationTemplate {
           id: "google-ai-studio",
           name: "Google AI Studio",
           enabled: true,
-          model: "gemini-2.5-pro",
+          model: "gemini-2.5-flash",
           temperature: 0.2,
           maxTokens: 4096,
           rateLimitPerMinute: 60,
