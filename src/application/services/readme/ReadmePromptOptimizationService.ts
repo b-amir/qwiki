@@ -50,7 +50,10 @@ export class ReadmePromptOptimizationService {
       }
     }
 
-    const budget = this.calculateTokenBudget(capabilities.contextWindowSize, currentReadmeLength);
+    const budget = this.calculateTokenBudget(
+      capabilities.contextWindowSize ?? 8192,
+      currentReadmeLength,
+    );
     const selection = this.selectWikisWithinBudget(wikis, budget);
 
     this.logger.info("Wiki selection completed", {
