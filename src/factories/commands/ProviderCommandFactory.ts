@@ -24,6 +24,7 @@ export class ProviderCommandFactory extends BaseCommandFactory {
           this.messageBus,
           await this.container.resolveLazy("llmRegistry"),
           await this.container.resolveLazy("providerValidationService"),
+          await this.container.resolveLazy("providerModelCatalogService"),
           this.loggingService,
         ) as Command<T>;
 
@@ -32,6 +33,7 @@ export class ProviderCommandFactory extends BaseCommandFactory {
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("apiKeyRepository"),
           this.container.resolve("configurationManager"),
+          await this.container.resolveLazy("providerModelCatalogService"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
@@ -41,6 +43,7 @@ export class ProviderCommandFactory extends BaseCommandFactory {
           this.container.resolve("apiKeyRepository"),
           this.messageBus,
           await this.container.resolveLazy("providerValidationService"),
+          await this.container.resolveLazy("providerModelCatalogService"),
           this.loggingService,
         ) as Command<T>;
 
@@ -56,6 +59,7 @@ export class ProviderCommandFactory extends BaseCommandFactory {
         return new GetProviderConfigsCommand(
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("configurationManager"),
+          await this.container.resolveLazy("providerModelCatalogService"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
@@ -64,6 +68,7 @@ export class ProviderCommandFactory extends BaseCommandFactory {
         return new GetProviderCapabilitiesCommand(
           await this.container.resolveLazy("llmRegistry"),
           this.container.resolve("configurationManager"),
+          await this.container.resolveLazy("providerModelCatalogService"),
           this.messageBus,
           this.loggingService,
         ) as Command<T>;
