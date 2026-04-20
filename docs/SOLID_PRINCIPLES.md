@@ -55,7 +55,7 @@ export class ProjectContextService {
 Each command class handles only one specific user action:
 
 ```typescript
-// src/application/commands/GenerateWikiCommand.ts
+// src/application/commands/core/GenerateWikiCommand.ts
 export class GenerateWikiCommand implements Command {
   // Only responsible for generating wiki
   async execute(): Promise<Wiki> {
@@ -63,7 +63,7 @@ export class GenerateWikiCommand implements Command {
   }
 }
 
-// src/application/commands/SaveApiKeyCommand.ts
+// src/application/commands/providers/SaveApiKeyCommand.ts
 export class SaveApiKeyCommand implements Command {
   // Only responsible for saving API keys
   async execute(provider: string, apiKey: string): Promise<void> {
@@ -383,7 +383,7 @@ export class WikiService {
 Commands depend on service interfaces, not implementations:
 
 ```typescript
-// src/application/commands/GenerateWikiCommand.ts
+// src/application/commands/core/GenerateWikiCommand.ts
 export class GenerateWikiCommand implements Command {
   constructor(
     private wikiService: WikiService, // Depends on service

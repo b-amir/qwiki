@@ -36,7 +36,7 @@ interface LLMProvider {
   listModels(): string[];
   getUiConfig?(): ProviderUiConfig;
   supportsCapability(capability: ProviderFeature): boolean;
-  validateConfig(config: unknown): ValidationResult;
+  validateConfig(config: ProviderConfig): ValidationResult;
   getModelCapabilities?(model?: string): ProviderCapabilities;
 
   // Lifecycle and monitoring capabilities
@@ -45,6 +45,8 @@ interface LLMProvider {
   healthCheck(): Promise<HealthCheckResult>;
 }
 ```
+
+Authoritative source: `src/llm/types.ts`. Import `ProviderConfig` from `src/domain/types` (barrel `@/domain/types`).
 
 ### Provider Metadata System
 
@@ -207,8 +209,6 @@ The provider system maintains clear separation between data and logic:
 - Error handling follows standardized patterns across providers
 - Configuration access flows through `ConfigurationManagerService`
 
-````
-
 ## Supported Providers
 
 ### Google AI Studio
@@ -252,6 +252,8 @@ The provider system maintains clear separation between data and logic:
 ## Extension Commands
 
 ### Command System Architecture
+
+**Canonical IDs**: Webview and extension commands use the string IDs declared in `src/constants/Commands.ts` (`CommandIds`). The snippets below describe the main ones; if a command is not listed there, it is not wired through `WebviewMessageHandler` / `CommandRegistry`.
 
 Commands are organized by domain into subdirectories (`commands/core/`, `commands/providers/`, `commands/configuration/`, `commands/wikis/`, `commands/readme/`, `commands/utilities/`) and created via specialized factories (`CoreCommandFactory`, `ProviderCommandFactory`, etc.).
 
@@ -381,211 +383,6 @@ Saves an API key for a provider.
 {
   providerId: string; // Provider ID
   apiKey: string; // API key to save
-}
-```
-
-### Prompt Template Commands
-
-#### Create Prompt Template
-
-**Command ID**: `createPromptTemplate`
-
-Creates a new prompt template with metadata and variables.
-
-**Parameters**:
-
-```typescript
-{
-  name: string;
-  content: string;
-  variables?: Array<{
-    name: string;
-    type: string;
-    description: string;
-    required: boolean;
-    defaultValue?: string;
-  }>;
-  metadata?: {
-    category: string;
-    language: string;
-    provider: string;
-    complexity: string;
-    effectiveness?: number;
-  };
-}
-```
-
-**Returns**:
-
-```typescript
-{
-  templateId: string;
-}
-```
-
-#### Update Prompt Template
-
-**Command ID**: `updatePromptTemplate`
-
-Applies partial updates to an existing template.
-
-**Parameters**:
-
-```typescript
-{
-  id: string;
-  name?: string;
-  content?: string;
-  metadata?: {
-    category?: string;
-    language?: string;
-    provider?: string;
-    complexity?: string;
-    effectiveness?: number;
-  };
-}
-```
-
-**Returns**: `void`
-
-#### Delete Prompt Template
-
-**Command ID**: `deletePromptTemplate`
-
-Deletes a prompt template by identifier.
-
-**Parameters**:
-
-```typescript
-{
-  id: string;
-}
-```
-
-**Returns**: `void`
-
-#### Get All Prompt Templates
-
-**Command ID**: `getAllPromptTemplates`
-
-Retrieves every stored template for the current project or workspace.
-
-**Parameters**: `{ }`
-
-**Returns**:
-
-```typescript
-{
-  templates: PromptTemplate[];
-}
-```
-
-#### Render Prompt Template
-
-**Command ID**: `renderPromptTemplate`
-
-Renders a template with context variables.
-
-**Parameters**:
-
-```typescript
-{
-  templateId: string;
-  context: PromptContext;
-}
-```
-
-**Returns**:
-
-```typescript
-{
-  content: string;
-}
-```
-
-### Wiki Aggregation Commands
-
-#### Create Wiki Page
-
-**Command ID**: `createWikiPage`
-
-Creates a wiki page entry for the active project.
-
-**Parameters**:
-
-```typescript
-{
-  title: string;
-  content: string;
-  tags?: string[];
-  metadata?: {
-    author?: string;
-    status?: string;
-    priority?: string;
-  };
-}
-```
-
-**Returns**:
-
-```typescript
-{
-  pageId: string;
-}
-```
-
-#### Aggregate Wikis
-
-**Command ID**: `aggregateWikis`
-
-Runs the aggregation engine using the provided strategy.
-
-**Parameters**:
-
-```typescript
-{
-  projectId: string;
-  strategy: {
-    type: string;
-    rules: Array<Record<string, unknown>>;
-  }
-}
-```
-
-**Returns**:
-
-```typescript
-{
-  success: boolean;
-  wiki?: AggregatedWiki;
-  issues?: string[];
-}
-```
-
-#### Get Wiki Statistics
-
-**Command ID**: `getWikiStatistics`
-
-Retrieves aggregate counts for pages, tags, and relationships.
-
-**Parameters**:
-
-```typescript
-{
-  projectId: string;
-}
-```
-
-**Returns**:
-
-```typescript
-{
-  statistics: {
-    totalPages: number;
-    totalTags: number;
-    totalRelationships: number;
-    lastUpdated: string;
-  }
 }
 ```
 
@@ -741,6 +538,23 @@ Retrieves UI configuration metadata for each provider. The registry post-process
   }>;
 }
 ```
+
+#### Set Active Provider
+
+**Command ID**: `setActiveProvider`
+
+Persists the user’s chosen default provider (and optionally model) for wiki generation. On success the extension posts `settingSaved` with `setting: "activeProvider"` via the message bus; failures use the standard error pipeline.
+
+**Parameters**:
+
+```typescript
+{
+  providerId: string;
+  model?: string;
+}
+```
+
+**Returns**: `void`
 
 ### Settings Commands
 
@@ -1525,10 +1339,10 @@ The LLM provider system uses a **Registry Pattern** with dynamic discovery capab
 
 **Capabilities**:
 
-- Dynamic provider discovery with manifest validation
-- Provider lifecycle management (initialize, dispose, health checks)
-- Automatic dependency resolution between providers
-- Hot-reloading support for provider updates
+- Provider lifecycle management (initialize, dispose, health checks) for built-in and discovered providers
+- Optional dynamic discovery via `ProviderDiscoveryService` (see implementation for current behavior)
+
+**Note**: The extension loads the built-in catalog at activation; changing provider code still requires rebuilding/reloading the extension—there is no hot reload of provider modules in the running VS Code host.
 
 ### Performance Considerations
 
@@ -1541,20 +1355,25 @@ The LLM provider system uses a **Registry Pattern** with dynamic discovery capab
 
 ## Provider Services API
 
+Implementation details belong in the source files; the summaries below match the current public surfaces where practical.
+
 ### Provider Discovery Service
 
 ```typescript
+// src/application/services/providers/ProviderDiscoveryService.ts
 class ProviderDiscoveryService {
   constructor(
-    private fileSystemService: ProviderFileSystemService,
-    private eventBus: EventBus
+    private eventBus: EventBus,
+    private providerFileSystemService: ProviderFileSystemService,
+    private vscodeFileSystem: VSCodeFileSystemService,
+    private loggingService?: LoggingService,
   );
 
   async discoverProviders(): Promise<ProviderMetadata[]>;
   async scanDirectory(directoryPath: string): Promise<ProviderMetadata[]>;
-  validateProviderManifest(manifest: unknown): ValidationResult;
-  async loadProviderFromMetadata(metadata: ProviderMetadata): Promise<LLMProvider>;
-  startWatching(directories: string[]): void;
+  validateProviderManifest(manifest: Record<string, unknown>): Promise<ValidationResult>;
+  async loadProviderFromMetadata(metadata: ProviderMetadata): Promise<LLMProvider | null>;
+  async startWatching(directories: string[]): Promise<void>;
   stopWatching(): void;
   getDiscoveredProviders(): ProviderMetadata[];
 }
@@ -1563,10 +1382,12 @@ class ProviderDiscoveryService {
 ### Provider Lifecycle Manager Service
 
 ```typescript
+// src/application/services/providers/ProviderLifecycleManagerService.ts
 class ProviderLifecycleManagerService {
   constructor(
-    private discoveryService: ProviderDiscoveryService,
-    private eventBus: EventBus
+    private providerDiscoveryService: ProviderDiscoveryService,
+    private eventBus: EventBus,
+    private loggingService?: LoggingService,
   );
 
   async initializeProvider(providerId: string): Promise<void>;
@@ -2352,6 +2173,8 @@ type PageType =
   | "wikiAggregator";
 ```
 
+The webview shell in `App.vue` currently renders routes for `wiki`, `settings`, `errorHistory`, and `savedWikis` only. The additional `PageType` values are reserved in the navigation store for future screens and do not have page components wired yet.
+
 **Actions**:
 
 ```typescript
@@ -2661,7 +2484,7 @@ showRetryableError("Network request failed", () => retryOperation(), { code: "NE
 
 ### GlobalErrorModal Component
 
-**Location**: `webview-ui/src/components/GlobalErrorModal.vue`
+**Location**: `webview-ui/src/components/features/GlobalErrorModal.vue`
 
 Single error modal instance in App.vue that displays errors from the centralized error store.
 

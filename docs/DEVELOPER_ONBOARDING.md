@@ -59,7 +59,7 @@ Follow the quick start instructions in `README.md` to clone the repository, inst
   - Publish UI updates through `MessageBusService` and respect the defined `OutboundEvents` payloads.
   - Follow `FilePatterns`, `FileLimits`, and `PathPatterns` when scanning the workspace.
   - Read and write configuration exclusively via `ConfigurationManagerService` and its validation helpers.
-  - Check file sizes with the `read_file` tool metadata to keep all files under 300 lines (100% compliance achieved).
+  - Prefer keeping source files maintainable; many modules aim for roughly under 300 lines, but the tree is not strictly capped—verify with tooling when touching large files.
 - **Don't**
   - Bypass the DI container or construct services inline.
   - Post messages directly to a webview without going through the message bus.

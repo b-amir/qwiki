@@ -56,7 +56,7 @@ The application layer contains services, commands, and application-specific busi
 
   **Core Services** (`services/core/`):
   - `WikiService.ts`: Core wiki generation logic with loading steps
-  - `CachedWikiService.ts`: Cached wiki generation with performance optimization (currently unused)
+  - `CachedWikiService.ts`: Cached wiki generation path; `WikiGenerationExecutor` selects it when workspace setting `qwiki.wikiGeneration.useLongTermCache` is true (default false)
   - `SelectionService.ts`: Editor selection handling
   - `MessageBusService.ts`: Webview communication with batching/debouncing
   - `WikiGenerationFlow.ts`: Orchestrates generation, semantic enrichment, and quality/improvement feedback before caching results
@@ -92,7 +92,7 @@ The application layer contains services, commands, and application-specific busi
 
   **Prompt Services** (`services/prompts/`):
   - `AdvancedPromptService.ts`: Advanced prompt construction and optimization
-  - `PromptQualityService.ts`: Prompt quality analysis and scoring (currently unused)
+  - `PromptQualityService.ts`: Prompt quality analysis and scoring (used by `WikiService`, `WikiGenerationFlow`, and `AdvancedPromptService` when enabled in the pipeline)
   - `PromptSectionBuilder.ts`: Builds structured prompt sections
   - `PromptQualityAnalyzer.ts`: Analyzes prompt effectiveness
   - `AdaptivePromptHelpers.ts`: Provider-specific prompt adaptation
@@ -146,7 +146,7 @@ The application layer contains services, commands, and application-specific busi
   - `aggregation/StructureOptimizer.ts`: Optimizes aggregated structure
 
   **Bootstrap & Readiness** (`bootstrap/`):
-  - `AppBootstrap.ts`: Main orchestrator that coordinates initialization (< 250 lines)
+  - `AppBootstrap.ts`: Main orchestrator that coordinates initialization (on the order of ~300 lines; keep changes focused)
   - `ServiceRegistrar.ts`: Handles service registration with dependency tracking
   - `InitializationOrchestrator.ts`: Orchestrates critical and background service initialization
   - `ReadinessCoordinator.ts`: Registers service tiers and command requirements
@@ -210,7 +210,7 @@ The application layer contains services, commands, and application-specific busi
 
 - **CommandRegistry.ts**: Registry for managing commands with metadata support
 - **Bootstrap** (`src/application/bootstrap/`):
-  - `AppBootstrap.ts`: Main orchestrator (< 250 lines) that coordinates initialization
+  - `AppBootstrap.ts`: Main orchestrator that coordinates initialization
   - `ServiceRegistrar.ts`: Handles service registration with dependency tracking
   - `InitializationOrchestrator.ts`: Orchestrates critical and background service initialization
   - `ReadinessCoordinator.ts`: Registers service tiers and command requirements
@@ -361,7 +361,7 @@ The presentation layer handles user interface, user interactions, and VS Code ID
   - **App.vue**: Top-level navigation and loading orchestration
   - **Components** (`components/`):
     - `layout/`: TopBar and layout components
-    - `pages/`: HomePage, WikiPage, SettingsPage, SavedWikisPage, ErrorHistoryPage
+    - `pages/`: HomePage, WikiPage, SettingsPage, SavedWikisPage, ErrorHistoryPage (the `PageType` union also lists `promptManager`, `qualityDashboard`, and `wikiAggregator` for future routes; they are not mounted in `App.vue` yet)
     - `features/`: LoadingState, GlobalErrorModal, ErrorDisplay, ValidationErrors, ReadmeDiffView, WikiListItem, etc.
     - `ui/`: Button, Card, Modal components (shadcn-vue style)
   - **Stores** (`stores/`):
@@ -717,7 +717,7 @@ Providers are resolved through the runtime registry:
 - **Constants Management**: Hardcoded values extracted to ServiceLimits and loading step catalog
 - **Code Organization**: All files maintainable size (< 300 lines)
 - **Clean Architecture**: All services properly registered and utilized
-- **Enhanced Type Safety**: Zero `any` types, comprehensive type guards, branded types for IDs, and strict TypeScript configuration
+- **Strong Type Safety**: Strict TypeScript, branded types for IDs, and type guards; a small amount of `any` remains at integration boundaries (e.g. container, legacy config maps)
 - **Advanced Prompt Engineering**: Provider-specific templates, context-aware prompts, example inclusion, and prompt quality tracking
 - **Enhanced Error Handling**: Comprehensive error context, recovery strategies, error analytics, and user-friendly messages
 - **Performance Monitoring**: Performance budgets, percentile tracking, cache hit rate monitoring, and automatic alerts
@@ -914,23 +914,25 @@ interface ProviderCapabilities {
 
 ```
 src/
-├── domain/                    # Business logic (stable)
-│   ├── entities/             # Wiki, Selection, Project
-│   ├── services/             # IWikiService, IProviderService
-│   └── events/               # Domain events
+├── domain/                    # Entities, repository contracts, shared types (stable)
+│   ├── entities/             # Wiki, Selection, context intelligence types, etc.
+│   ├── repositories/       # ApiKeyRepository, ConfigurationRepository
+│   ├── configuration/      # configuration-related types
+│   └── types/                # Result, ProviderConfig, branded IDs
 ├── application/              # Use cases (moderately stable)
-│   ├── services/             # WikiService, ProviderService
-│   ├── commands/             # GenerateWikiCommand
-│   ├── transformers/         # Data transformation layer
-│   └── handlers/             # Command handlers
+│   ├── services/             # WikiService, context services, configuration, etc.
+│   ├── commands/             # Domain-organized commands (core/, providers/, …)
+│   ├── transformers/         # WikiTransformer and related data shaping
+│   └── bootstrap/            # AppBootstrap, registrations, orchestrators
 ├── infrastructure/           # External concerns (volatile)
-│   ├── providers/            # LLM providers (plugin system)
-│   ├── storage/              # VS Code secrets, settings
-│   └── external/             # File system, network
-└── presentation/             # UI and VS Code integration
-    ├── panels/               # Webview panels
-    ├── commands/             # VS Code commands
-    └── ui/                   # Vue components
+│   ├── repositories/         # VS Code-backed repository implementations
+│   ├── services/             # logging, caching, indexing, integrations
+│   └── …                     # (see module layout in this doc)
+├── panels/                   # Webview host + message handling
+├── providers/                # VS Code language-feature providers
+├── views/                    # Tree views (e.g. saved wikis)
+├── llm/                      # Provider registry and provider types
+└── webview-ui/               # Vue app (separate package; see FRONTEND.md)
 ```
 
 ### Configuration Architecture
@@ -1093,7 +1095,7 @@ Clear separation between layers with dependency direction:
 
 ### 3. Clean Code Principles
 
-- No comments - code should be self-explanatory
+- Prefer self-explanatory code; add short comments only where the “why” is non-obvious (the repo still contains targeted comments and JSDoc in a few places)
 - Simple functions with single responsibility
 - No hardcoded data mixed with logic
 - Consistent naming conventions
@@ -1277,8 +1279,7 @@ The architecture supports extensibility through:
 3. **VS Code Native Integration**: Deep integration with VS Code ecosystem while maintaining extension constraints
 4. **Capability-Based Selection**: Smart provider selection based on code context and requirements
 5. **Performance Optimized**: Intelligent caching, batching, and background processing for fast generation
-6. **Enterprise Ready**: Team management, security, and compliance features built from the ground up
-7. **Developer Experience**: Simple provider development with clear patterns
+6. **Developer Experience**: Simple provider development with clear patterns
 
 ## Why This Architecture for Qwiki
 

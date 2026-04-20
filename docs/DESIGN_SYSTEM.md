@@ -28,32 +28,40 @@ The color system is defined in `webview-ui/src/style.css` using CSS custom prope
 #### Available Color Variables
 
 ```css
-/* Core Colors */
+/* Excerpt from webview-ui/src/style.css (:root) — see file for .dark and full set */
 --background: var(
-    --vscode-sideBar-background,
-    var(--vscode-panel-background, var(--vscode-editor-background))
-  )
-  --foreground: var(--vscode-foreground) /* Muted/Secondary */
-  --muted: var(--vscode-input-background) --muted-foreground: var(--vscode-descriptionForeground)
-  /* Interactive Elements */ --primary: var(--vscode-foreground)
-  --primary-foreground: var(--vscode-sideBar-background)
-  --secondary: var(--vscode-button-secondaryBackground, var(--vscode-button-background))
-  --secondary-foreground: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground))
-  --accent: var(--vscode-toolbar-hoverBackground) --accent-foreground: var(--vscode-foreground)
-  /* Borders & Focus */ --border: var(--vscode-panel-border) --input: var(--vscode-input-border)
-  --ring: var(--vscode-focusBorder) /* Cards & Popovers */
-  --card: var(--vscode-editorWidget-background)
-  --card-foreground: var(--vscode-editorWidget-foreground)
-  --popover: var(--vscode-editorWidget-background)
-  --popover-foreground: var(--vscode-editorWidget-foreground) /* States */
-  --destructive: var(--vscode-errorForeground)
-  --destructive-foreground: var(--vscode-editor-background)
-  --link: var(--vscode-textLink-foreground) --link-hover: var(--vscode-textLink-activeForeground)
-  --selection-bg: var(--vscode-editor-selectionBackground)
-  --selection-fg: var(--vscode-editor-selectionForeground) --focus-ring: var(--vscode-focusBorder)
-  /* Scrollbars */ --scrollbar-bg: var(--vscode-scrollbarSlider-background)
-  --scrollbar-bg-hover: var(--vscode-scrollbarSlider-hoverBackground)
-  --scrollbar-bg-active: var(--vscode-scrollbarSlider-activeBackground);
+  --vscode-sideBar-background,
+  var(--vscode-panel-background, var(--vscode-editor-background))
+);
+--foreground: var(--vscode-foreground);
+--muted: var(--vscode-input-background);
+--muted-foreground: var(--vscode-descriptionForeground);
+--popover: var(--vscode-editorWidget-background);
+--popover-foreground: var(--vscode-editorWidget-foreground);
+--card: var(--vscode-editorWidget-background);
+--card-foreground: var(--vscode-editorWidget-foreground);
+--border: var(--vscode-panel-border);
+--input: var(--vscode-input-border);
+--ring: var(--vscode-focusBorder);
+--primary: var(--vscode-foreground);
+--primary-foreground: var(--vscode-sideBar-background);
+--secondary: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+--secondary-foreground: var(
+  --vscode-button-secondaryForeground,
+  var(--vscode-button-foreground)
+);
+--accent: var(--vscode-toolbar-hoverBackground);
+--accent-foreground: var(--vscode-foreground);
+--destructive: var(--vscode-errorForeground);
+--destructive-foreground: var(--vscode-editor-background);
+--link: var(--vscode-textLink-foreground);
+--link-hover: var(--vscode-textLink-activeForeground);
+--selection-bg: var(--vscode-editor-selectionBackground);
+--selection-fg: var(--vscode-editor-selectionForeground);
+--focus-ring: var(--vscode-focusBorder);
+--scrollbar-bg: var(--vscode-scrollbarSlider-background);
+--scrollbar-bg-hover: var(--vscode-scrollbarSlider-hoverBackground);
+--scrollbar-bg-active: var(--vscode-scrollbarSlider-activeBackground);
 ```
 
 #### Usage in Components

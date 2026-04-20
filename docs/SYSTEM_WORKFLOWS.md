@@ -18,7 +18,7 @@ Essential services start synchronously to make the UI usable immediately:
 
 - `LoggingService`: Structured logging system
 - `EventBus`: Event-driven communication infrastructure
-- `ConfigurationManager`: Settings and configuration access
+- `ConfigurationManagerService`: Settings and configuration access
 - `MessageBusService`: Webview communication bridge
 - `CommandRegistry`: Command execution system
 - `TaskSchedulerService`: Priority-based task queue
