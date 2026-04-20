@@ -1,6 +1,6 @@
 # Qwiki
 
-![Qwiki Preview](resources/preview-icon.png)
+<img src="./resources/infographic.png" alt="Qwiki Infographic" width="100%" />
 
 Qwiki is a local-only VS Code extension that turns code selections into living project documentation. It combines deep project indexing, context-aware provider orchestration, adaptive prompt engineering, and a Vue-powered dashboard so teams can document code without leaving the editor.
 
