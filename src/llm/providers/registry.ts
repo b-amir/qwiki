@@ -10,6 +10,7 @@ import { OpenRouterProvider } from "@/llm/providers/openrouter";
 import { GoogleAIStudioProvider } from "@/llm/providers/google-ai-studio";
 import { CohereProvider } from "@/llm/providers/cohere";
 import { HuggingFaceProvider } from "@/llm/providers/huggingface";
+import { CustomProvider } from "@/llm/providers/custom";
 import { CachingService } from "@/infrastructure/services/caching/CachingService";
 import { ProviderFileSystemService } from "@/infrastructure/services/providers/ProviderFileSystemService";
 import { VSCodeFileSystemService } from "@/infrastructure/services/filesystem/VSCodeFileSystemService";
@@ -195,6 +196,7 @@ export class LLMRegistry {
     this.providers["openrouter"] = new OpenRouterProvider();
     this.providers["cohere"] = new CohereProvider();
     this.providers["huggingface"] = new HuggingFaceProvider();
+    this.providers["custom"] = new CustomProvider(this.getSetting);
   }
 
   private async discoverAndLoadProviders(): Promise<void> {
@@ -246,6 +248,7 @@ export function loadProviders(getSetting: GetSetting): Record<string, LLMProvide
   legacyProviders["openrouter"] = new OpenRouterProvider();
   legacyProviders["cohere"] = new CohereProvider();
   legacyProviders["huggingface"] = new HuggingFaceProvider();
+  legacyProviders["custom"] = new CustomProvider(getSetting);
 
   return legacyProviders;
 }
