@@ -5,6 +5,23 @@
 </p>
 
 <p align="center">
+QWIKI
+<br />
+Create Quick Wikis
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/VS%20Code-Extension-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white" alt="VS Code Extension" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript 5.x" />
+  <img src="https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js 20+" />
+  <img src="https://img.shields.io/badge/pnpm-Workspace-F69220?style=for-the-badge&logo=pnpm&logoColor=white" alt="pnpm Workspace" />
+</p>
+
+
+---
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/b-amir/qwiki/main/resources/infographic.png" alt="Qwiki Infographic" width="100%" />
 </p>
 
