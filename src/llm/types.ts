@@ -42,6 +42,7 @@ export interface LLMProvider {
   generate(params: GenerateParams, apiKey: string | undefined): Promise<GenerateResult>;
   generateStream?(params: GenerateParams, apiKey: string | undefined): AsyncGenerator<string>;
   listModels(): string[];
+  listModelsDynamic?(apiKey?: string): Promise<string[]>;
   getUiConfig?(): ProviderUiConfig;
   supportsCapability(capability: ProviderFeature): boolean;
   validateConfig(config: ProviderConfig): ValidationResult;

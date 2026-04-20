@@ -47,72 +47,58 @@ export class LLMRegistry {
   }
 
   async getProviderConfigs(): Promise<ProviderConfig[]> {
-    const allConfigs = await this.configurationManager.getAll();
     const providerConfigs: ProviderConfig[] = [];
 
-    for (const [key, value] of Object.entries(allConfigs)) {
-      if (key.startsWith("provider.") && value) {
-        const providerId = key.replace("provider.", "");
-        const providerConfig = value as ProviderConfiguration;
+    for (const [providerId, provider] of this.providers.entries()) {
+      const uiConfig = (provider.getUiConfig?.() || {}) as {
+        apiKeyUrl?: string;
+        apiKeyInput?: string;
+        additionalInfo?: string;
+        modelFallbackIds?: string[];
+        defaultModel?: string;
+        customFields?: import("./types").ProviderCustomField[];
+      };
 
-        const provider = this.providers.get(providerId);
-        const providerName = provider?.name || providerConfig.name;
-
-        const customFields = providerConfig.customFields
-          ? Object.entries(providerConfig.customFields).map(([key, value]) => ({
-              id: key,
-              label: key,
-              type: "text" as const,
-              placeholder: `Enter ${key}`,
-              defaultValue: typeof value === "string" ? value : String(value),
-            }))
-          : undefined;
-
-        providerConfigs.push({
-          id: providerId,
-          name: providerName,
-          apiKeyUrl: "",
-          apiKeyInput: "",
-          additionalInfo: customFields?.find((f) => f.id === "description")?.defaultValue,
-          modelFallbackIds: providerConfig.fallbackProviderIds,
-          defaultModel: providerConfig.model,
-          customFields,
-        });
-      }
+      providerConfigs.push({
+        id: providerId,
+        name: provider.name,
+        apiKeyUrl: uiConfig.apiKeyUrl || "",
+        apiKeyInput: uiConfig.apiKeyInput || "",
+        additionalInfo: uiConfig.additionalInfo,
+        modelFallbackIds: uiConfig.modelFallbackIds || [],
+        defaultModel: uiConfig.defaultModel,
+        customFields: uiConfig.customFields,
+      });
     }
 
     return providerConfigs;
   }
 
   async getProviderConfig(providerId: string): Promise<ProviderConfig | undefined> {
-    const providerConfig = await this.configurationManager.getProviderConfig(providerId);
+    const provider = this.providers.get(providerId);
 
-    if (!providerConfig) {
+    if (!provider) {
       return undefined;
     }
 
-    const provider = this.providers.get(providerId);
-    const providerName = provider?.name || providerConfig.name;
-
-    const customFields = providerConfig.customFields
-      ? Object.entries(providerConfig.customFields).map(([key, value]) => ({
-          id: key,
-          label: key,
-          type: "text" as const,
-          placeholder: `Enter ${key}`,
-          defaultValue: typeof value === "string" ? value : String(value),
-        }))
-      : undefined;
+    const uiConfig = (provider.getUiConfig?.() || {}) as {
+      apiKeyUrl?: string;
+      apiKeyInput?: string;
+      additionalInfo?: string;
+      modelFallbackIds?: string[];
+      defaultModel?: string;
+      customFields?: import("./types").ProviderCustomField[];
+    };
 
     return {
-      id: providerConfig.id,
-      name: providerName,
-      apiKeyUrl: "",
-      apiKeyInput: "",
-      additionalInfo: customFields?.find((f) => f.id === "description")?.defaultValue,
-      modelFallbackIds: providerConfig.fallbackProviderIds,
-      defaultModel: providerConfig.model,
-      customFields,
+      id: providerId,
+      name: provider.name,
+      apiKeyUrl: uiConfig.apiKeyUrl || "",
+      apiKeyInput: uiConfig.apiKeyInput || "",
+      additionalInfo: uiConfig.additionalInfo,
+      modelFallbackIds: uiConfig.modelFallbackIds || [],
+      defaultModel: uiConfig.defaultModel,
+      customFields: uiConfig.customFields,
     };
   }
 

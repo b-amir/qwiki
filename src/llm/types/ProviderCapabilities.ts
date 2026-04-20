@@ -1,11 +1,11 @@
 export interface ProviderCapabilities {
-  maxTokens: number;
+  maxTokens?: number;
   supportedLanguages: string[];
   features: ProviderFeature[];
-  streaming: boolean;
-  functionCalling: boolean;
-  contextWindowSize: number;
-  rateLimitPerMinute: number;
+  streaming?: boolean;
+  functionCalling?: boolean;
+  contextWindowSize?: number;
+  rateLimitPerMinute?: number;
 }
 
 export enum ProviderFeature {
