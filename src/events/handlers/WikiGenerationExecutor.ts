@@ -67,8 +67,6 @@ export class WikiGenerationExecutor {
     return this.wikiService;
   }
 
-
-
   async execute(
     payload: WikiGenerationRequest,
     cancellationToken: CancellationToken,
@@ -92,7 +90,10 @@ export class WikiGenerationExecutor {
 
     try {
       const validatingMessage = getProgressMessageForStep(LoadingSteps.validatingProvider);
-      this.progressManager.reportProgress({ step: LoadingSteps.validatingProvider, message: validatingMessage });
+      this.progressManager.reportProgress({
+        step: LoadingSteps.validatingProvider,
+        message: validatingMessage,
+      });
 
       if (cancellationToken.isCancellationRequested) {
         throw new ProviderError(ErrorCodes.GENERATION_CANCELLED, "Generation cancelled by user");
@@ -128,7 +129,7 @@ export class WikiGenerationExecutor {
         return;
       }
 
-      if (result && result.success) {
+      if (result && result.success && result.content) {
         this.logger.debug("Publishing successful wiki result");
         this.eventBus.publish(OutboundEvents.wikiGenerationComplete, {
           content: result.content,
@@ -141,6 +142,15 @@ export class WikiGenerationExecutor {
         this.eventBus.publish("generationSuccessful", {
           providerId: payload.providerId,
           timestamp: Date.now(),
+        });
+      } else if (result && result.success && !result.content) {
+        this.logger.warn("Wiki generation returned success but no content", {
+          providerId: payload.providerId,
+          snippetLength: payload.snippet?.length,
+        });
+        await this.handleGenerationFailure(payload, {
+          ...result,
+          error: "Generation completed but produced no content",
         });
       } else {
         await this.handleGenerationFailure(payload, result);
@@ -161,7 +171,10 @@ export class WikiGenerationExecutor {
       languageId: payload?.languageId,
     });
     const buildingContextMessage = getProgressMessageForStep(LoadingSteps.initializingContext);
-    this.progressManager.reportProgress({ step: LoadingSteps.initializingContext, message: buildingContextMessage });
+    this.progressManager.reportProgress({
+      step: LoadingSteps.initializingContext,
+      message: buildingContextMessage,
+    });
 
     if (this.contextCacheService && payload.filePath) {
       const cacheStart = Date.now();
