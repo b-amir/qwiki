@@ -12,12 +12,15 @@ import {
 import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
 import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
 import { ServiceLimits } from "@/constants";
+import { fetchGoogleGeminiChatModelIds } from "@/llm/model-catalog/fetchGoogleGeminiModels";
 
 const GOOGLE_AI_STUDIO_MODELS = [
-  "gemini-2.5-pro",
   "gemini-2.5-flash",
-  "gemini-3-pro",
-  "gemini-3-flash",
+  "gemini-2.5-pro",
+  "gemini-2.5-flash-lite",
+  "gemini-3-flash-preview",
+  "gemini-3.1-pro-preview",
+  "gemini-3.1-flash-lite-preview",
 ];
 
 export class GoogleAIStudioProvider implements LLMProvider {
@@ -63,7 +66,7 @@ export class GoogleAIStudioProvider implements LLMProvider {
 
   getModelCapabilities(model?: string): ProviderCapabilities {
     const baseCapabilities = { ...this.capabilities };
-    if (model === "gemini-2.5-pro" || model === "gemini-3-pro") {
+    if (model === "gemini-2.5-pro" || model === "gemini-3.1-pro-preview") {
       return {
         ...baseCapabilities,
         maxTokens: 8192,
@@ -71,7 +74,12 @@ export class GoogleAIStudioProvider implements LLMProvider {
         streaming: true,
         functionCalling: true,
       };
-    } else if (model === "gemini-2.5-flash" || model === "gemini-3-flash") {
+    } else if (
+      model === "gemini-2.5-flash" ||
+      model === "gemini-2.5-flash-lite" ||
+      model === "gemini-3-flash-preview" ||
+      model === "gemini-3.1-flash-lite-preview"
+    ) {
       return {
         ...baseCapabilities,
         maxTokens: 8192,
@@ -111,174 +119,89 @@ export class GoogleAIStudioProvider implements LLMProvider {
       );
     }
 
-    const model = params.model || "gemini-2.5-pro";
-    const endpointType = (
-      this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined
-    ) as "openai-compatible" | "native" | undefined;
-    const useNativeEndpoint = endpointType === "native";
+    const model = params.model || "gemini-2.5-flash";
     const prompt = buildWikiPrompt(params, this.id);
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
-    if (useNativeEndpoint) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
 
-      const body = {
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
+    const messages = [
+      {
+        role: "system",
+        content:
+          "You are a senior software engineer helping with code comprehension and best practices.",
+      },
+      { role: "user", content: prompt },
+    ];
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
           temperature: 0.2,
-          maxOutputTokens: 4096,
-          responseMimeType: "text/markdown",
-        },
-      };
+          max_tokens: 4096,
+          stream: true,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      handleTimeoutError(error, this.id, "Google AI Studio", timeout);
+    }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+    if (!res.ok) {
+      const text = await res.text();
+      handleHttpError(res, this.id, "Google AI Studio", text);
+    }
 
-      let res;
-      try {
-        res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        handleTimeoutError(error, this.id, "Google AI Studio", timeout);
-      }
+    if (!res.body) {
+      throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
+    }
 
-      if (!res.ok) {
-        const text = await res.text();
-        handleHttpError(res, this.id, "Google AI Studio", text);
-      }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
 
-      if (!res.body) {
-        throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
-      }
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine) continue;
-
-            if (trimmedLine.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(trimmedLine.slice(6));
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                  yield text;
-                }
-              } catch (parseError) {
-                // Skip malformed JSON lines
-                continue;
+          if (trimmedLine.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(trimmedLine.slice(6));
+              const content = data?.choices?.[0]?.delta?.content;
+              if (content) {
+                yield content;
               }
+            } catch (parseError) {
+              // Skip malformed JSON lines
+              continue;
             }
           }
         }
-      } finally {
-        reader.releaseLock();
       }
-    } else {
-      const url = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
-
-      const messages = [
-        {
-          role: "system",
-          content:
-            "You are a senior software engineer helping with code comprehension and best practices.",
-        },
-        { role: "user", content: prompt },
-      ];
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-      let res;
-      try {
-        res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages,
-            temperature: 0.2,
-            max_tokens: 4096,
-            stream: true,
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (error) {
-        clearTimeout(timeoutId);
-        handleTimeoutError(error, this.id, "Google AI Studio", timeout);
-      }
-
-      if (!res.ok) {
-        const text = await res.text();
-        handleHttpError(res, this.id, "Google AI Studio", text);
-      }
-
-      if (!res.body) {
-        throw new ProviderError(ErrorCodes.GENERATION_FAILED, "Response body is null", this.id);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            if (!trimmedLine || trimmedLine === "data: [DONE]") continue;
-
-            if (trimmedLine.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(trimmedLine.slice(6));
-                const content = data?.choices?.[0]?.delta?.content;
-                if (content) {
-                  yield content;
-                }
-              } catch (parseError) {
-                // Skip malformed JSON lines
-                continue;
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
+    } finally {
+      reader.releaseLock();
     }
   }
 
@@ -286,21 +209,24 @@ export class GoogleAIStudioProvider implements LLMProvider {
     return GOOGLE_AI_STUDIO_MODELS;
   }
 
+  async listModelsDynamic(apiKey?: string): Promise<string[]> {
+    if (!apiKey?.trim()) {
+      return this.listModels();
+    }
+    try {
+      const ids = await fetchGoogleGeminiChatModelIds(apiKey.trim());
+      return ids.length > 0 ? ids : this.listModels();
+    } catch {
+      return this.listModels();
+    }
+  }
+
   getUiConfig(): ProviderUiConfig {
     return {
       apiKeyUrl: "https://aistudio.google.com/app/apikey",
       apiKeyInput: "googleAIStudioKeyInput",
       modelFallbackIds: [],
-      defaultModel: "gemini-2.5-pro",
-      customFields: [
-        {
-          id: "googleAIEndpoint",
-          label: "Endpoint Type",
-          type: "select",
-          options: ["openai-compatible", "native"],
-          defaultValue: "openai-compatible",
-        },
-      ],
+      defaultModel: "gemini-2.5-flash",
     };
   }
 
@@ -341,29 +267,18 @@ export class GoogleAIStudioProvider implements LLMProvider {
   async healthCheck(): Promise<HealthCheckResult> {
     return (
       this.healthCheckWithKey?.(undefined) ??
-      performHealthCheck("https://generativelanguage.googleapis.com/v1beta/models")
+      performHealthCheck("https://generativelanguage.googleapis.com/v1beta/openai/models")
     );
   }
 
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const endpointType = (
-      this.getSetting ? await this.getSetting("googleAIEndpoint") : undefined
-    ) as "openai-compatible" | "native" | undefined;
-
     if (apiKey) {
-      if (endpointType === "openai-compatible") {
-        return performHealthCheck(
-          "https://generativelanguage.googleapis.com/v1beta/openai/models",
-          { Authorization: `Bearer ${apiKey}` },
-        );
-      } else {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(
-          apiKey,
-        )}`;
-        return performHealthCheck(url);
-      }
+      return performHealthCheck(
+        "https://generativelanguage.googleapis.com/v1beta/openai/models",
+        { Authorization: `Bearer ${apiKey}` },
+      );
     }
 
-    return performHealthCheck("https://generativelanguage.googleapis.com/v1beta/models");
+    return performHealthCheck("https://generativelanguage.googleapis.com/v1beta/openai/models");
   }
 }

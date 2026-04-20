@@ -13,15 +13,15 @@ import {
 import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
 import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
 import { ServiceLimits } from "@/constants";
+import { fetchZaiChatModelIds } from "@/llm/model-catalog/fetchZaiModels";
 
 const ZAI_MODELS = [
   "glm-4.5-flash",
+  "glm-4.6",
   "glm-4.5",
   "glm-4.5-air",
   "glm-4.5-airx",
   "glm-4.5-x",
-  "glm-4.6",
-  "glm-4-32b-0414-128k",
 ];
 
 export class ZAiProvider implements LLMProvider {
@@ -68,15 +68,16 @@ export class ZAiProvider implements LLMProvider {
   getModelCapabilities(model?: string): ProviderCapabilities {
     const baseCapabilities = { ...this.capabilities };
 
-    if (model === "glm-4-32b-0414-128k") {
+    if (model === "glm-4.6") {
       return {
         ...baseCapabilities,
-        maxTokens: 4096,
-        contextWindowSize: 131072,
+        maxTokens: 8192,
+        contextWindowSize: 200000,
         streaming: true,
         functionCalling: true,
       };
-    } else if (model?.startsWith("glm-4.5") || model?.startsWith("glm-4.6")) {
+    }
+    if (model?.startsWith("glm-4.5") || model?.startsWith("glm-4.6")) {
       return {
         ...baseCapabilities,
         maxTokens: 4096,
@@ -107,10 +108,7 @@ export class ZAiProvider implements LLMProvider {
       throw new ProviderError(ErrorCodes.API_KEY_MISSING, "Z.ai API key is not set", this.id);
 
     const model = params.model || ZAI_MODELS[0];
-    const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
-      | string
-      | undefined;
-    const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+    const base = process.env.ZAI_BASE_URL || "https://api.z.ai/api";
     const url = `${base.replace(/\/$/, "")}/paas/v4/chat/completions`;
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
 
@@ -226,20 +224,23 @@ export class ZAiProvider implements LLMProvider {
     return ZAI_MODELS;
   }
 
+  async listModelsDynamic(apiKey?: string): Promise<string[]> {
+    if (!apiKey?.trim()) {
+      return this.listModels();
+    }
+    const base = process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+    try {
+      const ids = await fetchZaiChatModelIds(apiKey.trim(), base);
+      return ids.length > 0 ? ids : this.listModels();
+    } catch {
+      return this.listModels();
+    }
+  }
+
   getUiConfig(): ProviderUiConfig {
     return {
-      apiKeyUrl: "https://z.ai",
+      apiKeyUrl: "https://z.ai/manage-apikey/apikey-list",
       apiKeyInput: "zaiKeyInput",
-      additionalInfo: "Optional: configure base URL for your Z.ai tenant",
-      customFields: [
-        {
-          id: "zaiBaseUrl",
-          label: "Base URL",
-          type: "text",
-          placeholder: "https://api.z.ai/api (default)",
-          defaultValue: "",
-        },
-      ],
     };
   }
 
@@ -281,10 +282,7 @@ export class ZAiProvider implements LLMProvider {
     return (
       this.healthCheckWithKey?.(undefined) ??
       (async () => {
-        const configuredBase = (
-          this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined
-        ) as string | undefined;
-        const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+        const base = process.env.ZAI_BASE_URL || "https://api.z.ai/api";
         const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
         return performHealthCheck(url);
       })()
@@ -292,10 +290,7 @@ export class ZAiProvider implements LLMProvider {
   }
 
   async healthCheckWithKey(apiKey?: string): Promise<HealthCheckResult> {
-    const configuredBase = (this.getSetting ? await this.getSetting("zaiBaseUrl") : undefined) as
-      | string
-      | undefined;
-    const base = configuredBase || process.env.ZAI_BASE_URL || "https://api.z.ai/api";
+    const base = process.env.ZAI_BASE_URL || "https://api.z.ai/api";
     const url = `${base.replace(/\/$/, "")}/paas/v4/models`;
     const headers: Record<string, string> = {};
     if (apiKey) headers.Authorization = `Bearer ${apiKey}`;

@@ -11,12 +11,13 @@ import {
 import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
 import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
 import { ServiceLimits } from "@/constants";
+import { fetchHuggingFaceHubChatModelIds } from "@/llm/model-catalog/fetchHuggingFaceModels";
 
 const HUGGINGFACE_MODELS = [
-  "bigscience/bloomz-7b1",
-  "tiiuae/falcon-7b-instruct",
-  "microsoft/CodeT5-base",
-  "codellama/CodeLlama-7b-Instruct-hf",
+  "Qwen/Qwen3-8B",
+  "Qwen/Qwen2.5-7B-Instruct",
+  "meta-llama/Llama-3.1-8B-Instruct",
+  "meta-llama/Llama-3.2-3B-Instruct",
 ];
 
 export class HuggingFaceProvider implements LLMProvider {
@@ -62,36 +63,39 @@ export class HuggingFaceProvider implements LLMProvider {
   getModelCapabilities(model?: string): ProviderCapabilities {
     const baseCapabilities = { ...this.capabilities };
 
-    if (model === "codellama/CodeLlama-7b-Instruct-hf") {
+    if (model === "Qwen/Qwen3-8B") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 8192,
+        contextWindowSize: 32768,
+        streaming: true,
+        functionCalling: false,
+      };
+    }
+    if (model === "Qwen/Qwen2.5-7B-Instruct") {
       return {
         ...baseCapabilities,
         maxTokens: 4096,
-        contextWindowSize: 16384,
+        contextWindowSize: 32768,
         streaming: true,
         functionCalling: false,
       };
-    } else if (model === "tiiuae/falcon-7b-instruct") {
+    }
+    if (model === "meta-llama/Llama-3.1-8B-Instruct") {
       return {
         ...baseCapabilities,
-        maxTokens: 2048,
-        contextWindowSize: 2048,
+        maxTokens: 4096,
+        contextWindowSize: 131072,
         streaming: true,
         functionCalling: false,
       };
-    } else if (model === "bigscience/bloomz-7b1") {
+    }
+    if (model === "meta-llama/Llama-3.2-3B-Instruct") {
       return {
         ...baseCapabilities,
-        maxTokens: 512,
-        contextWindowSize: 2048,
-        streaming: false,
-        functionCalling: false,
-      };
-    } else if (model === "microsoft/CodeT5-base") {
-      return {
-        ...baseCapabilities,
-        maxTokens: 512,
-        contextWindowSize: 512,
-        streaming: false,
+        maxTokens: 4096,
+        contextWindowSize: 131072,
+        streaming: true,
         functionCalling: false,
       };
     }
@@ -108,7 +112,7 @@ export class HuggingFaceProvider implements LLMProvider {
       );
     }
 
-    const model = params.model || HUGGINGFACE_MODELS[0] || "bigscience/bloomz-7b1";
+    const model = params.model || HUGGINGFACE_MODELS[0] || "Qwen/Qwen3-8B";
     const url = `https://api-inference.huggingface.co/models/${encodeURIComponent(model)}`;
     const prompt = buildWikiPrompt(params, this.id);
     const timeout = params.timeoutMs ?? ServiceLimits.operationDefaultTimeout;
@@ -163,6 +167,15 @@ export class HuggingFaceProvider implements LLMProvider {
 
   listModels(): string[] {
     return HUGGINGFACE_MODELS;
+  }
+
+  async listModelsDynamic(_apiKey?: string): Promise<string[]> {
+    try {
+      const ids = await fetchHuggingFaceHubChatModelIds();
+      return ids.length > 0 ? ids : this.listModels();
+    } catch {
+      return this.listModels();
+    }
   }
 
   getUiConfig(): ProviderUiConfig {

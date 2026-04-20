@@ -11,8 +11,14 @@ import {
 import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
 import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
 import { ServiceLimits } from "@/constants";
+import { fetchCohereChatModelIds } from "@/llm/model-catalog/fetchCohereModels";
 
-const COHERE_MODELS = ["command-a-03-2025", "command-r-plus-08-2024", "command-r-08-2024"];
+const COHERE_MODELS = [
+  "command-r7b-12-2024",
+  "command-a-03-2025",
+  "command-r-plus-08-2024",
+  "command-r-08-2024",
+];
 
 export class CohereProvider implements LLMProvider {
   id = "cohere" as const;
@@ -58,27 +64,38 @@ export class CohereProvider implements LLMProvider {
   getModelCapabilities(model?: string): ProviderCapabilities {
     const baseCapabilities = { ...this.capabilities };
 
+    if (model === "command-a-03-2025") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 8192,
+        contextWindowSize: 262144,
+        streaming: true,
+        functionCalling: true,
+      };
+    }
+    if (model === "command-r7b-12-2024") {
+      return {
+        ...baseCapabilities,
+        maxTokens: 4096,
+        contextWindowSize: 131072,
+        streaming: true,
+        functionCalling: true,
+      };
+    }
     if (model === "command-r-plus-08-2024") {
       return {
         ...baseCapabilities,
         maxTokens: 4096,
-        contextWindowSize: 131072, // 128k tokens
+        contextWindowSize: 131072,
         streaming: true,
         functionCalling: true,
       };
-    } else if (model === "command-r-08-2024") {
+    }
+    if (model === "command-r-08-2024") {
       return {
         ...baseCapabilities,
         maxTokens: 4096,
-        contextWindowSize: 100000, // 100k tokens
-        streaming: true,
-        functionCalling: true,
-      };
-    } else if (model === "command-a-03-2025") {
-      return {
-        ...baseCapabilities,
-        maxTokens: 4096,
-        contextWindowSize: 131072, // 128k tokens
+        contextWindowSize: 128000,
         streaming: true,
         functionCalling: true,
       };
@@ -193,6 +210,18 @@ export class CohereProvider implements LLMProvider {
 
   listModels(): string[] {
     return COHERE_MODELS;
+  }
+
+  async listModelsDynamic(apiKey?: string): Promise<string[]> {
+    if (!apiKey?.trim()) {
+      return this.listModels();
+    }
+    try {
+      const ids = await fetchCohereChatModelIds(apiKey.trim());
+      return ids.length > 0 ? ids : this.listModels();
+    } catch {
+      return this.listModels();
+    }
   }
 
   getUiConfig(): ProviderUiConfig {

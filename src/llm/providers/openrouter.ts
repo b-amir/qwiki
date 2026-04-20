@@ -11,12 +11,28 @@ import {
 import { handleHttpError, handleTimeoutError } from "@/llm/providers/helpers/httpErrorHandler";
 import { performHealthCheck } from "@/llm/providers/helpers/healthCheckHelper";
 import { ServiceLimits } from "@/constants";
+import { fetchOpenRouterFreeChatModelIds } from "@/llm/model-catalog/fetchOpenRouterModels";
 
 const OPENROUTER_MODELS = [
-  "openai/gpt-oss-20b",
-  "meta-llama/llama-3-8b-instruct",
-  "microsoft/wizardlm-2-8x22b",
+  "qwen/qwen3-coder:free",
+  "z-ai/glm-4.5-air:free",
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "stepfun/step-3.5-flash:free",
+  "google/gemma-3-27b-it:free",
 ];
+
+const OPENROUTER_FREE_MODEL_CAPS = new Map<
+  string,
+  { maxTokens: number; contextWindowSize: number }
+>([
+  ["qwen/qwen3-coder:free", { maxTokens: 8192, contextWindowSize: 262000 }],
+  ["z-ai/glm-4.5-air:free", { maxTokens: 8192, contextWindowSize: 131072 }],
+  ["openai/gpt-oss-120b:free", { maxTokens: 8192, contextWindowSize: 131072 }],
+  ["nvidia/nemotron-3-super-120b-a12b:free", { maxTokens: 8192, contextWindowSize: 1048576 }],
+  ["stepfun/step-3.5-flash:free", { maxTokens: 8192, contextWindowSize: 262144 }],
+  ["google/gemma-3-27b-it:free", { maxTokens: 8192, contextWindowSize: 131072 }],
+]);
 
 export class OpenRouterProvider implements LLMProvider {
   id = "openrouter" as const;
@@ -61,34 +77,20 @@ export class OpenRouterProvider implements LLMProvider {
 
   getModelCapabilities(model?: string): ProviderCapabilities {
     const baseCapabilities = { ...this.capabilities };
-
-    if (model === "meta-llama/llama-3-8b-instruct") {
-      return {
-        ...baseCapabilities,
-        maxTokens: 8192,
-        contextWindowSize: 8192,
-        streaming: true,
-        functionCalling: true,
-      };
-    } else if (model === "microsoft/wizardlm-2-8x22b") {
-      return {
-        ...baseCapabilities,
-        maxTokens: 16384,
-        contextWindowSize: 65536, // 64k tokens
-        streaming: true,
-        functionCalling: true,
-      };
-    } else if (model === "openai/gpt-oss-20b") {
-      return {
-        ...baseCapabilities,
-        maxTokens: 4096,
-        contextWindowSize: 8192,
-        streaming: true,
-        functionCalling: true,
-      };
+    if (!model) {
+      return baseCapabilities;
     }
-
-    return baseCapabilities;
+    const caps = OPENROUTER_FREE_MODEL_CAPS.get(model);
+    if (!caps) {
+      return baseCapabilities;
+    }
+    return {
+      ...baseCapabilities,
+      maxTokens: caps.maxTokens,
+      contextWindowSize: caps.contextWindowSize,
+      streaming: true,
+      functionCalling: true,
+    };
   }
 
   async generate(params: GenerateParams, apiKey?: string): Promise<GenerateResult> {
@@ -198,6 +200,15 @@ export class OpenRouterProvider implements LLMProvider {
 
   listModels(): string[] {
     return OPENROUTER_MODELS;
+  }
+
+  async listModelsDynamic(apiKey?: string): Promise<string[]> {
+    try {
+      const ids = await fetchOpenRouterFreeChatModelIds(apiKey?.trim());
+      return ids.length > 0 ? ids : this.listModels();
+    } catch {
+      return this.listModels();
+    }
   }
 
   getUiConfig(): ProviderUiConfig {
