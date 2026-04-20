@@ -137,25 +137,20 @@ export class WikiService {
 
       if (request.snippet.length > ServiceLimits.largeSnippetThreshold) {
         this.logger.debug("Using large generation path");
-        this.backgroundProcessingService.enqueueTask(
-          `generate-wiki-${Date.now()}`,
-          () =>
-            this.performLargeGeneration(
-              request,
-              projectContext,
-              generateParams,
-              onProgress,
-              onProgressFull,
-              cancellationToken,
-              onChunk,
-            ),
-          TaskPriority.HIGH,
+        const result = await this.performLargeGeneration(
+          request,
+          projectContext,
+          generateParams,
+          onProgress,
+          onProgressFull,
+          cancellationToken,
+          onChunk,
         );
-        
-        return {
-          content: "",
-          success: true,
-        };
+        this.logger.debug("generateWiki completed (large)", {
+          duration: Date.now() - startTime,
+          success: result?.success,
+        });
+        return result;
       }
 
       this.logger.debug("Calling performGeneration");

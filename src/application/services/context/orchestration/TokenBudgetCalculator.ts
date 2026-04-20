@@ -7,7 +7,7 @@ export class TokenBudgetCalculator {
     promptTemplateSize: number = 500,
     outputEstimate: number = 1000,
   ): TokenBudget {
-    const totalTokens = capabilities.contextWindowSize;
+    const totalTokens = capabilities.contextWindowSize ?? 8192;
     const reservedForPrompt = promptTemplateSize;
     const reservedForOutput = outputEstimate;
     const availableForContext = totalTokens - reservedForPrompt - reservedForOutput;

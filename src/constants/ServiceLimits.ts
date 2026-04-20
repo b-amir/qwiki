@@ -86,6 +86,8 @@ export const ServiceLimits = {
   pendingOperationsMaxWait: 3000,
   rateLimitMaxRequests: 10,
   rateLimitWindowMs: 60000,
+  providerModelCatalogCacheTtlMs: 60 * 1000,
+  providerModelListFetchTimeoutMs: 15 * 1000,
 } as const;
 
 export const PerformanceBudgets = {
