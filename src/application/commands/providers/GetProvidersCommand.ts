@@ -3,25 +3,19 @@ import type { LLMRegistry } from "@/llm";
 import type { ApiKeyRepository } from "@/domain/repositories/ApiKeyRepository";
 import type { MessageBusService } from "@/application/services/core/MessageBusService";
 import type { ConfigurationManagerService } from "@/application/services/configuration/ConfigurationManagerService";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { OutboundEvents } from "@/constants/Events";
 import { ProviderId } from "@/llm/types";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
-interface CachedProviderMetadata {
-  name: string;
-  models: string[];
-  cachedAt: number;
-}
-
 export class GetProvidersCommand implements Command<void> {
   private logger: Logger;
-  private providerMetadataCache = new Map<string, CachedProviderMetadata>();
-  private readonly METADATA_CACHE_TTL_MS = 60000;
 
   constructor(
     private llmRegistry: LLMRegistry,
     private apiKeyRepository: ApiKeyRepository,
     private configurationManager: ConfigurationManagerService,
+    private providerModelCatalog: ProviderModelCatalogService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService(),
   ) {
@@ -40,33 +34,8 @@ export class GetProvidersCommand implements Command<void> {
   private lastEmitAt = 0;
   private cooldownMs = 500;
 
-  private getCachedProviderMetadata(providerId: string): CachedProviderMetadata | null {
-    const cached = this.providerMetadataCache.get(providerId);
-    if (!cached) return null;
-
-    const now = Date.now();
-    if (now - cached.cachedAt > this.METADATA_CACHE_TTL_MS) {
-      this.providerMetadataCache.delete(providerId);
-      return null;
-    }
-
-    return cached;
-  }
-
-  private cacheProviderMetadata(providerId: string, name: string, models: string[]): void {
-    this.providerMetadataCache.set(providerId, {
-      name,
-      models,
-      cachedAt: Date.now(),
-    });
-  }
-
   invalidateCache(providerId?: string): void {
-    if (providerId) {
-      this.providerMetadataCache.delete(providerId);
-    } else {
-      this.providerMetadataCache.clear();
-    }
+    this.providerModelCatalog.invalidateCache(providerId);
   }
 
   async execute(): Promise<void> {
@@ -124,34 +93,22 @@ export class GetProvidersCommand implements Command<void> {
           try {
             providerId = typeof p.id === "string" ? p.id : String(p.id || "");
 
-            const cachedMetadata = this.getCachedProviderMetadata(providerId);
-            if (cachedMetadata) {
-              providerName = cachedMetadata.name;
-              models = cachedMetadata.models;
+            const provider = this.llmRegistry.getProvider(providerId as ProviderId);
+            if (provider) {
+              providerName = provider.name;
+              try {
+                models = await this.providerModelCatalog.resolveModelsForProvider(providerId);
+              } catch (error) {
+                this.logError(`Error resolving models for provider ${providerId}`, error);
+                models = provider.listModels?.() || [];
+              }
             } else {
-              const provider = this.llmRegistry.getProvider(providerId as ProviderId);
-              if (provider) {
-                providerName = provider.name;
-                try {
-                  const providerModels = provider.listModels?.() || [];
-                  if (Array.isArray(providerModels) && providerModels.length > 0) {
-                    models = providerModels.filter(
-                      (m): m is string => typeof m === "string" && m.length > 0,
-                    );
-                  }
-                } catch (error) {
-                  this.logError(`Error getting models for provider ${providerId}`, error);
-                }
-                this.cacheProviderMetadata(providerId, providerName, models);
-              } else {
-                providerName = typeof p.name === "string" ? p.name : String(p.name || "");
-                const initialModels = p.models || [];
-                if (Array.isArray(initialModels)) {
-                  models = initialModels.filter(
-                    (m): m is string => typeof m === "string" && m.length > 0,
-                  );
-                }
-                this.cacheProviderMetadata(providerId, providerName, models);
+              providerName = typeof p.name === "string" ? p.name : String(p.name || "");
+              const initialModels = p.models || [];
+              if (Array.isArray(initialModels)) {
+                models = initialModels.filter(
+                  (m): m is string => typeof m === "string" && m.length > 0,
+                );
               }
             }
 
@@ -199,7 +156,12 @@ export class GetProvidersCommand implements Command<void> {
       );
 
       const successfulStatuses = statuses
-        .filter((result): result is PromiseFulfilledResult<any> => result.status === "fulfilled")
+        .filter((result): result is PromiseFulfilledResult<{
+          id: string;
+          name: string;
+          models: string[];
+          hasKey: boolean;
+        }> => result.status === "fulfilled")
         .map((result) => result.value);
 
       const failedStatuses = statuses

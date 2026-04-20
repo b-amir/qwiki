@@ -3,6 +3,7 @@ import type { LLMRegistry } from "@/llm";
 import type { ProviderId } from "@/llm/types";
 import type { MessageBusService } from "@/application/services/core/MessageBusService";
 import type { ConfigurationManagerService } from "@/application/services/configuration/ConfigurationManagerService";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { OutboundEvents } from "@/constants/Events";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
@@ -12,6 +13,7 @@ export class GetProviderConfigsCommand implements Command<void> {
   constructor(
     private llmRegistry: LLMRegistry,
     private configurationManager: ConfigurationManagerService,
+    private providerModelCatalog: ProviderModelCatalogService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService(),
   ) {
@@ -55,7 +57,9 @@ export class GetProviderConfigsCommand implements Command<void> {
 
         try {
           const providerConfig = await this.configurationManager.getProviderConfig(providerInfo.id);
-          const selectedModel = providerConfig?.model || provider.listModels()[0];
+          const resolved = await this.providerModelCatalog.resolveModelsForProvider(providerInfo.id);
+          const fallbackModel = resolved[0] ?? provider.listModels()[0];
+          const selectedModel = providerConfig?.model || fallbackModel;
 
           let capabilities;
           if (provider.getModelCapabilities && selectedModel) {

@@ -2,6 +2,7 @@ import type { Command } from "@/application/commands/Command";
 import type { ApiKeyRepository } from "@/domain/repositories/ApiKeyRepository";
 import type { MessageBusService } from "@/application/services/core/MessageBusService";
 import type { ProviderValidationService } from "@/infrastructure/services/providers/ProviderValidationService";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { OutboundEvents } from "@/constants/Events";
 import { ErrorCodes, ErrorMessages } from "@/constants/ErrorCodes";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
@@ -17,6 +18,7 @@ export class DeleteApiKeyCommand implements Command<DeleteApiKeyPayload> {
     private apiKeyRepository: ApiKeyRepository,
     private messageBus: MessageBusService,
     private providerValidationService: ProviderValidationService,
+    private providerModelCatalog: ProviderModelCatalogService,
     private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("DeleteApiKeyCommand");
@@ -28,6 +30,7 @@ export class DeleteApiKeyCommand implements Command<DeleteApiKeyPayload> {
     try {
       await this.apiKeyRepository.delete(payload.providerId);
       this.providerValidationService.invalidateValidationCache(payload.providerId);
+      this.providerModelCatalog.invalidateCache(payload.providerId);
 
       const hasAnyKeyAfterDelete = await this.providerValidationService.hasAnyApiKey();
 

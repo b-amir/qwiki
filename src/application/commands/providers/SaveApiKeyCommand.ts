@@ -3,6 +3,7 @@ import type { ApiKeyRepository } from "@/domain/repositories/ApiKeyRepository";
 import type { MessageBusService } from "@/application/services/core/MessageBusService";
 import type { LLMRegistry } from "@/llm";
 import type { ProviderValidationService } from "@/infrastructure/services/providers/ProviderValidationService";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { OutboundEvents } from "@/constants/Events";
 import { ErrorCodes } from "@/constants/ErrorCodes";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
@@ -20,6 +21,7 @@ export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
     private messageBus: MessageBusService,
     private llmRegistry: LLMRegistry,
     private providerValidationService: ProviderValidationService,
+    private providerModelCatalog: ProviderModelCatalogService,
     private loggingService: LoggingService = new LoggingService(),
   ) {
     this.logger = createLogger("SaveApiKeyCommand");
@@ -75,6 +77,7 @@ export class SaveApiKeyCommand implements Command<SaveApiKeyPayload> {
     try {
       await this.apiKeyRepository.save(payload.providerId, trimmedKey);
       this.providerValidationService.invalidateValidationCache(payload.providerId);
+      this.providerModelCatalog.invalidateCache(payload.providerId);
       this.messageBus.postSuccess(OutboundEvents.apiKeySaved, { providerId: payload.providerId });
       this.logger.debug(`API key saved successfully for provider ${payload.providerId}`);
     } catch (error) {

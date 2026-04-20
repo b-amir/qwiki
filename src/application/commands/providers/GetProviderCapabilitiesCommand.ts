@@ -3,6 +3,7 @@ import type { LLMRegistry } from "@/llm";
 import type { ProviderId } from "@/llm/types";
 import type { MessageBusService } from "@/application/services/core/MessageBusService";
 import type { ConfigurationManagerService } from "@/application/services/configuration/ConfigurationManagerService";
+import type { ProviderModelCatalogService } from "@/application/services/providers/ProviderModelCatalogService";
 import { OutboundEvents } from "@/constants/Events";
 import { LoggingService, createLogger, type Logger } from "@/infrastructure/services";
 
@@ -17,6 +18,7 @@ export class GetProviderCapabilitiesCommand implements Command<GetProviderCapabi
   constructor(
     private llmRegistry: LLMRegistry,
     private configurationManager: ConfigurationManagerService,
+    private providerModelCatalog: ProviderModelCatalogService,
     private messageBus: MessageBusService,
     private loggingService: LoggingService = new LoggingService(),
   ) {
@@ -49,10 +51,12 @@ export class GetProviderCapabilitiesCommand implements Command<GetProviderCapabi
         try {
           // Get the currently selected model for this provider from configuration
           const providerConfig = await this.configurationManager.getProviderConfig(providerInfo.id);
+          const resolved = await this.providerModelCatalog.resolveModelsForProvider(providerInfo.id);
+          const fallbackModel = resolved[0] ?? provider.listModels()[0];
           const selectedModel =
             payload?.providerId === providerInfo.id && payload?.model
               ? payload.model
-              : providerConfig?.model || provider.listModels()[0];
+              : providerConfig?.model || fallbackModel;
 
           // Get model-specific capabilities if available, otherwise use default
           let capabilities;
